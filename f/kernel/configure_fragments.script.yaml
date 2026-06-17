@@ -17,8 +17,9 @@ description: |
   `configure_preset`). This is the guided multiselect over the curated library.
   Returns `kernelrelease`, the `.config` path, `method`, and the `fragments` used.
 
-  > The fragment list below is a static snapshot of the library. Regenerate it
-  > when the library changes: `find kernel/configs -name '*.config'`.
+  > The fragment list below is a static snapshot of the library (117 entries).
+  > Regenerate it when the library changes, as paths relative to `kernel/configs/`,
+  > sorted: `cd workers/shared/linux-config-fragments/kernel/configs && find . -name '*.config' | sed 's|^\./||' | sort`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -72,6 +73,7 @@ schema:
           - builtin/arch/arm64.config
           - builtin/core/efi.config
           - builtin/core/systemd.config
+          - builtin/core/vfio.config
           - builtin/fs/9p.config
           - builtin/fs/btrfs.config
           - builtin/fs/exfat.config
@@ -88,9 +90,10 @@ schema:
           - builtin/security/crypto-algorithms.config
           - builtin/security/crypto-core.config
           - builtin/security/security.config
-          - builtin/storage/block-devices.config
+          - builtin/storage/block-test-devices.config
           - builtin/storage/dm-targets.config
           - builtin/storage/md-raid.config
+          - builtin/storage/nvme.config
           - builtin/storage/nvme-fabrics.config
           - builtin/virt/kvm.config
           - builtin/virt/virtio-fs.config
@@ -115,6 +118,7 @@ schema:
           - core/modules.config
           - core/preempt.config
           - core/systemd.config
+          - core/vfio.config
           - debug/blktrace.config
           - debug/codetagging.config
           - debug/debug-heavy.config
@@ -122,7 +126,6 @@ schema:
           - debug/kasan.config
           - debug/kmemleak.config
           - debug/modules-debug.config
-          - debug/vm_debug.config
           - fs/9p.config
           - fs/btrfs.config
           - fs/exfat.config
@@ -157,19 +160,22 @@ schema:
           - security/ima-full.config
           - security/lsm-modules.config
           - security/security.config
-          - storage/blk-extras.config
           - storage/block-devices.config
+          - storage/block-layer.config
+          - storage/block-test-devices.config
           - storage/cxl.config
           - storage/dm-targets.config
           - storage/md-raid.config
           - storage/nvdimm.config
+          - storage/nvme.config
           - storage/nvme-fabrics.config
+          - storage/nvme-tls.config
           - storage/zoned.config
           - test/kunit.config
           - test/modules-testing.config
           - test/selftests.config
           - test/xarray.config
-          - test/xarray_no_multi.config
+          - test/xarray-no-multi.config
           - virt/kvm.config
           - virt/virtio-extras.config
           - virt/virtio-fs.config
