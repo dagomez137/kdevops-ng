@@ -1,0 +1,5 @@
+# Merge/build output a user may produce in-tree; the fragments themselves
+# live under kernel/configs/ and defconfigs/ and are always tracked.
+/.config
+/build/
+*.tmp
