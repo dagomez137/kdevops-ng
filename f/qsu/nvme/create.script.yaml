@@ -1,0 +1,49 @@
+summary: "QEMU/systemd: create the per-VM NVMe qcow2 backing files"
+description: |
+  Create the per-VM NVMe qcow2 backing files
+  (`qemu-img create --format qcow2 <state_dir>/nvme<i>.qcow2 <size>G`) under the VM's
+  systemd `StateDirectory` (`~/.local/state/qemu-system/<vm>`), which is also the
+  `qemu-system@<vm>.service` `WorkingDirectory=`, so the relative `file=` entries in
+  `<vm>.env` resolve at run time. Idempotent — an existing file is left untouched.
+
+  **`qemu-img` is the reproducible `nixos-flake` `qemu`**, host-visible in `/nix/store`
+  from every worker — never a host/distro qemu-img, and never the VM's own emulator (a
+  `qemu-build` binary lives in a per-worker tree this `vm`-tagged step cannot reach).
+  qcow2 is format-stable, so the images open in whatever `qemu-system-*` boots the VM.
+
+  qcow2 only allocates host blocks on write, so a large virtual size is cheap at rest.
+  Returns the `state_dir` and the created/skipped file lists.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - nvme_drive_count
+    - nvme_drive_size_gb
+    - nvme_drives_override
+  properties:
+    vm_name:
+      title: VM Name
+      type: string
+      description: VM whose `StateDirectory` holds the qcow2 files.
+    nvme_drive_count:
+      title: NVMe Drive Count
+      type: integer
+      description: Number of NVMe qcow2 files to create (`nvme0.qcow2 .. nvme<N-1>.qcow2`). 0 skips.
+      default: 4
+    nvme_drive_size_gb:
+      title: NVMe Drive Size (GiB)
+      type: integer
+      description: Virtual size in GiB passed to `qemu-img create` (`<size>G`).
+      default: 20
+    nvme_drives_override:
+      title: NVMe Drives Override
+      type: array
+      description: Explicit drive dicts (`{file,format,...}`) to create; overrides `nvme_drive_count`.
+      default: []
+      items:
+        type: object
+  required:
+    - vm_name

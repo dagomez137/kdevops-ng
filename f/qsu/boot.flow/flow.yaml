@@ -1,0 +1,915 @@
+summary: "QEMU/systemd VM Boot"
+description: |
+  Boot a QEMU-in-systemd VM — the orchestrate half that pairs an `f/kernel/build`
+  kernel and an `f/nix/build` imageless closure into a running, machined-registered
+  guest. The Windmill reimplementation of kdevops's `qsu` role (render-units +
+  render-per-vm + bringup); see `docs/windmill/qsu-execution-model.md`.
+
+  Every step is `tag_override: vm`, so it runs on the dedicated `vm` worker (the only
+  one mounting the host `~/.config/systemd` + `~/.local/state/qemu-system` the renders
+  write into). NOT `same_worker`: that pins a flow to whatever worker runs it and
+  bypasses the per-step tag, which would land the renders on a build worker without
+  those mounts. The host-forked unit reads `/nix/store` + `WORKERS_DIR` regardless of
+  worker, so the kernel/closure may be built on `default`.
+
+  1. `render_qemu_system` — `qemu-system@.service` (once), `<vm>.env`, the per-VM
+     `qemu-system@<vm>.service.d/override.conf`, and the `qmp-powerdown` helper.
+  2. `render_virtiofsd` — `virtiofsd@.service`/`.socket` (once) and per-share env +
+     drop-in for each composed share (wired from the qemu-system step's `shares`).
+  3. `create_nvme` — `qemu-img create --format qcow2` the per-VM qcow2 backing files
+     (qemu-img from the same store output as the emulator).
+  4. `boot` — `daemon-reload`, restart the share sockets, start `qemu-system@<vm>`,
+     wait for the guest sshd banner.
+
+  Properties are upstream **QEMU flag names** (the rendered units' variable surface). Pass the
+  `kernel`/`closure` build manifests to supply `-kernel`/`-initrd`/`-append` and the
+  `/lib/modules` share. Returns the `boot` step's access manifest.
+
+  Equivalent manual workflow, once the units are rendered, against the host
+  `systemd --user` manager (long-form, mirroring qsu's README quick-start):
+
+      systemctl --user daemon-reload
+      systemctl --user start qemu-system@<vm>
+      machinectl --user list
+      journalctl --user-unit=qemu-system@<vm>.service
+      systemctl --user stop qemu-system@<vm>
+value:
+  modules:
+    - id: render_qemu_system
+      summary: Render qemu-system@.service + <vm>.env + drop-in
+      value:
+        type: script
+        path: f/qsu/qemu-system/render
+        tag_override: vm
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm?.vm_name
+          auto_vm_name:
+            type: javascript
+            expr: flow_input.vm?.auto_vm_name
+          cpu:
+            type: javascript
+            expr: flow_input.qemu?.cpu
+          accel:
+            type: javascript
+            expr: flow_input.qemu?.accel
+          ram:
+            type: javascript
+            expr: flow_input.qemu?.ram
+          cpus:
+            type: javascript
+            expr: flow_input.qemu?.cpus
+          machine_type:
+            type: javascript
+            expr: flow_input.qemu?.machine_type
+          ssh_port:
+            type: javascript
+            expr: 'flow_input.networking?.custom_ssh_port ? flow_input.networking?.ssh_port : null'
+          vsock_cid:
+            type: javascript
+            expr: 'flow_input.networking?.custom_vsock_cid ? flow_input.networking?.vsock_cid : null'
+          ssh_port_base:
+            type: javascript
+            expr: flow_input.networking?.ssh_port_base
+          vsock_cid_base:
+            type: javascript
+            expr: flow_input.networking?.vsock_cid_base
+          vm_index:
+            type: javascript
+            expr: flow_input.networking?.vm_index
+          iommu:
+            type: javascript
+            expr: flow_input.qemu?.iommu
+          qemu_source:
+            type: javascript
+            expr: flow_input.qemu?.qemu_source
+          qemu_binary:
+            type: javascript
+            expr: flow_input.qemu?.qemu_binary
+          custom_virtiofsd:
+            type: javascript
+            expr: flow_input.sharing?.custom_virtiofsd
+          virtiofsd_binary:
+            type: javascript
+            expr: flow_input.sharing?.virtiofsd_binary
+          kernel_image:
+            type: javascript
+            expr: flow_input.kernel_boot?.kernel_image
+          kernel_initrd:
+            type: javascript
+            expr: flow_input.kernel_boot?.kernel_initrd
+          kernel_append:
+            type: javascript
+            expr: flow_input.kernel_boot?.kernel_append
+          modules_dir:
+            type: javascript
+            expr: flow_input.sharing?.modules_dir
+          shares:
+            type: javascript
+            expr: flow_input.sharing?.shares
+          fstests:
+            type: javascript
+            expr: flow_input.sharing?.fstests
+          home_share:
+            type: javascript
+            expr: flow_input.sharing?.home_share
+          home_share_readwrite:
+            type: javascript
+            expr: flow_input.sharing?.home_share_readwrite
+          controller_share:
+            type: javascript
+            expr: flow_input.sharing?.controller_share
+          controller_share_tag:
+            type: javascript
+            expr: flow_input.sharing?.controller_share_tag
+          controller_share_dir:
+            type: javascript
+            expr: flow_input.sharing?.controller_share_dir
+          controller_share_guest_mount:
+            type: javascript
+            expr: flow_input.sharing?.controller_share_guest_mount
+          controller_share_readwrite:
+            type: javascript
+            expr: flow_input.sharing?.controller_share_readwrite
+          nvme_drive_count:
+            type: javascript
+            expr: flow_input.nvme?.nvme_drive_count
+          logical_block_size:
+            type: javascript
+            expr: flow_input.nvme?.logical_block_size
+          physical_block_size:
+            type: javascript
+            expr: flow_input.nvme?.physical_block_size
+          min_io_size:
+            type: javascript
+            expr: flow_input.nvme?.min_io_size
+          opt_io_size:
+            type: javascript
+            expr: flow_input.nvme?.opt_io_size
+          discard_granularity:
+            type: javascript
+            expr: flow_input.nvme?.discard_granularity
+          write_cache:
+            type: javascript
+            expr: flow_input.nvme?.write_cache
+          mdts:
+            type: javascript
+            expr: flow_input.nvme?.mdts
+          cmb_size_mb:
+            type: javascript
+            expr: flow_input.nvme?.cmb_size_mb
+          legacy_cmb:
+            type: javascript
+            expr: flow_input.nvme?.legacy_cmb
+          pmr_size:
+            type: javascript
+            expr: flow_input.nvme?.pmr_size
+          pmr_share:
+            type: javascript
+            expr: flow_input.nvme?.pmr_share
+          pmr_pmem:
+            type: javascript
+            expr: flow_input.nvme?.pmr_pmem
+          atomic_dn:
+            type: javascript
+            expr: flow_input.nvme?.atomic_dn
+          atomic_awun:
+            type: javascript
+            expr: flow_input.nvme?.atomic_awun
+          atomic_awupf:
+            type: javascript
+            expr: flow_input.nvme?.atomic_awupf
+          atomic_nawun:
+            type: javascript
+            expr: flow_input.nvme?.atomic_nawun
+          atomic_nawupf:
+            type: javascript
+            expr: flow_input.nvme?.atomic_nawupf
+          atomic_nabsn:
+            type: javascript
+            expr: flow_input.nvme?.atomic_nabsn
+          atomic_nabspf:
+            type: javascript
+            expr: flow_input.nvme?.atomic_nabspf
+          atomic_nabo:
+            type: javascript
+            expr: flow_input.nvme?.atomic_nabo
+          kernel:
+            type: javascript
+            expr: flow_input.kernel_boot?.kernel
+          closure:
+            type: javascript
+            expr: flow_input.kernel_boot?.closure
+          emit_vars_yaml_snapshot:
+            type: javascript
+            expr: flow_input.orchestration?.emit_vars_yaml_snapshot
+      timeout:
+        type: static
+        value: 120
+    - id: render_virtiofsd
+      summary: Render virtiofsd@ units + per-share env/drop-in
+      value:
+        type: script
+        path: f/qsu/virtiofsd/render
+        tag_override: vm
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: results.render_qemu_system.vm_name
+          shares:
+            type: javascript
+            expr: results.render_qemu_system.shares
+          custom_virtiofsd:
+            type: javascript
+            expr: flow_input.sharing?.custom_virtiofsd
+          virtiofsd_binary:
+            type: javascript
+            expr: flow_input.sharing?.virtiofsd_binary
+          machine_type:
+            type: javascript
+            expr: flow_input.qemu?.machine_type
+      timeout:
+        type: static
+        value: 120
+    - id: create_nvme
+      summary: qemu-img create the per-VM qcow2 drives
+      value:
+        type: script
+        path: f/qsu/nvme/create
+        tag_override: vm
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: results.render_qemu_system.vm_name
+          nvme_drive_count:
+            type: javascript
+            expr: flow_input.nvme?.nvme_drive_count
+          nvme_drive_size_gb:
+            type: javascript
+            expr: flow_input.nvme?.nvme_drive_size_gb
+      retry:
+        constant:
+          attempts: 2
+          seconds: 5
+      timeout:
+        type: static
+        value: 300
+    - id: boot
+      summary: daemon-reload, start, wait for SSH
+      value:
+        type: script
+        path: f/qsu/boot
+        tag_override: vm
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: results.render_qemu_system.vm_name
+          ssh_port:
+            type: javascript
+            expr: results.render_qemu_system.ssh_port
+          vsock_cid:
+            type: javascript
+            expr: results.render_qemu_system.vsock_cid
+          wait_timeout:
+            type: javascript
+            expr: flow_input.orchestration?.wait_timeout
+      timeout:
+        type: static
+        value: 600
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm
+    - qemu
+    - networking
+    - kernel_boot
+    - sharing
+    - nvme
+    - orchestration
+  properties:
+    vm:
+      title: VM
+      type: object
+      description: Guest name and how it is assigned.
+      default: {}
+      order:
+        - vm_name
+        - auto_vm_name
+      required:
+        - vm_name
+      properties:
+        vm_name:
+          title: VM Name
+          type: string
+          description: Guest name — the systemd instance (`qemu-system@<vm_name>`) and machined machine name. Used when `auto_vm_name` is off.
+          default: nixos
+          showExpr: "fields.auto_vm_name === false"
+        auto_vm_name:
+          title: Auto VM Name
+          type: boolean
+          description: Derive the VM name from the flow job id (`vm-<job-id>`) so each run is unique and collision-free. Off = use `vm_name`.
+          default: true
+    qemu:
+      title: QEMU
+      type: object
+      description: Emulator source and machine model — `-cpu`/`-accel`/`-m`/`-smp`/`-machine`.
+      default: {}
+      order:
+        - qemu_source
+        - qemu_binary
+        - cpu
+        - accel
+        - ram
+        - cpus
+        - machine_type
+        - iommu
+      properties:
+        qemu_source:
+          title: QEMU Source
+          type: string
+          description: "Where the `qemu-system-*` binary comes from: `nixpkgs` is the `qemu` package from `nixpkgs`, provided by the vendored `nixos-flake` (the same QEMU the NixOS closure is built against; `qemu-img` shares its `/nix/store` output); `qemu-build` is a QEMU you built from source with the `f/qemu/build` flow."
+          default: nixpkgs
+          enum:
+            - nixpkgs
+            - qemu-build
+        qemu_binary:
+          title: QEMU Binary
+          type: string
+          description: Path to the `qemu-system-*` from `f/qemu/build` (its destdir `bin/`).
+          default: ""
+          showExpr: "fields.qemu_source === \"qemu-build\""
+        cpu:
+          title: CPU
+          type: string
+          description: Select CPU model (`-cpu`; `-cpu help` for the list and additional feature selection). Enum reflects the default reproducible QEMU.
+          default: "host"
+          enum:
+            - "486"
+            - "486-v1"
+            - "Broadwell"
+            - "Broadwell-IBRS"
+            - "Broadwell-noTSX"
+            - "Broadwell-noTSX-IBRS"
+            - "Broadwell-v1"
+            - "Broadwell-v2"
+            - "Broadwell-v3"
+            - "Broadwell-v4"
+            - "Cascadelake-Server"
+            - "Cascadelake-Server-noTSX"
+            - "Cascadelake-Server-v1"
+            - "Cascadelake-Server-v2"
+            - "Cascadelake-Server-v3"
+            - "Cascadelake-Server-v4"
+            - "Cascadelake-Server-v5"
+            - "ClearwaterForest"
+            - "ClearwaterForest-v1"
+            - "Conroe"
+            - "Conroe-v1"
+            - "Cooperlake"
+            - "Cooperlake-v1"
+            - "Cooperlake-v2"
+            - "Denverton"
+            - "Denverton-v1"
+            - "Denverton-v2"
+            - "Denverton-v3"
+            - "Dhyana"
+            - "Dhyana-v1"
+            - "Dhyana-v2"
+            - "EPYC"
+            - "EPYC-Genoa"
+            - "EPYC-Genoa-v1"
+            - "EPYC-Genoa-v2"
+            - "EPYC-IBPB"
+            - "EPYC-Milan"
+            - "EPYC-Milan-v1"
+            - "EPYC-Milan-v2"
+            - "EPYC-Milan-v3"
+            - "EPYC-Rome"
+            - "EPYC-Rome-v1"
+            - "EPYC-Rome-v2"
+            - "EPYC-Rome-v3"
+            - "EPYC-Rome-v4"
+            - "EPYC-Rome-v5"
+            - "EPYC-Turin"
+            - "EPYC-Turin-v1"
+            - "EPYC-v1"
+            - "EPYC-v2"
+            - "EPYC-v3"
+            - "EPYC-v4"
+            - "EPYC-v5"
+            - "GraniteRapids"
+            - "GraniteRapids-v1"
+            - "GraniteRapids-v2"
+            - "GraniteRapids-v3"
+            - "Haswell"
+            - "Haswell-IBRS"
+            - "Haswell-noTSX"
+            - "Haswell-noTSX-IBRS"
+            - "Haswell-v1"
+            - "Haswell-v2"
+            - "Haswell-v3"
+            - "Haswell-v4"
+            - "Icelake-Server"
+            - "Icelake-Server-noTSX"
+            - "Icelake-Server-v1"
+            - "Icelake-Server-v2"
+            - "Icelake-Server-v3"
+            - "Icelake-Server-v4"
+            - "Icelake-Server-v5"
+            - "Icelake-Server-v6"
+            - "Icelake-Server-v7"
+            - "IvyBridge"
+            - "IvyBridge-IBRS"
+            - "IvyBridge-v1"
+            - "IvyBridge-v2"
+            - "KnightsMill"
+            - "KnightsMill-v1"
+            - "Nehalem"
+            - "Nehalem-IBRS"
+            - "Nehalem-v1"
+            - "Nehalem-v2"
+            - "Opteron_G1"
+            - "Opteron_G1-v1"
+            - "Opteron_G2"
+            - "Opteron_G2-v1"
+            - "Opteron_G3"
+            - "Opteron_G3-v1"
+            - "Opteron_G4"
+            - "Opteron_G4-v1"
+            - "Opteron_G5"
+            - "Opteron_G5-v1"
+            - "Penryn"
+            - "Penryn-v1"
+            - "SandyBridge"
+            - "SandyBridge-IBRS"
+            - "SandyBridge-v1"
+            - "SandyBridge-v2"
+            - "SapphireRapids"
+            - "SapphireRapids-v1"
+            - "SapphireRapids-v2"
+            - "SapphireRapids-v3"
+            - "SapphireRapids-v4"
+            - "SierraForest"
+            - "SierraForest-v1"
+            - "SierraForest-v2"
+            - "SierraForest-v3"
+            - "Skylake-Client"
+            - "Skylake-Client-IBRS"
+            - "Skylake-Client-noTSX-IBRS"
+            - "Skylake-Client-v1"
+            - "Skylake-Client-v2"
+            - "Skylake-Client-v3"
+            - "Skylake-Client-v4"
+            - "Skylake-Server"
+            - "Skylake-Server-IBRS"
+            - "Skylake-Server-noTSX-IBRS"
+            - "Skylake-Server-v1"
+            - "Skylake-Server-v2"
+            - "Skylake-Server-v3"
+            - "Skylake-Server-v4"
+            - "Skylake-Server-v5"
+            - "Snowridge"
+            - "Snowridge-v1"
+            - "Snowridge-v2"
+            - "Snowridge-v3"
+            - "Snowridge-v4"
+            - "Westmere"
+            - "Westmere-IBRS"
+            - "Westmere-v1"
+            - "Westmere-v2"
+            - "YongFeng"
+            - "YongFeng-v1"
+            - "YongFeng-v2"
+            - "YongFeng-v3"
+            - "athlon"
+            - "athlon-v1"
+            - "core2duo"
+            - "core2duo-v1"
+            - "coreduo"
+            - "coreduo-v1"
+            - "kvm32"
+            - "kvm32-v1"
+            - "kvm64"
+            - "kvm64-v1"
+            - "n270"
+            - "n270-v1"
+            - "pentium"
+            - "pentium-v1"
+            - "pentium2"
+            - "pentium2-v1"
+            - "pentium3"
+            - "pentium3-v1"
+            - "phenom"
+            - "phenom-v1"
+            - "qemu32"
+            - "qemu32-v1"
+            - "qemu64"
+            - "qemu64-v1"
+            - "base"
+            - "host"
+            - "max"
+        accel:
+          type: string
+          description: Enable an accelerator (`-accel`). Depending on the target, `kvm`, `mshv` or `tcg` can be available; by default `tcg` is used.
+          default: "kvm"
+          enum:
+            - "tcg"
+            - "mshv"
+            - "kvm"
+        ram:
+          title: RAM
+          type: integer
+          description: Sets guest startup RAM size to `megs` megabytes (`-m`). Default is 128 MiB.
+          default: 4096
+        cpus:
+          title: CPUs
+          type: integer
+          description: Simulate an SMP system with `n` CPUs initially present on the machine type board (`-smp`).
+          default: 4
+        machine_type:
+          type: string
+          description: Select the emulated machine by name (`-machine type=`; `-machine help` lists available machines).
+          default: "q35"
+          enum:
+            - "microvm"
+            - "nitro-enclave"
+            - "pc-i440fx-9.2"
+            - "pc-i440fx-9.1"
+            - "pc-i440fx-9.0"
+            - "pc-i440fx-8.2"
+            - "pc-i440fx-8.1"
+            - "pc-i440fx-8.0"
+            - "pc-i440fx-7.2"
+            - "pc-i440fx-7.1"
+            - "pc-i440fx-7.0"
+            - "pc-i440fx-6.2"
+            - "pc-i440fx-6.1"
+            - "pc-i440fx-6.0"
+            - "pc-i440fx-5.2"
+            - "pc-i440fx-5.1"
+            - "pc-i440fx-5.0"
+            - "pc"
+            - "pc-i440fx-10.2"
+            - "pc-i440fx-10.1"
+            - "pc-i440fx-10.0"
+            - "pc-q35-9.2"
+            - "pc-q35-9.1"
+            - "pc-q35-9.0"
+            - "pc-q35-8.2"
+            - "pc-q35-8.1"
+            - "pc-q35-8.0"
+            - "pc-q35-7.2"
+            - "pc-q35-7.1"
+            - "pc-q35-7.0"
+            - "pc-q35-6.2"
+            - "pc-q35-6.1"
+            - "pc-q35-6.0"
+            - "pc-q35-5.2"
+            - "pc-q35-5.1"
+            - "pc-q35-5.0"
+            - "q35"
+            - "pc-q35-10.2"
+            - "pc-q35-10.1"
+            - "pc-q35-10.0"
+            - "isapc"
+            - "none"
+            - "x-remote"
+        iommu:
+          title: IOMMU
+          type: string
+          description: vIOMMU device (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). Empty = none.
+          default: ""
+    networking:
+      title: Networking
+      type: object
+      description: Host vsock/SSH forwarding; the base + a per-VM offset (`vm_index`, or a hash of the VM name when `vm_index` is 0) pick the CID/port unless an explicit override is enabled.
+      default: {}
+      order:
+        - vsock_cid_base
+        - custom_vsock_cid
+        - vsock_cid
+        - ssh_port_base
+        - custom_ssh_port
+        - ssh_port
+        - vm_index
+      properties:
+        vsock_cid_base:
+          title: VSOCK CID Base
+          type: integer
+          description: Base vsock cid; guest N uses `vsock_cid_base + vm_index`.
+          default: 100
+        custom_vsock_cid:
+          title: Custom VSOCK CID
+          type: boolean
+          description: Set an explicit vsock CID instead of `vsock_cid_base + vm_index`.
+          default: false
+        vsock_cid:
+          title: VSOCK CID
+          type: integer
+          description: vsock context id for `-device vhost-vsock`.
+          showExpr: "fields.custom_vsock_cid === true"
+        ssh_port_base:
+          title: SSH Port Base
+          type: integer
+          description: Base host port; guest N forwards `ssh_port_base + vm_index`.
+          default: 10022
+        custom_ssh_port:
+          title: Custom SSH Port
+          type: boolean
+          description: Set an explicit host port instead of `ssh_port_base + vm_index`.
+          default: false
+        ssh_port:
+          title: SSH Port
+          type: integer
+          description: Host port forwarded to guest `:22` (`-nic user,hostfwd=`).
+          showExpr: "fields.custom_ssh_port === true"
+        vm_index:
+          title: VM Index
+          type: integer
+          description: Offset added to `vsock_cid_base`/`ssh_port_base`. `0` (default) derives a stable offset from the VM name so concurrent auto-named VMs don't collide on the host port/CID; set a non-zero value for deterministic manual allocation.
+          default: 0
+    kernel_boot:
+      title: Kernel boot
+      type: object
+      description: Direct kernel boot (`-kernel`/`-initrd`/`-append`) from the build manifests or explicit overrides.
+      default: {}
+      order:
+        - kernel
+        - closure
+        - kernel_image
+        - kernel_initrd
+        - kernel_append
+      properties:
+        kernel:
+          type: object
+          description: The `f/kernel/build` result manifest (`vmlinuz`/`bzImage`, `modules_dir`, `uts_release`) — supplies `-kernel` and the `/lib/modules` share.
+          default: {}
+        closure:
+          type: object
+          description: The `f/nix/build_closure` result manifest (`toplevel`, `init`, `initrd`) — supplies `-initrd` and the `init=` in `-append`.
+          default: {}
+        kernel_image:
+          type: string
+          description: Override the `-kernel` image (else from `kernel`).
+          default: ""
+        kernel_initrd:
+          type: string
+          description: Override the `-initrd` (else from `closure`).
+          default: ""
+        kernel_append:
+          type: string
+          description: Override the kernel cmdline (`-append`; else `root=tmpfs ... init=<closure.init>`).
+          default: ""
+    sharing:
+      title: File sharing
+      type: object
+      description: virtiofs shares (modules, controller) and the virtiofsd binary.
+      default: {}
+      order:
+        - modules_dir
+        - custom_virtiofsd
+        - virtiofsd_binary
+        - home_share
+        - home_share_readwrite
+        - controller_share
+        - controller_share_tag
+        - controller_share_dir
+        - controller_share_guest_mount
+        - controller_share_readwrite
+      properties:
+        modules_dir:
+          type: string
+          description: Override the host modules tree shared at `/lib/modules` (else from `kernel`).
+          default: ""
+        custom_virtiofsd:
+          title: Custom virtiofsd
+          type: boolean
+          description: Use a custom `virtiofsd` instead of the reproducible `nixos-flake` one.
+          default: false
+        home_share:
+          title: Home Share
+          type: boolean
+          description: "Predefined `home` share (host serving): serve the operator's host `$HOME` into the guest at the same absolute path (tag `home`). Pair with `NixOS: Guest → home` so the guest mounts it."
+          default: false
+        home_share_readwrite:
+          title: Home Share Readwrite
+          type: boolean
+          description: "Mount the home share read-write (default read-only)."
+          default: false
+          showExpr: "fields.home_share === true"
+        virtiofsd_binary:
+          title: virtiofsd Binary
+          type: string
+          description: Path to a custom `virtiofsd` (e.g. a nix derivation output or your own build).
+          default: ""
+          showExpr: "fields.custom_virtiofsd === true"
+        controller_share:
+          type: boolean
+          description: Append one operator-defined virtiofs share exposing a controller directory to the guest.
+          default: false
+        controller_share_tag:
+          type: string
+          description: virtiofs tag for the controller share.
+          default: controller-share
+          showExpr: "fields.controller_share === true"
+        controller_share_dir:
+          type: string
+          description: Absolute controller path to share. Empty = `$HOME`.
+          default: ""
+          showExpr: "fields.controller_share === true"
+        controller_share_guest_mount:
+          type: string
+          description: Guest mount point for the controller share. Empty = same as the controller path.
+          default: ""
+          showExpr: "fields.controller_share === true"
+        controller_share_readwrite:
+          type: boolean
+          description: Mount the controller share read-write (default read-only).
+          default: false
+          showExpr: "fields.controller_share === true"
+    nvme:
+      title: NVMe
+      type: object
+      description: Emulated NVMe drives (`-device nvme`/`nvme-ns` + a qcow2 per drive). The per-drive knobs are the QEMU device properties verbatim — see `qemu-system-x86_64 -device nvme,help` and `-device nvme-ns,help`.
+      default: {}
+      order:
+        - nvme_drive_count
+        - nvme_drive_size_gb
+        - customize_drives
+        - logical_block_size
+        - physical_block_size
+        - min_io_size
+        - opt_io_size
+        - discard_granularity
+        - write_cache
+        - mdts
+        - cmb_size_mb
+        - legacy_cmb
+        - pmr_size
+        - pmr_share
+        - pmr_pmem
+        - atomic_dn
+        - atomic_awun
+        - atomic_awupf
+        - atomic_nawun
+        - atomic_nawupf
+        - atomic_nabsn
+        - atomic_nabspf
+        - atomic_nabo
+      properties:
+        nvme_drive_count:
+          title: Drive Count
+          type: integer
+          description: Number of NVMe drives (`-device nvme` + a qcow2 file each).
+          default: 4
+        nvme_drive_size_gb:
+          title: Drive Size (GiB)
+          type: integer
+          description: Virtual size in GiB for each qcow2 NVMe backing file.
+          default: 20
+        customize_drives:
+          title: Customize Drives
+          type: boolean
+          description: Expose the per-drive NVMe device knobs below. Off = 4Kn drives (4096-byte blocks) with QEMU defaults for everything else. Each knob takes a single value applied to every drive, or a comma-list assigned by drive index (`4096,512` → drive 0 = 4096, drive 1 = 512).
+          default: false
+        logical_block_size:
+          title: Logical Block Size
+          type: string
+          description: "Logical block (LBA) size in bytes — `-device nvme-ns,logical_block_size=` (BlockConf). `4096` = 4Kn, `512` = 512-byte sectors. Single value or per-drive comma-list."
+          default: "4096"
+          showExpr: "fields.customize_drives === true"
+        physical_block_size:
+          title: Physical Block Size
+          type: string
+          description: "Physical block size in bytes — `-device nvme-ns,physical_block_size=` (BlockConf). Single value or per-drive comma-list."
+          default: "4096"
+          showExpr: "fields.customize_drives === true"
+        min_io_size:
+          title: Minimum I/O Size
+          type: string
+          description: "Minimum I/O size hint in bytes — `-device nvme-ns,min_io_size=` (BlockConf). Single value or per-drive comma-list."
+          default: "4096"
+          showExpr: "fields.customize_drives === true"
+        opt_io_size:
+          title: Optimal I/O Size
+          type: string
+          description: "Optimal I/O size hint in bytes — `-device nvme-ns,opt_io_size=` (BlockConf). Single value or per-drive comma-list."
+          default: "4096"
+          showExpr: "fields.customize_drives === true"
+        discard_granularity:
+          title: Discard Granularity
+          type: string
+          description: "Discard granularity in bytes — `-device nvme-ns,discard_granularity=` (BlockConf). Single value or per-drive comma-list."
+          default: "4096"
+          showExpr: "fields.customize_drives === true"
+        write_cache:
+          title: Write Cache (VWC)
+          type: string
+          description: "Volatile Write Cache (VWC) — `-device nvme-ns,write-cache=` (BlockConf): `on`, `off` or `auto`. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        mdts:
+          title: Maximum Data Transfer Size (MDTS)
+          type: string
+          description: "Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units — `-device nvme,mdts=`. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        cmb_size_mb:
+          title: CMB Size (MiB)
+          type: string
+          description: "Controller Memory Buffer size in MiB — `-device nvme,cmb_size_mb=` (host RAM on PCI BAR 2; coexists with PMR on BAR 4/5). Empty = no CMB. Single value or per-drive comma-list (`64,0` = drive 0 only)."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        legacy_cmb:
+          title: Legacy CMB (v1.3)
+          type: boolean
+          description: "Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled) — `-device nvme,legacy-cmb=on`. Off = the 1.4 scheme. Applies to every CMB-enabled drive; no effect without `cmb_size_mb`."
+          default: false
+          showExpr: "fields.customize_drives === true"
+        pmr_size:
+          title: PMR Size (bytes)
+          type: string
+          description: "Persistent Memory Region size in bytes — `-object memory-backend-file,size=` linked from `-device nvme,pmrdev=` (BAR 4/5; coexists with CMB). Must be a power of 2 and at least 16. Empty = no PMR. Single value or per-drive comma-list (`16777216,0` = drive 0 only)."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        pmr_share:
+          title: PMR Persistent (share=on)
+          type: boolean
+          description: "Write guest PMR contents through to the backing file (`-object memory-backend-file,share=on`) so they survive a restart, stored in the per-VM state dir. Off = volatile (`share=off`). Applies to every PMR-enabled drive."
+          default: true
+          showExpr: "fields.customize_drives === true"
+        pmr_pmem:
+          title: PMR pmem
+          type: boolean
+          description: "Real persistent-memory flush semantics for the PMR backing file (`-object memory-backend-file,pmem=on`). Off = QEMU default. Applies to every PMR-enabled drive."
+          default: false
+          showExpr: "fields.customize_drives === true"
+        atomic_dn:
+          title: Disable Normal (DN)
+          type: boolean
+          description: "Disable Normal (DN) — `-device nvme,atomic.dn=`. Set = AWUN/NAWUN disabled, so AWUPF/NAWUPF govern atomicity for all writes. Off = QEMU default."
+          default: false
+          showExpr: "fields.customize_drives === true"
+        atomic_awun:
+          title: Atomic Write Unit Normal (AWUN)
+          type: string
+          description: "Atomic Write Unit Normal (AWUN), 0-based, in logical blocks — `-device nvme,atomic.awun=`. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        atomic_awupf:
+          title: Atomic Write Unit Power Fail (AWUPF)
+          type: string
+          description: "Atomic Write Unit Power Fail (AWUPF), 0-based — `-device nvme,atomic.awupf=`. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        atomic_nawun:
+          title: Namespace Atomic Write Unit Normal (NAWUN)
+          type: string
+          description: "Namespace Atomic Write Unit Normal (NAWUN), 0-based — `-device nvme-ns,atomic.nawun=`. Setting any per-namespace atomic switches the drive to explicit `-device nvme` + `-device nvme-ns`. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        atomic_nawupf:
+          title: Namespace Atomic Write Unit Power Fail (NAWUPF)
+          type: string
+          description: "Namespace Atomic Write Unit Power Fail (NAWUPF), 0-based — `-device nvme-ns,atomic.nawupf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        atomic_nabsn:
+          title: Namespace Atomic Boundary Size Normal (NABSN)
+          type: string
+          description: "Namespace Atomic Boundary Size Normal (NABSN) — `-device nvme-ns,atomic.nabsn=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        atomic_nabspf:
+          title: Namespace Atomic Boundary Size Power Fail (NABSPF)
+          type: string
+          description: "Namespace Atomic Boundary Size Power Fail (NABSPF) — `-device nvme-ns,atomic.nabspf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+        atomic_nabo:
+          title: Namespace Atomic Boundary Offset (NABO)
+          type: string
+          description: "Namespace Atomic Boundary Offset (NABO) — `-device nvme-ns,atomic.nabo=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+          default: ""
+          showExpr: "fields.customize_drives === true"
+    orchestration:
+      title: Orchestration
+      type: object
+      description: Flow-level boot wait and debug snapshot.
+      default: {}
+      order:
+        - wait_timeout
+        - emit_vars_yaml_snapshot
+      properties:
+        wait_timeout:
+          type: integer
+          description: Seconds to poll `127.0.0.1:<ssh_port>` for the guest sshd banner.
+          default: 300
+        emit_vars_yaml_snapshot:
+          title: Emit Vars YAML Snapshot
+          type: boolean
+          description: Also write the debug `<vm>.yaml` vars snapshot.
+          default: false
+  required: []

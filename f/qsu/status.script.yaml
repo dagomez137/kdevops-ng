@@ -1,0 +1,32 @@
+summary: "QEMU/systemd: status (is-active + machined + access lines)"
+description: |
+  Report one VM's status against the host `systemd --user` manager:
+  `systemctl --user is-active qemu-system@<vm>` for liveness, a best-effort
+  `machinectl --user status <vm>` for the machined registration view, and the
+  SSH / vsock / console access command lines. Read-only — probes the manager and
+  mutates nothing.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - ssh_port
+    - vsock_cid
+  properties:
+    vm_name:
+      title: VM Name
+      type: object
+      description: VM to query (`qemu-system@<vm_name>`). The dropdown lists the existing VMs (`machinectl --user list` plus any with a rendered `<vm>.env`).
+      format: dynselect-list_vms
+    ssh_port:
+      title: SSH Port
+      type: integer
+      description: Forwarded host port, surfaced in the `ssh -p <port>` access line.
+    vsock_cid:
+      title: VSOCK CID
+      type: integer
+      description: Guest vsock cid, surfaced in the `ssh root@vsock/<cid>` access line.
+  required:
+    - vm_name

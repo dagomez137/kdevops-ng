@@ -1,0 +1,22 @@
+summary: "QEMU/systemd: stop a VM"
+description: |
+  `systemctl --user stop qemu-system@<vm>`, which runs the unit's graceful
+  `ExecStop=` (QMP `system_powerdown`, then SIGKILL after `TimeoutStopSec=2min`).
+  Best-effort: a partially-cleaned tree still stops cleanly, so a non-zero rc is not
+  fatal. virtiofsd auto-stops via `StopWhenUnneeded=yes`. Leaves the rendered units and
+  state in place — use `destroy` to remove them.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      title: VM Name
+      type: object
+      description: systemd instance to stop (`qemu-system@<vm_name>`). The dropdown lists the existing VMs (`machinectl --user list` plus any with a rendered `<vm>.env`).
+      format: dynselect-list_vms
+  required:
+    - vm_name

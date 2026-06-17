@@ -1,0 +1,19 @@
+summary: "QEMU/systemd: discover a VM's reuse artifacts"
+description: |
+  Read `WORKERS_DIR/shared/vm/<vm_name>.vars.json` (written by the render step) to
+  recover the kernel + closure manifests and the QEMU binary a deployed VM booted
+  with, so a reconfigure can reuse them instead of rebuilding. Returns
+  `{kernel, closure, qemu_binary, qemu_source}`; a missing sidecar yields empties.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      title: VM Name
+      type: string
+      description: Deployed VM whose render sidecar (`WORKERS_DIR/shared/vm/<vm>.vars.json`) to read.
+  required:
+    - vm_name

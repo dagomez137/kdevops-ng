@@ -1,0 +1,46 @@
+summary: "QEMU/systemd: boot a VM (daemon-reload, restart, wait for SSH)"
+description: |
+  Boot one QEMU-in-systemd VM against the host `systemd --user` manager:
+
+  1. `systemctl --user daemon-reload` so freshly rendered units/drop-ins are seen.
+  2. `systemctl --user restart qemu-system@<vm>` — one first-class unit restart. The qsu
+     dependencies (Requires=virtiofsd, the `Before=qemu` drop-in, socket activation) stop
+     the old guest gracefully and bring a fresh virtiofsd up with the re-rendered env;
+     the virtiofsd units are never restarted by hand (that propagates a stop into qemu
+     and hangs it to `TimeoutStopSec`). `restart` applies a re-render in place; on a
+     stopped VM it just starts.
+  3. Poll the forwarded TCP port until sshd greets with `SSH-2.0` or `wait_timeout`.
+
+  Returns `{vm_name, ssh_port, vsock_cid, active, ssh_ready, state_dir}`.
+  Run on a `vm`-tagged worker; the unit forks on the host (see
+  `docs/windmill/qsu-execution-model.md`).
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - ssh_port
+    - vsock_cid
+    - wait_timeout
+  properties:
+    vm_name:
+      title: VM Name
+      type: string
+      description: systemd instance to start (`qemu-system@<vm_name>`).
+    ssh_port:
+      title: SSH Port
+      type: integer
+      description: Forwarded host port to poll for the guest sshd banner.
+    vsock_cid:
+      title: VSOCK CID
+      type: integer
+      description: Guest vsock cid, surfaced in the access lines (`ssh root@vsock/<cid>`).
+    wait_timeout:
+      type: integer
+      description: Seconds to poll `127.0.0.1:<ssh_port>` for the `SSH-2.0` banner before giving up.
+      default: 300
+  required:
+    - vm_name
+    - ssh_port

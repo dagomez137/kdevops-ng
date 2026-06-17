@@ -1,0 +1,21 @@
+summary: "QEMU/systemd: render the VFIO passthrough component (DEFERRED)"
+description: |
+  **Deferred scaffold.** Will render the VFIO templates —
+  `vfio-bind@.service.j2` (bind a host PCI device to `vfio-pci` before VM start, pulled
+  in by the per-VM drop-in's `Requires=vfio-bind@<addr>`), `vfio-udev.rules.j2`, and the
+  `files/vfio-pci.conf` modprobe drop — once the MVP imageless boot path lands.
+  Currently returns `{"deferred": true}`.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      title: VM Name
+      type: string
+      description: VM the passthrough devices attach to.
+      default: ""
+  required: []
