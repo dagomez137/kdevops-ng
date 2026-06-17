@@ -1,0 +1,17 @@
+defaultTs: bun
+includes:
+  - f/**
+excludes: []
+skipScripts: false
+skipFlows: false
+skipApps: false
+skipResources: false       # track resources (ensure secret fields are $var refs, not literals)
+skipResourceTypes: false
+skipVariables: true        # variables hold secrets -> keep out of git
+skipSecrets: true
+includeSchedules: true
+includeTriggers: true
+workspaces:
+  kdevops:
+    baseUrl: http://localhost:8000/
+    gitBranch: main
