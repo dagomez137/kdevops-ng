@@ -1,0 +1,106 @@
+summary: "Nix: render a per-VM imageless config (flake.nix + default.nix)"
+description: |
+  Render a per-VM imageless NixOS configuration under
+  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/` — the Windmill equivalent of kdevops's
+  `nixosfi` generate-configs phase.
+
+  - `flake.nix` is a near-verbatim copy of the vendored imageless **template**
+    (`workers/shared/nixos-flake/templates/imageless/flake.nix`); only the
+    `nixos-flake` path input is set, plus one `<pkg>-src` non-flake input per source
+    override. The closure it builds is therefore byte-for-byte what kdevops builds.
+  - `default.nix` is generated from the typed inputs and carries the per-VM
+    composition: which `profiles.*` / `testSuites.*` / `mounts.shares` to import,
+    the hostname, SSH keys, virtiofs shares, and package source overrides. The
+    flake's modules list already imports the imageless backend + user + overlay, so
+    this file only adds to that.
+
+  Both files are echoed to the job log. Returns `config_dir` for the lock/build steps.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - profiles
+    - test_suites
+    - ssh_keys
+    - shares
+    - home
+    - home_dir
+    - overrides
+    - user_name
+  properties:
+    vm_name:
+      title: VM Name
+      type: string
+      description: Guest hostname and per-VM config directory name.
+      default: nixos
+    profiles:
+      type: array
+      description: nixos-flake profile modules to import (fully featured by default; pare back for a lighter closure). controller is a host role and off by default.
+      default:
+        - devel
+        - build-tools
+        - monitoring
+      items:
+        type: string
+        enum:
+          - build-tools
+          - controller
+          - devel
+          - monitoring
+    test_suites:
+      type: array
+      description: nixos-flake testSuite modules to import (all by default; pare back for a lighter closure).
+      default:
+        - blktests
+        - fstests
+        - gitr
+        - ltp
+        - mmtests
+        - pynfs
+        - selftests
+        - sysbench
+      items:
+        type: string
+        enum:
+          - blktests
+          - fstests
+          - gitr
+          - ltp
+          - mmtests
+          - pynfs
+          - selftests
+          - sysbench
+    ssh_keys:
+      title: SSH Keys
+      type: array
+      description: Authorized SSH keys for the root and unprivileged accounts.
+      default: []
+      items:
+        type: string
+    shares:
+      type: object
+      description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount (`/var/lib/xfstests`) is added automatically when `test_suites` includes `fstests`; `home` adds the operator''s home — both coexist with explicit entries here.'
+      default: {}
+    home:
+      type: boolean
+      description: "Predefined `home` share: mount the operator's host home into the guest at the same absolute path (tag `home`). Resolved on the worker; `home_dir` overrides. Pair with `File Sharing → Home Share` so the host serves it."
+      default: false
+    home_dir:
+      title: Home Dir
+      type: string
+      description: "Override the home-share path (else the worker's `$HOME`). Must match what `f/qsu` serves."
+      default: ""
+    overrides:
+      type: array
+      description: 'Per-package source overrides, e.g. [{"pkg": "fio", "src": "/home/user/src/fio"}] or {"pkg":"xfstests","src":"https://...","ref":"main"}.'
+      default: []
+      items:
+        type: object
+    user_name:
+      type: string
+      description: Unprivileged account name in the guest (nixos-flake.user.name).
+      default: kdevops
+  required:
+    - vm_name
