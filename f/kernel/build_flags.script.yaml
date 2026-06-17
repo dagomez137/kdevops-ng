@@ -1,0 +1,64 @@
+summary: "Kernel: resolve make flags (toolchain / reproducible / ccache)"
+description: |
+  Resolve the toolchain, reproducible-build and ccache knobs into one make-flags
+  string that every later make step consumes, so the toolchain stays consistent
+  (the kernel requires the same `LLVM=` on configure and compile).
+
+  - `compiler` GCC (default) or clang → `LLVM=1` for clang.
+  - `reproducible` (default on) → `KBUILD_BUILD_TIMESTAMP` (a real fixed date, or the
+    commit date when `timestamp_from_commit` is set), `KBUILD_BUILD_USER`/`HOST`,
+    `LOCALVERSION=`.
+  - `ccache` (default on) → `CC="ccache <cc>"`; the devShell points `CCACHE_DIR` at a
+    shared cache.
+
+  Appends any raw `make_flags` verbatim. Reads `worktree`/`commit` from
+  `prepare_worktree` (only needed for `timestamp_from_commit`). Returns `make_flags`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - compiler
+    - reproducible
+    - timestamp_from_commit
+    - ccache
+    - ccache_max_size
+    - make_flags
+    - worktree
+    - commit
+  properties:
+    compiler:
+      type: string
+      description: Toolchain to build with. clang is pending the nixos-flake LLVM flags - see docs/windmill/clang-kernel-build-findings.md.
+      default: gcc
+      enum:
+        - gcc
+    reproducible:
+      type: boolean
+      description: Set `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST` and `LOCALVERSION` for a reproducible build.
+      default: true
+    timestamp_from_commit:
+      type: boolean
+      description: Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the fixed default.
+      default: false
+    ccache:
+      type: boolean
+      description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
+      default: true
+    ccache_max_size:
+      type: integer
+      description: ccache max cache size in GiB (written to ccache.conf max_size).
+      default: 10
+    make_flags:
+      type: string
+      description: Extra make variables/flags, space-separated, appended verbatim.
+      default: ""
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree); only used for timestamp_from_commit.
+      default: ""
+    commit:
+      type: string
+      description: Commit to date (from prepare_worktree); only used for timestamp_from_commit.
+      default: ""
+  required: []

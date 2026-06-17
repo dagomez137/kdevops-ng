@@ -1,0 +1,44 @@
+summary: "Kernel: install image into a destdir"
+description: |
+  Install the built kernel image into a separate `destdir`, inside the
+  `nixos-flake#build` devShell: `make INSTALL_PATH=<destdir>/boot install` stages the
+  image + System.map under `<destdir>/boot`. Per Documentation/kbuild/kbuild.rst,
+  INSTALL_PATH (default /boot) is an install destination distinct from the `O=` build
+  dir, so `destdir` defaults to a sibling of the build dir (`<slot>/destdir`). Never
+  touches the host `/boot`.
+
+  Reproducible install: `make install` searches `$HOME/bin/installkernel` before the
+  distro `/sbin/installkernel`, so — exactly as nixpkgs' kernel build does — this
+  step provides its own tiny copy-only hook and points HOME at it. The result never
+  depends on the container's debianutils.
+
+  Modules are a separate, independently-skippable step (`f/kernel/install_modules`);
+  an all-built-in kernel needs only this one. Reads `worktree`/`build_dir` from
+  `prepare_worktree`; returns `destdir` and `boot`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - destdir
+    - make_flags
+  properties:
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree).
+    build_dir:
+      type: string
+      description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+    destdir:
+      type: string
+      description: Install root (`INSTALL_PATH=<destdir>/boot`). Empty = `<slot>/destdir`.
+      default: ""
+    make_flags:
+      type: string
+      description: Extra make variables/flags, space-separated, appended verbatim.
+      default: ""
+  required:
+    - worktree
+    - build_dir

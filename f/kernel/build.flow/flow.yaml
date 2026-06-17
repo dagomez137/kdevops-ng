@@ -1,0 +1,720 @@
+summary: "Linux Kernel Build"
+description: |
+  First-class kernel build, composed from reusable step-scripts so each unit is
+  independently runnable and testable. Builds inside the `nixos-flake#build`
+  devShell over a detached worktree of the shared mirror, with
+  `make --jobs=$(nproc)` so the container cgroup governs CPU and N concurrent
+  builds self-balance across the workers.
+
+  Steps (pinned to one worker via `same_worker`, so each sees the previous
+  step's files):
+
+  1. `prepare_worktree` — resolve the slot and check out `git_ref`.
+  2. `configure` — generate `.config` by the selected `config_method`:
+     - `preset` (default) → `f/kernel/configure_preset`: a predefined whole-kernel
+       config (e.g. `imageless_defconfig`) applied via `KCONFIG_ALLCONFIG`.
+     - `make` → `f/kernel/configure_make`: a list of make config goals
+       (`defconfig`, `tinyconfig`, `["defconfig","kvm_guest.config"]`, ...).
+     - `fragments` → `f/kernel/configure_fragments`: pick from the curated
+       `linux-config-fragments` library (canonical order applied).
+  3. `compile` — `make` (default goal: vmlinux + boot image + modules).
+  4. `devtools` — generate dev-tooling artifacts (compile_commands.json, GDB helpers,
+     rust-project.json); each optional, on by default.
+  5. `install` — install the kernel image into a destdir; only when `install` is set.
+  6. `install_modules` — modules_install into the destdir (plus the canonical source
+     symlink); only when `modules_install` is set (skip for an all-built-in kernel).
+  7. `collect` — merge the step results into one manifest.
+
+  - `shared=false` (default) reuses this worker's own tree
+    `workers/<worker>/kernel` for every ref, so isolated builds on different workers
+    run in parallel without contending.
+  - `shared=true` lays down a shared, persistent named tree
+    `workers/shared/ws/kernel/<name>` (by `workspace` string, else the `b4_series`
+    slug, else the job id) that any worker can pick up.
+
+  Returns a manifest (`commit`, `uts_release`, `bzImage`, `build_dir`, `config`,
+  `config_method`, `destdir`, the build provenance `linux_compiler`/`uts_version`/
+  `uts_machine`/`linux_compile_by`/`linux_compile_host`, …) so downstream flows
+  (e.g. VM boot) can consume it.
+value:
+  same_worker: true
+  modules:
+    - id: prepare_worktree
+      summary: Resolve slot + check out worktree
+      value:
+        type: script
+        path: f/kernel/prepare_worktree
+        input_transforms:
+          git_ref:
+            type: javascript
+            expr: flow_input.worktree?.git_ref
+          shared:
+            type: javascript
+            expr: flow_input.worker?.shared
+          workspace:
+            type: javascript
+            expr: flow_input.worker?.workspace
+          wipe_build:
+            type: javascript
+            expr: flow_input.worker?.wipe_build
+          b4_series:
+            type: javascript
+            expr: flow_input.worktree?.b4_series
+          reuse_worktree:
+            type: javascript
+            expr: flow_input.worktree?.reuse_worktree
+          clean_destdir:
+            type: javascript
+            expr: flow_input.installation?.clean_destdir
+      retry:
+        constant:
+          attempts: 2
+          seconds: 5
+      timeout:
+        type: static
+        value: 300
+    - id: build_flags
+      summary: Resolve make flags (toolchain/reproducible/ccache)
+      value:
+        type: script
+        path: f/kernel/build_flags
+        input_transforms:
+          compiler:
+            type: javascript
+            expr: flow_input.build?.compiler
+          reproducible:
+            type: javascript
+            expr: flow_input.build?.reproducible
+          ccache:
+            type: javascript
+            expr: flow_input.build?.ccache
+          ccache_max_size:
+            type: javascript
+            expr: flow_input.build?.ccache_max_size
+          timestamp_from_commit:
+            type: javascript
+            expr: flow_input.build?.timestamp_from_commit
+          make_flags:
+            type: javascript
+            expr: flow_input.build?.make_flags
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          commit:
+            type: javascript
+            expr: results.prepare_worktree.commit
+      timeout:
+        type: static
+        value: 60
+    - id: configure
+      summary: Configure .config (method-selected)
+      skip_if:
+        expr: 'flow_input.configuration?.config_method === "skip"'
+      value:
+        type: branchone
+        branches:
+          - summary: curated fragments
+            expr: flow_input.configuration?.config_method == "fragments"
+            modules:
+              - id: configure_fragments
+                value:
+                  type: script
+                  path: f/kernel/configure_fragments
+                  input_transforms:
+                    worktree:
+                      type: javascript
+                      expr: results.prepare_worktree.worktree
+                    build_dir:
+                      type: javascript
+                      expr: results.prepare_worktree.build_dir
+                    fragments:
+                      type: javascript
+                      expr: flow_input.configuration?.fragments
+                    allnoconfig_base:
+                      type: javascript
+                      expr: flow_input.configuration?.allnoconfig_base
+                    make_flags:
+                      type: javascript
+                      expr: results.build_flags.make_flags
+                retry:
+                  constant:
+                    attempts: 2
+                    seconds: 10
+                timeout:
+                  type: static
+                  value: 900
+          - summary: make config goals
+            expr: flow_input.configuration?.config_method == "make"
+            modules:
+              - id: configure_make
+                value:
+                  type: script
+                  path: f/kernel/configure_make
+                  input_transforms:
+                    worktree:
+                      type: javascript
+                      expr: results.prepare_worktree.worktree
+                    build_dir:
+                      type: javascript
+                      expr: results.prepare_worktree.build_dir
+                    defconfig:
+                      type: javascript
+                      expr: flow_input.configuration?.defconfig
+                    make_flags:
+                      type: javascript
+                      expr: results.build_flags.make_flags
+                retry:
+                  constant:
+                    attempts: 2
+                    seconds: 10
+                timeout:
+                  type: static
+                  value: 900
+        default:
+          - id: configure_preset
+            value:
+              type: script
+              path: f/kernel/configure_preset
+              input_transforms:
+                worktree:
+                  type: javascript
+                  expr: results.prepare_worktree.worktree
+                build_dir:
+                  type: javascript
+                  expr: results.prepare_worktree.build_dir
+                preset:
+                  type: javascript
+                  expr: flow_input.configuration?.preset
+                make_flags:
+                  type: javascript
+                  expr: results.build_flags.make_flags
+            retry:
+              constant:
+                attempts: 2
+                seconds: 10
+            timeout:
+              type: static
+              value: 900
+    - id: compile
+      summary: make <targets>
+      value:
+        type: script
+        path: f/kernel/compile
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          targets:
+            type: javascript
+            expr: flow_input.build?.targets
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+      retry:
+        constant:
+          attempts: 2
+          seconds: 10
+      timeout:
+        type: static
+        value: 3600
+    - id: devtools
+      summary: dev artifacts (clangd, GDB, rust-analyzer)
+      # Skip only when every artifact is explicitly disabled; an unset input keeps
+      # the default-on behaviour (the script's own boolean defaults then apply).
+      skip_if:
+        expr: 'flow_input.devtools?.compile_commands === false && flow_input.devtools?.scripts_gdb === false && flow_input.devtools?.rust_analyzer === false'
+      value:
+        type: script
+        path: f/kernel/devtools
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          compile_commands:
+            type: javascript
+            expr: flow_input.devtools?.compile_commands
+          scripts_gdb:
+            type: javascript
+            expr: flow_input.devtools?.scripts_gdb
+          rust_analyzer:
+            type: javascript
+            expr: flow_input.devtools?.rust_analyzer
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+      timeout:
+        type: static
+        value: 900
+    - id: install
+      summary: make install (image, optional)
+      # Default-on: skip only when explicitly disabled (an unset input must not skip).
+      skip_if:
+        expr: 'flow_input.installation?.install === false'
+      value:
+        type: script
+        path: f/kernel/install
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+      timeout:
+        type: static
+        value: 600
+    - id: install_modules
+      summary: make modules_install (optional)
+      # Default-on: skip only when explicitly disabled (an unset input must not skip).
+      skip_if:
+        expr: 'flow_input.installation?.modules_install === false'
+      value:
+        type: script
+        path: f/kernel/install_modules
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          source_symlink:
+            type: javascript
+            expr: flow_input.installation?.source_symlink
+      timeout:
+        type: static
+        value: 1800
+    - id: collect
+      summary: Merge step results into one manifest
+      value:
+        type: rawscript
+        language: bun
+        content: |
+          // Pure flow glue: merge the typed step results into one manifest. Using
+          // bun (not hand-built JSON) keeps the output safe regardless of input,
+          // and sourcing every field from the step results (not flow_input) makes
+          // the manifest reflect the effective values regardless of config method.
+          export async function main(
+            prepare: any,
+            configure: any,
+            compile: any,
+            devtools: any,
+            install: any,
+            modules: any,
+          ) {
+            return {
+              worker: prepare?.worker ?? null,
+              git_ref: prepare?.git_ref ?? null,
+              commit: prepare?.commit ?? null,
+              uts_release: compile?.uts_release ?? configure?.kernelrelease ?? null,
+              config_method: configure?.method ?? null,
+              defconfig: configure?.defconfig ?? null,
+              fragments: configure?.fragments ?? null,
+              preset: configure?.preset ?? null,
+              targets: compile?.targets ?? null,
+              linux_compiler: compile?.linux_compiler ?? null,
+              uts_version: compile?.uts_version ?? null,
+              uts_machine: compile?.uts_machine ?? null,
+              linux_compile_by: compile?.linux_compile_by ?? null,
+              linux_compile_host: compile?.linux_compile_host ?? null,
+              worktree: prepare?.worktree ?? null,
+              build_dir: prepare?.build_dir ?? null,
+              config: configure?.config ?? null,
+              bzImage: compile?.image ?? null,
+              destdir: install?.destdir ?? modules?.destdir ?? null,
+              boot: install?.boot ?? null,
+              modules: modules?.modules ?? null,
+              source: modules?.source ?? null,
+              compile_commands: devtools?.compile_commands ?? null,
+              vmlinux_gdb: devtools?.vmlinux_gdb ?? null,
+              rust_project: devtools?.rust_project ?? null,
+            };
+          }
+        input_transforms:
+          prepare:
+            type: javascript
+            expr: results.prepare_worktree
+          configure:
+            type: javascript
+            expr: results.configure
+          compile:
+            type: javascript
+            expr: results.compile
+          devtools:
+            type: javascript
+            expr: results.devtools
+          install:
+            type: javascript
+            expr: results.install
+          modules:
+            type: javascript
+            expr: results.install_modules
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worker
+    - worktree
+    - configuration
+    - build
+    - devtools
+    - installation
+  properties:
+    worktree:
+      title: Worktree
+      type: object
+      description: Source ref and optional patch series to check out.
+      default: {}
+      order:
+        - reuse_worktree
+        - git_ref
+        - b4_series
+      properties:
+        reuse_worktree:
+          title: Reuse Worktree
+          type: boolean
+          description: Build the named worktree exactly as it stands — skip fetch, checkout and `b4 shazam` so a hand-checked-out local branch survives. Ignores `git_ref`/`b4 Series`; the tree must already exist (lay it down once with this off). Pair with `shared` + a `workspace` name in the Worker group.
+          default: false
+        git_ref:
+          type: string
+          description: Branch, tag or commit in the shared mirror to build. Ignored when `reuse_worktree` is on.
+          default: v7.1-rc7
+        b4_series:
+          title: b4 Series
+          type: string
+          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`. Ignored when `reuse_worktree` is on.
+          default: ""
+    configuration:
+      title: Configuration
+      type: object
+      description: How the kernel `.config` is produced.
+      default: {}
+      order:
+        - config_method
+        - preset
+        - defconfig
+        - fragments
+        - allnoconfig_base
+      properties:
+        config_method:
+          type: string
+          description: How to generate .config — preset (a predefined whole-kernel config), make (config goals), fragments (curated multiselect), or skip (reuse the .config already in the build dir).
+          default: preset
+          enum:
+            - preset
+            - make
+            - fragments
+            - skip
+        preset:
+          type: string
+          showExpr: "fields.config_method === 'preset'"
+          description: "[method=preset] Predefined whole-kernel config from the library (applied via KCONFIG_ALLCONFIG)."
+          default: imageless_defconfig
+          enum:
+            - imageless_defconfig
+        defconfig:
+          type: array
+          showExpr: "fields.config_method === 'make'"
+          items:
+            type: string
+            enum:
+              - defconfig
+              - x86_64_defconfig
+              - i386_defconfig
+              - alldefconfig
+              - allyesconfig
+              - allmodconfig
+              - allnoconfig
+              - tinyconfig
+              - randconfig
+              - kvm_guest.config
+              - hardening.config
+              - debug.config
+              - rust.config
+              - xen.config
+              - nopm.config
+          description: "[method=make] Config make goals, applied in order (defconfig, x86_64_defconfig, tinyconfig, ...). *.config fragments merge onto the base."
+          default:
+            - defconfig
+        fragments:
+          type: array
+          showExpr: "fields.config_method === 'fragments'"
+          description: "[method=fragments] Curated fragments to merge (canonical order applied; builtin/* go last)."
+          default:
+            - core/64bit.config
+            - core/modules.config
+            - core/core.config
+            - core/systemd.config
+            - core/initrd.config
+            - fs/ext4.config
+            - virt/virtio-net.config
+            - virt/virtio-fs.config
+            - builtin/virt/virtio-fs.config
+            - storage/block-devices.config
+            - virt/vsock.config
+            - arch/x86_64.config
+            - core/acpi-poweroff.config
+            - core/localversion-noauto.config
+            - mem/damon.config
+            - security/ebpf.config
+            - fs/xfs.config
+            - fs/overlayfs.config
+            - virt/kvm.config
+            - perf/perf-amd.config
+          items:
+            type: string
+            enum:
+              - arch/arm64_16k_pages.config
+              - arch/arm64_4k_pages.config
+              - arch/arm64_64k_pages.config
+              - arch/arm64.config
+              - arch/x86_64.config
+              - arch/x86-extras.config
+              - builtin/arch/arm64.config
+              - builtin/core/efi.config
+              - builtin/core/systemd.config
+              - builtin/fs/9p.config
+              - builtin/fs/btrfs.config
+              - builtin/fs/exfat.config
+              - builtin/fs/ext4.config
+              - builtin/fs/fat.config
+              - builtin/fs/nfs.config
+              - builtin/fs/overlayfs.config
+              - builtin/fs/xfs.config
+              - builtin/net/moby.config
+              - builtin/net/netfilter-nat.config
+              - builtin/net/nftables.config
+              - builtin/perf/perf-amd.config
+              - builtin/rust/rust-samples.config
+              - builtin/security/crypto-algorithms.config
+              - builtin/security/crypto-core.config
+              - builtin/security/security.config
+              - builtin/storage/block-devices.config
+              - builtin/storage/dm-targets.config
+              - builtin/storage/md-raid.config
+              - builtin/storage/nvme-fabrics.config
+              - builtin/virt/kvm.config
+              - builtin/virt/virtio-fs.config
+              - builtin/virt/virtio-net.config
+              - builtin/virt/vsock.config
+              - core/64bit.config
+              - core/acpi-extras.config
+              - core/acpi-poweroff.config
+              - core/boot-config.config
+              - core/cgroup-extras.config
+              - core/compression.config
+              - core/core.config
+              - core/cpufreq.config
+              - core/crash.config
+              - core/efi.config
+              - core/hardening.config
+              - core/initrd.config
+              - core/iommu-pci.config
+              - core/localversion.config
+              - core/localversion-noauto.config
+              - core/mitigations.config
+              - core/modules.config
+              - core/preempt.config
+              - core/systemd.config
+              - debug/blktrace.config
+              - debug/codetagging.config
+              - debug/debug-heavy.config
+              - debug/gdb.config
+              - debug/kasan.config
+              - debug/kmemleak.config
+              - debug/modules-debug.config
+              - debug/vm_debug.config
+              - fs/9p.config
+              - fs/btrfs.config
+              - fs/exfat.config
+              - fs/ext4.config
+              - fs/f2fs.config
+              - fs/fat.config
+              - fs/iso9660.config
+              - fs/nfs.config
+              - fs/nfsd-advanced.config
+              - fs/nls.config
+              - fs/overlayfs.config
+              - fs/xfs-advanced.config
+              - fs/xfs.config
+              - fs/xfs-debug.config
+              - mem/damon.config
+              - mem/ksm.config
+              - mem/numa.config
+              - mem/zram.config
+              - net/moby.config
+              - net/netfilter-nat.config
+              - net/netfilter-xtables.config
+              - net/nftables.config
+              - perf/perf-amd.config
+              - rust/gendwarfksyms.config
+              - rust/modversions.config
+              - rust/rust.config
+              - rust/rust-samples.config
+              - security/crypto-accel.config
+              - security/crypto-algorithms.config
+              - security/crypto-core.config
+              - security/ebpf.config
+              - security/ima-full.config
+              - security/lsm-modules.config
+              - security/security.config
+              - storage/blk-extras.config
+              - storage/block-devices.config
+              - storage/cxl.config
+              - storage/dm-targets.config
+              - storage/md-raid.config
+              - storage/nvdimm.config
+              - storage/nvme-fabrics.config
+              - storage/zoned.config
+              - test/kunit.config
+              - test/modules-testing.config
+              - test/selftests.config
+              - test/xarray.config
+              - test/xarray_no_multi.config
+              - virt/kvm.config
+              - virt/virtio-extras.config
+              - virt/virtio-fs.config
+              - virt/virtio-net.config
+              - virt/vsock.config
+        allnoconfig_base:
+          type: boolean
+          showExpr: "fields.config_method === 'fragments'"
+          description: "[method=fragments] Default unset symbols to n (allnoconfig base) for a minimal, explicit config."
+          default: true
+    build:
+      title: Build
+      type: object
+      description: Compile knobs — targets, toolchain, reproducibility, ccache.
+      default: {}
+      order:
+        - targets
+        - make_flags
+        - compiler
+        - reproducible
+        - timestamp_from_commit
+        - ccache
+        - ccache_max_size
+      properties:
+        targets:
+          type: string
+          description: Space-separated make targets. Empty (default) builds the default goal — vmlinux, the boot image, and modules.
+          default: ""
+        make_flags:
+          type: string
+          description: Extra make variables/flags, space-separated, appended verbatim (e.g. "W=1 KCFLAGS=-O2").
+          default: ""
+        compiler:
+          type: string
+          description: Toolchain to build with. clang is pending the nixos-flake LLVM flags - see docs/windmill/clang-kernel-build-findings.md.
+          default: gcc
+          enum:
+            - gcc
+        reproducible:
+          type: boolean
+          description: Reproducible build (fixed `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`, `LOCALVERSION=`).
+          default: true
+        timestamp_from_commit:
+          type: boolean
+          description: Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the fixed default.
+          default: false
+        ccache:
+          type: boolean
+          description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
+          default: true
+        ccache_max_size:
+          type: integer
+          description: ccache max cache size in GiB (written to ccache.conf max_size).
+          default: 10
+          showExpr: "fields.ccache !== false"
+    devtools:
+      title: Developer tools
+      type: object
+      description: Optional IDE/debug artifacts produced after compile.
+      default: {}
+      order:
+        - compile_commands
+        - scripts_gdb
+        - rust_analyzer
+      properties:
+        compile_commands:
+          type: boolean
+          description: Generate `compile_commands.json` (clangd/IDE C index) in the source tree.
+          default: true
+        scripts_gdb:
+          title: Scripts GDB
+          type: boolean
+          description: Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build dir.
+          default: true
+        rust_analyzer:
+          type: boolean
+          description: Generate `rust-project.json` (rust-analyzer) when `CONFIG_RUST=y`.
+          default: true
+    installation:
+      title: Install
+      type: object
+      description: Optional install steps and their destination.
+      default: {}
+      order:
+        - install
+        - modules_install
+        - source_symlink
+        - clean_destdir
+      properties:
+        install:
+          type: boolean
+          description: Install the built kernel image into the slot `destdir` (`make install`).
+          default: true
+        modules_install:
+          type: boolean
+          description: Install kernel modules into the slot `destdir` (make modules_install). Skip for an all-built-in kernel.
+          default: true
+        source_symlink:
+          type: boolean
+          description: Add the canonical /lib/modules/<release>/source symlink after modules_install.
+          default: true
+        clean_destdir:
+          type: boolean
+          description: Wipe the install `destdir` (`<slot>/destdir`) first (default off). Leave off so an install never wipes modules a running QEMU/systemd VM has mounted over virtiofs.
+          default: false
+    worker:
+      title: Worker
+      type: object
+      description: Worktree placement and build-dir reuse.
+      default: {}
+      order:
+        - shared
+        - workspace
+        - wipe_build
+      properties:
+        shared:
+          type: boolean
+          description: Off = this worker's own workers/<worker>/kernel tree (fast, parallel across workers). On = a shared persistent named tree under workers/shared/ws/kernel/<name> any worker can pick up.
+          default: false
+        workspace:
+          type: string
+          description: Name for the shared tree (workers/shared/ws/kernel/<name>). Empty = name from the b4 series, else the job id.
+          default: ""
+          showExpr: "fields.shared === true"
+        wipe_build:
+          type: boolean
+          description: Wipe the build dir before building (default off = incremental reuse).
+          default: false
+  required: []

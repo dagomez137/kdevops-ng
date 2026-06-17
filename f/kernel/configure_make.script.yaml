@@ -1,0 +1,60 @@
+summary: "Kernel: configure via make goals"
+description: |
+  Configure method **make** — generate a `.config` by running one or more config
+  make goals. Covers a single existing target (`defconfig`, `x86_64_defconfig`,
+  `allmodconfig`, `tinyconfig`, a kdevops-provided `defconfig-*`, ...) and ordered
+  lists where `*.config` fragments merge onto a base — `["defconfig",
+  "kvm_guest.config"]` is base + KVM guest. Runs inside the `nixos-flake#build`
+  devShell; out-of-tree build (`make O=`), sources in `worktree`, artifacts in
+  `build_dir`.
+
+  One of the interchangeable configure steps (see also
+  `configure_fragments` and `configure_preset`). Reads
+  `worktree`/`build_dir` from a prior `prepare_worktree` step. Returns
+  `kernelrelease`, the `.config` path, `method`, and the resolved `defconfig` list.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - defconfig
+    - make_flags
+  properties:
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree).
+    build_dir:
+      type: string
+      description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+    defconfig:
+      type: array
+      items:
+        type: string
+        enum:
+          - defconfig
+          - x86_64_defconfig
+          - i386_defconfig
+          - alldefconfig
+          - allyesconfig
+          - allmodconfig
+          - allnoconfig
+          - tinyconfig
+          - randconfig
+          - kvm_guest.config
+          - hardening.config
+          - debug.config
+          - rust.config
+          - xen.config
+          - nopm.config
+      description: Config make goals, applied in order (`defconfig`, `x86_64_defconfig`, `tinyconfig`, ...). Extra *.config fragments merge onto the base, e.g. `["defconfig", "kvm_guest.config"]`.
+      default:
+        - defconfig
+    make_flags:
+      type: string
+      description: Extra make variables/flags, space-separated, appended verbatim (e.g. "W=1").
+      default: ""
+  required:
+    - worktree
+    - build_dir

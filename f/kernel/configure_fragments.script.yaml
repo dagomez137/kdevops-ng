@@ -1,0 +1,189 @@
+summary: "Kernel: configure via curated fragments"
+description: |
+  Configure method **fragments** — generate a `.config` by selecting from the
+  curated `linux-config-fragments` library and merging the picks with the kernel
+  tree's `scripts/kconfig/merge_config.sh`. You pick **which** fragments; the step
+  imposes a **canonical order** (core structural first, then by category, builtin
+  `=y` overrides last) so the result is deterministic regardless of selection
+  order.
+
+  Fragments default tristate symbols to `=m`; pick a matching `builtin/...` entry
+  to force that feature built-in (`=y`) instead — it always merges last so
+  last-wins applies. With `allnoconfig_base` (default) unset symbols default to
+  `n` for a minimal, explicit config. The library is provisioned at
+  `workers/shared/linux-config-fragments` by `f/workspace/init`.
+
+  One of the interchangeable configure steps (see also `configure_make` and
+  `configure_preset`). This is the guided multiselect over the curated library.
+  Returns `kernelrelease`, the `.config` path, `method`, and the `fragments` used.
+
+  > The fragment list below is a static snapshot of the library. Regenerate it
+  > when the library changes: `find kernel/configs -name '*.config'`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - fragments
+    - allnoconfig_base
+    - make_flags
+  properties:
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree).
+    build_dir:
+      type: string
+      description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+    fragments:
+      type: array
+      description: Curated config fragments to merge (canonical order is applied; builtin/* go last). Pick builtin/<x> to force feature <x> built-in.
+      default:
+        - core/64bit.config
+        - core/modules.config
+        - core/core.config
+        - core/systemd.config
+        - core/initrd.config
+        - fs/ext4.config
+        - virt/virtio-net.config
+        - virt/virtio-fs.config
+        - builtin/virt/virtio-fs.config
+        - storage/block-devices.config
+        - virt/vsock.config
+        - arch/x86_64.config
+        - core/acpi-poweroff.config
+        - core/localversion-noauto.config
+        - mem/damon.config
+        - security/ebpf.config
+        - fs/xfs.config
+        - fs/overlayfs.config
+        - virt/kvm.config
+        - perf/perf-amd.config
+      items:
+        type: string
+        enum:
+          - arch/arm64_16k_pages.config
+          - arch/arm64_4k_pages.config
+          - arch/arm64_64k_pages.config
+          - arch/arm64.config
+          - arch/x86_64.config
+          - arch/x86-extras.config
+          - builtin/arch/arm64.config
+          - builtin/core/efi.config
+          - builtin/core/systemd.config
+          - builtin/fs/9p.config
+          - builtin/fs/btrfs.config
+          - builtin/fs/exfat.config
+          - builtin/fs/ext4.config
+          - builtin/fs/fat.config
+          - builtin/fs/nfs.config
+          - builtin/fs/overlayfs.config
+          - builtin/fs/xfs.config
+          - builtin/net/moby.config
+          - builtin/net/netfilter-nat.config
+          - builtin/net/nftables.config
+          - builtin/perf/perf-amd.config
+          - builtin/rust/rust-samples.config
+          - builtin/security/crypto-algorithms.config
+          - builtin/security/crypto-core.config
+          - builtin/security/security.config
+          - builtin/storage/block-devices.config
+          - builtin/storage/dm-targets.config
+          - builtin/storage/md-raid.config
+          - builtin/storage/nvme-fabrics.config
+          - builtin/virt/kvm.config
+          - builtin/virt/virtio-fs.config
+          - builtin/virt/virtio-net.config
+          - builtin/virt/vsock.config
+          - core/64bit.config
+          - core/acpi-extras.config
+          - core/acpi-poweroff.config
+          - core/boot-config.config
+          - core/cgroup-extras.config
+          - core/compression.config
+          - core/core.config
+          - core/cpufreq.config
+          - core/crash.config
+          - core/efi.config
+          - core/hardening.config
+          - core/initrd.config
+          - core/iommu-pci.config
+          - core/localversion.config
+          - core/localversion-noauto.config
+          - core/mitigations.config
+          - core/modules.config
+          - core/preempt.config
+          - core/systemd.config
+          - debug/blktrace.config
+          - debug/codetagging.config
+          - debug/debug-heavy.config
+          - debug/gdb.config
+          - debug/kasan.config
+          - debug/kmemleak.config
+          - debug/modules-debug.config
+          - debug/vm_debug.config
+          - fs/9p.config
+          - fs/btrfs.config
+          - fs/exfat.config
+          - fs/ext4.config
+          - fs/f2fs.config
+          - fs/fat.config
+          - fs/iso9660.config
+          - fs/nfs.config
+          - fs/nfsd-advanced.config
+          - fs/nls.config
+          - fs/overlayfs.config
+          - fs/xfs-advanced.config
+          - fs/xfs.config
+          - fs/xfs-debug.config
+          - mem/damon.config
+          - mem/ksm.config
+          - mem/numa.config
+          - mem/zram.config
+          - net/moby.config
+          - net/netfilter-nat.config
+          - net/netfilter-xtables.config
+          - net/nftables.config
+          - perf/perf-amd.config
+          - rust/gendwarfksyms.config
+          - rust/modversions.config
+          - rust/rust.config
+          - rust/rust-samples.config
+          - security/crypto-accel.config
+          - security/crypto-algorithms.config
+          - security/crypto-core.config
+          - security/ebpf.config
+          - security/ima-full.config
+          - security/lsm-modules.config
+          - security/security.config
+          - storage/blk-extras.config
+          - storage/block-devices.config
+          - storage/cxl.config
+          - storage/dm-targets.config
+          - storage/md-raid.config
+          - storage/nvdimm.config
+          - storage/nvme-fabrics.config
+          - storage/zoned.config
+          - test/kunit.config
+          - test/modules-testing.config
+          - test/selftests.config
+          - test/xarray.config
+          - test/xarray_no_multi.config
+          - virt/kvm.config
+          - virt/virtio-extras.config
+          - virt/virtio-fs.config
+          - virt/virtio-net.config
+          - virt/vsock.config
+    allnoconfig_base:
+      type: boolean
+      description: Default unset symbols to n (allnoconfig base) for a minimal, explicit config. Off = alldefconfig base.
+      default: true
+    make_flags:
+      type: string
+      description: Toolchain make flags from `build_flags` (`LLVM=1` for clang); applied to config detection.
+      default: ""
+  required:
+    - worktree
+    - build_dir
+    - fragments
