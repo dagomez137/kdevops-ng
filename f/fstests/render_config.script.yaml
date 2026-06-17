@@ -1,0 +1,133 @@
+summary: "xfstests: render the host-side run config (local.config + check.env)"
+description: |
+  Write the xfstests run's host-side config onto the VM's `fstests` virtiofs share
+  (`$WORKERS_DIR/shared/fstests/<vm>/`), the files the guest's
+  `xfstests@<section>.service` reads from its `/var/lib/xfstests` mount:
+
+  - `local.config` — the single editable xfstests `HOST_OPTIONS` config (default =
+    the shipped XFS profile matrix), device-agnostic: `FSTYP=xfs` plus each
+    section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`. The section list is auto-discovered
+    from it; `sections` narrows the run to a subset (empty = all). The discovered
+    `devices` are injected into each selected section at render time.
+  - `check.env` — the systemd `EnvironmentFile`: `HOST_OPTIONS=/var/lib/xfstests/
+    local.config` (the **guest** path; `./check` runs in the guest) and
+    `XFSTESTS_CHECK_ARGS` composed from the Check group. `RESULT_BASE` is left unset
+    — the `xfstests-check` wrapper forces it to `$PWD/results`.
+
+  Both files are written atomically and echoed to the job log; `results/` is created
+  for the guest to write into. Returns the `[section]` names for the per-section
+  forloop plus the written paths. The host never contacts the guest.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - target
+    - config
+    - check
+  properties:
+    target:
+      title: Target
+      type: object
+      description: VM whose `fstests` share to write into.
+      default: {}
+      order:
+        - vm_name
+        - kernel_version
+      properties:
+        vm_name:
+          title: VM Name
+          type: object
+          description: VM whose `fstests` virtiofs share (`$WORKERS_DIR/shared/fstests/<vm>`) receives `local.config` + `check.env`.
+          format: dynselect-list_vms
+        kernel_version:
+          title: Kernel Version
+          type: string
+          description: The guest's kernel release (`uname -r`, from `discover`); results are cleaned/rotated under the `fstests` share's `<kver>/results/<section>` subtree.
+      required:
+        - vm_name
+        - kernel_version
+    config:
+      title: Config
+      type: object
+      description: The editable `local.config` (one device-agnostic config for all sections) and which of its auto-discovered sections to run.
+      default: {}
+      order:
+        - sections
+        - local_config
+        - clean_results
+        - logwrites
+        - devices
+      properties:
+        sections:
+          title: Sections
+          type: array
+          description: The xfstests `[section]`s to run — auto-discovered from `local.config` (the full shipped XFS matrix when empty). Empty runs every section.
+          default: []
+          items:
+            type: string
+        local_config:
+          title: local.config
+          type: string
+          description: "Optional override — paste a device-agnostic xfstests `HOST_OPTIONS` config (`FSTYP=xfs` + each section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`, no `TEST_DEV`/`SCRATCH_DEV`) to run instead of the generated matrix. Empty uses the full shipped XFS matrix; `render_config` injects the discovered Devices per section."
+          default: ""
+        clean_results:
+          title: Clean Results
+          type: boolean
+          description: "Before the run, DELETE each selected section's results directory (`.out.bad`, `result.xml`, cores, and any kept `.NNNN` rotations) for a clean start. Off = keep prior runs (rotated to `.NNNN`)."
+          default: false
+        logwrites:
+          title: Log-writes Device
+          type: boolean
+          description: "Reserve the LAST discovered device as `LOGWRITES_DEV` (the dm-log-writes replay log) for every section, leaving the rest for `TEST_DEV`/`SCRATCH`. Enables the crash-consistency tests (generic/455,457,470,471,482,642…) that otherwise `notrun` with `requires $LOGWRITES_DEV`. Costs one device: needs >=3 (>=4 with an external-device section); sections a drive short are skipped. On by default; turn off to put every device in the scratch pool."
+          default: true
+        devices:
+          type: array
+          description: 'Block devices injected into each selected section, e.g. [{"name": "/dev/nvme0n1"}]. First two become `TEST_DEV`/`SCRATCH_DEV`, the rest `SCRATCH_DEV_POOL`.'
+          default: []
+          items:
+            type: object
+    check:
+      title: Check
+      type: object
+      description: The `./check` flags written to `XFSTESTS_CHECK_ARGS` (xfstests short flags; the unit supplies `-s <section>`).
+      default: {}
+      order:
+        - group
+        - exclude_group
+        - exclude
+        - report
+        - randomize
+        - tests
+      properties:
+        group:
+          type: string
+          description: 'xfstests `./check -g group[,group...]`: include tests from these groups (e.g. `auto`, `quick`).'
+          default: auto
+        exclude_group:
+          title: Exclude Group
+          type: string
+          description: 'xfstests `./check -x group[,group...]`: exclude tests from these groups.'
+          default: ''
+        exclude:
+          type: string
+          description: 'xfstests `./check -X exclude_file`: exclude individual tests — a guest path to a file listing tests to skip.'
+          default: ''
+        report:
+          type: string
+          description: 'xfstests `./check -R fmt[,fmt]`: generate report in formats specified. Supported formats: `xunit`, `xunit-quiet`. `xunit` is parsed by `f/fstests/collect`.'
+          default: xunit
+          enum:
+            - xunit
+            - xunit-quiet
+        randomize:
+          type: boolean
+          description: 'xfstests `./check -r`: randomize test order.'
+          default: false
+        tests:
+          type: string
+          description: 'xfstests `./check [options] testlist`: the trailing positional testlist, space-separated (e.g. `generic/001 generic/002`). Empty runs the whole group.'
+          default: ''
+  required:
+    - target

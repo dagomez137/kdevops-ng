@@ -1,0 +1,3167 @@
+summary: "xfstests check"
+description: |
+  Run xfstests `./check` against an already-booted, fstests-ready guest — the
+  Windmill equivalent of an xfstests `./check` run. The guest is produced
+  separately by `f/qsu/bringup` with `closure.test_suites=["fstests"]`, a writable
+  `fstests` virtiofs share mounted at `/var/lib/xfstests`, and ≥2 NVMe drives
+  (≥4 for a btrfs pool); this flow drives many sections against it without
+  rebooting.
+
+  Steps mirror xfstests/systemd vocabulary 1:1:
+
+  1. `discover` — gate the guest over vsock (`systemctl --host <vm>
+     is-system-running`, the `xfstests@.service` template present, `./check`
+     executable) and enumerate its `/dev/nvme*n1` devices and supported `FSTYP`.
+  2. `render_config` — write the `HOST_OPTIONS` config (`local.config`) and the
+     `check.env` `EnvironmentFile` onto the host side of the share; its `[section]`
+     names drive the loop.
+  3. for each `section`, sequentially (sections share `TEST_DEV`/`SCRATCH_DEV`):
+     `start` (`systemctl --host <vm> start --no-block xfstests@<section>`) →
+     `wait` (poll `show --property=Result,ExecMainStatus,ActiveState` to terminal,
+     crash-check the host `qemu-system@<vm>`) → `collect` (parse the `-R xunit`
+     report from the share).
+  4. `report` — aggregate the per-section results into one summary.
+
+  Every step is `tag: vm` (the dedicated worker that reaches the guest over the
+  vsock-SSH transport). Returns the `report` summary.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + enumerate devices (f/fstests/discover)
+      value:
+        type: script
+        path: f/fstests/discover
+        tag_override: vm
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+    - id: render_config
+      summary: Write local.config + check.env on the share (f/fstests/render_config)
+      value:
+        type: script
+        path: f/fstests/render_config
+        tag_override: vm
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+          kernel_version:
+            type: javascript
+            expr: results.discover.kernel_version
+          local_config:
+            type: javascript
+            expr: flow_input.check?.local_config
+          sections:
+            type: javascript
+            expr: flow_input.sections
+          clean_results:
+            type: javascript
+            expr: flow_input.clean_results
+          logwrites:
+            type: javascript
+            expr: flow_input.logwrites
+          devices:
+            type: javascript
+            expr: results.discover.devices
+          group:
+            type: javascript
+            expr: flow_input.check?.group
+          exclude_group:
+            type: javascript
+            expr: flow_input.check?.exclude_group
+          exclude:
+            type: javascript
+            expr: flow_input.check?.exclude
+          report:
+            type: javascript
+            expr: flow_input.check?.report
+          randomize:
+            type: javascript
+            expr: flow_input.check?.randomize
+          tests:
+            type: javascript
+            expr: flow_input.check?.tests
+          iterations:
+            type: javascript
+            expr: flow_input.check?.iterations
+          loop_on_fail:
+            type: javascript
+            expr: flow_input.check?.loop_on_fail
+          stop_on_fail:
+            type: javascript
+            expr: flow_input.check?.stop_on_fail
+          test_timeout:
+            type: javascript
+            expr: flow_input.service?.test_timeout
+          test_timeouts:
+            type: javascript
+            expr: flow_input.service?.test_timeouts
+    - id: reboot
+      summary: Reboot the guest before the run, optional (f/fstests/reboot)
+      value:
+        type: script
+        path: f/fstests/reboot
+        tag_override: vm-run
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+          reboot_guest:
+            type: javascript
+            expr: flow_input.reboot_guest
+          reboot_timeout:
+            type: javascript
+            expr: flow_input.service?.reboot_timeout
+          poll_interval:
+            type: javascript
+            expr: flow_input.service?.poll_interval
+    - id: sections
+      summary: Run each [section] sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        parallel: false
+        skip_failures: false
+        iterator:
+          type: javascript
+          expr: results.render_config.sections
+        modules:
+          - id: wipe
+            summary: Wipe test/scratch devices before this section (f/fstests/wipe)
+            value:
+              type: script
+              path: f/fstests/wipe
+              tag_override: vm
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                devices:
+                  type: javascript
+                  expr: results.discover.devices
+                wipe_devices:
+                  type: javascript
+                  expr: flow_input.wipe_devices
+          - id: prepare
+            summary: Create mount points + format TEST_DEV per FSTYP (f/fstests/prepare)
+            value:
+              type: script
+              path: f/fstests/prepare
+              tag_override: vm
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                section:
+                  type: javascript
+                  expr: flow_input.iter.value
+                mkfs_test_dev:
+                  type: javascript
+                  expr: flow_input.mkfs_test_dev
+          - id: start
+            summary: Start xfstests@<section> detached (f/fstests/start)
+            value:
+              type: script
+              path: f/fstests/start
+              tag_override: vm
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                section:
+                  type: javascript
+                  expr: flow_input.iter.value
+          - id: wait
+            summary: Poll the unit to terminal + crash-check (f/fstests/wait)
+            value:
+              type: script
+              path: f/fstests/wait
+              tag_override: vm-run
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                section:
+                  type: javascript
+                  expr: flow_input.iter.value
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+          - id: collect
+            summary: Parse the section's xunit report (f/fstests/collect)
+            value:
+              type: script
+              path: f/fstests/collect
+              tag_override: vm
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                section:
+                  type: javascript
+                  expr: flow_input.iter.value
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+    - id: report
+      summary: Aggregate per-section results (f/fstests/report)
+      value:
+        type: script
+        path: f/fstests/report
+        tag_override: vm
+        input_transforms:
+          per_section:
+            type: javascript
+            expr: results.sections
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+  failure_module:
+    id: stop
+    summary: Stop xfstests@<section>.service on failure or cancel (f/fstests/stop)
+    value:
+      type: script
+      path: f/fstests/stop
+      tag_override: vm
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        sections:
+          type: javascript
+          expr: results?.render_config?.sections ?? []
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - sections
+    - mkfs_test_dev
+    - wipe_devices
+    - clean_results
+    - logwrites
+    - reboot_guest
+    - check
+    - service
+  properties:
+    vm_name:
+      title: VM Name
+      type: object
+      format: dynselect-list_vms
+      description: Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown lists all guests; it must be fstests-ready (`closure.test_suites=["fstests"]`, the `fstests` share at `/var/lib/xfstests`, ≥2 NVMe) — `discover` gates that.
+    sections:
+      title: Sections
+      type: object
+      format: dynmultiselect-list_sections
+      description: "Which xfstests `[section]`s actually run — chosen from the `local.config` set (the full default matrix unless you've edited it in the Check group). **Empty = run ALL of them**; pick one or more to run ONLY those (resolved against the full matrix regardless of the Edit toggle)."
+      default: []
+    mkfs_test_dev:
+      title: Format TEST_DEV
+      type: boolean
+      description: "Per section, reformat `TEST_DEV` with that section's `FSTYP` before the run (`./check` mkfs's only `SCRATCH_DEV`, never `TEST_DEV`). Lets a run switch filesystems without rebuilding the guest."
+      default: true
+    wipe_devices:
+      title: Wipe Devices
+      type: boolean
+      description: "`wipefs --all` + `blkdiscard --force` every test/scratch NVMe at the start of EACH section, before its mount points are created. The `blkdiscard` TRIM deflates the thin-provisioned qcow2 backing, so it doesn't inflate across sections and a device filled by a prior section stops reporting `No space left on device`. Safe by default — TEST_DEV/SCRATCH_DEV data is disposable."
+      default: true
+    clean_results:
+      title: Clean Results
+      type: boolean
+      description: "Before the run, DELETE each selected section's results directory (`.out.bad`, `result.xml`, cores, and any kept `.NNNN` rotations) for a clean start. Off = keep prior runs (rotated to `.NNNN`)."
+      default: false
+    logwrites:
+      title: Log-writes Device
+      type: boolean
+      description: "Reserve the last NVMe as `LOGWRITES_DEV` (the dm-log-writes replay log) for every section, so the crash-consistency tests (generic/455,457,470,471,482,642…) run instead of `notrun (requires $LOGWRITES_DEV)`. Costs one device — the scratch pool shrinks by one; needs >=3 devices (>=4 for an external-device section), sections a drive short are skipped. On by default; turn off to put every device in the scratch pool."
+      default: true
+    reboot_guest:
+      title: Reboot Guest
+      type: boolean
+      description: "Reboot the guest once before the run and wait for it to come back (clears leaked kernel state, stuck D-state tasks). Off by default. (The per-section device wipe is separate — see Wipe Devices.)"
+      default: false
+    check:
+      title: Check
+      type: object
+      description: The `./check` flags (verbatim), composed into `$XFSTESTS_CHECK_ARGS` (the per-section `-s` is supplied by the unit).
+      default: {}
+      order:
+        - edit_local_config
+        - local_config
+        - group
+        - exclude_group
+        - exclude
+        - report
+        - randomize
+        - tests
+        - iterations
+        - stop_on_fail
+        - loop_on_fail
+      properties:
+        edit_local_config:
+          title: Edit local.config
+          type: boolean
+          description: "Reveal the editable `local.config` below — hidden by default because it's the large full block/sector × feature matrix. Toggle on ONLY to edit/trim that config; leaving it off still uses the full matrix as the section set. Either way, **Sections** picks which sections actually run (empty = all)."
+          default: false
+        local_config:
+          title: local.config
+          type: string
+          showExpr: "fields.edit_local_config === true"
+          description: "The xfstests `local.config` (README.config-sections), one `[section]` per profile — edit it to add/remove sections or tweak `MKFS_OPTIONS`/`MOUNT_OPTIONS`. Device-agnostic: `render_config` injects `TEST_DEV`/`SCRATCH_DEV`/mount points per section. The top-level Sections dropdown lists what this declares."
+          default: |
+            [xfs_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=512"
+
+            [xfs_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=1024"
+
+            [xfs_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=512"
+
+            [xfs_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=1024"
+
+            [xfs_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=2048"
+
+            [xfs_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=512"
+
+            [xfs_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=1024"
+
+            [xfs_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=2048"
+
+            [xfs_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=4096"
+
+            [xfs_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=512"
+
+            [xfs_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=1024"
+
+            [xfs_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=2048"
+
+            [xfs_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=4096"
+
+            [xfs_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=8192"
+
+            [xfs_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=512"
+
+            [xfs_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=1024"
+
+            [xfs_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=2048"
+
+            [xfs_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=4096"
+
+            [xfs_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=8192"
+
+            [xfs_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=16384"
+
+            [xfs_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=512"
+
+            [xfs_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=1024"
+
+            [xfs_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=2048"
+
+            [xfs_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=4096"
+
+            [xfs_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=8192"
+
+            [xfs_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=16384"
+
+            [xfs_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=32768"
+
+            [xfs_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=512"
+
+            [xfs_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=1024"
+
+            [xfs_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=2048"
+
+            [xfs_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=4096"
+
+            [xfs_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=8192"
+
+            [xfs_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=16384"
+
+            [xfs_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=32768"
+
+            [xfs_full_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=1024 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=1024 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=2048 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=2048 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=2048 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=16384"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=16384"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=32768"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=16384"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_full_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=32768"
+            MOUNT_OPTIONS="-o usrquota,grpquota,prjquota"
+
+            [xfs_nofeat_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=1024 -s size=512"
+
+            [xfs_nofeat_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=1024 -s size=1024"
+
+            [xfs_nofeat_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=2048 -s size=512"
+
+            [xfs_nofeat_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=2048 -s size=1024"
+
+            [xfs_nofeat_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=2048 -s size=2048"
+
+            [xfs_nofeat_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=4096 -s size=512"
+
+            [xfs_nofeat_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=4096 -s size=1024"
+
+            [xfs_nofeat_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=4096 -s size=2048"
+
+            [xfs_nofeat_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=4096 -s size=4096"
+
+            [xfs_nofeat_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=8192 -s size=512"
+
+            [xfs_nofeat_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=8192 -s size=1024"
+
+            [xfs_nofeat_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=8192 -s size=2048"
+
+            [xfs_nofeat_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=8192 -s size=4096"
+
+            [xfs_nofeat_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=8192 -s size=8192"
+
+            [xfs_nofeat_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=16384 -s size=512"
+
+            [xfs_nofeat_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=16384 -s size=1024"
+
+            [xfs_nofeat_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=16384 -s size=2048"
+
+            [xfs_nofeat_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=16384 -s size=4096"
+
+            [xfs_nofeat_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=16384 -s size=8192"
+
+            [xfs_nofeat_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=16384 -s size=16384"
+
+            [xfs_nofeat_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=512"
+
+            [xfs_nofeat_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=1024"
+
+            [xfs_nofeat_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=2048"
+
+            [xfs_nofeat_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=4096"
+
+            [xfs_nofeat_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=8192"
+
+            [xfs_nofeat_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=16384"
+
+            [xfs_nofeat_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=32768 -s size=32768"
+
+            [xfs_nofeat_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=512"
+
+            [xfs_nofeat_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=1024"
+
+            [xfs_nofeat_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=2048"
+
+            [xfs_nofeat_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=4096"
+
+            [xfs_nofeat_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=8192"
+
+            [xfs_nofeat_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=16384"
+
+            [xfs_nofeat_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0 -b size=65536 -s size=32768"
+
+            [xfs_quota_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=16384"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=16384"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=32768"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=512"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=1024"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=2048"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=4096"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=8192"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=16384"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_quota_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=32768"
+            MOUNT_OPTIONS="-o usrquota,grpquota"
+
+            [xfs_prjquota_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=2048"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=2048"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=4096"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=2048"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=4096"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=8192"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=2048"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=4096"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=8192"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=16384"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=2048"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=4096"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=8192"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=16384"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=32768"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=512"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=1024"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=2048"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=4096"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=8192"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=16384"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_prjquota_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=32768"
+            MOUNT_OPTIONS="-o prjquota"
+
+            [xfs_noreflink_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=1024 -s size=512"
+
+            [xfs_noreflink_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=1024 -s size=1024"
+
+            [xfs_noreflink_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=2048 -s size=512"
+
+            [xfs_noreflink_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=2048 -s size=1024"
+
+            [xfs_noreflink_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=2048 -s size=2048"
+
+            [xfs_noreflink_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=512"
+
+            [xfs_noreflink_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=1024"
+
+            [xfs_noreflink_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=2048"
+
+            [xfs_noreflink_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=4096"
+
+            [xfs_noreflink_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=512"
+
+            [xfs_noreflink_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=1024"
+
+            [xfs_noreflink_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=2048"
+
+            [xfs_noreflink_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=4096"
+
+            [xfs_noreflink_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=8192"
+
+            [xfs_noreflink_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=512"
+
+            [xfs_noreflink_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=1024"
+
+            [xfs_noreflink_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=2048"
+
+            [xfs_noreflink_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=4096"
+
+            [xfs_noreflink_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=8192"
+
+            [xfs_noreflink_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=16384"
+
+            [xfs_noreflink_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=512"
+
+            [xfs_noreflink_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=1024"
+
+            [xfs_noreflink_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=2048"
+
+            [xfs_noreflink_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=4096"
+
+            [xfs_noreflink_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=8192"
+
+            [xfs_noreflink_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=16384"
+
+            [xfs_noreflink_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=32768"
+
+            [xfs_noreflink_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=512"
+
+            [xfs_noreflink_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=1024"
+
+            [xfs_noreflink_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=2048"
+
+            [xfs_noreflink_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=4096"
+
+            [xfs_noreflink_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=8192"
+
+            [xfs_noreflink_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=16384"
+
+            [xfs_noreflink_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=32768"
+
+            [xfs_normapbt_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=1024 -s size=512"
+
+            [xfs_normapbt_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=1024 -s size=1024"
+
+            [xfs_normapbt_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=2048 -s size=512"
+
+            [xfs_normapbt_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=2048 -s size=1024"
+
+            [xfs_normapbt_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=2048 -s size=2048"
+
+            [xfs_normapbt_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=4096 -s size=512"
+
+            [xfs_normapbt_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=4096 -s size=1024"
+
+            [xfs_normapbt_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=4096 -s size=2048"
+
+            [xfs_normapbt_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=4096 -s size=4096"
+
+            [xfs_normapbt_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=8192 -s size=512"
+
+            [xfs_normapbt_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=8192 -s size=1024"
+
+            [xfs_normapbt_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=8192 -s size=2048"
+
+            [xfs_normapbt_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=8192 -s size=4096"
+
+            [xfs_normapbt_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=8192 -s size=8192"
+
+            [xfs_normapbt_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=16384 -s size=512"
+
+            [xfs_normapbt_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=16384 -s size=1024"
+
+            [xfs_normapbt_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=16384 -s size=2048"
+
+            [xfs_normapbt_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=16384 -s size=4096"
+
+            [xfs_normapbt_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=16384 -s size=8192"
+
+            [xfs_normapbt_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=16384 -s size=16384"
+
+            [xfs_normapbt_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=512"
+
+            [xfs_normapbt_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=1024"
+
+            [xfs_normapbt_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=2048"
+
+            [xfs_normapbt_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=4096"
+
+            [xfs_normapbt_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=8192"
+
+            [xfs_normapbt_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=16384"
+
+            [xfs_normapbt_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=32768 -s size=32768"
+
+            [xfs_normapbt_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=512"
+
+            [xfs_normapbt_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=1024"
+
+            [xfs_normapbt_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=2048"
+
+            [xfs_normapbt_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=4096"
+
+            [xfs_normapbt_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=8192"
+
+            [xfs_normapbt_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=16384"
+
+            [xfs_normapbt_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m rmapbt=0 -b size=65536 -s size=32768"
+
+            [xfs_metadir_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=1024 -s size=512"
+
+            [xfs_metadir_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=1024 -s size=1024"
+
+            [xfs_metadir_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=2048 -s size=512"
+
+            [xfs_metadir_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=2048 -s size=1024"
+
+            [xfs_metadir_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=2048 -s size=2048"
+
+            [xfs_metadir_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=512"
+
+            [xfs_metadir_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=1024"
+
+            [xfs_metadir_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=2048"
+
+            [xfs_metadir_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=4096"
+
+            [xfs_metadir_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=512"
+
+            [xfs_metadir_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=1024"
+
+            [xfs_metadir_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=2048"
+
+            [xfs_metadir_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=4096"
+
+            [xfs_metadir_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=8192"
+
+            [xfs_metadir_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=512"
+
+            [xfs_metadir_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=1024"
+
+            [xfs_metadir_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=2048"
+
+            [xfs_metadir_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=4096"
+
+            [xfs_metadir_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=8192"
+
+            [xfs_metadir_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=16384"
+
+            [xfs_metadir_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=512"
+
+            [xfs_metadir_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=1024"
+
+            [xfs_metadir_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=2048"
+
+            [xfs_metadir_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=4096"
+
+            [xfs_metadir_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=8192"
+
+            [xfs_metadir_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=16384"
+
+            [xfs_metadir_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=32768"
+
+            [xfs_metadir_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=512"
+
+            [xfs_metadir_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=1024"
+
+            [xfs_metadir_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=2048"
+
+            [xfs_metadir_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=4096"
+
+            [xfs_metadir_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=8192"
+
+            [xfs_metadir_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=16384"
+
+            [xfs_metadir_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=32768"
+
+            [xfs_nofinobt_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=1024 -s size=512"
+
+            [xfs_nofinobt_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=1024 -s size=1024"
+
+            [xfs_nofinobt_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=2048 -s size=512"
+
+            [xfs_nofinobt_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=2048 -s size=1024"
+
+            [xfs_nofinobt_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=2048 -s size=2048"
+
+            [xfs_nofinobt_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=4096 -s size=512"
+
+            [xfs_nofinobt_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=4096 -s size=1024"
+
+            [xfs_nofinobt_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=4096 -s size=2048"
+
+            [xfs_nofinobt_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=4096 -s size=4096"
+
+            [xfs_nofinobt_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=8192 -s size=512"
+
+            [xfs_nofinobt_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=8192 -s size=1024"
+
+            [xfs_nofinobt_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=8192 -s size=2048"
+
+            [xfs_nofinobt_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=8192 -s size=4096"
+
+            [xfs_nofinobt_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=8192 -s size=8192"
+
+            [xfs_nofinobt_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=16384 -s size=512"
+
+            [xfs_nofinobt_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=16384 -s size=1024"
+
+            [xfs_nofinobt_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=16384 -s size=2048"
+
+            [xfs_nofinobt_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=16384 -s size=4096"
+
+            [xfs_nofinobt_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=16384 -s size=8192"
+
+            [xfs_nofinobt_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=16384 -s size=16384"
+
+            [xfs_nofinobt_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=512"
+
+            [xfs_nofinobt_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=1024"
+
+            [xfs_nofinobt_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=2048"
+
+            [xfs_nofinobt_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=4096"
+
+            [xfs_nofinobt_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=8192"
+
+            [xfs_nofinobt_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=16384"
+
+            [xfs_nofinobt_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=32768 -s size=32768"
+
+            [xfs_nofinobt_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=512"
+
+            [xfs_nofinobt_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=1024"
+
+            [xfs_nofinobt_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=2048"
+
+            [xfs_nofinobt_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=4096"
+
+            [xfs_nofinobt_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=8192"
+
+            [xfs_nofinobt_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=16384"
+
+            [xfs_nofinobt_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m finobt=0,inobtcount=0 -b size=65536 -s size=32768"
+
+            [xfs_noinobtcount_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=1024 -s size=512"
+
+            [xfs_noinobtcount_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=1024 -s size=1024"
+
+            [xfs_noinobtcount_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=2048 -s size=512"
+
+            [xfs_noinobtcount_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=2048 -s size=1024"
+
+            [xfs_noinobtcount_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=2048 -s size=2048"
+
+            [xfs_noinobtcount_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=4096 -s size=512"
+
+            [xfs_noinobtcount_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=4096 -s size=1024"
+
+            [xfs_noinobtcount_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=4096 -s size=2048"
+
+            [xfs_noinobtcount_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=4096 -s size=4096"
+
+            [xfs_noinobtcount_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=8192 -s size=512"
+
+            [xfs_noinobtcount_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=8192 -s size=1024"
+
+            [xfs_noinobtcount_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=8192 -s size=2048"
+
+            [xfs_noinobtcount_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=8192 -s size=4096"
+
+            [xfs_noinobtcount_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=8192 -s size=8192"
+
+            [xfs_noinobtcount_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=16384 -s size=512"
+
+            [xfs_noinobtcount_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=16384 -s size=1024"
+
+            [xfs_noinobtcount_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=16384 -s size=2048"
+
+            [xfs_noinobtcount_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=16384 -s size=4096"
+
+            [xfs_noinobtcount_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=16384 -s size=8192"
+
+            [xfs_noinobtcount_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=16384 -s size=16384"
+
+            [xfs_noinobtcount_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=512"
+
+            [xfs_noinobtcount_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=1024"
+
+            [xfs_noinobtcount_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=2048"
+
+            [xfs_noinobtcount_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=4096"
+
+            [xfs_noinobtcount_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=8192"
+
+            [xfs_noinobtcount_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=16384"
+
+            [xfs_noinobtcount_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=32768 -s size=32768"
+
+            [xfs_noinobtcount_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=512"
+
+            [xfs_noinobtcount_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=1024"
+
+            [xfs_noinobtcount_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=2048"
+
+            [xfs_noinobtcount_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=4096"
+
+            [xfs_noinobtcount_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=8192"
+
+            [xfs_noinobtcount_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=16384"
+
+            [xfs_noinobtcount_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m inobtcount=0 -b size=65536 -s size=32768"
+
+            [xfs_nosparse_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=1024 -s size=512"
+
+            [xfs_nosparse_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=1024 -s size=1024"
+
+            [xfs_nosparse_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=2048 -s size=512"
+
+            [xfs_nosparse_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=2048 -s size=1024"
+
+            [xfs_nosparse_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=2048 -s size=2048"
+
+            [xfs_nosparse_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=4096 -s size=512"
+
+            [xfs_nosparse_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=4096 -s size=1024"
+
+            [xfs_nosparse_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=4096 -s size=2048"
+
+            [xfs_nosparse_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=4096 -s size=4096"
+
+            [xfs_nosparse_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=8192 -s size=512"
+
+            [xfs_nosparse_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=8192 -s size=1024"
+
+            [xfs_nosparse_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=8192 -s size=2048"
+
+            [xfs_nosparse_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=8192 -s size=4096"
+
+            [xfs_nosparse_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=8192 -s size=8192"
+
+            [xfs_nosparse_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=16384 -s size=512"
+
+            [xfs_nosparse_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=16384 -s size=1024"
+
+            [xfs_nosparse_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=16384 -s size=2048"
+
+            [xfs_nosparse_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=16384 -s size=4096"
+
+            [xfs_nosparse_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=16384 -s size=8192"
+
+            [xfs_nosparse_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=16384 -s size=16384"
+
+            [xfs_nosparse_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=512"
+
+            [xfs_nosparse_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=1024"
+
+            [xfs_nosparse_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=2048"
+
+            [xfs_nosparse_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=4096"
+
+            [xfs_nosparse_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=8192"
+
+            [xfs_nosparse_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=16384"
+
+            [xfs_nosparse_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=32768 -s size=32768"
+
+            [xfs_nosparse_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=512"
+
+            [xfs_nosparse_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=1024"
+
+            [xfs_nosparse_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=2048"
+
+            [xfs_nosparse_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=4096"
+
+            [xfs_nosparse_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=8192"
+
+            [xfs_nosparse_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=16384"
+
+            [xfs_nosparse_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i sparse=0 -b size=65536 -s size=32768"
+
+            [xfs_nobigtime_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=1024 -s size=512"
+
+            [xfs_nobigtime_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=1024 -s size=1024"
+
+            [xfs_nobigtime_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=2048 -s size=512"
+
+            [xfs_nobigtime_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=2048 -s size=1024"
+
+            [xfs_nobigtime_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=2048 -s size=2048"
+
+            [xfs_nobigtime_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=4096 -s size=512"
+
+            [xfs_nobigtime_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=4096 -s size=1024"
+
+            [xfs_nobigtime_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=4096 -s size=2048"
+
+            [xfs_nobigtime_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=4096 -s size=4096"
+
+            [xfs_nobigtime_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=8192 -s size=512"
+
+            [xfs_nobigtime_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=8192 -s size=1024"
+
+            [xfs_nobigtime_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=8192 -s size=2048"
+
+            [xfs_nobigtime_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=8192 -s size=4096"
+
+            [xfs_nobigtime_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=8192 -s size=8192"
+
+            [xfs_nobigtime_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=16384 -s size=512"
+
+            [xfs_nobigtime_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=16384 -s size=1024"
+
+            [xfs_nobigtime_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=16384 -s size=2048"
+
+            [xfs_nobigtime_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=16384 -s size=4096"
+
+            [xfs_nobigtime_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=16384 -s size=8192"
+
+            [xfs_nobigtime_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=16384 -s size=16384"
+
+            [xfs_nobigtime_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=512"
+
+            [xfs_nobigtime_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=1024"
+
+            [xfs_nobigtime_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=2048"
+
+            [xfs_nobigtime_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=4096"
+
+            [xfs_nobigtime_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=8192"
+
+            [xfs_nobigtime_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=16384"
+
+            [xfs_nobigtime_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=32768 -s size=32768"
+
+            [xfs_nobigtime_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=512"
+
+            [xfs_nobigtime_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=1024"
+
+            [xfs_nobigtime_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=2048"
+
+            [xfs_nobigtime_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=4096"
+
+            [xfs_nobigtime_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=8192"
+
+            [xfs_nobigtime_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=16384"
+
+            [xfs_nobigtime_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m bigtime=0 -b size=65536 -s size=32768"
+
+            [xfs_nonrext64_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=1024 -s size=512"
+
+            [xfs_nonrext64_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=1024 -s size=1024"
+
+            [xfs_nonrext64_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=2048 -s size=512"
+
+            [xfs_nonrext64_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=2048 -s size=1024"
+
+            [xfs_nonrext64_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=2048 -s size=2048"
+
+            [xfs_nonrext64_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=4096 -s size=512"
+
+            [xfs_nonrext64_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=4096 -s size=1024"
+
+            [xfs_nonrext64_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=4096 -s size=2048"
+
+            [xfs_nonrext64_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=4096 -s size=4096"
+
+            [xfs_nonrext64_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=8192 -s size=512"
+
+            [xfs_nonrext64_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=8192 -s size=1024"
+
+            [xfs_nonrext64_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=8192 -s size=2048"
+
+            [xfs_nonrext64_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=8192 -s size=4096"
+
+            [xfs_nonrext64_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=8192 -s size=8192"
+
+            [xfs_nonrext64_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=16384 -s size=512"
+
+            [xfs_nonrext64_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=16384 -s size=1024"
+
+            [xfs_nonrext64_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=16384 -s size=2048"
+
+            [xfs_nonrext64_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=16384 -s size=4096"
+
+            [xfs_nonrext64_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=16384 -s size=8192"
+
+            [xfs_nonrext64_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=16384 -s size=16384"
+
+            [xfs_nonrext64_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=512"
+
+            [xfs_nonrext64_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=1024"
+
+            [xfs_nonrext64_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=2048"
+
+            [xfs_nonrext64_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=4096"
+
+            [xfs_nonrext64_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=8192"
+
+            [xfs_nonrext64_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=16384"
+
+            [xfs_nonrext64_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=32768 -s size=32768"
+
+            [xfs_nonrext64_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=512"
+
+            [xfs_nonrext64_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=1024"
+
+            [xfs_nonrext64_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=2048"
+
+            [xfs_nonrext64_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=4096"
+
+            [xfs_nonrext64_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=8192"
+
+            [xfs_nonrext64_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=16384"
+
+            [xfs_nonrext64_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-i nrext64=0 -b size=65536 -s size=32768"
+
+            [xfs_asciici_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=1024 -s size=512"
+
+            [xfs_asciici_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=1024 -s size=1024"
+
+            [xfs_asciici_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=2048 -s size=512"
+
+            [xfs_asciici_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=2048 -s size=1024"
+
+            [xfs_asciici_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=2048 -s size=2048"
+
+            [xfs_asciici_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=4096 -s size=512"
+
+            [xfs_asciici_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=4096 -s size=1024"
+
+            [xfs_asciici_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=4096 -s size=2048"
+
+            [xfs_asciici_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=4096 -s size=4096"
+
+            [xfs_asciici_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=8192 -s size=512"
+
+            [xfs_asciici_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=8192 -s size=1024"
+
+            [xfs_asciici_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=8192 -s size=2048"
+
+            [xfs_asciici_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=8192 -s size=4096"
+
+            [xfs_asciici_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=8192 -s size=8192"
+
+            [xfs_asciici_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=16384 -s size=512"
+
+            [xfs_asciici_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=16384 -s size=1024"
+
+            [xfs_asciici_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=16384 -s size=2048"
+
+            [xfs_asciici_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=16384 -s size=4096"
+
+            [xfs_asciici_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=16384 -s size=8192"
+
+            [xfs_asciici_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=16384 -s size=16384"
+
+            [xfs_asciici_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=512"
+
+            [xfs_asciici_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=1024"
+
+            [xfs_asciici_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=2048"
+
+            [xfs_asciici_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=4096"
+
+            [xfs_asciici_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=8192"
+
+            [xfs_asciici_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=16384"
+
+            [xfs_asciici_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=32768 -s size=32768"
+
+            [xfs_asciici_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=512"
+
+            [xfs_asciici_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=1024"
+
+            [xfs_asciici_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=2048"
+
+            [xfs_asciici_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=4096"
+
+            [xfs_asciici_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=8192"
+
+            [xfs_asciici_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=16384"
+
+            [xfs_asciici_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-n version=ci -b size=65536 -s size=32768"
+
+            [xfs_logdev_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=1024 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=2048 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=4096 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=8192 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=16384 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=32768 -s size=32768"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=512"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_logdev_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-b size=65536 -s size=32768"
+            USE_EXTERNAL=yes
+            # external=logdev
+
+            [xfs_realtime_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=1024 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=1024 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=2048 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=2048 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=2048 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=4096 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=8192 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=16384 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=32768 -s size=32768"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m reflink=0 -b size=65536 -s size=32768"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=4096 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=8192 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=16384 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=32768 -s size=32768"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=512"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=1024"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=2048"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=4096"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=8192"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=16384"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_realtime_reflink_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m metadir=1 -b size=65536 -s size=32768"
+            USE_EXTERNAL=yes
+            # external=rtdev
+
+            [xfs_nocrc_bs512_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=512 -s size=512"
+
+            [xfs_nocrc_bs1k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=1024 -s size=512"
+
+            [xfs_nocrc_bs1k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=1024 -s size=1024"
+
+            [xfs_nocrc_bs2k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=2048 -s size=512"
+
+            [xfs_nocrc_bs2k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=2048 -s size=1024"
+
+            [xfs_nocrc_bs2k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=2048 -s size=2048"
+
+            [xfs_nocrc_bs4k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=4096 -s size=512"
+
+            [xfs_nocrc_bs4k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=4096 -s size=1024"
+
+            [xfs_nocrc_bs4k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=4096 -s size=2048"
+
+            [xfs_nocrc_bs4k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=4096 -s size=4096"
+
+            [xfs_nocrc_bs8k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=8192 -s size=512"
+
+            [xfs_nocrc_bs8k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=8192 -s size=1024"
+
+            [xfs_nocrc_bs8k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=8192 -s size=2048"
+
+            [xfs_nocrc_bs8k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=8192 -s size=4096"
+
+            [xfs_nocrc_bs8k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=8192 -s size=8192"
+
+            [xfs_nocrc_bs16k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=16384 -s size=512"
+
+            [xfs_nocrc_bs16k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=16384 -s size=1024"
+
+            [xfs_nocrc_bs16k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=16384 -s size=2048"
+
+            [xfs_nocrc_bs16k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=16384 -s size=4096"
+
+            [xfs_nocrc_bs16k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=16384 -s size=8192"
+
+            [xfs_nocrc_bs16k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=16384 -s size=16384"
+
+            [xfs_nocrc_bs32k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=512"
+
+            [xfs_nocrc_bs32k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=1024"
+
+            [xfs_nocrc_bs32k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=2048"
+
+            [xfs_nocrc_bs32k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=4096"
+
+            [xfs_nocrc_bs32k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=8192"
+
+            [xfs_nocrc_bs32k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=16384"
+
+            [xfs_nocrc_bs32k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=32768 -s size=32768"
+
+            [xfs_nocrc_bs64k_ss512]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=512"
+
+            [xfs_nocrc_bs64k_ss1k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=1024"
+
+            [xfs_nocrc_bs64k_ss2k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=2048"
+
+            [xfs_nocrc_bs64k_ss4k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=4096"
+
+            [xfs_nocrc_bs64k_ss8k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=8192"
+
+            [xfs_nocrc_bs64k_ss16k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=16384"
+
+            [xfs_nocrc_bs64k_ss32k]
+            FSTYP=xfs
+            MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=32768"
+        group:
+          title: Group (-g)
+          type: string
+          description: "xfstests `./check -g group[,group...]`: include tests from these groups (e.g. `auto`, `quick`). Empty runs the section's default set."
+          default: auto
+        exclude_group:
+          title: Exclude Group (-x)
+          type: string
+          description: "xfstests `./check -x group[,group...]`: exclude tests from these groups (e.g. `dangerous`)."
+          default: ""
+        exclude:
+          title: Exclude File (-X)
+          type: string
+          description: "xfstests `./check -X exclude_file`: exclude individual tests — a guest path to an expunge/exclude list."
+          default: ""
+        report:
+          title: Report (-R)
+          type: string
+          description: "xfstests `./check -R fmt[,fmt]`: generate report in formats specified. Supported formats: `xunit`, `xunit-quiet`. `xunit` writes `result.xml` under `RESULT_BASE/<section>`, which `collect` parses."
+          default: xunit
+        randomize:
+          title: Randomize (-r)
+          type: boolean
+          description: "xfstests `./check -r`: randomize test order."
+          default: false
+        tests:
+          title: Tests
+          type: string
+          description: "xfstests `./check [options] testlist`: the trailing positional testlist, space-separated (e.g. `generic/001 generic/002`), appended after the flags."
+          default: ""
+        iterations:
+          title: Iterations (-i/-I)
+          type: integer
+          description: "xfstests `./check -i <n>` (or `-I <n>` when Stop on Failure is on): iterate the test list <n> times — interleaved across passes, NOT each test n times in a row, so the xunit gets one `<testcase>` per test per pass. For flaky/regression confirmation. 1 = once (default)."
+          default: 1
+        stop_on_fail:
+          title: Stop on Failure (-I)
+          type: boolean
+          description: "When Iterations > 1, iterate with xfstests `./check -I <n>` (iterate but STOP at the first test failure) instead of `-i <n>` (run all <n> passes). On by default. Turn off to run every pass regardless of failures. Distinct from and independent of Loop on Fail (-L), which reruns a FAILED test to measure flakiness; the two may be combined (xfstests stops iterating after the loop measurement)."
+          default: true
+        loop_on_fail:
+          title: Loop on Fail (-L)
+          type: integer
+          description: "xfstests `./check -L <n>`: loop tests <n> times following a failure, measuring aggregate pass/fail metrics — the % goes to the journal/check.log, not the xunit. 0 = off (default)."
+          default: 0
+    service:
+      title: Service
+      type: object
+      description: "Timeouts for the run: `wait`'s section polling (`timeout`/`poll_interval`), the per-test watchdog (`test_timeout`/`test_timeouts` — the unit is `TimeoutStartSec=infinity`, so a hung test would otherwise block forever), and the `reboot` step's post-reboot wait (`reboot_timeout`)."
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+        - test_timeout
+        - test_timeouts
+        - reboot_timeout
+      properties:
+        timeout:
+          title: Section Timeout
+          type: integer
+          description: Seconds to poll a section's unit to a terminal state; on expiry `wait` aborts the section (`systemctl stop xfstests@<section>`).
+          default: 86400
+        poll_interval:
+          title: Poll Interval
+          type: integer
+          description: Seconds between `wait`'s unit-status polls and log drains (and the `reboot` step's post-reboot polls when `Reboot Guest` is on).
+          default: 15
+        stream_logs:
+          title: Stream Logs
+          type: boolean
+          description: "Each poll, print the guest's new unit + kernel journal (merged, from boot) into the job log, so progress and dmesg are visible live. Off = only a bounded tail at the end."
+          default: true
+        test_timeout:
+          title: Per-test Timeout
+          type: integer
+          description: "Per-test watchdog (seconds): `check` sets it as each test's scope `RuntimeMaxSec`, so a hung test is killed and the run continues. 0 = no limit. Needs the patched xfstests (`TEST_TIMEOUT`)."
+          default: 0
+        test_timeouts:
+          title: Per-test Timeout Overrides
+          type: object
+          description: 'Per-test overrides, mapping a test to seconds, e.g. {"generic/017": 900}. Empty = the global Per-test Timeout applies.'
+          default: {}
+        reboot_timeout:
+          title: Reboot Timeout
+          type: integer
+          description: "Seconds to wait for the guest after a reboot before failing; raise it for a slow-booting guest. Used only when `Reboot Guest` is on."
+          default: 300
+  required:
+    - vm_name
+  x-windmill-dyn-select-lang: python3
+  x-windmill-dyn-select-code: |
+    import os
+    import re
+    from pathlib import Path
+
+
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the source f/qsu/bringup lists).
+        d = Path(os.environ["WORKERS_DIR"]) / "shared/vm"
+        vms = sorted(p.name.removesuffix(".vars.json") for p in d.glob("*.vars.json")) if d.is_dir() else []
+        return [{"label": v, "value": v} for v in vms if filterText.lower() in v.lower()]
+
+
+    _SECTION = re.compile(r"^\s*\[([^\]]+)\]")
+
+
+    def list_sections(filterText: str = "", check: dict = None, **_: object) -> list:
+        # Auto-discover the [section] names from the Check group's local.config textarea;
+        # empty falls back to the full shipped XFS matrix. Re-runs as the field edits.
+        cfg = ((check or {}).get("local_config") or "").strip()
+        if not cfg:
+            try:
+                from f.fstests.common import xfs_catalog_text
+                cfg = xfs_catalog_text()
+            except Exception:
+                return []
+        names: list = []
+        for line in cfg.splitlines():
+            m = _SECTION.match(line)
+            if m and m.group(1) not in names:
+                names.append(m.group(1))
+        return [{"label": s, "value": s} for s in names if filterText.lower() in s.lower()]

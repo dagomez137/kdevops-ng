@@ -1,0 +1,44 @@
+summary: "xfstests: wait for one section to finish (with crash detection)"
+description: |
+  Poll `xfstests@<section>.service` on a booted guest over vsock-SSH until its
+  `ActiveState` settles to `inactive` (the `Type=oneshot` success terminus) or
+  `failed`, or the timeout elapses. The outcome is read from `Result` (systemd's
+  enum: `success`/`exit-code`/`signal`/`core-dump`/`timeout`/...) and
+  `ExecMainStatus` (the `./check` exit code, 0 = all passed).
+
+  Each poll also crash-checks the host: if `qemu-system@<vm>.service` (the host
+  `systemd --user` unit running QEMU) has gone `failed`, the guest panicked — polling
+  stops and `crashed` is set. On completion a bounded tail of the guest's unit
+  journal is dumped to the job log.
+
+  Returns `{vm, section, result, exec_status, active_state, crashed, timed_out}`.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - section
+    - timeout
+    - poll_interval
+  properties:
+    vm_name:
+      title: VM Name
+      type: object
+      description: Booted VM whose xfstests section to wait on, over vsock-SSH.
+      format: dynselect-list_vms
+    section:
+      type: string
+      description: xfstests config-section name (the `[section]` header) whose `xfstests@<section>.service` to poll.
+    timeout:
+      type: integer
+      default: 86400
+      description: Maximum seconds to wait for the section to finish before giving up (`timed_out`).
+    poll_interval:
+      type: integer
+      default: 15
+      description: Seconds between polls of the unit's `ActiveState` (and the host crash check).
+  required:
+    - vm_name
+    - section

@@ -1,0 +1,29 @@
+summary: "xfstests: start one section on a booted guest (fire-and-forget)"
+description: |
+  Start `xfstests@<section>.service` on a booted guest over vsock-SSH with
+  `--no-block`. The unit is `Type=oneshot`, so a blocking `start` would not return
+  until the whole section finished (hours); `--no-block` returns immediately and
+  `f/fstests/wait` polls for the outcome. After starting, reads back `ActiveState`
+  and asserts it is `activating`/`active`, so a start that never took fails here.
+
+  Returns `{vm, section, unit, active_state}`.
+kind: script
+tag: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - section
+  properties:
+    vm_name:
+      title: VM Name
+      type: object
+      description: Booted VM to start the xfstests section on, over vsock-SSH.
+      format: dynselect-list_vms
+    section:
+      type: string
+      description: xfstests config-section name (the `[section]` header) to start as `xfstests@<section>.service`.
+  required:
+    - vm_name
+    - section

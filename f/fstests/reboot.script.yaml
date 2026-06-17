@@ -1,0 +1,46 @@
+summary: "xfstests: cold power-cycle a guest and wait for it to come back"
+description: |
+  Run-global startup step: cold power-cycle a guest by restarting its host
+  `qemu-system@<vm>.service` unit, then block until a fresh boot reaches
+  `running`/`degraded` — clears leaked kernel state, stuck D-state tasks, and
+  dirty page cache before a run. Off by default.
+
+  A HOST power-cycle, not a guest `systemctl reboot`: it can't hang on a wedged
+  guest (SIGKILL on the unit's stop timeout) and fully resets device/kernel
+  state. The device wipe is a SEPARATE step (`f/fstests/wipe`); run this before
+  it so the wipe acts on a fresh boot.
+
+  Returns `{vm, rebooted}` (`+ boot_id`, `system_state` when it rebooted).
+kind: script
+tag: vm-run
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - reboot_guest
+    - reboot_timeout
+    - poll_interval
+  properties:
+    vm_name:
+      title: VM Name
+      type: object
+      description: Booted VM to power-cycle (its host `qemu-system@<vm>` unit).
+      format: dynselect-list_vms
+    reboot_guest:
+      title: Reboot Guest
+      type: boolean
+      default: false
+      description: Power-cycle the guest and wait for it to come back. Off = no-op (returns `rebooted=false`).
+    reboot_timeout:
+      title: Reboot Timeout
+      type: integer
+      default: 300
+      description: Seconds to wait for the guest to come back after the power-cycle before failing.
+    poll_interval:
+      title: Poll Interval
+      type: integer
+      default: 5
+      description: Seconds between is-system-running polls while waiting for the guest to come back.
+  required:
+    - vm_name
