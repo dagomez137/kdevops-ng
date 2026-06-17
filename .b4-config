@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Project b4 configuration for kdevops. See https://b4.docs.kernel.org/ and
+# CONTRIBUTING.md. Patches are sent to and archived on the kdevops list/lore.
+[b4]
+	midmask = https://lore.kernel.org/kdevops/%s
+	linkmask = https://lore.kernel.org/kdevops/%s
+	searchmask = https://lore.kernel.org/kdevops/?x=m&t=1&q=%s
+	send-series-to = kdevops@lists.linux.dev
+	trailer-order = link*,fixes*,acked*,reviewed*,tested*,*
+	# `b4 prep --auto-to-cc` runs get_maintainer.pl; pass --no-tree since kdevops
+	# is not a kernel tree (b4's built-in default omits it and would error). To:
+	# maintainers (--nol), Cc: lists + reviewers (--nom). Run from the repo top.
+	send-auto-to-cmd = scripts/get_maintainer.pl --no-tree --nogit --nogit-fallback --nogit-chief-penguins --norolestats --nol
+	send-auto-cc-cmd = scripts/get_maintainer.pl --no-tree --nogit --nogit-fallback --nogit-chief-penguins --norolestats --nom
