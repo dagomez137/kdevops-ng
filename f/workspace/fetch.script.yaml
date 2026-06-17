@@ -1,0 +1,97 @@
+summary: "Workspace fetch: clone/refresh shared sources from upstream"
+description: |
+  Clone/refresh the shared no-checkout main repos every build worktree is cut from.
+  Each `WORKERS_DIR/<subpath>` is an **offline** `--no-checkout --shared` clone of the
+  local bare **mirror** (so it never needs upstream network); `refresh` then pulls new
+  refs from that local mirror, which the host keeps current. `origin`'s URL is set to
+  the **preferred upstream** for an explicit `git fetch origin`.
+
+  `upstreams` is a **list** of candidate clone URLs (git / https / googlesource /
+  github) — the first is preferred. Many servers block `git://`, so for a kernel.org
+  mirror the list auto-derives `https://git.kernel.org/…` then
+  `https://kernel.googlesource.com/…` then the raw `git://…`; set `upstreams` (or the
+  single `upstream`) explicitly to add e.g. a github URL. Idempotent.
+
+  An entry may carry extra `remotes` — each its own tree, borrowing objects from its
+  own local mirror (the default kernel clone carries `linux-next`, `linux-stable`,
+  `linux-modules`); works on preexisting clones too (alternates are reconciled).
+
+  Returns a manifest of each clone (`shared`, `upstreams`, `origin`, `action`, `head`,
+  `remotes`).
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - mirrors
+    - refresh
+  properties:
+    mirrors:
+      type: array
+      description: Mirrors to clone/refresh. Empty = the built-in kernel + QEMU defaults.
+      default:
+        - name: kernel
+          mirror: /mirror/linux.git
+          subpath: shared/kernel/linux
+          remotes:
+            - name: linux-next
+              mirror: /mirror/linux-next.git
+            - name: linux-stable
+              mirror: /mirror/linux-stable.git
+            - name: linux-modules
+              mirror: /mirror/linux-modules.git
+        - name: qemu
+          mirror: /mirror/qemu.git
+          subpath: shared/qemu/qemu
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            description: Short label for the mirror (used in the log/manifest).
+          mirror:
+            type: string
+            description: Local bare mirror to borrow objects from (e.g. /mirror/linux.git).
+          subpath:
+            type: string
+            description: Destination under WORKERS_DIR (e.g. shared/kernel/linux).
+          upstreams:
+            type: array
+            description: Candidate upstream URLs, preferred first (git/https/googlesource/github). Empty = auto-derive https/googlesource/git from the mirror's origin.
+            items:
+              type: string
+          upstream:
+            type: string
+            description: Single upstream URL (back-compat shorthand for a one-item upstreams list).
+          remotes:
+            type: array
+            description: Extra remotes, each borrowing objects from its own local mirror.
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Remote name (e.g. linux-next).
+                mirror:
+                  type: string
+                  description: Local bare mirror to borrow objects from.
+                upstreams:
+                  type: array
+                  description: Candidate upstream URLs for this remote, preferred first. Empty = auto-derive.
+                  items:
+                    type: string
+                upstream:
+                  type: string
+                  description: Single upstream URL (back-compat shorthand).
+              required:
+                - name
+                - mirror
+        required:
+          - name
+          - mirror
+          - subpath
+    refresh:
+      type: boolean
+      description: Fetch new refs/tags on already-present clones (default on). Off = clone-if-absent only.
+      default: true
+  required: []

@@ -1,0 +1,81 @@
+summary: "Workspace Init"
+description: |
+  One-time (idempotent) bootstrap, run from the UI after Windmill is up. Creates the
+  shared no-checkout clones (default `workers/shared/kernel/linux` and
+  `workers/shared/qemu/qemu`) that every worker cuts cheap detached worktrees off
+  (`f/kernel/build`, `f/qemu/build`). Each clone tracks its real upstream but borrows
+  objects from the local `/mirror` for a fast clone. Thin flow over `f/workspace/fetch`
+  — override or extend the source list there; re-run it any time to refresh.
+
+  Also provisions the kdevops-managed VM SSH key (`f/workspace/ssh_key`): one
+  keypair under `workers/shared/ssh/` that every guest trusts, so after a one-time
+  `Include` line in `~/.ssh/config` a plain `ssh <vm>` works. Returns that line.
+
+  TODO: also provision the `nixos-flake` devShell and `linux-config-fragments` here
+  (currently the host `setup-workspace.sh` does that — future git subtree).
+value:
+  modules:
+    - id: fetch
+      summary: Clone/refresh the shared sources
+      value:
+        type: script
+        path: f/workspace/fetch
+        input_transforms:
+          mirrors:
+            type: javascript
+            expr: flow_input.mirrors
+          refresh:
+            type: javascript
+            expr: flow_input.refresh
+    - id: ssh_key
+      summary: Provision the VM SSH key + host ssh-config
+      skip_if:
+        expr: flow_input.setup_ssh === false
+      value:
+        type: script
+        path: f/workspace/ssh_key
+        input_transforms:
+          regenerate:
+            type: javascript
+            expr: flow_input.regenerate_ssh_key
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - mirrors
+    - refresh
+    - setup_ssh
+    - regenerate_ssh_key
+  properties:
+    mirrors:
+      type: array
+      description: Mirrors to clone/refresh. Empty = the built-in kernel + QEMU defaults.
+      default: []
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          mirror:
+            type: string
+          subpath:
+            type: string
+        required:
+          - name
+          - mirror
+          - subpath
+    refresh:
+      type: boolean
+      description: Fetch new refs/tags on already-present clones (default on).
+      default: true
+    setup_ssh:
+      title: Setup SSH
+      type: boolean
+      description: Provision the kdevops-managed VM SSH key + `~/.ssh`-includable config (default on). Off = skip; existing key untouched.
+      default: true
+    regenerate_ssh_key:
+      title: Regenerate SSH Key
+      type: boolean
+      description: Force a fresh VM keypair even if one exists. Invalidates the authorized key already baked into every built closure — rebuild closures after.
+      default: false
+  required: []
