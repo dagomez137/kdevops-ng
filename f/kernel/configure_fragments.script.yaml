@@ -128,6 +128,7 @@ schema:
           - debug/modules-debug.config
           - fs/9p.config
           - fs/btrfs.config
+          - fs/encryption.config
           - fs/exfat.config
           - fs/ext4.config
           - fs/f2fs.config
@@ -170,6 +171,7 @@ schema:
           - storage/nvme.config
           - storage/nvme-fabrics.config
           - storage/nvme-tls.config
+          - storage/scsi-debug.config
           - storage/zoned.config
           - test/kunit.config
           - test/modules-testing.config
