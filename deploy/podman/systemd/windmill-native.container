@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+[Unit]
+Description=Windmill native worker (group: native)
+Requires=windmill-db.service
+After=windmill-db.service
+[Container]
+ContainerName=windmill-native
+Image=ghcr.io/windmill-labs/windmill:main
+Network=windmill.network
+Environment=MODE=worker
+Environment=NATIVE_MODE=true
+Environment=WORKER_GROUP=native
+Environment=SLEEP_QUEUE=200
+Environment=DATABASE_URL=postgres://postgres:changeme@windmill-db:5432/windmill?sslmode=disable
+# Shared logs volume (see windmill.container): this worker writes job logs here.
+Volume=%C/windmill/logs:/tmp/windmill/logs
+[Service]
+Restart=always
+[Install]
+WantedBy=default.target

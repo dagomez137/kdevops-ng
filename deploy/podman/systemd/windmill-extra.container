@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+[Unit]
+Description=Windmill extra (LSP gateway for editor intellisense)
+Requires=windmill.service
+After=windmill.service
+[Container]
+ContainerName=windmill-extra
+Image=ghcr.io/windmill-labs/windmill-extra:latest
+Network=windmill.network
+Environment=ENABLE_LSP=true
+Environment=ENABLE_MULTIPLAYER=false
+Environment=ENABLE_DEBUGGER=false
+Environment=ENABLE_NSJAIL=false
+Environment=WINDMILL_BASE_URL=http://windmill:8000
+Volume=%C/windmill/lsp:/pyls/.cache
+[Service]
+Restart=always
+[Install]
+WantedBy=default.target

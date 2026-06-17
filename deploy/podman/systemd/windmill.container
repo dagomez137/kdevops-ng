@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+[Unit]
+Description=Windmill server (API + UI)
+Requires=windmill-db.service
+After=windmill-db.service
+[Container]
+ContainerName=windmill
+Image=ghcr.io/windmill-labs/windmill:main
+Network=windmill.network
+Environment=MODE=server
+Environment=DATABASE_URL=postgres://postgres:changeme@windmill-db:5432/windmill?sslmode=disable
+# Shared logs volume: workers write large job logs here; the server reads them
+# to serve log downloads (CE has no distributed S3 logs).
+Volume=%C/windmill/logs:/tmp/windmill/logs
+[Service]
+Restart=always
+[Install]
+WantedBy=default.target

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+[Unit]
+Description=Windmill Postgres
+[Container]
+ContainerName=windmill-db
+Image=docker.io/library/postgres:16
+Network=windmill.network
+Environment=POSTGRES_PASSWORD=changeme
+Environment=POSTGRES_DB=windmill
+Volume=%S/windmill/db:/var/lib/postgresql/data:U
+[Service]
+Restart=always
+[Install]
+WantedBy=default.target

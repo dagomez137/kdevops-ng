@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Caddy listens on :80 inside the container only. What is exposed to the host is
+# governed entirely by the unit's PublishPort=127.0.0.1:8000:80, which binds the
+# host side to loopback, so nothing is reachable off-box. Reach the UI with SSH
+# port-forwarding: ssh -L 8000:localhost:8000.
+:80 {
+	reverse_proxy /ws/* /ws_mp/* /ws_debug/* http://windmill-extra:3000
+	reverse_proxy /* http://windmill:8000
+}

@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Template: install.sh renders one or more vm workers, replacing @WORKERS_DIR@,
+# @SECCOMP_PROFILE@ and @VMSELF@ (the per-worker identity: `vm`, `vm2`, ...).
+#
+# The dedicated VM workers (group `vm`). They run the f/qsu/* steps, which render
+# qsu's systemd units and drive the host `systemd --user` manager to boot QEMU
+# VMs. With more than one, distinct VMs can be driven concurrently (e.g. a long
+# fstests run on one guest while another boots); start/stop/destroy of the SAME
+# VM still serialize on its per-VM unit names. They do not build; build steps
+# stay on the `default` group.
+#
+# Two surfaces beyond the build worker make the units the host manager forks
+# resolve: the user bus socket (so systemctl --user reaches the host manager,
+# already shared by every worker) and the host user's systemd unit + VM-state
+# directories bind-mounted at IDENTICAL paths, so a unit written here lands in
+# the host manager's search path and the qcow2 backing files it reads are the
+# same inodes. /nix and WORKERS_DIR are shared the same way the build workers
+# share them, so the host-forked qemu/virtiofsd (store paths) and the qsu
+# templates (workers/shared) are reachable. The system bus is deliberately NOT
+# mounted (no hostnamectl/timedatectl; keep the host attack surface narrow).
+[Unit]
+Description=Windmill vm worker (group vm; QEMU-in-systemd VM orchestration)
+Requires=windmill-db.service
+After=windmill-db.service
+[Container]
+ContainerName=windmill-worker-@VMSELF@
+Image=ghcr.io/windmill-labs/windmill:main
+Network=windmill.network
+Environment=MODE=worker
+Environment=NUM_WORKERS=1
+Environment=WORKER_GROUP=vm
+# Pull only @VMTAG@-tagged jobs: `vm` for the lifecycle/control steps, `vm-run`
+# for the long-lived fstests poll, split so a multi-hour run never starves a quick
+# destroy/status. WORKER_GROUP alone does not select tags — without this the worker
+# would pull the default language tags and the jobs would fall to a build worker
+# (which lacks the host config mounts).
+Environment=WORKER_TAGS=@VMTAG@
+Environment=DATABASE_URL=postgres://postgres:changeme@windmill-db:5432/windmill?sslmode=disable
+# Drive the host systemd --user (to boot machines) over its socket. The qsu
+# render steps resolve ~/.config/systemd and ~/.local/state from these XDG vars,
+# so they must reach the job (WHITELIST_ENVS) and point at the mounted host dirs.
+Environment=XDG_RUNTIME_DIR=%t
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=HOME=%h
+Environment=XDG_CONFIG_HOME=%h/.config
+Environment=XDG_STATE_HOME=%h/.local/state
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKERS_DIR
+Environment=WORKER_INDEX=@VMSELF@
+Environment=WORKERS_DIR=@WORKERS_DIR@
+Volume=%t/bus:%t/bus
+# Host user systemd search path + VM state, at identical paths: rendered units
+# land where the host manager reads them; qcow2 + sockets are the same inodes.
+Volume=%h/.config/systemd/user:%h/.config/systemd/user:rw
+Volume=%h/.config/systemd/qemu-system:%h/.config/systemd/qemu-system:rw
+Volume=%h/.config/systemd/virtiofsd:%h/.config/systemd/virtiofsd:rw
+Volume=%h/.local/state/qemu-system:%h/.local/state/qemu-system:rw
+# Guest reach over vsock. The f/fstests steps drive a booted guest's
+# systemd with `systemctl --host root@vsock/<cid>` (ssh + systemd-ssh-proxy
+# from the `#systemd` dev shell), so the worker needs the AF_VSOCK transport:
+# the /dev/vsock device, plus a seccomp policy that permits the AF_VSOCK
+# socket family. SeccompProfile points at a least-privilege profile install.sh
+# derives from the host's own default by flipping only the one rule that
+# blocks `socket(AF_VSOCK)` (the default returns EPERM for it); every other
+# syscall keeps the host default. Scoped to this single VM-orchestration
+# worker on a loopback-only instance; the build workers keep the default.
+AddDevice=/dev/vsock
+SeccompProfile=@SECCOMP_PROFILE@
+# /nix and the bare git mirror (read-only).
+Volume=/nix:/nix
+Volume=/mirror:/mirror:ro
+Volume=%C/windmill/cache:/tmp/windmill/cache
+Volume=%C/windmill/logs:/tmp/windmill/logs
+# Build workspace at IDENTICAL host paths: the shared repos + flake + qsu
+# templates, and this worker's own sandbox.
+Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
+Volume=@WORKERS_DIR@/@VMSELF@:@WORKERS_DIR@/@VMSELF@:rw
+[Service]
+Restart=always
+[Install]
+WantedBy=default.target

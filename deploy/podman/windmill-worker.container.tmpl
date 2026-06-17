@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Template: install.sh renders one copy per worker, replacing @INDEX@.
+[Unit]
+Description=Windmill worker @INDEX@ (group default; builds)
+Requires=windmill-db.service
+After=windmill-db.service
+[Container]
+ContainerName=windmill-worker-@INDEX@
+Image=ghcr.io/windmill-labs/windmill:main
+Network=windmill.network
+Environment=MODE=worker
+Environment=NUM_WORKERS=1
+Environment=WORKER_GROUP=default
+Environment=DATABASE_URL=postgres://postgres:changeme@windmill-db:5432/windmill?sslmode=disable
+# Drive the host/controller systemd --user (to spin up machines) over its socket.
+Environment=XDG_RUNTIME_DIR=%t
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=HOME=%h
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,WORKER_INDEX,WORKERS_DIR
+Environment=WORKER_INDEX=@SELFDIR@
+Environment=WORKERS_DIR=@WORKERS_DIR@
+Volume=%t/bus:%t/bus
+# /nix and the bare git mirror (read-only). git worktrees share the mirror's
+# objects via the alternate, so each worker checkout is cheap.
+Volume=/nix:/nix
+Volume=/mirror:/mirror:ro
+Volume=%C/windmill/cache:/tmp/windmill/cache
+# Shared logs volume (see windmill.container): workers write large job logs here
+# so the server can serve them for download.
+Volume=%C/windmill/logs:/tmp/windmill/logs
+# Build workspace mounted at IDENTICAL host paths so git worktree links resolve:
+# the shared main repos + flake, and this worker's own numbered sandbox.
+Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
+Volume=@WORKERS_DIR@/@SELFDIR@:@WORKERS_DIR@/@SELFDIR@:rw
+[Service]
+Restart=always
+[Install]
+WantedBy=default.target
