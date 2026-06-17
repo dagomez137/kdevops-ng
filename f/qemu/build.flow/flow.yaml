@@ -1,0 +1,412 @@
+summary: "QEMU Build"
+description: |
+  Build a custom QEMU from source, reproducibly, inside the `nixos-flake#build`
+  devShell over a detached worktree of the shared `/mirror/qemu.git`. Mirrors
+  `f/kernel/build`; the distro `install-deps` the kdevops QEMU role performs is
+  gone, because the devShell already carries QEMU's build toolchain
+  (`inputsFrom = [ pkgs.qemu ]`: meson, ninja, GCC, pkg-config, glib, pixman).
+
+  Steps (pinned to one worker via `same_worker`, so each sees the previous
+  step's files):
+
+  1. `prepare_worktree` — resolve the slot and check out `qemu_ref`.
+  2. `configure` — out-of-tree `meson subprojects download`, then
+     `configure --target-list --prefix=<slot>/destdir --disable-download`.
+  3. `compile` — `make --jobs=$(nproc)` (drives ninja).
+  4. `install` — `make install` into `<slot>/destdir`.
+  5. `collect` — merge the step results into one manifest.
+
+  - `shared=false` (default) reuses this worker's own tree
+    `workers/<worker>/qemu` for every ref, so isolated builds on different workers
+    run in parallel without contending.
+  - `shared=true` lays down a shared, persistent named tree
+    `workers/shared/ws/qemu/<name>` (by `workspace` string, else the `b4_series`
+    slug, else the job id) that any worker can pick up.
+
+  Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
+  `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the same way it
+  consumes `f/kernel/build`. See `docs/windmill/qemu-build-flow.md`.
+value:
+  same_worker: true
+  modules:
+    - id: prepare_worktree
+      summary: Resolve slot + check out worktree
+      value:
+        type: script
+        path: f/qemu/prepare_worktree
+        input_transforms:
+          qemu_ref:
+            type: javascript
+            expr: flow_input.worktree?.qemu_ref
+          shared:
+            type: javascript
+            expr: flow_input.worker?.shared
+          workspace:
+            type: javascript
+            expr: flow_input.worker?.workspace
+          b4_series:
+            type: javascript
+            expr: flow_input.worktree?.b4_series
+          reuse_worktree:
+            type: javascript
+            expr: flow_input.worktree?.reuse_worktree
+          wipe_build:
+            type: javascript
+            expr: flow_input.worker?.wipe_build
+          clean_destdir:
+            type: javascript
+            expr: flow_input.installation?.clean_destdir
+      retry:
+        constant:
+          attempts: 2
+          seconds: 5
+      timeout:
+        type: static
+        value: 600
+    - id: configure
+      summary: configure (out-of-tree, --disable-download)
+      skip_if:
+        expr: 'flow_input.configuration?.skip_configure === true'
+      value:
+        type: script
+        path: f/qemu/configure
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          target_list:
+            type: javascript
+            expr: flow_input.configuration?.target_list
+          compiler:
+            type: javascript
+            expr: flow_input.build?.compiler
+          ccache:
+            type: javascript
+            expr: flow_input.build?.ccache
+          ccache_max_size:
+            type: javascript
+            expr: flow_input.build?.ccache_max_size
+          configure_args:
+            type: javascript
+            expr: flow_input.configuration?.configure_args
+      retry:
+        constant:
+          attempts: 2
+          seconds: 10
+      timeout:
+        type: static
+        value: 900
+    - id: compile
+      summary: make --jobs=$(nproc)
+      value:
+        type: script
+        path: f/qemu/compile
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+      retry:
+        constant:
+          attempts: 2
+          seconds: 10
+      timeout:
+        type: static
+        value: 3600
+    - id: devtools
+      summary: compile_commands.json (clangd)
+      # Default-on: skip only when explicitly disabled (an unset input must not skip).
+      skip_if:
+        expr: 'flow_input.devtools?.compile_commands === false'
+      value:
+        type: script
+        path: f/qemu/devtools
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          compile_commands:
+            type: javascript
+            expr: flow_input.devtools?.compile_commands
+      timeout:
+        type: static
+        value: 60
+    - id: install
+      summary: make install -> destdir
+      # Default-on: skip only when explicitly disabled (an unset input must not skip).
+      skip_if:
+        expr: 'flow_input.installation?.install === false'
+      value:
+        type: script
+        path: f/qemu/install
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          target_list:
+            type: javascript
+            expr: flow_input.configuration?.target_list
+      timeout:
+        type: static
+        value: 900
+    - id: collect
+      summary: Merge step results into one manifest
+      value:
+        type: rawscript
+        language: bun
+        content: |
+          // Pure flow glue: merge the typed step results into one manifest. Every
+          // field is sourced from the step results so the manifest reflects the
+          // effective build, and QEMU/systemd reads the same shape regardless of provider.
+          export async function main(
+            prepare: any,
+            configure: any,
+            devtools: any,
+            install: any,
+          ) {
+            return {
+              worker: prepare?.worker ?? null,
+              qemu_ref: prepare?.qemu_ref ?? null,
+              commit: prepare?.commit ?? null,
+              version: prepare?.version ?? null,
+              target_list: configure?.target_list ?? null,
+              compiler: configure?.compiler ?? null,
+              worktree: prepare?.worktree ?? null,
+              build_dir: prepare?.build_dir ?? null,
+              destdir: install?.destdir ?? prepare?.destdir ?? null,
+              qemu_binary: install?.qemu_binary ?? null,
+              qemu_binaries: install?.qemu_binaries ?? null,
+              compile_commands: devtools?.compile_commands ?? null,
+            };
+          }
+        input_transforms:
+          prepare:
+            type: javascript
+            expr: results.prepare_worktree
+          configure:
+            type: javascript
+            expr: results.configure
+          devtools:
+            type: javascript
+            expr: results.devtools
+          install:
+            type: javascript
+            expr: results.install
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worker
+    - worktree
+    - configuration
+    - build
+    - devtools
+    - installation
+  properties:
+    worker:
+      title: Worker
+      type: object
+      description: Worktree placement and build-dir reuse.
+      default: {}
+      order:
+        - shared
+        - workspace
+        - wipe_build
+      properties:
+        shared:
+          type: boolean
+          description: Off = this worker's own workers/<worker>/qemu tree (fast, parallel across workers). On = a shared persistent named tree under workers/shared/ws/qemu/<name> any worker can pick up.
+          default: false
+        workspace:
+          type: string
+          description: Name for the shared tree (workers/shared/ws/qemu/<name>). Empty = name from the b4 series, else the job id.
+          default: ""
+          showExpr: "fields.shared === true"
+        wipe_build:
+          type: boolean
+          description: Wipe the build dir before building (default off = incremental reuse).
+          default: false
+    worktree:
+      title: Worktree
+      type: object
+      description: Source ref and optional patch series to check out.
+      default: {}
+      order:
+        - reuse_worktree
+        - qemu_ref
+        - b4_series
+      properties:
+        reuse_worktree:
+          title: Reuse Worktree
+          type: boolean
+          description: Build the named worktree exactly as it stands — skip fetch, checkout and `b4 shazam` so a hand-checked-out local branch survives. Ignores `qemu_ref`/`b4 Series`; the tree must already exist (lay it down once with this off). Pair with `shared` + a `workspace` name in the Worker group.
+          default: false
+        qemu_ref:
+          title: QEMU Ref
+          type: string
+          description: Branch, tag or commit in the shared /mirror/qemu.git to build. Ignored when `reuse_worktree` is on.
+          default: v11.0.0
+        b4_series:
+          title: b4 Series
+          type: string
+          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`. Ignored when `reuse_worktree` is on.
+          default: ""
+    configuration:
+      title: Configuration
+      type: object
+      description: What QEMU is configured to build — targets and configure flags.
+      default: {}
+      order:
+        - target_list
+        - configure_args
+        - skip_configure
+      properties:
+        target_list:
+          type: array
+          description: QEMU emulator targets to build (`--target-list`). *-softmmu = system emulation (VMs); *-linux-user/*-bsd-user = user-mode.
+          default:
+            - x86_64-softmmu
+          items:
+            type: string
+            enum:
+              - aarch64_be-linux-user
+              - aarch64-bsd-user
+              - aarch64-linux-user
+              - aarch64-softmmu
+              - alpha-linux-user
+              - alpha-softmmu
+              - arm-bsd-user
+              - armeb-linux-user
+              - arm-linux-user
+              - arm-softmmu
+              - avr-softmmu
+              - hexagon-linux-user
+              - hppa-linux-user
+              - hppa-softmmu
+              - i386-bsd-user
+              - i386-linux-user
+              - i386-softmmu
+              - loongarch64-linux-user
+              - loongarch64-softmmu
+              - m68k-linux-user
+              - m68k-softmmu
+              - microblazeel-linux-user
+              - microblaze-linux-user
+              - microblaze-softmmu
+              - mips64el-linux-user
+              - mips64el-softmmu
+              - mips64-linux-user
+              - mips64-softmmu
+              - mipsel-linux-user
+              - mipsel-softmmu
+              - mips-linux-user
+              - mipsn32el-linux-user
+              - mipsn32-linux-user
+              - mips-softmmu
+              - or1k-linux-user
+              - or1k-softmmu
+              - ppc64le-linux-user
+              - ppc64-linux-user
+              - ppc64-softmmu
+              - ppc-linux-user
+              - ppc-softmmu
+              - riscv32-linux-user
+              - riscv32-softmmu
+              - riscv64-bsd-user
+              - riscv64-linux-user
+              - riscv64-softmmu
+              - rx-softmmu
+              - s390x-linux-user
+              - s390x-softmmu
+              - sh4eb-linux-user
+              - sh4eb-softmmu
+              - sh4-linux-user
+              - sh4-softmmu
+              - sparc32plus-linux-user
+              - sparc64-linux-user
+              - sparc64-softmmu
+              - sparc-linux-user
+              - sparc-softmmu
+              - tricore-softmmu
+              - x86_64-bsd-user
+              - x86_64-linux-user
+              - x86_64-softmmu
+              - xtensaeb-linux-user
+              - xtensaeb-softmmu
+              - xtensa-linux-user
+              - xtensa-softmmu
+        configure_args:
+          type: string
+          description: Extra configure flags appended verbatim. Older QEMU may need `--disable-werror` against the bleeding-edge nixpkgs toolchain.
+          default: ""
+        skip_configure:
+          type: boolean
+          description: Skip configure and recompile the existing build dir (incremental rebuild of an already-configured workspace).
+          default: false
+    build:
+      title: Build
+      type: object
+      description: Compile knobs — toolchain and ccache.
+      default: {}
+      order:
+        - compiler
+        - ccache
+        - ccache_max_size
+      properties:
+        compiler:
+          type: string
+          description: Toolchain to build QEMU with (pinned via configure `--cc/--cxx`, which beats the devShell's `CC`). GCC is clean; clang adds `-Qunused-arguments`.
+          default: gcc
+          enum:
+            - gcc
+            - clang
+        ccache:
+          type: boolean
+          description: Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).
+          default: true
+        ccache_max_size:
+          type: integer
+          description: ccache max cache size in GiB (written to ccache.conf max_size).
+          default: 10
+          showExpr: "fields.ccache !== false"
+    devtools:
+      title: Developer tools
+      type: object
+      description: Optional IDE artifacts produced after compile.
+      default: {}
+      order:
+        - compile_commands
+      properties:
+        compile_commands:
+          type: boolean
+          description: Copy meson's `compile_commands.json` into the source root (clangd/IDE index).
+          default: true
+    installation:
+      title: Install
+      type: object
+      description: Install the emulator and manage the destdir.
+      default: {}
+      order:
+        - install
+        - clean_destdir
+      properties:
+        install:
+          type: boolean
+          description: Install the built emulator into destdir (make install). Off = build only (e.g. a dev worktree).
+          default: true
+        clean_destdir:
+          type: boolean
+          description: Wipe the install `destdir` first (default off). Leave off so an install never wipes binaries a running QEMU/systemd VM uses.
+          default: false
+  required: []

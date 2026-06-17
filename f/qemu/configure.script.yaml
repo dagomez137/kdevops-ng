@@ -1,0 +1,63 @@
+summary: "QEMU: configure (out-of-tree)"
+description: |
+  Configure an out-of-tree QEMU build inside the `nixos-flake#build` devShell.
+  First `meson subprojects download` (run in the source) fetches QEMU's vendored
+  subprojects, then `{worktree}/configure --target-list --prefix=<destdir>
+  --disable-download` (run in the build dir) writes the build.ninja so the build
+  never reaches the network.
+
+  Reads `worktree`/`build_dir`/`destdir` from a prior `prepare_worktree` step.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - destdir
+    - target_list
+    - compiler
+    - ccache
+    - ccache_max_size
+    - configure_args
+  properties:
+    worktree:
+      type: string
+      description: QEMU source worktree (from prepare_worktree).
+    build_dir:
+      type: string
+      description: Out-of-tree build directory (from prepare_worktree).
+    destdir:
+      type: string
+      description: Install prefix the build configures for (from prepare_worktree).
+    target_list:
+      type: array
+      description: QEMU emulator targets (`--target-list`), comma-joined. The build flow offers the selectable list.
+      default:
+        - x86_64-softmmu
+      items:
+        type: string
+    compiler:
+      type: string
+      description: Toolchain to build with, pinned via `CC`/`CXX`.
+      default: gcc
+      enum:
+        - gcc
+        - clang
+    ccache:
+      type: boolean
+      description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
+      default: true
+    ccache_max_size:
+      type: integer
+      description: ccache max cache size in GiB (written to ccache.conf max_size).
+      default: 10
+      showExpr: "fields.ccache !== false"
+    configure_args:
+      type: string
+      description: Extra configure flags, space-separated, appended verbatim.
+      default: ""
+  required:
+    - worktree
+    - build_dir
+    - destdir
