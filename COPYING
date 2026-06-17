@@ -1,0 +1,25 @@
+This project is provided under:
+
+	SPDX-License-Identifier: copyleft-next-0.3.1
+	LICENSES/preferred/copyleft-next-0.3.1
+
+In addition, other licenses may also apply. We embrace the same SPDX
+practice as used in the Linux kernel, for those details refer to under
+Linux:
+
+	Documentation/process/license-rules.rst
+
+for more details.
+
+Every source file that can carry a comment carries an
+SPDX-License-Identifier. Windmill regenerates the workspace YAML under
+`f/` (flows and script metadata) from structured data on every
+`wmill sync`, which strips file comments, so those files carry no inline
+tag. Any file without an SPDX annotation is licensed copyleft-next-0.3.1.
+
+Note: Linux accepts copyleft-next licensed code, however, even though
+copyleft-next is GPL v2 compatible we use a dual license tag on Linux
+to err on the side of caution. And so, if you ever do wish to use code from
+this project on Linux be sure to use this tag instead:
+
+// SPDX-License-Identifier: GPL-2.0-or-later OR copyleft-next-0.3.1
