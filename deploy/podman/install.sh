@@ -41,8 +41,9 @@ install --mode=644 "$HERE"/systemd/*.network "$HERE"/systemd/*.container "$UNITS
 
 # Render WORKERS worker replicas (idempotent: clear stale ones first). Each
 # worker gets a numbered sandbox dir workers/<NNNN> (0-based, zero-padded). The
-# shared/ mount point is created empty here; populate it with the f/workspace
-# setup flow (or setup-workspace.sh) once Windmill is up.
+# shared/ tree carries the repo-tracked vendored deps (nixos-flake,
+# qemu-system-units, linux-config-fragments); the f/workspace setup flow
+# provisions the runtime bits (mirrors, SSH key) once Windmill is up.
 mkdir --parents "$WORKERS_DIR/shared"
 rm --force "$UNITS"/windmill-worker-*.container
 for i in $(seq 1 "$WORKERS"); do
