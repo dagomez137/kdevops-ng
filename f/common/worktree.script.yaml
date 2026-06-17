@@ -1,0 +1,15 @@
+summary: "Shared helper: prepare a detached build worktree off a shared mirror"
+description: |
+  Library module imported by the build-prepare steps
+  (`from f.common.worktree import prepare`). Not a runnable step on its own.
+  `prepare()` resolves a build slot (worker/job/workspace scope), refreshes the
+  shared `--shared` mirror clone, lays down a detached worktree at `ref`, and can
+  apply a lore series on top via `b4 shazam`. Used by `f/kernel/prepare_worktree`
+  and `f/qemu/prepare_worktree`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
