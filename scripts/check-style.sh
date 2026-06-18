@@ -3,11 +3,12 @@
 # Style + commit-message checks for kdevops-ng. Invoked by `make style`.
 # Hand-authored files only: machine-generated workspace content (f/, wmill-lock.yaml)
 # is owned by wmill, the vendored git subtrees under workers/ are upstream-owned, the
-# verbatim license texts under LICENSES/ must stay byte-for-byte, and
-# scripts/get_maintainer.pl is vendored from the kernel and tracked verbatim; all exempt.
+# verbatim license texts under LICENSES/ must stay byte-for-byte,
+# scripts/get_maintainer.pl is vendored from the kernel and tracked verbatim, and
+# screenshots/ holds binary image artifacts (no text style applies); all exempt.
 set -o errexit -o nounset -o pipefail
 
-scope=(-- . ':!f' ':!workers' ':!LICENSES' ':!wmill-lock.yaml' ':!scripts/get_maintainer.pl')
+scope=(-- . ':!f' ':!workers' ':!LICENSES' ':!wmill-lock.yaml' ':!scripts/get_maintainer.pl' ':!screenshots')
 status=0
 
 # 1. Trailing whitespace.
