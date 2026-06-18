@@ -41,5 +41,13 @@ in
       prev.gdbm
       prev.liburing
     ];
+    # The recipe installs the runtime tree (check, tests, common) but drops
+    # doc/, so the canonical group registry tracked upstream in
+    # doc/group-names.txt -- the group name to description mapping -- is absent
+    # from the installed tree. Install it so a consumer can enumerate the
+    # groups and their descriptions from the runtime package itself.
+    postInstall = (prevAttrs.postInstall or "") + ''
+      install -D --mode=0444 doc/group-names.txt $out/lib/xfstests/doc/group-names.txt
+    '';
   });
 }
