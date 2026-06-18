@@ -464,21 +464,44 @@ schema:
             - core/core.config
             - core/systemd.config
             - core/initrd.config
+            - core/localversion-noauto.config
+            - core/acpi-poweroff.config
+            - core/boot-config.config
+            - core/iommu-pci.config
+            - core/vfio.config
+            - core/cgroup-extras.config
+            - arch/x86_64.config
+            - mem/damon.config
+            - security/security.config
+            - security/crypto-core.config
+            - security/ebpf.config
+            - security/lsm-modules.config
             - fs/ext4.config
+            - fs/xfs.config
+            - fs/xfs-advanced.config
+            - fs/xfs-debug.config
+            - fs/overlayfs.config
+            - fs/encryption.config
+            - storage/block-layer.config
+            - storage/block-devices.config
+            - storage/block-test-devices.config
+            - storage/dm-targets.config
+            - storage/md-raid.config
+            - storage/nvme.config
+            - storage/zoned.config
+            - storage/scsi-debug.config
             - virt/virtio-net.config
             - virt/virtio-fs.config
-            - builtin/virt/virtio-fs.config
-            - storage/block-devices.config
+            - virt/virtio-extras.config
             - virt/vsock.config
-            - arch/x86_64.config
-            - core/acpi-poweroff.config
-            - core/localversion-noauto.config
-            - mem/damon.config
-            - security/ebpf.config
-            - fs/xfs.config
-            - fs/overlayfs.config
             - virt/kvm.config
+            - rust/rust.config
+            - rust/rust-samples.config
+            - rust/modversions.config
+            - rust/gendwarfksyms.config
             - perf/perf-amd.config
+            - debug/debug-heavy.config
+            - builtin/virt/virtio-fs.config
           items:
             type: string
             enum:
