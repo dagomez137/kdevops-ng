@@ -68,6 +68,14 @@ def main(
     per_share = []
     for s in composed:
         tag = s["tag"]
+        # Create kdevops-managed share source dirs (under WORKERS_DIR — e.g. the per-VM
+        # fstests results dir) before virtiofsd starts: a missing source makes virtiofsd
+        # exit, which fails qemu's vhost-user-fs backend and the guest never boots. System
+        # sources (/nix/store, the operator's home) are left to pre-exist.
+        src = s.get("dir")
+        if src and Path(src).resolve().is_relative_to(workers.resolve()):
+            Path(src).mkdir(parents=True, exist_ok=True)
+            print(f"+ ensured share source dir {src}", flush=True)
         ctx = {**v, "share_tag": tag, "shares": [s]}
         env = vfsd / f"{vm_name}-{tag}.env"
         write_unit(env, render("virtiofsd.env.j2", ctx, workers))
