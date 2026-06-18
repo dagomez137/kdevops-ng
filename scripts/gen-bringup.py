@@ -119,9 +119,14 @@ for gk in ("kernel_worker", "qemu_worker"):
 for t, prefix in ((kt, "kernel"), (qt, "qemu")):
     t["worker"] = jx(f"({{ shared: true, ...flow_input.{prefix}_worker }})")
 
-# Guest home_dir defaults to the discovered host operator's home (root login lands there).
+# The closure's hostname + per-VM config dir name default to the booted VM's name, so a
+# bringup that only sets the Boot VM Name can't silently render a generic `nixos` closure
+# (which would mismatch the guest and miss its test-suite units). home_dir defaults to the
+# discovered host operator's home (root login lands there).
 nt["guest"] = jx(
-    '({...flow_input.nix_guest, home_dir: ((flow_input.nix_guest?.home_dir || "").trim() '
+    '({...flow_input.nix_guest, '
+    'vm_name: (flow_input.nix_guest?.vm_name || flow_input.reuse_from_vm || flow_input.boot_vm?.vm_name), '
+    'home_dir: ((flow_input.nix_guest?.home_dir || "").trim() '
     '|| ("/home/" + (results.discover?.host_user || "kdevops")))})'
 )
 
