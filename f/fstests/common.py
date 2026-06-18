@@ -587,10 +587,16 @@ def build_check_args(
     with fresh setup — not n in a row), so the xunit gets up to n testcases per test.
     `loop_on_fail` > 0 emits `-L <n>`, which reruns only a FAILED test up to n more
     times and prints its aggregate pass/fail % (the flaky-test quantifier; the % is
-    in the log, not the xunit). `tests` is the trailing positional testlist. The
-    systemd unit supplies `-s %i`, so this never emits a section flag; the result
-    becomes `$XFSTESTS_CHECK_ARGS`, word-split by systemd.
+    in the log, not the xunit). `tests` is the trailing positional testlist; xfstests
+    runs the UNION of `-g <group>` and the list, so an explicit testlist alongside the
+    default `auto` group would expand auto and swamp the list — a testlist therefore
+    drops a leftover `auto`, while a deliberately-set non-auto group is kept (run that
+    group plus the listed tests). The systemd unit supplies `-s %i`, so this never
+    emits a section flag; the result becomes `$XFSTESTS_CHECK_ARGS`, word-split by
+    systemd.
     """
+    if tests and group == "auto":
+        group = ""
     args: list[str] = []
     if group:
         args += ["-g", group]
