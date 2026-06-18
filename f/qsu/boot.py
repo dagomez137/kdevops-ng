@@ -14,9 +14,12 @@ SIGKILLs it — see qsu docs/usage.md "Updating a VM's unit definition".
 
 `restart` (not `start`) so a re-render of an already-running VM takes effect — a
 reconfigure in place; on a stopped VM it just starts. Then poll `is-active` until the
-unit is `active` (Type=simple) or `failed`. `ssh_ready` is a best-effort probe of the
-forwarded port; it only succeeds where the prober shares the host's network namespace,
-so from a worker verify the guest over vsock instead.
+unit is `active` (Type=simple) or `failed`. A unit that does not reach `active` (the
+qemu process exited — a bad `-device`, an unbootable kernel, a missing share) raises
+with the guest's own journal tail, so the flow fails at boot instead of reporting
+success on a VM that never came up. `ssh_ready` is a best-effort probe of the forwarded
+port; it only succeeds where the prober shares the host's network namespace, so from a
+worker verify the guest over vsock instead.
 
 Tradeoff (qsu docs/design-decisions, "virtiofsd dependency"): `Requires=` loses
 automatic crash-kill propagation if virtiofsd dies unexpectedly, accepted so that
@@ -118,7 +121,22 @@ def main(
             break
         time.sleep(2)
     active = state == "active"
-    ssh_ready = _ssh_banner(int(ssh_port)) if active else False
+    if not active:
+        # A restart that returns 0 only means systemd started the unit; a Type=simple
+        # qemu that exits right after (bad -device, unbootable kernel, missing share)
+        # lands in `failed` moments later. Fail the job — otherwise the flow reports
+        # success on a VM that never booted. systemctl reaches the host manager over
+        # D-Bus so the unit's exit status is available, but the qemu stderr that holds
+        # the actual reason is in the host journal, which the worker cannot read; point
+        # the operator at the journalctl command that shows it on the host.
+        props = (systemd.systemctl(
+            "show", unit, "--property=Result,ExecMainStatus,ExecMainCode",
+            capture=True, check=False) or "").strip().replace("\n", " ")
+        raise RuntimeError(
+            f"{unit} did not come up (state={state or 'unknown'}{'; ' + props if props else ''}); "
+            f"the guest failed to boot. Reason: journalctl --user-unit={unit}"
+        )
+    ssh_ready = _ssh_banner(int(ssh_port))
 
     ssh_config = _write_ssh_alias(workers, vm_name, vsock_cid)
     if ssh_config:
