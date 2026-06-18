@@ -9,13 +9,35 @@ the `shared/vm/<vm>.vars.json` reuse sidecar (so a destroyed VM stops appearing 
 `f/qsu/bringup` Reuse-from-VM dropdown, which globs that registry), and the
 `shared/ssh/config.d/<vm>.conf` alias `f/qsu/boot` wrote (so `ssh <vm>` stops resolving
 once the guest is gone).
-machined unregisters automatically on stop; the host-wide template units are left in
-place (they are shared across VMs). A final `daemon-reload` drops the removed drop-ins.
+machined unregisters automatically on stop. A final `daemon-reload` drops the removed
+drop-ins.
+
+When this VM is the LAST one (no rendered `<vm>.env` remains after the per-VM removals)
+the host-wide artefacts shared across VMs are torn down too, matching the qsu manual's
+"Remove everything": the virtiofsd listening sockets are stopped (they socket-activate
+new virtiofsd processes until stopped, since `qemu-system@<vm>.service` does not pin
+them), the host-wide template units (`qemu-system@.service`, `virtiofsd@.service`,
+`virtiofsd@.socket`, `vfio-bind@.service`) are removed, and the `qemu-system`/`virtiofsd`
+config dirs (the static `qmp-powerdown` and any stragglers) are swept. `f/qsu/boot`
+re-renders all of these unconditionally on the next deploy, so the slate is clean now and
+self-heals on first boot. While other VMs remain the shared files stay in place.
 
 Equivalent commands, against the host `systemd --user` manager (plus the per-VM
 artefact removals):
 
     systemctl --user stop qemu-system@<vm>.service
+    systemctl --user daemon-reload
+
+and, only on the last VM, additionally (qsu manual "Remove everything"):
+
+    systemctl --user stop 'virtiofsd@*.socket'
+    rm --recursive --force \\
+      ~/.config/systemd/user/qemu-system@.service \\
+      ~/.config/systemd/user/virtiofsd@.service \\
+      ~/.config/systemd/user/virtiofsd@.socket \\
+      ~/.config/systemd/user/vfio-bind@.service \\
+      ~/.config/systemd/qemu-system \\
+      ~/.config/systemd/virtiofsd
     systemctl --user daemon-reload
 """
 
@@ -37,6 +59,27 @@ def _rm(path: Path) -> str | None:
     else:
         return None
     return str(path)
+
+
+def _teardown_shared(systemd: Systemd, cfg: Path) -> list[str]:
+    """Remove the host-wide artefacts shared across VMs (qsu "Remove everything").
+
+    Called only when the destroyed VM was the last one. The virtiofsd listening
+    sockets are not pinned by `qemu-system@<vm>.service`, so they keep
+    socket-activating fresh virtiofsd processes until stopped explicitly; systemctl
+    expands the unit glob itself (the runner passes argv straight to execve, no shell).
+    """
+    systemd.systemctl("stop", "virtiofsd@*.socket", check=False)
+    user = cfg / "user"
+    targets = [
+        user / "qemu-system@.service",
+        user / "virtiofsd@.service",
+        user / "virtiofsd@.socket",
+        user / "vfio-bind@.service",
+        cfg / "qemu-system",
+        cfg / "virtiofsd",
+    ]
+    return [r for r in (_rm(p) for p in targets) if r]
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -61,8 +104,21 @@ def main(vm_name: str) -> dict:
         *(cfg / "virtiofsd").glob(f"{vm_name}-*.env"),
     ]
     removed = [r for r in (_rm(p) for p in targets) if r]
+
+    # vm_options enumerates VMs by rendered `<vm>.env` (union with live machines); the
+    # target's env is gone now and the machine is stopped, so no remaining env means this
+    # was the last VM and the shared host-wide files are orphaned.
+    shared_torn_down = not any((cfg / "qemu-system").glob("*.env"))
+    if shared_torn_down:
+        removed += _teardown_shared(systemd, cfg)
+
     for r in removed:
         print(f"removed {r}", flush=True)
 
     systemd.systemctl("daemon-reload", check=False)
-    return {"vm_name": vm_name, "stopped": rc == 0, "removed": removed}
+    return {
+        "vm_name": vm_name,
+        "stopped": rc == 0,
+        "removed": removed,
+        "shared_torn_down": shared_torn_down,
+    }
