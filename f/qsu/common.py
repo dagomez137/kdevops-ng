@@ -3,14 +3,13 @@
 # Shared library for the f/qsu/* steps (QEMU-in-systemd VM orchestration).
 # Not a runnable step — imported by the render/boot steps as f.qsu.common.
 #
-# Three concerns:
+# Two concerns:
 #   * build the qsu template vars dict from QEMU-keyword flow inputs + the
 #     kernel/closure build manifests (shares, nvme drives, kernel args, ports);
 #   * render the vendored qsu .j2 templates with jinja2 (qsu authors them for
-#     both ansible/jinja2 and minijinja, so trim_blocks is the only knob);
-#   * resolve /nix/store paths via the shared Nix dispatcher. The host
-#     `systemd --user` manager is driven by the steps through
-#     f.common.devshell.Systemd (systemctl/machinectl/journalctl).
+#     both ansible/jinja2 and minijinja, so trim_blocks is the only knob).
+# The host `systemd --user` manager is driven through f.common.devshell.Systemd;
+# /nix/store and qemu/virtiofsd binary resolution lives in f.qsu.binaries.
 import hashlib
 import os
 from pathlib import Path
@@ -18,7 +17,9 @@ from pathlib import Path
 import jinja2
 import yaml
 
-from f.common.devshell import Nix, Systemd
+from f.common.devshell import Systemd
+
+from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
 # Superset of every virtiofsd share tag the steps render an env file for
 # (ports the qsu role's qsu_canonical_share_tags). boot.py restarts only the
@@ -31,63 +32,9 @@ CANONICAL_SHARE_TAGS = [
 ]
 
 
-def _workers() -> Path:
-    return Path(os.environ["WORKERS_DIR"])
-
-
 def qsu_dir(workers: Path | None = None) -> Path:
     """The vendored qemu-system-units tree (host-visible under workers/shared)."""
     return (workers or _workers()) / "shared/qemu-system-units"
-
-
-def _flake(workers: Path | None = None) -> str:
-    # path: resolves the subtree as a standalone flake, so store_out's #qemu/
-    # #virtiofsd/#socat stay content-addressed by the subtree alone, not by the
-    # enclosing kdevops-ng git rev (which would re-copy the repo and, when dirty,
-    # churn the resolved paths the rendered units embed).
-    return f"path:{(workers or _workers())}/shared/nixos-flake"
-
-
-# --- nix store-path resolution -------------------------------------------------
-# Units fork on the host, so every binary an ExecStart= touches must be a
-# /nix/store path (valid identically on host and worker; /nix is shared). qemu,
-# virtiofsd and socat are exposed as flake packages so a build resolves them.
-def store_out(attr: str, workers: Path | None = None) -> str:
-    """Resolve a nixos-flake package to its /nix/store output path."""
-    return Nix().out_path(f"{_flake(workers)}#{attr}")
-
-
-def qemu_bindir(qemu_binary: str) -> str:
-    """The bin/ dir holding the VM's qemu — qemu-img must come from here too."""
-    return str(Path(qemu_binary).parent)
-
-
-def resolve_qemu_binary(fi: dict, workers: Path | None = None) -> str:
-    """Pick the `qemu-system-*` binary by `qemu_source`.
-
-    `nixpkgs` (default) = the `qemu` package from nixpkgs, provided by the vendored
-    nixos-flake (what the NixOS Build uses); `qemu-build` = the operator's `qemu_binary`
-    (a binary from `f/qemu/build`). qemu-img is always the sibling of whatever this returns.
-    """
-    if fi.get("qemu_source", "nixpkgs") == "qemu-build":
-        if not fi.get("qemu_binary"):
-            raise ValueError(
-                "qemu_source is qemu-build but no qemu_binary — reuse needs a Reuse from VM "
-                "whose sidecar has a built qemu; build supplies it from the build result"
-            )
-        return fi["qemu_binary"]
-    return f"{store_out('qemu', workers)}/bin/qemu-system-x86_64"
-
-
-def resolve_virtiofsd_binary(fi: dict, workers: Path | None = None) -> str:
-    """Pick the `virtiofsd` binary by `custom_virtiofsd`.
-
-    Off (default) = the reproducible nixos-flake `virtiofsd` store path; on = the
-    operator's `virtiofsd_binary` path (a nix output or a custom build).
-    """
-    if fi.get("custom_virtiofsd") and fi.get("virtiofsd_binary"):
-        return fi["virtiofsd_binary"]
-    return f"{store_out('virtiofsd', workers)}/bin/virtiofsd"
 
 
 def resolve_vm_name(fi: dict) -> str:

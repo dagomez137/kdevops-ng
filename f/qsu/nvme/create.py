@@ -22,7 +22,8 @@ import os
 from pathlib import Path
 
 from f.common.devshell import run_logged
-from f.qsu.common import nvme_drives, state_dir, store_out
+from f.qsu.binaries import store_out
+from f.qsu.common import nvme_drives, state_dir
 
 
 def main(

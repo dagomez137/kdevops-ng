@@ -578,8 +578,9 @@ schema:
             - "x-remote"
         iommu:
           title: IOMMU
-          type: string
-          description: vIOMMU device (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). Empty = none.
+          type: object
+          description: vIOMMU device, queried from the chosen qemu's `-device help` and narrowed to what the template renders (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). `none` = no vIOMMU.
+          format: dynselect-list_iommu
           default: ""
     networking:
       title: Networking
@@ -913,3 +914,11 @@ schema:
           description: Also write the debug `<vm>.yaml` vars snapshot.
           default: false
   required: []
+  x-windmill-dyn-select-lang: python3
+  x-windmill-dyn-select-code: |
+    def list_iommu(filterText: str = "", qemu: dict = None, **_: object) -> list:
+        # vIOMMUs the chosen qemu reports, narrowed to what vm.env.j2 renders. `qemu`
+        # is the group holding qemu_source/qemu_binary, so the query hits that exact
+        # binary; a missing/unbuilt qemu falls back to the full supported set.
+        from f.qsu.binaries import iommu_options
+        return iommu_options(qemu or {}, filterText)

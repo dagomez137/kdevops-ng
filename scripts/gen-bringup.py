@@ -45,6 +45,15 @@ def list_reuse_vms(filterText: str = "", **_: object) -> list:
     d = Path(os.environ["WORKERS_DIR"]) / "shared/vm"
     vms = sorted(p.name.removesuffix(".vars.json") for p in d.glob("*.vars.json")) if d.is_dir() else []
     return [{"label": v, "value": v} for v in vms if filterText.lower() in v.lower()]
+
+
+def list_iommu(filterText: str = "", **_: object) -> list:
+    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to
+    # exist at form-fill time (build runs later in the flow), so query it for the
+    # vIOMMU set. Device names are stable across qemu builds and the template
+    # constrains to the supported four regardless.
+    from f.qsu.binaries import iommu_options
+    return iommu_options({}, filterText)
 '''
 
 

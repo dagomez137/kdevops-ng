@@ -27,10 +27,21 @@ import os
 import shutil
 from pathlib import Path
 
+from f.qsu.binaries import iommu_options
 from f.qsu.common import (
-    build_vars, emit_vars_yaml, qsu_dir, render, resolve_vm_name, systemd_config,
-    write_unit,
+    build_vars, emit_vars_yaml, qsu_dir, render, resolve_vm_name,
+    systemd_config, write_unit,
 )
+
+
+def list_iommu(filterText: str = "", qemu_source: str = "nixpkgs",
+               qemu_binary: str = "", **_: object) -> list[dict]:
+    """`dynselect-list_iommu` entrypoint for `iommu` — see `f.qsu.binaries.iommu_options`.
+
+    Queries the same qemu the render will use (`qemu_source`/`qemu_binary` sit beside
+    `iommu` in this schema), so the dropdown reflects that exact binary's vIOMMUs.
+    """
+    return iommu_options({"qemu_source": qemu_source, "qemu_binary": qemu_binary}, filterText)
 
 
 def main(

@@ -347,8 +347,9 @@ schema:
       default: 0
     iommu:
       title: IOMMU
-      type: string
-      description: vIOMMU device for `-device` (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). Empty = none.
+      type: object
+      description: vIOMMU device for `-device`, queried from the chosen qemu's `-device help` and narrowed to what the template renders (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). `none` = no vIOMMU.
+      format: dynselect-list_iommu
       default: ""
     qemu_source:
       title: QEMU Source

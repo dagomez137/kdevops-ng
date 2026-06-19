@@ -110,7 +110,7 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_reuse_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n"
+  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_reuse_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n"
   x-windmill-dyn-select-lang: python3
   order:
   - kernel_source
@@ -1134,8 +1134,9 @@ schema:
           - x-remote
         iommu:
           title: IOMMU
-          type: string
-          description: vIOMMU device (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). Empty = none.
+          type: object
+          description: vIOMMU device, queried from the chosen qemu's `-device help` and narrowed to what the template renders (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). `none` = no vIOMMU.
+          format: dynselect-list_iommu
           default: ''
     boot_networking:
       title: Networking
