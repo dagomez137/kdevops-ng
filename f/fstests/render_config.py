@@ -46,6 +46,7 @@ from f.fstests.common import (
     build_check_args,
     device_sector,
     inject_device_base,
+    list_groups as _list_groups,
     list_vms as _list_vms,
     parse_sections,
     render_check_env,
@@ -62,6 +63,11 @@ from f.fstests.common import (
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
+
+
+def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_groups` entrypoint for `groups` — see `f.fstests.common.list_groups`."""
+    return _list_groups(vm_name, filterText)
 
 
 _FAILURE_RE = re.compile(r"^(?:out\.bad|dmesg|hints|core\..+)$")
@@ -139,7 +145,8 @@ def main(
     clean_results: bool = False,
     logwrites: bool = True,
     devices: list[dict] | None = None,
-    group: str = "auto",
+    test_selection: str = "groups",
+    groups: list[str] | None = None,
     exclude_group: str = "",
     exclude: str = "",
     report: str = "xunit",
@@ -154,8 +161,8 @@ def main(
     share = share_dir(vm_name)
 
     host_options = f"{GUEST_STATE_DIR}/local.config"
-    check_args = build_check_args(group, exclude_group, exclude, report, randomize, tests,
-                                  iterations, loop_on_fail, stop_on_fail)
+    check_args = build_check_args(test_selection, groups, exclude_group, exclude, report,
+                                  randomize, tests, iterations, loop_on_fail, stop_on_fail)
 
     env_path = share / "check.env"
     _emit(env_path, render_check_env(host_options, check_args, test_timeout, test_timeouts))

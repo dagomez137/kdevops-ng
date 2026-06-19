@@ -14,6 +14,7 @@
 #                              writes, the host reads.
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
@@ -21,7 +22,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from f.common.devshell import DevShell
+from f.common.devshell import DevShell, Nix
 
 # Guest-side constants (the xfstests@.service WorkingDirectory + share mount).
 GUEST_STATE_DIR = "/var/lib/xfstests"
@@ -566,7 +567,8 @@ def section_block(config_text: str, section: str) -> str:
 
 
 def build_check_args(
-    group: str = "",
+    test_selection: str = "groups",
+    groups: list[str] | None = None,
     exclude_group: str = "",
     exclude: str = "",
     report: str = "xunit",
@@ -587,20 +589,22 @@ def build_check_args(
     with fresh setup — not n in a row), so the xunit gets up to n testcases per test.
     `loop_on_fail` > 0 emits `-L <n>`, which reruns only a FAILED test up to n more
     times and prints its aggregate pass/fail % (the flaky-test quantifier; the % is
-    in the log, not the xunit). `tests` is the trailing positional testlist; xfstests
-    runs the UNION of `-g <group>` and the list, so an explicit testlist alongside the
-    default `auto` group would expand auto and swamp the list — a testlist therefore
-    drops a leftover `auto`, while a deliberately-set non-auto group is kept (run that
-    group plus the listed tests). The systemd unit supplies `-s %i`, so this never
-    emits a section flag; the result becomes `$XFSTESTS_CHECK_ARGS`, word-split by
-    systemd.
+    in the log, not the xunit).
+
+    `test_selection` enforces a mutual exclusion the bare `./check` does NOT: xfstests
+    runs the UNION of `-g <group>` and any trailing testlist, so the two together would
+    expand the group and swamp an explicit list. We expose only one mode at a time:
+    `groups` emits `-g <comma-joined groups>` (`-x`/exclude_group applies) and ignores
+    `tests`; `tests` emits the positional testlist and ignores `groups`/`exclude_group`.
+    The systemd unit supplies `-s %i`, so this never emits a section flag; the result
+    becomes `$XFSTESTS_CHECK_ARGS`, word-split by systemd.
     """
-    if tests and group == "auto":
-        group = ""
+    in_tests_mode = test_selection == "tests"
+    group = "" if in_tests_mode else ",".join(g for g in (groups or []) if g)
     args: list[str] = []
     if group:
         args += ["-g", group]
-    if exclude_group:
+    if exclude_group and not in_tests_mode:
         args += ["-x", exclude_group]
     if exclude:
         args += ["-X", exclude]
@@ -614,7 +618,7 @@ def build_check_args(
         args += ["-I" if stop_on_fail else "-i", str(int(iterations))]
     if loop_on_fail and int(loop_on_fail) > 0:
         args += ["-L", str(int(loop_on_fail))]
-    if tests:
+    if in_tests_mode and tests:
         args += tests.split()
     return " ".join(args)
 
@@ -936,6 +940,113 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     d = Path(os.environ["WORKERS_DIR"]) / "shared/vm"
     vms = sorted(p.name.removesuffix(".vars.json") for p in d.glob("*.vars.json")) if d.is_dir() else []
     return [{"label": v, "value": v} for v in vms if filterText.lower() in v.lower()]
+
+
+# The xfstests group registry, relative to the xfstests store path (a guest's closure
+# ships it once nixos-flake installs doc/; see the overlay's postInstall).
+XFSTESTS_DOC_RELPATH = "lib/xfstests/doc/group-names.txt"
+
+# Usable before any guest is up: a dropdown must never be empty/blocking.
+_GROUPS_FALLBACK = [
+    {"label": "auto — run automatically (~5 min cap)", "value": "auto"},
+    {"label": "quick — under 30s each", "value": "quick"},
+]
+
+
+def parse_group_names(text: str) -> list[dict]:
+    """Parse xfstests' `doc/group-names.txt` into `[{name, description}]`, in file order.
+
+    The file is a fixed-width two-column table (`GroupName<whitespace>Description`) behind
+    a 3-line `===`/`Group Name:`/`===` header. A line whose column 1 is a non-space token
+    starts a new group; a line beginning with whitespace is a wrapped continuation of the
+    previous group's description (joined single-spaced). The header rows are skipped (the
+    `===` rules carry no column-1 name, the `Group Name:` label is dropped by name).
+    """
+    groups: list[dict] = []
+    for raw in (text or "").splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+        # Skip blanks and the `===` rule rows (only `=` and inter-column spaces).
+        if not stripped or set(stripped) <= {"=", " "}:
+            continue
+        if line[0].isspace():
+            if groups:
+                cont = line.strip()
+                groups[-1]["description"] = (groups[-1]["description"] + " " + cont).strip()
+            continue
+        parts = line.split(None, 1)
+        name = parts[0].strip()
+        if name == "Group" and parts[1:] and parts[1].strip().startswith("Name:"):
+            continue
+        groups.append({"name": name, "description": parts[1].strip() if len(parts) > 1 else ""})
+    return groups
+
+
+def _group_options(groups: list[dict], filterText: str = "") -> list[dict]:
+    """Turn parsed `[{name, description}]` into sorted, filtered dynselect options.
+
+    `auto`/`quick` are pinned first (the common picks), the rest alphabetical. The label
+    is `name — description` (description clipped to ~80 chars), the value the bare name.
+    `filterText` matches case-insensitively against name + description.
+    """
+    needle = (filterText or "").lower()
+    pin = {"auto": 0, "quick": 1}
+    out = []
+    for g in sorted(groups, key=lambda g: (pin.get(g["name"], 2), g["name"])):
+        name, desc = g["name"], g.get("description", "")
+        if needle and needle not in name.lower() and needle not in desc.lower():
+            continue
+        if desc:
+            short = desc if len(desc) <= 80 else desc[:77].rstrip() + "..."
+            label = f"{name} — {short}"
+        else:
+            label = name
+        out.append({"label": label, "value": name})
+    return out
+
+
+def _guest_group_registry(vm_name: str) -> str | None:
+    """The xfstests `group-names.txt` text from `vm_name`'s closure in the LOCAL nix
+    store, or None. The dynselect runs on a default worker with no vsock to the guest
+    but with /nix and the reuse sidecars mounted, so resolve it there: the sidecar's
+    `closure.toplevel` -> the closure's requisites (`nix path-info --recursive`) -> the
+    xfstests requisite that carries `XFSTESTS_DOC_RELPATH`."""
+    if not vm_name or "/" in vm_name or vm_name in (".", ".."):
+        return None
+    sidecar = _workers() / "shared/vm" / f"{vm_name}.vars.json"
+    if not sidecar.is_file():
+        return None
+    toplevel = (json.loads(sidecar.read_text()).get("closure") or {}).get("toplevel")
+    if not toplevel:
+        return None
+    for line in Nix().capture("path-info", "--recursive", toplevel).splitlines():
+        path = Path(line.strip())
+        if "xfstests" in path.name:
+            doc = path / XFSTESTS_DOC_RELPATH
+            if doc.is_file():
+                return doc.read_text()
+    return None
+
+
+def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_groups` entrypoint — the xfstests group registry of a guest.
+
+    Resolves `doc/group-names.txt` from the selected guest's closure in the local nix
+    store (see `_guest_group_registry`) and parses it (`parse_group_names`) — NOT over
+    vsock-SSH, since a flow dynselect runs on a default worker that cannot reach the
+    guest. Defensive by contract: a missing vm_name/sidecar/closure, or any nix/parse
+    failure, returns a small `auto`/`quick` fallback rather than raising — a dropdown
+    helper must never blow up the form (e.g. before a guest is booted).
+    """
+    try:
+        text = _guest_group_registry((vm_name or "").strip())
+        if text:
+            opts = _group_options(parse_group_names(text), filterText)
+            if opts:
+                return opts
+    except Exception:
+        pass
+    return _GROUPS_FALLBACK
 
 
 def main():

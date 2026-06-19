@@ -94,17 +94,30 @@ schema:
       description: The `./check` flags written to `XFSTESTS_CHECK_ARGS` (xfstests short flags; the unit supplies `-s <section>`).
       default: {}
       order:
-        - group
+        - test_selection
+        - groups
+        - tests
         - exclude_group
         - exclude
         - report
         - randomize
-        - tests
       properties:
-        group:
+        test_selection:
+          title: Test selection
           type: string
-          description: 'xfstests `./check -g group[,group...]`: include tests from these groups (e.g. `auto`, `quick`).'
-          default: auto
+          description: "Run xfstests by groups (`-g`) or by an explicit testlist — mutually exclusive in `./check`'s typical use. `groups` emits `-g` (and `-x`); `tests` emits the positional testlist."
+          default: groups
+          enum:
+            - groups
+            - tests
+        groups:
+          title: Groups (-g)
+          type: array
+          description: 'xfstests `./check -g group[,group...]`: include tests from these groups (e.g. `auto`, `quick`). Joined with commas; multiple allowed (union). Used when Test selection is `groups`.'
+          default:
+            - auto
+          items:
+            type: string
         exclude_group:
           title: Exclude Group
           type: string
@@ -126,8 +139,9 @@ schema:
           description: 'xfstests `./check -r`: randomize test order.'
           default: false
         tests:
+          title: Tests
           type: string
-          description: 'xfstests `./check [options] testlist`: the trailing positional testlist, space-separated (e.g. `generic/001 generic/002`). Empty runs the whole group.'
+          description: 'xfstests `./check [options] testlist`: the trailing positional testlist, space-separated (e.g. `generic/001 generic/002`). Used when Test selection is `tests`.'
           default: ''
   required:
     - target

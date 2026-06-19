@@ -64,15 +64,18 @@ value:
           devices:
             type: javascript
             expr: results.discover.devices
-          group:
+          test_selection:
             type: javascript
-            expr: flow_input.check?.group
+            expr: flow_input.check.test_selection
+          groups:
+            type: javascript
+            expr: flow_input.check.groups
           exclude_group:
             type: javascript
-            expr: flow_input.check?.exclude_group
+            expr: flow_input.check.exclude_group
           exclude:
             type: javascript
-            expr: flow_input.check?.exclude
+            expr: flow_input.check.exclude
           report:
             type: javascript
             expr: flow_input.check?.report
@@ -81,7 +84,7 @@ value:
             expr: flow_input.check?.randomize
           tests:
             type: javascript
-            expr: flow_input.check?.tests
+            expr: flow_input.check.tests
           iterations:
             type: javascript
             expr: flow_input.check?.iterations
@@ -292,18 +295,53 @@ schema:
       description: The `./check` flags (verbatim), composed into `$XFSTESTS_CHECK_ARGS` (the per-section `-s` is supplied by the unit).
       default: {}
       order:
-        - edit_local_config
-        - local_config
-        - group
+        - test_selection
+        - groups
+        - tests
         - exclude_group
         - exclude
+        - edit_local_config
+        - local_config
         - report
         - randomize
-        - tests
         - iterations
         - stop_on_fail
         - loop_on_fail
       properties:
+        test_selection:
+          title: Test selection
+          type: string
+          description: "Choose what each section runs: by xfstests **groups** (`-g`, e.g. `auto`/`quick`) or by an explicit **tests** list (e.g. `generic/001`). The two are mutually exclusive in `./check`'s typical use (a `-g` group and a positional testlist UNION, swamping the list), so pick one mode — the other field hides."
+          default: groups
+          enum:
+            - groups
+            - tests
+        groups:
+          title: Groups (-g)
+          type: object
+          format: dynmultiselect-list_groups
+          showExpr: "fields.test_selection === 'groups'"
+          description: "xfstests `./check -g group[,group...]`: include tests from these groups (multiple allowed, run as a union). Sourced from the selected guest's xfstests group registry (`doc/group-names.txt`). Empty falls back to each section's default set."
+          default:
+            - auto
+        tests:
+          title: Tests
+          type: string
+          showExpr: "fields.test_selection === 'tests'"
+          description: "xfstests `./check [options] testlist`: the trailing positional testlist, space-separated (e.g. `generic/001 generic/002`)."
+          default: ""
+        exclude_group:
+          title: Exclude Group (-x)
+          type: string
+          showExpr: "fields.test_selection === 'groups'"
+          description: "xfstests `./check -x group[,group...]`: exclude tests from these groups (e.g. `dangerous`)."
+          default: ""
+        exclude:
+          title: Exclude File (-X)
+          type: string
+          showExpr: "fields.test_selection === 'groups'"
+          description: "xfstests `./check -X exclude_file`: exclude individual tests — a guest path to an expunge/exclude list."
+          default: ""
         edit_local_config:
           title: Edit local.config
           type: boolean
@@ -3042,21 +3080,6 @@ schema:
             [xfs_nocrc_bs64k_ss32k]
             FSTYP=xfs
             MKFS_OPTIONS="-m crc=0 -b size=65536 -s size=32768"
-        group:
-          title: Group (-g)
-          type: string
-          description: "xfstests `./check -g group[,group...]`: include tests from these groups (e.g. `auto`, `quick`). Empty runs the section's default set."
-          default: auto
-        exclude_group:
-          title: Exclude Group (-x)
-          type: string
-          description: "xfstests `./check -x group[,group...]`: exclude tests from these groups (e.g. `dangerous`)."
-          default: ""
-        exclude:
-          title: Exclude File (-X)
-          type: string
-          description: "xfstests `./check -X exclude_file`: exclude individual tests — a guest path to an expunge/exclude list."
-          default: ""
         report:
           title: Report (-R)
           type: string
@@ -3067,11 +3090,6 @@ schema:
           type: boolean
           description: "xfstests `./check -r`: randomize test order."
           default: false
-        tests:
-          title: Tests
-          type: string
-          description: "xfstests `./check [options] testlist`: the trailing positional testlist, space-separated (e.g. `generic/001 generic/002`), appended after the flags."
-          default: ""
         iterations:
           title: Iterations (-i/-I)
           type: integer
@@ -3165,3 +3183,20 @@ schema:
             if m and m.group(1) not in names:
                 names.append(m.group(1))
         return [{"label": s, "value": s} for s in names if filterText.lower() in s.lower()]
+
+
+    def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The guest's xfstests group registry (doc/group-names.txt), resolved from the
+        # guest's closure in the local nix store — this dynselect runs on a DEFAULT
+        # worker (no vsock to the guest) but mounts /nix and the reuse sidecars.
+        # `groups` is nested under `check`, yet vm_name (a top-level input) reaches this
+        # helper because the run form spreads root args into nested dynselect helpers.
+        # Never raises — a missing vm_name/closure yields a small auto/quick fallback.
+        try:
+            from f.fstests.common import list_groups as _list_groups
+            return _list_groups(vm_name, filterText)
+        except Exception:
+            return [
+                {"label": "auto — run automatically (~5 min cap)", "value": "auto"},
+                {"label": "quick — under 30s each", "value": "quick"},
+            ]
