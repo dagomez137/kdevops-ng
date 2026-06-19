@@ -702,11 +702,13 @@ schema:
           type: string
           description: Branch, tag or commit in the shared /mirror/qemu.git to build. Ignored when `reuse_worktree` is on.
           default: v11.0.0
+          showExpr: fields.reuse_worktree !== true
         b4_series:
           title: b4 Series
           type: string
           description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`. Ignored when `reuse_worktree` is on.
           default: ''
+          showExpr: fields.reuse_worktree !== true
       showExpr: fields.qemu_source === "build"
     qemu_configuration:
       title: 'QEMU build: Configuration'
