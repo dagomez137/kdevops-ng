@@ -213,8 +213,10 @@ def xfs_profiles_matrix(feature: str | None = None, geometry: str = "matrix") ->
     "matrix"` (default) is the full cross-product. For the matrix: each `block` in
     `XFS_BLOCK_SIZES`, each `sector` in `XFS_SECTOR_SIZES` with `sector <= block`; a V5
     (non-`nocrc`) feature skips `block < XFS_MIN_CRC_BLOCKSIZE` (V5 needs block >= 1024);
-    `nocrc` (V4) includes block 512; a `min_block` feature skips `block < min_block`
-    (rt-reflink needs >= 4096). Section name `xfs_[<feat>_]bs<block-tag>_ss<sector-tag>`.
+    `nocrc` (V4) includes block 512 but is capped at `GUEST_PAGE_SIZE` (large block size
+    is V5-only — a V4 fs above the page size is unmountable); a `min_block` feature skips
+    `block < min_block` (rt-reflink needs >= 4096). Section name
+    `xfs_[<feat>_]bs<block-tag>_ss<sector-tag>`.
     Value shape `{"mkfs", "mount"}`, plus `"needs"` (logdev/rtdev) for an external feature.
     """
     if geometry not in ("matrix", "default"):
@@ -232,6 +234,11 @@ def xfs_profiles_matrix(feature: str | None = None, geometry: str = "matrix") ->
         min_block = feature_def.get("min_block")
         for block in XFS_BLOCK_SIZES:
             if not feature_def["v4"] and block < XFS_MIN_CRC_BLOCKSIZE:
+                continue
+            # Large block size (block > page size) is a V5-only capability; a V4 (crc=0)
+            # filesystem above the page size is unmountable (the kernel rejects it),
+            # though mkfs would create it. Don't emit those profiles at all.
+            if feature_def["v4"] and block > GUEST_PAGE_SIZE:
                 continue
             if min_block is not None and block < min_block:
                 continue
