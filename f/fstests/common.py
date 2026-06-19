@@ -134,6 +134,12 @@ XFS_BLOCK_SIZES = [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]
 XFS_SECTOR_SIZES = [512, 1024, 2048, 4096, 8192, 16384, 32768]
 XFS_MIN_CRC_BLOCKSIZE = 1024
 
+# V4 (crc=0) XFS only mounts when its block size is <= the guest page size: the kernel
+# refuses a larger-block V4 fs at mount ("V4 Filesystem with blocksize N bytes. Only
+# pagesize (M) or less is supported."), even though mkfs.xfs will still create it. V5
+# (crc=1) carries large-block support and has no such limit. x86_64 guests are 4 KiB.
+GUEST_PAGE_SIZE = 4096
+
 # Single-knob XFS feature variants, each orthogonal to geometry. `v4` marks the
 # V4 (nocrc) layout, which alone reaches block size 512. Insertion order is the
 # feature order in the generated matrix.
@@ -317,6 +323,12 @@ def section_sector_size(block: str, section: str) -> int | None:
     mkfs = section_vars(block, section).get("MKFS_OPTIONS", "")
     m = _SECTOR_SIZE_RE.search(mkfs)
     return int(m.group(1)) if m else None
+
+
+def section_is_v4(block: str, section: str) -> bool:
+    """True when the section's `MKFS_OPTIONS` selects the V4 (crc=0) layout, whose
+    block size must not exceed the page size to be mountable — see `GUEST_PAGE_SIZE`."""
+    return "crc=0" in section_vars(block, section).get("MKFS_OPTIONS", "")
 
 
 def section_config(vm_name: str, section: str, workers: Path | None = None) -> dict:

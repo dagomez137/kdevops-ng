@@ -45,6 +45,7 @@ from f.fstests.common import (
     _atomic_write,
     build_check_args,
     device_sector,
+    GUEST_PAGE_SIZE,
     inject_device_base,
     list_groups as _list_groups,
     list_vms as _list_vms,
@@ -53,6 +54,7 @@ from f.fstests.common import (
     section_block,
     section_block_block_size,
     section_external,
+    section_is_v4,
     section_results_dir,
     section_sector_size,
     share_dir,
@@ -211,6 +213,18 @@ def main(
             reason = (
                 f"{' and '.join(below)} < device sector {sector} "
                 f"(needs a >= block/sector-size device)"
+            )
+            print(f"+ skipped {section}: {reason}", flush=True)
+            skipped.append({"name": section, "reason": reason})
+            continue
+        # V4 (crc=0) XFS is unmountable once its block size exceeds the page size: the
+        # kernel rejects it at mount ("Only pagesize or less is supported"), though
+        # mkfs.xfs creates it. Skip here rather than let the section's xfstests unit
+        # die on the mount mid-run.
+        if section_is_v4(block, section) and bsize > GUEST_PAGE_SIZE:
+            reason = (
+                f"V4 (crc=0) block {bsize} > page size {GUEST_PAGE_SIZE}; the kernel "
+                f"cannot mount a V4 filesystem with block size above the page size"
             )
             print(f"+ skipped {section}: {reason}", flush=True)
             skipped.append({"name": section, "reason": reason})
