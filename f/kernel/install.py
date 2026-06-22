@@ -13,7 +13,8 @@ that just copies what make install hands it. make install still resolves the
 arch-correct image path (KBUILD_IMAGE); our hook only copies, so the result never
 depends on the container's distro tooling.
 
-    destdir/boot/   INSTALL_PATH — the kernel image + System.map (unversioned, like nixpkgs)
+    destdir/boot/   INSTALL_PATH — kernel image + System.map, each named by release
+                    (distro-style: bzImage-<release>, System.map-<release>)
 
 Modules are a separate, independently-skippable step (f/kernel/install_modules); an
 all-built-in kernel needs only this one.
@@ -21,7 +22,7 @@ all-built-in kernel needs only this one.
 Equivalent bash, run inside the nixos-flake build devShell:
 
     mkdir --parents "$HOME/bin"
-    printf '#!/bin/sh\\nset -e\\ncp --archive --verbose "$2" "$4"\\ncp --archive --verbose "$3" "$4"\\n' > "$HOME/bin/installkernel"
+    printf '#!/bin/sh\\nset -e\\ncp --archive --verbose "$2" "$4/$(basename "$2")-$1"\\ncp --archive --verbose "$3" "$4/$(basename "$3")-$1"\\n' > "$HOME/bin/installkernel"
     chmod +x "$HOME/bin/installkernel"
     make --directory="$worktree" O="$build_dir" $make_flags INSTALL_PATH="$destdir/boot" install
 """
@@ -36,8 +37,12 @@ from pathlib import Path
 from f.common.devshell import DevShell
 
 # The kernel passes the hook: $1 release, $2 image, $3 System.map, $4 INSTALL_PATH.
-# Adapted from nixpkgs pkgs/os-specific/linux/kernel/build.nix (long-form flags).
-_INSTALLKERNEL = '#!/bin/sh\nset -e\ncp --archive --verbose "$2" "$4"\ncp --archive --verbose "$3" "$4"\n'
+# Name each by release ($1), distro-style.
+_INSTALLKERNEL = (
+    '#!/bin/sh\nset -e\n'
+    'cp --archive --verbose "$2" "$4/$(basename "$2")-$1"\n'
+    'cp --archive --verbose "$3" "$4/$(basename "$3")-$1"\n'
+)
 
 
 def main(
