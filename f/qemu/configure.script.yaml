@@ -4,7 +4,8 @@ description: |
   First `meson subprojects download` (run in the source) fetches QEMU's vendored
   subprojects, then `{worktree}/configure --target-list --prefix=<destdir>
   --disable-download` (run in the build dir) writes the build.ninja so the build
-  never reaches the network.
+  never reaches the network. With `reproducible` on (default) it also adds one
+  `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags`.
 
   Reads `worktree`/`build_dir`/`destdir` from a prior `prepare_worktree` step.
 kind: script
@@ -17,6 +18,7 @@ schema:
     - destdir
     - target_list
     - compiler
+    - reproducible
     - ccache
     - ccache_max_size
     - configure_args
@@ -44,6 +46,10 @@ schema:
       enum:
         - gcc
         - clang
+    reproducible:
+      type: boolean
+      description: Add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` (common parent of `worktree`/`build_dir`) so the build path stops leaking into the binary.
+      default: true
     ccache:
       type: boolean
       description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).

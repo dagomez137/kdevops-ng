@@ -86,6 +86,9 @@ value:
           compiler:
             type: javascript
             expr: flow_input.build?.compiler
+          reproducible:
+            type: javascript
+            expr: flow_input.build?.reproducible
           ccache:
             type: javascript
             expr: flow_input.build?.ccache
@@ -359,10 +362,11 @@ schema:
     build:
       title: Build
       type: object
-      description: Compile knobs — toolchain and ccache.
+      description: Compile knobs — toolchain, reproducibility and ccache.
       default: {}
       order:
         - compiler
+        - reproducible
         - ccache
         - ccache_max_size
       properties:
@@ -373,6 +377,10 @@ schema:
           enum:
             - gcc
             - clang
+        reproducible:
+          type: boolean
+          description: Reproducible build — add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` so the host build path stops leaking into the binary.
+          default: true
         ccache:
           type: boolean
           description: Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).

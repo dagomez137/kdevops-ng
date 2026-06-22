@@ -24,6 +24,13 @@ provides both toolchains plus meson, ninja, pkg-config, glib and pixman
 The target list is comma-joined into a single `--target-list=` argv element
 (QEMU normalizes the commas to spaces) so multiple targets never word-split.
 
+With `reproducible` on (default), one `-ffile-prefix-map=<prefix>=/qemu` is added to
+`--extra-cflags` and `--extra-cxxflags`, where `<prefix>` is the common parent of the
+worktree and build dir. It maps the host-specific source/build path to the constant
+`/qemu` (covering both debug paths and `__FILE__`) so the binary is byte-identical
+across hosts. These accumulate alongside the clang `-Qunused-arguments` extra-cflags
+(QEMU's configure collects repeated `--extra-cflags=`), so both coexist.
+
 Equivalent bash, run inside the nixos-flake build devShell:
 
     ( cd "$worktree" && meson subprojects download )
@@ -31,6 +38,8 @@ Equivalent bash, run inside the nixos-flake build devShell:
         --target-list="x86_64-softmmu,aarch64-softmmu" \
         --prefix="$destdir" \
         --cc="ccache gcc" --cxx="ccache g++" \
+        --extra-cflags=-ffile-prefix-map=<prefix>=/qemu \
+        --extra-cxxflags=-ffile-prefix-map=<prefix>=/qemu \
         --disable-download \
         $configure_args )
 """
@@ -53,6 +62,7 @@ def main(
     destdir: str,
     target_list: list[str] | None = None,
     compiler: str = "gcc",
+    reproducible: bool = True,
     ccache: bool = True,
     ccache_max_size: int = 10,
     configure_args: str = "",
@@ -83,6 +93,15 @@ def main(
         else []
     )
 
+    repro_args = []
+    if reproducible:
+        prefix = os.path.commonpath(
+            [os.path.abspath(worktree), os.path.abspath(build_dir)]
+        )
+        prefix_map = f"-ffile-prefix-map={prefix}=/qemu"
+        repro_args = [f"--extra-cflags={prefix_map}", f"--extra-cxxflags={prefix_map}"]
+        print(f"path-prefix map: {prefix} -> /qemu", flush=True)
+
     workers = Path(os.environ["WORKERS_DIR"])
 
     # configure_args is a space-separated string of extra --enable-*/--disable-*;
@@ -103,6 +122,7 @@ def main(
         f"--cc={cc}",
         f"--cxx={cxx}",
         *quiet_args,
+        *repro_args,
         "--disable-download",
         *extra_args,
         cwd=build_dir,

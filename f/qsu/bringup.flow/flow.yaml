@@ -806,10 +806,11 @@ schema:
     qemu_build:
       title: 'QEMU build: Build'
       type: object
-      description: Compile knobs — toolchain and ccache.
+      description: Compile knobs — toolchain, reproducibility and ccache.
       default: {}
       order:
       - compiler
+      - reproducible
       - ccache
       - ccache_max_size
       properties:
@@ -820,6 +821,10 @@ schema:
           enum:
           - gcc
           - clang
+        reproducible:
+          type: boolean
+          description: Reproducible build — add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` so the host build path stops leaking into the binary.
+          default: true
         ccache:
           type: boolean
           description: Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).
