@@ -149,6 +149,14 @@
             export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE//$out//build-shell}"
             export NIX_LDFLAGS="''${NIX_LDFLAGS//$out//build-shell}"
           '';
+          # A LLVM=1 kernel build needs the unwrapped clang and its resource dir:
+          # the kernel's -nostdinc makes the cc-wrapper's -nostdlibinc a hard error
+          # (bindgen trips on it too). Export both for the build step to pick up.
+          kernelClangHook = ''
+            export KERNEL_CLANG_CC="$(cat "$(dirname "$(dirname "$(command -v clang)")")/nix-support/orig-cc")/bin/clang"
+            export KERNEL_CLANG_RESOURCE="$("$KERNEL_CLANG_CC" -print-resource-dir)/include"
+            export BINDGEN_EXTRA_CLANG_ARGS="-Wno-unused-command-line-argument"
+          '';
         in
         {
           # No qemu inputsFrom: its NIX_CFLAGS_COMPILE overflows the kernel
@@ -156,7 +164,7 @@
           build-kernel = pkgs.mkShell {
             packages = kernelPackages;
             env.RUST_LIB_SRC = rustLibSrc;
-            shellHook = reproducibleShellHook;
+            shellHook = reproducibleShellHook + kernelClangHook;
           };
 
           # Adds qemu's build inputs via inputsFrom + the python deps qemu's
