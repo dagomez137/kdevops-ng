@@ -5,7 +5,60 @@ clang is gated out of the enum** because `LLVM=1` alone does not build the kerne
 with the nixpkgs clang toolchain. This doc records exactly why, the proven recipe,
 and what to implement to turn clang back on, so we can pick it up cold.
 
-Status: **GCC + reproducible + ccache shipped and green; clang deferred.**
+Status: **GCC shipped and green. UPDATE 2026-06-22: clang now builds — recipe
+proven on the current toolchain (clang/LLD 21.1.8); see the update below. The
+original failure analysis is kept because it explains why `LLVM=1` alone fails.**
+
+## Update 2026-06-22 — clang builds, with a smaller fix than feared
+
+A full `defconfig` builds clean in the current `build-kernel` devShell, and
+`make rustavailable` reports "Rust is available!" (rustc 1.95.0 + bindgen +
+rust-src). The three blockers below are each resolved by one recipe:
+
+- `CC` = the **unwrapped** clang (found from the wrapper's
+  `nix-support/orig-cc`), which drops the `-nostdlibinc` the kernel rejects.
+- `HOSTCC`/`HOSTCXX` = the **wrapped** clang (the `LLVM=1` default), so host
+  tools still link against nix's glibc.
+- `CFLAGS_KERNEL`/`CFLAGS_MODULE` = `-I$("$CC" -print-resource-dir)/include`.
+  `-print-resource-dir` on the unwrapped clang already returns the **`-lib`**
+  output (`clang-21.1.8-lib/lib/clang/21/include`, 240 headers incl.
+  `stdarg.h`), so the "the `out` resource dir is empty" problem does not arise —
+  no need to compute `lib.getLib` paths by hand.
+- `LD` = raw `ld.lld` and `AR`/`NM`/`OBJCOPY`/… = `llvm-*` come free from
+  `LLVM=1` because `tc.matrixExtras` already puts raw `lld` and `llvm` on PATH.
+
+Proven recipe (devShell):
+
+    make ... LLVM=1 CC=<unwrapped-clang> \
+        CFLAGS_KERNEL=-I<resource>/include CFLAGS_MODULE=-I<resource>/include
+
+Resulting banner: `clang version 21.1.8, LLD 21.1.8`. Evidence:
+`~/kernel/repro/clang-test.sh`, `clang-test.log`.
+
+Rust works too, with one Rust-specific addition. A full `imageless_defconfig`
+(`CONFIG_RUST=y`, `CONFIG_SAMPLE_RUST_MINIMAL=m`) built under the recipe and
+produced a valid `samples/rust/rust_minimal.ko` (GPL, `vermagic 7.1.0-rc7`, 12
+Rust objects). The extra flag:
+
+    BINDGEN_EXTRA_CLANG_ARGS=-Wno-unused-command-line-argument
+
+bindgen probes the wrapped `clang` on PATH for default include paths and captures
+its `-nostdlibinc`; libclang then rejects that as an unused argument (bindgen
+treats any clang diagnostic as fatal), so the build dies at `RUSTC`/bindgen.
+Silencing that one warning for bindgen fixes it. Evidence:
+`~/kernel/repro/rust-test.sh`, `rust-test.log`.
+
+Remaining to enable the `compiler=clang` knob (implementation, not a blocker):
+the unwrapped-clang path and resource dir are nix-internal, so the
+`build-kernel` devShell should export them (e.g. a `shellHook` computing
+`KERNEL_CLANG_CC` + `KERNEL_CLANG_RESOURCE` via `orig-cc` + `-print-resource-dir`);
+`f/kernel/build_flags` then splices `LLVM=1 CC=$KERNEL_CLANG_CC
+CFLAGS_KERNEL/MODULE=-I$KERNEL_CLANG_RESOURCE` for `compiler=clang`, and `clang`
+returns to the `compiler` enum. ccache composes as `CC="ccache <unwrapped>"`.
+Not yet tested: clang cross-host byte reproducibility (the devShell `$out` fix +
+the `-fdebug-prefix-map` path map should carry over from gcc, but unverified).
+
+Original failure analysis (why `LLVM=1` alone fails) follows.
 
 ## What we tried and what happens
 
