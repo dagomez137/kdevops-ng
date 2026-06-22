@@ -4,20 +4,20 @@
 The QEMU analog of `f/kernel/fetch_identity`, and the fetch half of the Store transport
 (see `f/common/store` and `f/qemu/publish`). Run before the expensive compile: if a peer
 host already published this build identity, read its index entry over ssh to learn the
-store path, pull that path with `nix copy`, and materialize the whole install tree into
-the local per-identity prefix, so the following `reuse_check` finds it present and the
-build is skipped. The prefix IS the identity, so the entire tree is the run layer. The
-fetched path is then indexed locally so this host becomes a source for it.
+store path and pull that path with `nix copy`, then index it locally so this host becomes
+a source for it. The fetched install tree is left in the store; the following
+`reuse_check` resolves the index entry and the build is skipped, consuming the emulator
+from the store path with no copy.
 
-Same-host leaves `remote`/`remote_index` empty and does nothing — the prefix is already
-where the build would install. Cross-host sets `remote` to an ssh host and `remote_index`
-to that builder's `store-index` directory, read over ssh.
+Same-host leaves `remote`/`remote_index` empty and does nothing — a local build installs
+into the prefix directly. Cross-host sets `remote` to an ssh host and `remote_index` to
+that builder's `store-index` directory, read over ssh.
 
 Equivalent bash, run inside the nixos-flake transfer devShell:
 
     sp=$(ssh "$remote" readlink "$remote_index"/qemu-"$(basename "$prefix")")
     nix copy --from ssh://"$remote" "$sp" --no-check-sigs
-    cp --recursive --force "$sp"/. "$prefix"/
+    nix-store --add-root "$index"/qemu-"$(basename "$prefix")" --realise "$sp"
 """
 
 from __future__ import annotations
@@ -42,8 +42,7 @@ def main(prefix: str, remote: str = "", remote_index: str = "") -> dict:
         return {"fetched": False, "prefix": prefix}
 
     store.fetch(workers, remote, sp)
-    store.materialize(sp, prefix)
     store.link_local(name, sp)
-    print(f"fetched install tree from {remote} -> {prefix}", flush=True)
+    print(f"fetched install tree {identity} from {remote} into the store", flush=True)
 
     return {"fetched": True, "prefix": prefix, "remote": remote, "store_path": sp}

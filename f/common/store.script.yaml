@@ -4,8 +4,10 @@ description: |
   runnable step on its own. Moves a built identity's run layer between hosts through
   the Nix store: `publish` adds a tree with `nix store add-path` and indexes it under
   `WORKERS_DIR/shared/store-index/<name>` (also a GC root); `peer_path`/`fetch` read a
-  peer's index over ssh and pull the path with `nix copy`; `materialize` copies the
-  store tree into a destdir. Store paths are identical on every host.
+  peer's index over ssh and pull the path with `nix copy`; `link_local` indexes a
+  fetched path so this host becomes a source; `local_path` resolves the index entry so
+  a fetched run layer is consumed in place from the store. Store paths are identical on
+  every host.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

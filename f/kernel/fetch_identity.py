@@ -4,21 +4,22 @@
 The run-layer analog of `f/kernel/fetch_devel`, and the fetch half of the Store transport
 (see `f/common/store` and `f/kernel/publish`). Run before the expensive compile: if a peer
 host already published this build identity (the baked kernelrelease), read its index entry
-over ssh to learn the store path, pull that path with `nix copy`, and materialize it — the
-boot image artifacts (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`)
-and the `lib/modules/<release>/` tree — into the local destdir, so the following
-`reuse_check` finds them present and the build is skipped. The fetched path is then indexed
-locally so this host becomes a source for it.
+over ssh to learn the store path and pull that path with `nix copy`, then index it locally
+so this host becomes a source for it. The fetched run layer — the boot image artifacts
+(`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`) and the
+`lib/modules/<release>/` tree — is left in the store; the following `reuse_check` resolves
+the index entry and the build is skipped, consuming the run layer from the store path with
+no copy.
 
-Same-host leaves `remote`/`remote_index` empty and does nothing — the destdir is already
-where the build would install. Cross-host sets `remote` to an ssh host and `remote_index`
-to that builder's `store-index` directory, read over ssh.
+Same-host leaves `remote`/`remote_index` empty and does nothing — a local build installs
+into the destdir directly. Cross-host sets `remote` to an ssh host and `remote_index` to
+that builder's `store-index` directory, read over ssh.
 
 Equivalent bash, run inside the nixos-flake transfer devShell:
 
     sp=$(ssh "$remote" readlink "$remote_index"/kernel-"$uts_release")
     nix copy --from ssh://"$remote" "$sp" --no-check-sigs
-    cp --recursive --force "$sp"/. "$destdir"/
+    nix-store --add-root "$index"/kernel-"$uts_release" --realise "$sp"
 """
 
 from __future__ import annotations
@@ -47,9 +48,8 @@ def main(
         return {"fetched": False, "uts_release": uts_release, "destdir": destdir}
 
     store.fetch(workers, remote, sp)
-    store.materialize(sp, destdir)
     store.link_local(name, sp)
-    print(f"fetched run layer {uts_release} from {remote}", flush=True)
+    print(f"fetched run layer {uts_release} from {remote} into the store", flush=True)
 
     return {
         "fetched": True,

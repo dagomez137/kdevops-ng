@@ -1,13 +1,14 @@
 summary: "Kernel: fetch a build identity's run layer from a peer builder"
 description: |
   Pull a build identity's run layer (the artifacts named by the baked kernelrelease)
-  from a peer host into the local destdir, before the expensive compile, so the
-  following `reuse_check` reports `present` and the build is skipped. Reads the peer's
+  from a peer host into the Nix store, before the expensive compile, so the following
+  `reuse_check` reports `present` and the build is skipped. Reads the peer's
   `store-index` entry over ssh to learn the run layer's Nix store path, pulls it with
-  `nix copy`, and materializes the boot artifacts (`boot/<image>-<release>`,
-  `System.map-<release>`, `config-<release>`) and the `lib/modules/<release>/` tree
-  into the destdir, all over the `transfer` devShell. Same-host (no remote) is a no-op.
-  Returns `fetched` plus the resolved `uts_release`/`destdir`.
+  `nix copy` over the `transfer` devShell, and indexes it locally. The run layer — the
+  boot artifacts (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`)
+  and the `lib/modules/<release>/` tree — is consumed in place from the store, with no
+  copy. Same-host (no remote) is a no-op. Returns `fetched` plus the resolved
+  `uts_release`/`destdir`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
