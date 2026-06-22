@@ -63,10 +63,66 @@ value:
       timeout:
         type: static
         value: 600
+    - id: identity
+      summary: compute build identity + per-identity install prefix
+      value:
+        type: script
+        path: f/qemu/identity
+        input_transforms:
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          target_list:
+            type: javascript
+            expr: flow_input.configuration?.target_list
+          configure_args:
+            type: javascript
+            expr: flow_input.configuration?.configure_args
+          compiler:
+            type: javascript
+            expr: flow_input.build?.compiler
+      timeout:
+        type: static
+        value: 120
+    - id: fetch_identity
+      summary: fetch this identity's install tree from a peer builder
+      skip_if:
+        expr: '!flow_input.prebuilt?.remote || !flow_input.prebuilt?.remote_prefix'
+      value:
+        type: script
+        path: f/qemu/fetch_identity
+        input_transforms:
+          prefix:
+            type: javascript
+            expr: results.identity.prefix
+          remote:
+            type: javascript
+            expr: flow_input.prebuilt?.remote
+          remote_prefix:
+            type: javascript
+            expr: flow_input.prebuilt?.remote_prefix
+      timeout:
+        type: static
+        value: 1800
+    - id: reuse_check
+      summary: reuse if this identity is already installed
+      value:
+        type: script
+        path: f/qemu/reuse_check
+        input_transforms:
+          prefix:
+            type: javascript
+            expr: results.identity.prefix
+      timeout:
+        type: static
+        value: 120
     - id: configure
       summary: configure (out-of-tree, --disable-download)
       skip_if:
-        expr: 'flow_input.configuration?.skip_configure === true'
+        expr: '(flow_input.configuration?.skip_configure === true) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/qemu/configure
@@ -79,7 +135,7 @@ value:
             expr: results.prepare_worktree.build_dir
           destdir:
             type: javascript
-            expr: results.prepare_worktree.destdir
+            expr: results.identity.prefix
           target_list:
             type: javascript
             expr: flow_input.configuration?.target_list
@@ -107,6 +163,8 @@ value:
         value: 900
     - id: compile
       summary: make --jobs=$(nproc)
+      skip_if:
+        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
       value:
         type: script
         path: f/qemu/compile
@@ -125,7 +183,7 @@ value:
       summary: compile_commands.json (clangd)
       # Default-on: skip only when explicitly disabled (an unset input must not skip).
       skip_if:
-        expr: 'flow_input.devtools?.compile_commands === false'
+        expr: '(flow_input.devtools?.compile_commands === false) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/qemu/devtools
@@ -146,7 +204,7 @@ value:
       summary: make install -> destdir
       # Default-on: skip only when explicitly disabled (an unset input must not skip).
       skip_if:
-        expr: 'flow_input.installation?.install === false'
+        expr: '(flow_input.installation?.install === false) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/qemu/install
@@ -156,7 +214,7 @@ value:
             expr: results.prepare_worktree.build_dir
           destdir:
             type: javascript
-            expr: results.prepare_worktree.destdir
+            expr: results.identity.prefix
           target_list:
             type: javascript
             expr: flow_input.configuration?.target_list
@@ -174,9 +232,11 @@ value:
           // effective build, and QEMU/systemd reads the same shape regardless of provider.
           export async function main(
             prepare: any,
+            identity: any,
             configure: any,
             devtools: any,
             install: any,
+            reuse: any,
           ) {
             return {
               worker: prepare?.worker ?? null,
@@ -185,10 +245,12 @@ value:
               version: prepare?.version ?? null,
               target_list: configure?.target_list ?? null,
               compiler: configure?.compiler ?? null,
+              identity: identity?.identity ?? null,
+              prefix: identity?.prefix ?? null,
               worktree: prepare?.worktree ?? null,
               build_dir: prepare?.build_dir ?? null,
-              destdir: install?.destdir ?? prepare?.destdir ?? null,
-              qemu_binary: install?.qemu_binary ?? null,
+              destdir: install?.destdir ?? identity?.prefix ?? prepare?.destdir ?? null,
+              qemu_binary: install?.qemu_binary ?? reuse?.qemu_binary ?? null,
               qemu_binaries: install?.qemu_binaries ?? null,
               compile_commands: devtools?.compile_commands ?? null,
             };
@@ -197,6 +259,9 @@ value:
           prepare:
             type: javascript
             expr: results.prepare_worktree
+          identity:
+            type: javascript
+            expr: results.identity
           configure:
             type: javascript
             expr: results.configure
@@ -206,6 +271,9 @@ value:
           install:
             type: javascript
             expr: results.install
+          reuse:
+            type: javascript
+            expr: results.reuse_check
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -216,6 +284,7 @@ schema:
     - build
     - devtools
     - installation
+    - prebuilt
   properties:
     worker:
       title: Worker
@@ -408,9 +477,14 @@ schema:
       description: Install the emulator and manage the destdir.
       default: {}
       order:
+        - reuse
         - install
         - clean_destdir
       properties:
+        reuse:
+          type: boolean
+          description: Skip configure/compile/install when this build identity is already installed under its prefix (reuse the prior build). Off forces a rebuild without wiping the destdir.
+          default: true
         install:
           type: boolean
           description: Install the built emulator into destdir (make install). Off = build only (e.g. a dev worktree).
@@ -419,4 +493,21 @@ schema:
           type: boolean
           description: Wipe the install `destdir` first (default off). Leave off so an install never wipes binaries a running QEMU/systemd VM uses.
           default: false
+    prebuilt:
+      title: Prebuilt
+      type: object
+      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already installed this build identity, its whole install tree is fetched into the per-identity prefix so the build is reused instead of repeated.
+      default: {}
+      order:
+        - remote
+        - remote_prefix
+      properties:
+        remote:
+          type: string
+          description: SSH host of the peer QEMU builder to fetch this build identity's install tree from. Empty (default) builds locally with no fetch.
+          default: ""
+        remote_prefix:
+          type: string
+          description: The peer builder's per-identity install prefix (`destdir/<identity>`) to pull the prebuilt QEMU from. Empty (default) builds locally with no fetch.
+          default: ""
   required: []
