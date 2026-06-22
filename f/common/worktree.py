@@ -104,11 +104,14 @@ def prepare(
     else:
         slot = workers / worker_index / project
     worktree = slot / worktree_dirname
+    build_dir = worktree / "build"
     print(f"worker={worker_index} ref={ref} shared={shared} name={name} "
           f"worktree={worktree}", flush=True)
 
     slot.mkdir(parents=True, exist_ok=True)
     for d in extra_dirs:
+        if d == "build":
+            continue
         if d in wipe_dirs:
             shutil.rmtree(slot / d, ignore_errors=True)
         (slot / d).mkdir(parents=True, exist_ok=True)
@@ -148,6 +151,13 @@ def prepare(
             git.run("-C", str(worktree), "config", "user.email", "kdevops@kdevops")
             DevShell(workers).run("b4", "shazam", b4_series, cwd=str(worktree))
 
+    # build/ lives under the worktree, created after it is laid down.
+    if "build" in extra_dirs:
+        if "build" in wipe_dirs:
+            shutil.rmtree(build_dir, ignore_errors=True)
+        build_dir.mkdir(parents=True, exist_ok=True)
+        _exclude_build(main_repo)
+
     commit = git.capture("-C", str(worktree), "rev-parse", "HEAD").strip()
     if reuse_worktree:
         # ref is ignored in reuse mode; report what is actually checked out (the branch
@@ -163,11 +173,12 @@ def prepare(
         "commit": commit,
         "slot": str(slot),
         "worktree": str(worktree),
-        "build_dir": str(slot / "build"),
         "shared": shared,
         "name": name,
         "b4_series": b4_series or None,
     }
+    if "build" in extra_dirs:
+        result["build_dir"] = str(build_dir)
     if "destdir" in extra_dirs:
         result["destdir"] = str(slot / "destdir")
     if version_file:
@@ -192,6 +203,18 @@ def _resolve_ref(git: Git, main_repo: Path, ref: str) -> str:
     raise ValueError(
         f"could not resolve ref {ref!r} in {main_repo} "
         "(tried a tag, the mirror remote, and the literal ref)")
+
+
+def _exclude_build(main_repo: Path) -> None:
+    """Ignore the worktree-local `build/` via the clone's shared exclude (all worktrees)."""
+    gitdir = main_repo / ".git" if (main_repo / ".git").is_dir() else main_repo
+    info = gitdir / "info"
+    exclude = info / "exclude"
+    if exclude.is_file() and "/build/" in exclude.read_text().splitlines():
+        return
+    info.mkdir(parents=True, exist_ok=True)
+    with exclude.open("a") as handle:
+        handle.write("/build/\n")
 
 
 def _mirror_of(main_repo: Path) -> str | None:

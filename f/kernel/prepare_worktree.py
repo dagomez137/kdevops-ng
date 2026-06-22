@@ -14,7 +14,10 @@ mirror), so checkouts are cheap. Runs `git` on the host (NOT in the devShell).
 - `reuse_worktree=True` skips fetch/checkout/b4 and builds the named tree exactly as
   checked out (iterate on a local branch); `git_ref`/`b4_series` are ignored.
 
-Knobs: `wipe_build` rm+recreates the `build` sibling first; `clean_destdir` (default
+The out-of-tree `build` dir lives under the source checkout (`linux/build`), so kbuild
+emits paths relative to it; `destdir` stays a slot-level sibling of the source.
+
+Knobs: `wipe_build` rm+recreates the `build` dir first; `clean_destdir` (default
 false) rm+recreates the `destdir` install sibling first — leave it off so an install
 never wipes modules a running QEMU/systemd VM has mounted over virtiofs; `b4_series`
 applies a lore series on top of the checkout via `b4 shazam` in the devShell.

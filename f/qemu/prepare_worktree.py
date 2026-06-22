@@ -14,10 +14,11 @@ so checkouts are cheap. Runs `git` on the host (NOT in the devShell).
 - `reuse_worktree=True` skips fetch/checkout/b4 and builds the named tree exactly as
   checked out (iterate on a local branch); `qemu_ref`/`b4_series` are ignored.
 
-The slot holds three siblings: `qemu` (the source checkout), `build` (the out-of-tree
-build dir), and `destdir` (the `--prefix` install target).
+The slot holds `qemu` (the source checkout) and `destdir` (the `--prefix` install
+target); the out-of-tree `build` dir lives under the source checkout (`qemu/build`),
+so meson emits paths relative to it.
 
-Knobs: `wipe_build` rm+recreates the `build` sibling first; `clean_destdir` (default
+Knobs: `wipe_build` rm+recreates the `build` dir first; `clean_destdir` (default
 false) rm+recreates `destdir` first — leave it off so an install never wipes binaries a
 running QEMU/systemd VM still uses. `b4_series` applies a lore series on top of the
 checkout via `b4 shazam` in the devShell.

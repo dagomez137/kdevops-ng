@@ -49,9 +49,9 @@ def main(
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
 
-    # Install destination is separate from the build dir. Default to a `destdir`
-    # sibling of the build dir (slot/destdir, next to slot/build).
-    dest = Path(destdir) if destdir else build.parent / "destdir"
+    # Install destination is separate from the build dir; default to the slot-level
+    # destdir alongside the source worktree.
+    dest = Path(destdir) if destdir else Path(worktree).parent / "destdir"
     boot = dest / "boot"
     boot.mkdir(parents=True, exist_ok=True)
 
