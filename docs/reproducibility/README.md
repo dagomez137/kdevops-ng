@@ -24,6 +24,7 @@ handoff (broader Store/workbench roadmap) is preserved at
 | alpha1 | mode-α LSP on fetched devel layer | compile_commands regenerated on consumer resolves, zero remap |
 | QEMU portability | build on B, fetch + use on A | ran on A and booted the reproducible kernel |
 | QEMU beta1 | QEMU reproducible cross-host | byte-identical with `-ffile-prefix-map` |
+| R1 | build identity discriminates distinct builds | config/flags/toolchain/commit each change the hash; reaches `uname -r` + modules |
 
 ## Root causes (these changed the original plan)
 1. **devShell `$out` leak (was unknown).** `pkgs.mkShell` derives `$out` from the
@@ -54,36 +55,68 @@ handoff (broader Store/workbench roadmap) is preserved at
 File: `workers/shared/nixos-flake/flake.nix`. Verified with `nix fmt`, `nix flake
 check`, and a vanilla (no env hacks) cross-host build that came out byte-identical.
 
-## Fixes still needed
-1. **Kernel per-build path map** — add `-fdebug-prefix-map=<worktree>/=` to `KCFLAGS`
-   and `KAFLAGS` in `f/kernel/build_flags.py`, gated on `reproducible`, keyed on the
-   worktree path. (Supersedes the original `T-fdebug-prefix-map`, whose
-   `-fdebug-prefix-map=<build>=` spelling was wrong.)
-2. **QEMU per-build path map** — add `-ffile-prefix-map=<source-root>=<const>` to
-   `--extra-cflags` and `--extra-cxxflags` in `f/qemu/configure.py`. Rust components, if
-   enabled, also want `--remap-path-prefix`. (QEMU reproducibility is layout-independent;
-   see `qemu.md` EQ1.) **QEMU mode-α differs from the kernel** (EQ2): meson bakes
-   absolute `-iquote` source paths, so the consumer must regenerate
-   `compile_commands.json` via a local `meson`/`configure` (no compile) rather than
-   fetch+regenerate-from-relative-`.cmd`. Child layout is *not* required for QEMU's
-   mode-α (it is for the kernel's).
-3. **`build-qemu` lacks `git`** — meson needs it for git-based subproject wraps and
-   QEMU `configure` uses `git describe`. Add `pkgs.git` to `build-qemu` (b4 wants it
-   too). On the production worker git currently leaks in from the container base.
-4. **clangd outside the devShell** — `NIX_CFLAGS_COMPILE` carries the `-isystem` nix
-   paths as environment, not in the `.cmd`; the alpha1 test ran the recorded command
-   inside the devShell. Decide whether real clangd runs in the devShell or whether
-   `compile_commands.json` must bake the `-isystem` paths.
-5. **devel-layer fetch set (mode α)** — exclude all binaries (`*.o *.ko *.a vmlinux
-   vmlinux.unstripped .tmp_vmlinux* *.bin bzImage`); the real devel layer is ~200M for
-   defconfig, dominated by `.cmd` (~174M).
+## Consumer-side fixes — implemented this session
+1. **Kernel per-build path map** — `-fdebug-prefix-map=<commonparent>/=` in `KCFLAGS`
+   and `KAFLAGS` (`f/kernel/build_flags.py`), one map over the common parent of the
+   worktree and build dir so it is correct in both the sibling and child layouts.
+   (Supersedes the original `T-fdebug-prefix-map`, whose `-fdebug-prefix-map=<build>=`
+   spelling was wrong.)
+2. **QEMU per-build path map** — `-ffile-prefix-map=<commonparent>=/qemu` in
+   `--extra-cflags` and `--extra-cxxflags` (`f/qemu/configure.py`). Rust components, if
+   enabled, also want `--remap-path-prefix`. The QEMU mode-α difference (EQ2: meson
+   bakes absolute `-iquote` paths, so the consumer regenerates via a local
+   `meson`/`configure` rather than fetch+regenerate-from-relative-`.cmd`) remains a
+   Store-implementation detail.
+3. **`build-qemu` git** — `pkgs.git` added to the `build-qemu` devShell so meson's
+   git-based subproject wraps and `configure`'s `git describe` no longer rely on git
+   leaking in from the container base.
+4. **clangd outside the devShell — a non-issue.** Real clangd uses its own libclang
+   resource dir, so it resolves a fetched worktree with no devShell and no `-isystem`
+   baking; the alpha1 caveat was specific to running `gcc`, which clangd does not.
+   Verified on six diverse TUs (`~/kernel/repro/alpha1-clangd.{sh,log}`).
+5. **devel-layer fetch (mode α)** — `f/kernel/fetch_devel` rsyncs the devel subset
+   (excludes `*.o *.ko *.a vmlinux* .tmp_vmlinux* *.bin bzImage vmlinuz`) into a
+   worktree and regenerates `compile_commands.json` locally; validated end to end
+   (3064 entries, clangd clean, zero remap).
 
-## Not yet tested
-- **Identity discrimination** — flip one input (KASAN, gcc↔clang, a `KCFLAGS`) and
-  confirm a different build identity / `uname -r` / `/lib/modules/<rel>/`.
+Also implemented: the build dir is now a **child of the source worktree** (relative
+`.cmd` paths, no remap), and the kernel **image installs versioned by release**
+(`bzImage-<release>`, `System.map-<release>`), pairing with the already-versioned
+modules so the destdir is an artefactory.
+
+## Build identity / Store key (R1) — validated and implemented
+R1 validated the key (`r1.sh`, `r1.log`): identity = `sha256(config[minus the
+CONFIG_LOCALVERSION line] + toolchain + make flags + commit)[:12]`, injected into
+`CONFIG_LOCALVERSION`. It is **deterministic**, **discriminates** on every input
+(config, make flags, toolchain, commit each change the hash), the **regress-breaker
+holds** (excluding the CONFIG_LOCALVERSION line keeps the hash stable when the digest
+is injected), and it **reaches `uname -r` and modules** — two configs of the same
+commit install as `/lib/modules/7.1.0-rc7-<hashA>` and `…-<hashB>`, no collision; the
+image and modules share one identity.
+
+Shipped in `f/kernel/identity` (`bake_identity`), called by the three configure steps
+behind a `build_identity` knob (on by default). Two refinements over the R1 prototype:
+
+- The **toolchain** id is the `build-kernel` devShell's `drvPath` — the literal
+  "devShell store hash". It tracks the compiler, the reproducible `shellHook` and the
+  pinned inputs, but (unlike hashing the `flake.nix`/`flake.lock` files) is *not*
+  perturbed by adding an unrelated devShell, and is identical across hosts for one
+  flake. The R1 prototype used `realpath $(command -v gcc)`, which misses the hook.
+- The **make flags are host-path-normalized** (the `-fdebug-prefix-map=<worktree>/=`
+  value is stripped) so the identity is the same on every host — the R1 prototype ran
+  on a single host and did not exercise this.
+
+The image and modules install under the unique release, so the destdir is a
+content-addressed artefactory; what remains is the Store *structure* (a dir keyed by
+identity, `run`/`debug`/`devel` layers, skip-rebuild-if-present, fetch-by-identity).
+
+## Not yet tested (conditional / implementation-phase)
 - **randstruct / module signing / `CONFIG_DEBUG_EFI`** — off in defconfig, so untested;
   if enabled they break reproducibility and need a pinned seed, a persistent signing
-  key, and disabling the EFI debug paths respectively.
-- **localversion** — not the beta1 blocker (both builds were at the exact tag, no `+`).
-  A shallow-clone `setlocalversion` `+` is a latent hazard; the substantive work is
-  baking the build-identity hash into `kernelrelease`.
+  key, and disabling the EFI debug paths respectively. Only matters if real configs
+  enable them.
+- **Store transport** — fetch-beats-build timing and NFS-co-located sharing; belongs to
+  Store implementation, not a reproducibility experiment.
+- **α2 full boot** — the reproducible kernel booted under the fetched QEMU (parsed
+  cmdline); booting to userspace to confirm `uname -r == identity` and in-guest module
+  load was not run.
