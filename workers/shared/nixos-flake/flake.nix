@@ -177,13 +177,12 @@
             shellHook = reproducibleShellHook;
           };
 
-          # Move build outputs between hosts: rsync, or `nix copy` over OpenSSH to
-          # exchange store paths. Python serves the kernel's clang-tools
-          # (compile_commands.json) index generation.
+          # Move build outputs between hosts: `nix copy` over OpenSSH exchanges store
+          # paths. Python serves the kernel's clang-tools (compile_commands.json) index
+          # generation.
           transfer = pkgs.mkShell {
             packages = [
               pkgs.nix
-              pkgs.rsync
               pkgs.openssh
               pkgs.python3
             ];
