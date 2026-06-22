@@ -37,6 +37,9 @@ value:
         installation:
           type: javascript
           expr: flow_input.kernel_installation
+        prebuilt:
+          type: javascript
+          expr: flow_input.kernel_prebuilt
   - id: build_nix
     summary: Build the NixOS closure (f/nix/build)
     skip_if:
@@ -123,6 +126,7 @@ schema:
   - kernel_build
   - kernel_devtools
   - kernel_installation
+  - kernel_prebuilt
   - nix_guest
   - nix_closure
   - nix_lock
@@ -555,6 +559,24 @@ schema:
           type: boolean
           description: Wipe the install `destdir` (`<slot>/destdir`) first (default off). Leave off so an install never wipes modules a running QEMU/systemd VM has mounted over virtiofs.
           default: false
+      showExpr: fields.kernel_source === "build"
+    kernel_prebuilt:
+      title: 'Kernel: Prebuilt'
+      type: object
+      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already installed this build identity, its run layer (image + modules) is fetched into the destdir so the build is reused instead of repeated.
+      default: {}
+      order:
+      - remote
+      - remote_destdir
+      properties:
+        remote:
+          type: string
+          description: SSH host of the peer builder to fetch this build identity's run layer from. Empty (default) builds locally with no fetch.
+          default: ''
+        remote_destdir:
+          type: string
+          description: The peer builder's destdir to pull the run layer (`boot/<image>-<release>` and `lib/modules/<release>`) from. Empty (default) builds locally with no fetch.
+          default: ''
       showExpr: fields.kernel_source === "build"
     nix_guest:
       title: 'NixOS: Guest'

@@ -1,0 +1,35 @@
+summary: "Kernel: fetch a build identity's run layer from a peer builder"
+description: |
+  Pull a build identity's run layer (the artifacts named by the baked kernelrelease)
+  from a peer host into the local destdir, before the expensive compile, so the
+  following `reuse_check` reports `present` and the build is skipped. Fetches the boot
+  artifacts (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`) and
+  the `lib/modules/<release>/` tree over the `transfer` devShell. Same-host (no remote)
+  is a no-op. Returns `fetched` plus the resolved `uts_release`/`destdir`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - destdir
+    - uts_release
+    - remote
+    - remote_destdir
+  properties:
+    destdir:
+      type: string
+      description: Local install root to populate (the slot `destdir`).
+    uts_release:
+      type: string
+      description: The build identity (baked kernelrelease) whose run layer to fetch.
+    remote:
+      type: string
+      description: SSH host of the peer builder; empty fetches nothing (same-host).
+      default: ""
+    remote_destdir:
+      type: string
+      description: The peer builder's destdir to pull the run layer from; empty fetches nothing.
+      default: ""
+  required:
+    - destdir
+    - uts_release

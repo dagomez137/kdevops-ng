@@ -207,6 +207,29 @@ value:
             timeout:
               type: static
               value: 900
+    - id: fetch_identity
+      summary: fetch this identity's run layer from a peer builder
+      skip_if:
+        expr: '!flow_input.prebuilt?.remote || !flow_input.prebuilt?.remote_destdir'
+      value:
+        type: script
+        path: f/kernel/fetch_identity
+        input_transforms:
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+          remote:
+            type: javascript
+            expr: flow_input.prebuilt?.remote
+          remote_destdir:
+            type: javascript
+            expr: flow_input.prebuilt?.remote_destdir
+      timeout:
+        type: static
+        value: 1800
     - id: reuse_check
       summary: reuse if this identity is already installed
       value:
@@ -410,6 +433,7 @@ schema:
     - build
     - devtools
     - installation
+    - prebuilt
   properties:
     worktree:
       title: Worktree
@@ -790,4 +814,21 @@ schema:
           type: boolean
           description: Wipe the build dir before building (default off = incremental reuse).
           default: false
+    prebuilt:
+      title: Prebuilt
+      type: object
+      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already installed this build identity, its run layer (image + modules) is fetched into the destdir so the build is reused instead of repeated.
+      default: {}
+      order:
+        - remote
+        - remote_destdir
+      properties:
+        remote:
+          type: string
+          description: SSH host of the peer builder to fetch this build identity's run layer from. Empty (default) builds locally with no fetch.
+          default: ""
+        remote_destdir:
+          type: string
+          description: The peer builder's destdir to pull the run layer (`boot/<image>-<release>` and `lib/modules/<release>`) from. Empty (default) builds locally with no fetch.
+          default: ""
   required: []
