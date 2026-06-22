@@ -48,6 +48,19 @@ treats any clang diagnostic as fatal), so the build dies at `RUSTC`/bindgen.
 Silencing that one warning for bindgen fixes it. Evidence:
 `~/kernel/repro/rust-test.sh`, `rust-test.log`.
 
+QEMU clang is the easy case and already works — no recipe needed. QEMU is ordinary
+userspace (no `-nostdinc`), so the **wrapped** clang is the correct choice (it
+redirects to nix's libc, which QEMU links against); none of the kernel's three
+blockers apply. `f/qemu/configure.py` already pins `--cc=clang --cxx=clang++` with
+`-Qunused-arguments` (to drop the GCC-only `-Wa,--compress-debug-sections` clang
+sees as unused on link), and `clang` is already in the `compiler` enum of both
+`f/qemu/configure.script.yaml` and `f/qemu/build.flow`. Validated: a
+`x86_64-softmmu` build with clang completed and `qemu-system-x86_64 --version`
+runs (`QEMU emulator version 11.0.0`, binary carries `clang version 21.1.8`).
+Evidence: `~/kernel/repro/qemu-clang-test.sh`, `qemu-clang-test.log`. Untested for
+both kernel and QEMU: clang cross-host byte reproducibility (the gcc devShell
+`$out` fix + prefix-map should carry over).
+
 Remaining to enable the `compiler=clang` knob (implementation, not a blocker):
 the unwrapped-clang path and resource dir are nix-internal, so the
 `build-kernel` devShell should export them (e.g. a `shellHook` computing
