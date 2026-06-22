@@ -212,3 +212,7 @@ wmill flow run f/kernel/build --data '{"config_method":"make","defconfig":["tiny
   pick up (already in `f/kernel/build`).
 - **dedicated VM workers (future):** tag VM steps and run a worker group with
   that tag; until then everything runs on the `default` group.
+- **build reuse & cross-host fetch (the Store):** an identical kernel/QEMU build is
+  reused or fetched from the Nix store instead of rebuilt, keyed by a reproducible
+  build identity. See [the build Store](store.md) for the model, the `prebuilt`
+  (`remote`/`remote_index`) knobs, and the `store_index` catalog step.
