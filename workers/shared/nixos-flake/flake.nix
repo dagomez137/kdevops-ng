@@ -177,6 +177,16 @@
             shellHook = reproducibleShellHook;
           };
 
+          # rsync over OpenSSH to move build outputs between hosts, plus Python
+          # for the kernel's clang-tools (compile_commands.json) index generation.
+          transfer = pkgs.mkShell {
+            packages = [
+              pkgs.rsync
+              pkgs.openssh
+              pkgs.python3
+            ];
+          };
+
           # systemd client tools to drive a system manager over D-Bus —
           # locally over the user bus, or a remote one with `systemctl
           # --host`. openssh is the transport `--host` shells out to, and
