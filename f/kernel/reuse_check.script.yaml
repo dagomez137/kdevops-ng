@@ -1,0 +1,24 @@
+summary: "Kernel: reuse if the build identity is already installed"
+description: |
+  Probe the destdir for the artifacts named by this build identity (the baked
+  kernelrelease): `boot/<image>-<release>` and `lib/modules/<release>`. When both are
+  present the build flow skips compile/install/modules and the manifest points at
+  them, reusing the prior build. Returns `present` plus the resolved
+  `bzImage`/`boot`/`modules`/`destdir`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - destdir
+    - uts_release
+  properties:
+    destdir:
+      type: string
+      description: Install root to probe (the slot `destdir`).
+    uts_release:
+      type: string
+      description: The build identity (baked kernelrelease) to look for.
+  required:
+    - destdir
+    - uts_release

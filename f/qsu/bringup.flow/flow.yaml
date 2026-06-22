@@ -529,11 +529,16 @@ schema:
       description: Optional install steps and their destination.
       default: {}
       order:
+      - reuse
       - install
       - modules_install
       - source_symlink
       - clean_destdir
       properties:
+        reuse:
+          type: boolean
+          description: Skip compile/install when this build identity is already in the destdir (reuse the prior build). Off forces a rebuild without wiping the destdir.
+          default: true
         install:
           type: boolean
           description: Install the built kernel image into the slot `destdir` (`make install`).

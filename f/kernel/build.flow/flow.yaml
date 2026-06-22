@@ -207,8 +207,25 @@ value:
             timeout:
               type: static
               value: 900
+    - id: reuse_check
+      summary: reuse if this identity is already installed
+      value:
+        type: script
+        path: f/kernel/reuse_check
+        input_transforms:
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+      timeout:
+        type: static
+        value: 120
     - id: compile
       summary: make <targets>
+      skip_if:
+        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
       value:
         type: script
         path: f/kernel/compile
@@ -237,7 +254,7 @@ value:
       # Skip only when every artifact is explicitly disabled; an unset input keeps
       # the default-on behaviour (the script's own boolean defaults then apply).
       skip_if:
-        expr: 'flow_input.devtools?.compile_commands === false && flow_input.devtools?.scripts_gdb === false && flow_input.devtools?.rust_analyzer === false'
+        expr: '(flow_input.devtools?.compile_commands === false && flow_input.devtools?.scripts_gdb === false && flow_input.devtools?.rust_analyzer === false) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/kernel/devtools
@@ -267,7 +284,7 @@ value:
       summary: make install (image, optional)
       # Default-on: skip only when explicitly disabled (an unset input must not skip).
       skip_if:
-        expr: 'flow_input.installation?.install === false'
+        expr: 'flow_input.installation?.install === false || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/kernel/install
@@ -291,7 +308,7 @@ value:
       summary: make modules_install (optional)
       # Default-on: skip only when explicitly disabled (an unset input must not skip).
       skip_if:
-        expr: 'flow_input.installation?.modules_install === false'
+        expr: 'flow_input.installation?.modules_install === false || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/kernel/install_modules
@@ -331,6 +348,7 @@ value:
             devtools: any,
             install: any,
             modules: any,
+            reuse: any,
           ) {
             return {
               worker: prepare?.worker ?? null,
@@ -350,10 +368,10 @@ value:
               worktree: prepare?.worktree ?? null,
               build_dir: prepare?.build_dir ?? null,
               config: configure?.config ?? null,
-              bzImage: compile?.image ?? null,
-              destdir: install?.destdir ?? modules?.destdir ?? null,
-              boot: install?.boot ?? null,
-              modules: modules?.modules ?? null,
+              bzImage: compile?.image ?? reuse?.bzImage ?? null,
+              destdir: install?.destdir ?? modules?.destdir ?? reuse?.destdir ?? null,
+              boot: install?.boot ?? reuse?.boot ?? null,
+              modules: modules?.modules ?? reuse?.modules ?? null,
               source: modules?.source ?? null,
               compile_commands: devtools?.compile_commands ?? null,
               vmlinux_gdb: devtools?.vmlinux_gdb ?? null,
@@ -379,6 +397,9 @@ value:
           modules:
             type: javascript
             expr: results.install_modules
+          reuse:
+            type: javascript
+            expr: results.reuse_check
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -720,11 +741,16 @@ schema:
       description: Optional install steps and their destination.
       default: {}
       order:
+        - reuse
         - install
         - modules_install
         - source_symlink
         - clean_destdir
       properties:
+        reuse:
+          type: boolean
+          description: Skip compile/install when this build identity is already in the destdir (reuse the prior build). Off forces a rebuild without wiping the destdir.
+          default: true
         install:
           type: boolean
           description: Install the built kernel image into the slot `destdir` (`make install`).
