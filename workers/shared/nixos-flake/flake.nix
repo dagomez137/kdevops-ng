@@ -138,6 +138,17 @@
             ];
           # CONFIG_RUST builds core/alloc from source -> needs rust-src.
           rustLibSrc = pkgs.rustPlatform.rustLibSrc;
+          # mkShell derives $out from the caller's working directory, so stdenv
+          # injects a host-specific -frandom-seed and -L$out/lib into the
+          # compile/link flags; both reach a build's DWARF and GNU build-id, so
+          # the same source, config and toolchain build differently on each host.
+          # Pin them to constants so a kernel or QEMU built on one host is
+          # byte-identical to one built on another.
+          reproducibleShellHook = ''
+            export NIX_CFLAGS_COMPILE="$(sed -E 's,-frandom-seed=[^ ]*,-frandom-seed=reproducible,g' <<< "$NIX_CFLAGS_COMPILE")"
+            export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE//$out//build-shell}"
+            export NIX_LDFLAGS="''${NIX_LDFLAGS//$out//build-shell}"
+          '';
         in
         {
           # No qemu inputsFrom: its NIX_CFLAGS_COMPILE overflows the kernel
@@ -145,17 +156,7 @@
           build-kernel = pkgs.mkShell {
             packages = kernelPackages;
             env.RUST_LIB_SRC = rustLibSrc;
-            # mkShell derives $out from the caller's working directory, so stdenv
-            # injects a host-specific -frandom-seed and -L$out/lib into the
-            # compile/link flags; both reach the kernel's DWARF and GNU build-id,
-            # so the same source, config and toolchain build differently on each
-            # host. Pin them to constants so a kernel built on one host is
-            # byte-identical to one built on another.
-            shellHook = ''
-              export NIX_CFLAGS_COMPILE="$(sed -E 's,-frandom-seed=[^ ]*,-frandom-seed=reproducible,g' <<< "$NIX_CFLAGS_COMPILE")"
-              export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE//$out//build-shell}"
-              export NIX_LDFLAGS="''${NIX_LDFLAGS//$out//build-shell}"
-            '';
+            shellHook = reproducibleShellHook;
           };
 
           # Adds qemu's build inputs via inputsFrom + the python deps qemu's
@@ -172,6 +173,7 @@
               ))
             ];
             env.RUST_LIB_SRC = rustLibSrc;
+            shellHook = reproducibleShellHook;
           };
 
           # systemd client tools to drive a system manager over D-Bus —
