@@ -61,7 +61,12 @@ check`, and a vanilla (no env hacks) cross-host build that came out byte-identic
    `-fdebug-prefix-map=<build>=` spelling was wrong.)
 2. **QEMU per-build path map** — add `-ffile-prefix-map=<source-root>=<const>` to
    `--extra-cflags` and `--extra-cxxflags` in `f/qemu/configure.py`. Rust components, if
-   enabled, also want `--remap-path-prefix`.
+   enabled, also want `--remap-path-prefix`. (QEMU reproducibility is layout-independent;
+   see `qemu.md` EQ1.) **QEMU mode-α differs from the kernel** (EQ2): meson bakes
+   absolute `-iquote` source paths, so the consumer must regenerate
+   `compile_commands.json` via a local `meson`/`configure` (no compile) rather than
+   fetch+regenerate-from-relative-`.cmd`. Child layout is *not* required for QEMU's
+   mode-α (it is for the kernel's).
 3. **`build-qemu` lacks `git`** — meson needs it for git-based subproject wraps and
    QEMU `configure` uses `git describe`. Add `pkgs.git` to `build-qemu` (b4 wants it
    too). On the production worker git currently leaks in from the container base.

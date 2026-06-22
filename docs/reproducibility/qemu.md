@@ -40,6 +40,27 @@ version (git describe). On the production worker git likely leaks in from the
 container base; the devShell does not guarantee it. Candidate follow-up: add
 pkgs.git to build-qemu (b4 also wants git).
 
+## Layout and mode-alpha (EQ1, EQ2) — QEMU differs from the kernel
+EQ1 (sibling vs child layout): meson emits RELATIVE `file` and `-I` entries in BOTH
+layouts (e.g. `../qemu/subprojects/...`), unlike kbuild which forces absolute source
+paths in a sibling build. So QEMU has NO kernel-style sibling limitation, and its
+reproducibility is layout-independent (the `-ffile-prefix-map` fix works either way).
+
+EQ2 (cross-host LSP / mode-alpha): QEMU's `compile_commands.json` bakes ABSOLUTE
+`-iquote` source-include paths (e.g. `-iquote /<builder-src>/include`), in BOTH
+layouts. A fetched index therefore does NOT relocate — on the consumer the recorded
+command fails to find `qemu/osdep.h` because `-iquote` points at the builder's source.
+The consumer's OWN locally-configured index resolves the same file (rc=0), so the
+mechanism is: regenerate `compile_commands.json` locally via `meson`/`configure`
+(cheap, no compile → writes the consumer's own paths) and fetch the builder's
+build-generated headers (qapi/trace/...) so clangd resolves without a full local build.
+
+Consequence: the child layout is essential ONLY for the KERNEL's mode-alpha (relative
+`.cmd` regenerated with zero remap). QEMU needs a local `configure` regardless of
+layout. "QEMU needs all the kernel needs" holds for reproducibility and the
+build-on-B/run-on-A workflow, but its mode-alpha mechanism is configure-on-consumer,
+not fetch-relative-.cmd.
+
 ## Evidence
-qemu-build.sh, qemu-build-a.sh, qemu-repro-build.sh, qemu-{B,A}.log,
-qemu-repro-{A,B}.log
+qemu-build.sh, qemu-build-a.sh, qemu-repro-build.sh, qemu-repro-build (sibling configure),
+eq2.sh, qemu-{B,A}.log, qemu-repro-{A,B}.log
