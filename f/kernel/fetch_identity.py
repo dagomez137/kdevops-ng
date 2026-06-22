@@ -1,25 +1,24 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-"""Fetch a build identity's run layer from a peer builder into the local destdir.
+"""Fetch a build identity's run layer from a peer builder through the Nix store.
 
-The run-layer analog of `f/kernel/fetch_devel`. Run before the expensive compile: if a
-peer host already installed this build identity (the baked kernelrelease), pull its run
-layer — the boot image artifacts (`boot/<image>-<release>`, `System.map-<release>`,
-`config-<release>`) and the `lib/modules/<release>/` tree — into the local destdir, so
-the following `reuse_check` finds them present and the build is skipped.
+The run-layer analog of `f/kernel/fetch_devel`, and the fetch half of the Store transport
+(see `f/common/store` and `f/kernel/publish`). Run before the expensive compile: if a peer
+host already published this build identity (the baked kernelrelease), read its index entry
+over ssh to learn the store path, pull that path with `nix copy`, and materialize it — the
+boot image artifacts (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`)
+and the `lib/modules/<release>/` tree — into the local destdir, so the following
+`reuse_check` finds them present and the build is skipped. The fetched path is then indexed
+locally so this host becomes a source for it.
 
-Same-host leaves `remote`/`remote_destdir` empty and does nothing — the destdir is
-already where the build would install. Cross-host sets `remote` to an ssh host and
-`remote_destdir` to that builder's destdir, read over ssh.
+Same-host leaves `remote`/`remote_index` empty and does nothing — the destdir is already
+where the build would install. Cross-host sets `remote` to an ssh host and `remote_index`
+to that builder's `store-index` directory, read over ssh.
 
 Equivalent bash, run inside the nixos-flake transfer devShell:
 
-    mkdir --parents "$destdir/boot" "$destdir/lib/modules/$uts_release"
-    rsync --archive --no-owner --no-group \
-        --include='*-'"$uts_release" --exclude='*' \
-        "$remote":"$remote_destdir"/boot/ "$destdir"/boot/
-    rsync --archive --no-owner --no-group \
-        "$remote":"$remote_destdir"/lib/modules/"$uts_release"/ \
-        "$destdir"/lib/modules/"$uts_release"/
+    sp=$(ssh "$remote" readlink "$remote_index"/kernel-"$uts_release")
+    nix copy --from ssh://"$remote" "$sp" --no-check-sigs
+    cp --recursive --force "$sp"/. "$destdir"/
 """
 
 from __future__ import annotations
@@ -27,33 +26,29 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.common.devshell import DevShell
+from f.common import store
 
 
 def main(
     destdir: str,
     uts_release: str,
     remote: str = "",
-    remote_destdir: str = "",
+    remote_index: str = "",
 ) -> dict:
-    if not (remote and remote_destdir):
+    if not (remote and remote_index):
         print(f"identity {uts_release}: same-host, nothing to fetch", flush=True)
         return {"fetched": False, "uts_release": uts_release, "destdir": destdir}
 
-    dest = Path(destdir)
-    boot = dest / "boot"
-    modules = dest / "lib/modules" / uts_release
-    boot.mkdir(parents=True, exist_ok=True)
-    modules.mkdir(parents=True, exist_ok=True)
+    workers = Path(os.environ["WORKERS_DIR"])
+    name = f"kernel-{uts_release}"
+    sp = store.peer_path(workers, remote, remote_index, name)
+    if sp is None:
+        print(f"identity {uts_release}: peer {remote} has no such identity", flush=True)
+        return {"fetched": False, "uts_release": uts_release, "destdir": destdir}
 
-    src_root = remote_destdir.rstrip("/")
-    shell = DevShell(Path(os.environ["WORKERS_DIR"]), "transfer")
-    shell.run("rsync", "--archive", "--no-owner", "--no-group",
-              f"--include=*-{uts_release}", "--exclude=*",
-              f"{remote}:{src_root}/boot/", str(boot) + "/")
-    shell.run("rsync", "--archive", "--no-owner", "--no-group",
-              f"{remote}:{src_root}/lib/modules/{uts_release}/",
-              str(modules) + "/")
+    store.fetch(workers, remote, sp)
+    store.materialize(sp, destdir)
+    store.link_local(name, sp)
     print(f"fetched run layer {uts_release} from {remote}", flush=True)
 
     return {
@@ -61,4 +56,5 @@ def main(
         "uts_release": uts_release,
         "destdir": destdir,
         "remote": remote,
+        "store_path": sp,
     }

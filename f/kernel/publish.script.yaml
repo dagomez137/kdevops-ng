@@ -1,0 +1,25 @@
+summary: "Kernel: publish a build identity's run layer to the Nix store"
+description: |
+  Stage just this release's run layer — the boot artifacts (`boot/<image>-<release>`,
+  `System.map-<release>`, `config-<release>`) and the `lib/modules/<release>/` tree,
+  not the whole multi-release destdir — and add it to the Nix store under
+  `kernel-<release>`, indexed as a GC root. A peer can then fetch it by release with
+  `nix copy`. Run only after a real install (the flow skips it on reuse). Returns the
+  index `name`, the resolved `store_path`, and the `uts_release`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - destdir
+    - uts_release
+  properties:
+    destdir:
+      type: string
+      description: Install root holding the run layer (the slot `destdir`).
+    uts_release:
+      type: string
+      description: The build identity (baked kernelrelease) whose run layer to publish.
+  required:
+    - destdir
+    - uts_release

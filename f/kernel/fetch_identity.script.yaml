@@ -2,10 +2,12 @@ summary: "Kernel: fetch a build identity's run layer from a peer builder"
 description: |
   Pull a build identity's run layer (the artifacts named by the baked kernelrelease)
   from a peer host into the local destdir, before the expensive compile, so the
-  following `reuse_check` reports `present` and the build is skipped. Fetches the boot
-  artifacts (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`) and
-  the `lib/modules/<release>/` tree over the `transfer` devShell. Same-host (no remote)
-  is a no-op. Returns `fetched` plus the resolved `uts_release`/`destdir`.
+  following `reuse_check` reports `present` and the build is skipped. Reads the peer's
+  `store-index` entry over ssh to learn the run layer's Nix store path, pulls it with
+  `nix copy`, and materializes the boot artifacts (`boot/<image>-<release>`,
+  `System.map-<release>`, `config-<release>`) and the `lib/modules/<release>/` tree
+  into the destdir, all over the `transfer` devShell. Same-host (no remote) is a no-op.
+  Returns `fetched` plus the resolved `uts_release`/`destdir`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -14,7 +16,7 @@ schema:
     - destdir
     - uts_release
     - remote
-    - remote_destdir
+    - remote_index
   properties:
     destdir:
       type: string
@@ -26,9 +28,9 @@ schema:
       type: string
       description: SSH host of the peer builder; empty fetches nothing (same-host).
       default: ""
-    remote_destdir:
+    remote_index:
       type: string
-      description: The peer builder's destdir to pull the run layer from; empty fetches nothing.
+      description: The peer builder's `store-index` directory, read over ssh to learn the run layer's store path; empty fetches nothing.
       default: ""
   required:
     - destdir
