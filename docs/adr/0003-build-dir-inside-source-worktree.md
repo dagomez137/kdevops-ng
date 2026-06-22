@@ -34,3 +34,9 @@ accepted
   matter.
 - Independent of binary reproducibility: relocatable LSP needs only relative paths,
   not bit-for-bit identical outputs.
+- The editor's own clangd resolves a fetched worktree with no Nix devShell and no
+  baked `-isystem` paths: it uses its own libclang resource dir for compiler
+  builtins and the kernel's in-command `-I`/`-include` for the rest. Confirmed on
+  six diverse TUs (`file-not-found=0`, `0` diagnostics) outside the devShell; the
+  earlier alpha1 caveat was specific to running `gcc`, which clangd does not.
+  Evidence: `~/kernel/repro/alpha1-clangd.{sh,log}`.
