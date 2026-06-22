@@ -1,23 +1,27 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Fetch the kernel devel layer onto a worktree and regenerate its clangd index.
 
-The consumer-side companion to a build that ran on another host or worker: rsync the
-build dir's developer subset — the `.cmd` files, generated headers, `Module.symvers`
-and `scripts/`, but none of the object or image binaries — into this worktree's build
-dir, then regenerate `compile_commands.json` locally so it indexes this worktree's
-own source.
+The consumer-side companion to `f/kernel/publish_devel`, and the devel-layer analog of
+`f/kernel/fetch_identity`. Resolve the `kernel-devel-<release>` store path — the build
+dir's developer subset (the `.cmd` files, generated headers, `Module.symvers`, `scripts/`
+and the GDB helpers, binaries already excluded at publish) — and materialize it into this
+worktree's build dir, then regenerate `compile_commands.json` locally so it indexes this
+worktree's own source.
 
-Same-host leaves `remote` empty (a local rsync); cross-host sets `remote` to an ssh
-host and the source build dir is read over ssh. `build_dir` defaults to the worktree's
-own `build` child and must stay under it.
+Same-host leaves `remote`/`remote_index` empty and resolves the layer from the local
+index. Cross-host sets `remote` to an ssh host and `remote_index` to that builder's
+`store-index` directory: read the peer's index entry over ssh to learn the store path,
+pull it with `nix copy`, and index it locally. `build_dir` defaults to the worktree's own
+`build` child and must stay under it.
 
-Equivalent bash, run inside the nixos-flake transfer devShell:
+Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host half:
 
-    # excludes are the _BINARY_EXCLUDES binary patterns
-    rsync --archive --no-owner --no-group --delete --delete-excluded \
-        --exclude='*.o' --exclude='*.ko' ... \
-        [<remote>:]"$src_build_dir"/ "$worktree/build"/
-    python3 "$worktree/scripts/clang-tools/gen_compile_commands.py" \
+    sp=$(ssh "$remote" readlink "$remote_index"/kernel-devel-"$uts_release")
+    nix copy --from ssh://"$remote" "$sp" --no-check-sigs
+    nix-store --add-root "$index"/kernel-devel-"$uts_release" --realise "$sp"
+    cp --recursive --force "$sp"/. "$worktree/build"/
+    chmod --recursive u+w "$worktree/build"
+    python3 "$worktree/scripts/clang-tools/gen_compile_commands.py" \\
         --directory "$worktree/build" --output "$worktree/compile_commands.json"
 """
 
@@ -27,21 +31,15 @@ import json
 import os
 from pathlib import Path
 
-from f.common.devshell import DevShell
-
-# The devel layer is the build dir minus its binaries: keep the `.cmd` files,
-# generated headers, `Module.symvers` and `scripts/`; drop objects and images.
-_BINARY_EXCLUDES = (
-    "*.o", "*.ko", "*.a", "*.o.d",
-    "vmlinux", "vmlinux.o", "vmlinux.a", "vmlinux.unstripped", ".tmp_vmlinux*",
-    "*.bin", "bzImage", "vmlinuz",
-)
+from f.common import store
+from f.common.devshell import DevShell, run_logged
 
 
 def main(
     worktree: str,
-    src_build_dir: str,
+    uts_release: str,
     remote: str = "",
+    remote_index: str = "",
     build_dir: str = "",
 ) -> dict:
     wt = Path(worktree)
@@ -55,24 +53,43 @@ def main(
             "source paths are relative to the build dir, so only a child resolves them")
     build.mkdir(parents=True, exist_ok=True)
 
-    src = src_build_dir.rstrip("/") + "/"
-    if remote:
-        src = f"{remote}:{src}"
-    excludes = [f"--exclude={pattern}" for pattern in _BINARY_EXCLUDES]
-    shell = DevShell(Path(os.environ["WORKERS_DIR"]), "transfer")
-    shell.run("rsync", "--archive", "--no-owner", "--no-group", "--delete",
-              "--delete-excluded", *excludes, src, str(build) + "/")
-    print(f"fetched devel layer -> {build}", flush=True)
+    workers = Path(os.environ["WORKERS_DIR"])
+    name = f"kernel-devel-{uts_release}"
+
+    sp = store.local_path(name)
+    if sp is None and remote and remote_index:
+        sp = store.peer_path(workers, remote, remote_index, name)
+        if sp is not None:
+            store.fetch(workers, remote, sp)
+            store.link_local(name, sp)
+    if sp is None:
+        print(f"devel layer {uts_release}: not found locally or on the peer",
+              flush=True)
+        return {
+            "fetched": False,
+            "worktree": str(wt),
+            "build_dir": str(build),
+            "uts_release": uts_release,
+        }
+
+    run_logged(["cp", "--recursive", "--force",
+                f"{sp.rstrip('/')}/.", str(build) + "/"])
+    run_logged(["chmod", "--recursive", "u+w", str(build)])
+    print(f"materialized devel layer {sp} -> {build}", flush=True)
 
     cc = wt / "compile_commands.json"
+    shell = DevShell(workers, "transfer")
     shell.run("python3", str(gen), "--directory", str(build), "--output", str(cc))
     entries = len(json.loads(cc.read_text())) if cc.is_file() else 0
     print(f"wrote {cc} ({entries} entries)", flush=True)
 
     return {
+        "fetched": True,
         "worktree": str(wt),
         "build_dir": str(build),
         "compile_commands": str(cc),
         "entries": entries,
+        "uts_release": uts_release,
+        "store_path": sp,
         "remote": remote or None,
     }

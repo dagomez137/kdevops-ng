@@ -25,7 +25,10 @@ description: |
      symlink); only when `modules_install` is set (skip for an all-built-in kernel).
   7. `publish` — add this identity's run layer to the Nix store so a peer can fetch
      it; only after a real install (skipped on reuse).
-  8. `collect` — merge the step results into one manifest.
+  8. `publish_devel` — add this identity's devel layer (the build dir's `.cmd`
+     files, headers and scripts, minus binaries) to the Nix store so `fetch_devel`
+     can index a worktree from it; only after a real build (skipped on reuse).
+  9. `collect` — merge the step results into one manifest.
 
   - `shared=false` (default) reuses this worker's own tree
     `workers/<worker>/kernel` for every ref, so isolated builds on different workers
@@ -367,6 +370,23 @@ value:
           destdir:
             type: javascript
             expr: results.prepare_worktree.destdir
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+      timeout:
+        type: static
+        value: 600
+    - id: publish_devel
+      summary: publish this identity's devel layer to the Nix store
+      skip_if:
+        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
+      value:
+        type: script
+        path: f/kernel/publish_devel
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
           uts_release:
             type: javascript
             expr: results.configure.kernelrelease
