@@ -6,7 +6,10 @@ compile, devtools, install) consumes, so the toolchain is consistent: the kernel
 docs require the same `LLVM=` value on each make invocation when configuring and
 building via distinct commands (Documentation/kbuild/llvm.rst).
 
-  - compiler=clang -> `LLVM=1` (expands CC=clang LD=ld.lld AR=llvm-ar ...).
+  - compiler=clang -> `LLVM=1` plus the unwrapped `CC` and its resource `-I`
+    (`CFLAGS_KERNEL`/`CFLAGS_MODULE`) the build-kernel devShell exports; the
+    cc-wrapper's `-nostdlibinc` breaks the kernel's `-nostdinc`, so `LLVM=1` alone
+    is not enough (docs/windmill/clang-kernel-build-findings.md).
   - reproducible   -> `KBUILD_BUILD_TIMESTAMP` + `KBUILD_BUILD_USER=kdevops` +
     `KBUILD_BUILD_HOST=kdevops` + `LOCALVERSION=` (Documentation/kbuild/reproducible-builds.rst),
     plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS` and `KAFLAGS`, `<prefix>`
@@ -23,7 +26,8 @@ announcement date; flip `timestamp_from_commit` to tie it to the commit instead.
 
 Equivalent bash (clang + reproducible + ccache):
 
-    make ... LLVM=1 CC="ccache clang" \
+    make ... LLVM=1 CC="ccache <unwrapped-clang>" \
+        CFLAGS_KERNEL=-I<resource> CFLAGS_MODULE=-I<resource> \
         KBUILD_BUILD_TIMESTAMP="Sun Aug 25 20:57:08 UTC 1991" \
         KBUILD_BUILD_USER=kdevops KBUILD_BUILD_HOST=kdevops LOCALVERSION= \
         KCFLAGS=-fdebug-prefix-map=<prefix>/= KAFLAGS=-fdebug-prefix-map=<prefix>/=
@@ -33,8 +37,9 @@ from __future__ import annotations
 
 import os
 import shlex
+from pathlib import Path
 
-from f.common.devshell import Git, write_ccache_conf
+from f.common.devshell import DevShell, Git, write_ccache_conf
 
 # 1991-08-25, Linus's "just a hobby, won't be big and professional" post — a fixed,
 # memorable, genuinely reproducible default (unlike an empty timestamp).
@@ -56,13 +61,19 @@ def main(
         raise ValueError(f"compiler must be gcc or clang, got {compiler!r}")
 
     parts: list[str] = []
-    if compiler == "clang":
-        parts.append("LLVM=1")
     ccache_conf = None
     if ccache:
-        parts.append(f"CC=ccache {compiler}")
         ccache_conf = write_ccache_conf(ccache_max_size)
         print(f"ccache config: {ccache_conf}", flush=True)
+
+    if compiler == "clang":
+        cc, resource = _clang_toolchain(Path(os.environ["WORKERS_DIR"]))
+        parts.append("LLVM=1")
+        parts.append(f"CC=ccache {cc}" if ccache else f"CC={cc}")
+        parts += [f"CFLAGS_KERNEL=-I{resource}", f"CFLAGS_MODULE=-I{resource}"]
+    elif ccache:
+        parts.append(f"CC=ccache {compiler}")
+
     prefix_map = ""
     if reproducible:
         timestamp = _FIXED_TIMESTAMP
@@ -91,6 +102,18 @@ def main(
     combined = shlex.join(parts + extra)
     print(f"make flags: {combined}", flush=True)
     return {"make_flags": combined, "ccache_conf": ccache_conf}
+
+
+def _clang_toolchain(workers: Path) -> tuple[str, str]:
+    """Unwrapped clang and its resource-include dir, exported by the build-kernel
+    devShell (LLVM=1 needs the unwrapped clang; both are nix-internal paths)."""
+    out = DevShell(workers).capture(
+        "bash", "-c", 'printf "%s\\n%s" "$KERNEL_CLANG_CC" "$KERNEL_CLANG_RESOURCE"')
+    cc, _, resource = out.partition("\n")
+    cc, resource = cc.strip(), resource.strip()
+    if not cc or not resource:
+        raise RuntimeError("build-kernel devShell exported no KERNEL_CLANG_CC/RESOURCE")
+    return cc, resource
 
 
 def _merge_prefix_map(extra: list[str], prefix_map: str, parts: list[str]) -> list[str]:

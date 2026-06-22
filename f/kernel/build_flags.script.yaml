@@ -4,7 +4,8 @@ description: |
   string that every later make step consumes, so the toolchain stays consistent
   (the kernel requires the same `LLVM=` on configure and compile).
 
-  - `compiler` GCC (default) or clang → `LLVM=1` for clang.
+  - `compiler` GCC (default) or clang → `LLVM=1` plus the unwrapped `CC` and its
+    resource `-I` the build-kernel devShell exports.
   - `reproducible` (default on) → `KBUILD_BUILD_TIMESTAMP` (a real fixed date, or the
     commit date when `timestamp_from_commit` is set), `KBUILD_BUILD_USER`/`HOST`,
     `LOCALVERSION=`, plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS`/`KAFLAGS`
@@ -33,10 +34,11 @@ schema:
   properties:
     compiler:
       type: string
-      description: Toolchain to build with. clang is pending the nixos-flake LLVM flags - see docs/windmill/clang-kernel-build-findings.md.
+      description: Toolchain to build with — GCC, or clang/LLVM (LLVM=1 with the devShell's unwrapped clang).
       default: gcc
       enum:
         - gcc
+        - clang
     reproducible:
       type: boolean
       description: Set `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST` and `LOCALVERSION` for a reproducible build.

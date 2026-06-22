@@ -485,10 +485,11 @@ schema:
           default: ''
         compiler:
           type: string
-          description: Toolchain to build with. clang is pending the nixos-flake LLVM flags - see docs/windmill/clang-kernel-build-findings.md.
+          description: Toolchain to build with — GCC, or clang/LLVM (LLVM=1 with the devShell's unwrapped clang).
           default: gcc
           enum:
           - gcc
+          - clang
         reproducible:
           type: boolean
           description: Reproducible build (fixed `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`, `LOCALVERSION=`).
