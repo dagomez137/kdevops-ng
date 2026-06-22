@@ -164,6 +164,7 @@
           build-qemu = pkgs.mkShell {
             inputsFrom = [ pkgs.qemu ];
             packages = kernelPackages ++ [
+              pkgs.git
               (pkgs.python3.withPackages (
                 ps: with ps; [
                   setuptools
