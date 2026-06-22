@@ -8,7 +8,9 @@ building via distinct commands (Documentation/kbuild/llvm.rst).
 
   - compiler=clang -> `LLVM=1` (expands CC=clang LD=ld.lld AR=llvm-ar ...).
   - reproducible   -> `KBUILD_BUILD_TIMESTAMP` + `KBUILD_BUILD_USER=kdevops` +
-    `KBUILD_BUILD_HOST=kdevops` + `LOCALVERSION=` (Documentation/kbuild/reproducible-builds.rst).
+    `KBUILD_BUILD_HOST=kdevops` + `LOCALVERSION=` (Documentation/kbuild/reproducible-builds.rst),
+    plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS` and `KAFLAGS`, `<prefix>`
+    being the common parent of the worktree and build dir.
   - ccache         -> `CC="ccache <cc>"` on the command line (the Makefile assigns
     CC, so an env CC would not win); a managed ccache.conf is written here (cache_dir
     + a max_size of `ccache_max_size` GiB, the only non-default settings) and the
@@ -23,11 +25,13 @@ Equivalent bash (clang + reproducible + ccache):
 
     make ... LLVM=1 CC="ccache clang" \
         KBUILD_BUILD_TIMESTAMP="Sun Aug 25 20:57:08 UTC 1991" \
-        KBUILD_BUILD_USER=kdevops KBUILD_BUILD_HOST=kdevops LOCALVERSION=
+        KBUILD_BUILD_USER=kdevops KBUILD_BUILD_HOST=kdevops LOCALVERSION= \
+        KCFLAGS=-fdebug-prefix-map=<prefix>/= KAFLAGS=-fdebug-prefix-map=<prefix>/=
 """
 
 from __future__ import annotations
 
+import os
 import shlex
 
 from f.common.devshell import Git, write_ccache_conf
@@ -45,6 +49,7 @@ def main(
     timestamp_from_commit: bool = False,
     make_flags: str = "",
     worktree: str = "",
+    build_dir: str = "",
     commit: str = "",
 ) -> dict:
     if compiler not in ("gcc", "clang"):
@@ -58,6 +63,7 @@ def main(
         parts.append(f"CC=ccache {compiler}")
         ccache_conf = write_ccache_conf(ccache_max_size)
         print(f"ccache config: {ccache_conf}", flush=True)
+    prefix_map = ""
     if reproducible:
         timestamp = _FIXED_TIMESTAMP
         if timestamp_from_commit and worktree and commit:
@@ -71,10 +77,31 @@ def main(
             "KBUILD_BUILD_HOST=kdevops",
             "LOCALVERSION=",
         ]
+        if worktree and build_dir:
+            prefix = os.path.commonpath(
+                [os.path.abspath(worktree), os.path.abspath(build_dir)]
+            )
+            prefix_map = f"-fdebug-prefix-map={prefix}/="
+            print(f"path-prefix map: {prefix}/ -> ''", flush=True)
 
-    combined = shlex.join(parts)
-    if make_flags:
-        combined = f"{combined} {make_flags}".strip()
+    extra = shlex.split(make_flags) if make_flags else []
+    if prefix_map:
+        extra = _merge_prefix_map(extra, prefix_map, parts)
 
+    combined = shlex.join(parts + extra)
     print(f"make flags: {combined}", flush=True)
     return {"make_flags": combined, "ccache_conf": ccache_conf}
+
+
+def _merge_prefix_map(extra: list[str], prefix_map: str, parts: list[str]) -> list[str]:
+    """Fold the prefix map into a user-set `KCFLAGS`/`KAFLAGS`, else emit our own."""
+    merged = list(extra)
+    for var in ("KCFLAGS", "KAFLAGS"):
+        pfx = f"{var}="
+        idx = next((i for i, tok in enumerate(merged) if tok.startswith(pfx)), None)
+        if idx is None:
+            parts.append(f"{var}={prefix_map}")
+        else:
+            value = merged[idx][len(pfx):]
+            merged[idx] = f"{var}={f'{value} {prefix_map}'.strip()}"
+    return merged

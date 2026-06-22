@@ -7,12 +7,15 @@ description: |
   - `compiler` GCC (default) or clang → `LLVM=1` for clang.
   - `reproducible` (default on) → `KBUILD_BUILD_TIMESTAMP` (a real fixed date, or the
     commit date when `timestamp_from_commit` is set), `KBUILD_BUILD_USER`/`HOST`,
-    `LOCALVERSION=`.
+    `LOCALVERSION=`, plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS`/`KAFLAGS`
+    (the common parent of `worktree` and `build_dir`) so the build path stops leaking
+    into DWARF.
   - `ccache` (default on) → `CC="ccache <cc>"`; the devShell points `CCACHE_DIR` at a
     shared cache.
 
-  Appends any raw `make_flags` verbatim. Reads `worktree`/`commit` from
-  `prepare_worktree` (only needed for `timestamp_from_commit`). Returns `make_flags`.
+  Appends any raw `make_flags` (merging the prefix map into a user `KCFLAGS=`/
+  `KAFLAGS=` rather than emitting a second, fighting assignment). Reads
+  `worktree`/`build_dir`/`commit` from `prepare_worktree`. Returns `make_flags`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -25,6 +28,7 @@ schema:
     - ccache_max_size
     - make_flags
     - worktree
+    - build_dir
     - commit
   properties:
     compiler:
@@ -55,7 +59,11 @@ schema:
       default: ""
     worktree:
       type: string
-      description: Kernel source worktree (from prepare_worktree); only used for timestamp_from_commit.
+      description: Kernel source worktree (from prepare_worktree); used for `timestamp_from_commit` and the reproducible `-fdebug-prefix-map`.
+      default: ""
+    build_dir:
+      type: string
+      description: Out-of-tree build dir (from prepare_worktree); paired with `worktree` for the reproducible `-fdebug-prefix-map` common-parent prefix.
       default: ""
     commit:
       type: string
