@@ -1,0 +1,46 @@
+summary: "Store: inspect and prune the build identity catalog"
+description: |
+  Read and maintain the build Store's catalog — the `WORKERS_DIR/shared/store-index/`
+  symlinks (`kernel-<release>`, `kernel-devel-<release>`, `qemu-<identity>`) that point
+  at each published identity's Nix store path and double as its GC root. `list` shows the
+  local catalog (and a peer's when `remote`/`remote_index` are set) with sizes and
+  validity; `inspect` reports one identity; `forget` drops one entry's GC root so
+  `nix-collect-garbage` can reclaim it (needs `confirm`); `prune` drops every entry whose
+  store path was already collected.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - action
+    - name
+    - remote
+    - remote_index
+    - confirm
+  properties:
+    action:
+      type: string
+      description: What to do with the catalog.
+      enum:
+        - list
+        - inspect
+        - forget
+        - prune
+      default: list
+    name:
+      type: string
+      description: The catalog entry to act on (required for `inspect` and `forget`), e.g. `kernel-7.1.0-rc7-<hash>`.
+      default: ""
+    remote:
+      type: string
+      description: SSH host of a peer whose catalog to also list / inspect against. Empty stays local.
+      default: ""
+    remote_index:
+      type: string
+      description: The peer's `store-index` directory, read over ssh. Empty stays local.
+      default: ""
+    confirm:
+      type: boolean
+      description: Required for `forget` — removing an identity's GC root.
+      default: false
+  required: []
