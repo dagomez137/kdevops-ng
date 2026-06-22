@@ -1,0 +1,36 @@
+summary: Fetch the kernel devel layer onto a worktree and rebuild its clangd index
+description: ''
+lock: '!inline f/kernel/fetch_devel.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - src_build_dir
+    - remote
+    - build_dir
+  properties:
+    worktree:
+      type: string
+      description: Local kernel source checkout that receives the devel layer and a regenerated compile_commands.json.
+      default: null
+      originalType: string
+    src_build_dir:
+      type: string
+      description: The builder's kernel build dir to fetch the devel subset from — a local path, or a path on `remote`.
+      default: null
+      originalType: string
+    remote:
+      type: string
+      description: SSH host of the builder; empty fetches same-host (a local rsync).
+      default: ''
+      originalType: string
+    build_dir:
+      type: string
+      description: Where the devel layer lands; defaults to `<worktree>/build`. Must stay under the worktree.
+      default: ''
+      originalType: string
+  required:
+    - worktree
+    - src_build_dir

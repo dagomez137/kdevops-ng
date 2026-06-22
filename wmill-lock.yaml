@@ -1,2 +1,3 @@
 version: v2
-locks: {}
+locks:
+  f/kernel/fetch_devel: 401f9749b65fb714e6e61c0e95b3b8f306a081c6e53bfe9e4dadaa1eb71ece56
