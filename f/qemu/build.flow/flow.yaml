@@ -14,7 +14,9 @@ description: |
      `configure --target-list --prefix=<slot>/destdir --disable-download`.
   3. `compile` — `make --jobs=$(nproc)` (drives ninja).
   4. `install` — `make install` into `<slot>/destdir`.
-  5. `collect` — merge the step results into one manifest.
+  5. `publish` — add this identity's install tree to the Nix store so a peer can
+     fetch it; only after a real install (skipped on reuse).
+  6. `collect` — merge the step results into one manifest.
 
   - `shared=false` (default) reuses this worker's own tree
     `workers/<worker>/qemu` for every ref, so isolated builds on different workers
@@ -90,7 +92,7 @@ value:
     - id: fetch_identity
       summary: fetch this identity's install tree from a peer builder
       skip_if:
-        expr: '!flow_input.prebuilt?.remote || !flow_input.prebuilt?.remote_prefix'
+        expr: '!flow_input.prebuilt?.remote || !flow_input.prebuilt?.remote_index'
       value:
         type: script
         path: f/qemu/fetch_identity
@@ -101,9 +103,9 @@ value:
           remote:
             type: javascript
             expr: flow_input.prebuilt?.remote
-          remote_prefix:
+          remote_index:
             type: javascript
-            expr: flow_input.prebuilt?.remote_prefix
+            expr: flow_input.prebuilt?.remote_index
       timeout:
         type: static
         value: 1800
@@ -221,6 +223,20 @@ value:
       timeout:
         type: static
         value: 900
+    - id: publish
+      summary: publish this identity's install tree to the Nix store
+      skip_if:
+        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
+      value:
+        type: script
+        path: f/qemu/publish
+        input_transforms:
+          prefix:
+            type: javascript
+            expr: results.identity.prefix
+      timeout:
+        type: static
+        value: 600
     - id: collect
       summary: Merge step results into one manifest
       value:
@@ -496,18 +512,18 @@ schema:
     prebuilt:
       title: Prebuilt
       type: object
-      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already installed this build identity, its whole install tree is fetched into the per-identity prefix so the build is reused instead of repeated.
+      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already published this build identity to the Nix store, its whole install tree is fetched into the per-identity prefix so the build is reused instead of repeated.
       default: {}
       order:
         - remote
-        - remote_prefix
+        - remote_index
       properties:
         remote:
           type: string
           description: SSH host of the peer QEMU builder to fetch this build identity's install tree from. Empty (default) builds locally with no fetch.
           default: ""
-        remote_prefix:
+        remote_index:
           type: string
-          description: The peer builder's per-identity install prefix (`destdir/<identity>`) to pull the prebuilt QEMU from. Empty (default) builds locally with no fetch.
+          description: The peer builder's `store-index` directory (its `WORKERS_DIR/shared/store-index`), read over ssh to learn the install tree's Nix store path. Empty (default) builds locally with no fetch.
           default: ""
   required: []

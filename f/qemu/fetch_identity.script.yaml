@@ -2,10 +2,11 @@ summary: "QEMU: fetch a build identity's install tree from a peer builder"
 description: |
   Pull a build identity's whole install tree from a peer host into the local
   per-identity prefix (`destdir/<identity>`), before the expensive compile, so the
-  following `reuse_check` reports `present` and the build is skipped. The prefix IS
-  the identity, so the entire `<prefix>/` tree is mirrored over the `transfer`
-  devShell with no per-release filter. Same-host (no remote) is a no-op. Returns
-  `fetched` plus the resolved `prefix`.
+  following `reuse_check` reports `present` and the build is skipped. Reads the peer's
+  `store-index` entry over ssh to learn the install tree's Nix store path, pulls it
+  with `nix copy`, and materializes the whole `<prefix>/` tree, all over the `transfer`
+  devShell. Same-host (no remote) is a no-op. Returns `fetched` plus the resolved
+  `prefix`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -13,7 +14,7 @@ schema:
   order:
     - prefix
     - remote
-    - remote_prefix
+    - remote_index
   properties:
     prefix:
       type: string
@@ -22,9 +23,9 @@ schema:
       type: string
       description: SSH host of the peer builder; empty fetches nothing (same-host).
       default: ""
-    remote_prefix:
+    remote_index:
       type: string
-      description: The peer builder's per-identity prefix to pull from; empty fetches nothing.
+      description: The peer builder's `store-index` directory, read over ssh to learn the install tree's store path; empty fetches nothing.
       default: ""
   required:
     - prefix
