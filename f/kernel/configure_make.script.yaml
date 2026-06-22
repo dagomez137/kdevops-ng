@@ -21,6 +21,7 @@ schema:
     - build_dir
     - defconfig
     - make_flags
+    - build_identity
   properties:
     worktree:
       type: string
@@ -55,6 +56,10 @@ schema:
       type: string
       description: Extra make variables/flags, space-separated, appended verbatim (e.g. "W=1").
       default: ""
+    build_identity:
+      type: boolean
+      description: Bake a hash of the build inputs into kernelrelease (unique per config/toolchain/flags) so identical builds can be fetched or reused instead of rebuilt.
+      default: true
   required:
     - worktree
     - build_dir

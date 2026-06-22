@@ -22,6 +22,7 @@ import shlex
 from pathlib import Path
 
 from f.common.devshell import DevShell, flags_to_env
+from f.kernel.identity import bake_identity
 
 # Canonical category order. Builtin (=y) overrides always sort last (handled by a
 # separate flag in the sort key) so last-wins promotes the matching feature to
@@ -44,6 +45,7 @@ def main(
     fragments: list[str] | None = None,
     allnoconfig_base: bool = True,
     make_flags: str = "",
+    build_identity: bool = True,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
@@ -79,9 +81,12 @@ def main(
     flag_args = shlex.split(make_flags)
     shell.run(merge, *merge_args, *[str(p) for p in resolved], cwd=worktree,
               env=flags_to_env(make_flags))
-    kernelrelease = shell.capture(
-        "make", "--silent", f"--directory={worktree}", f"O={build}", *flag_args,
-        "kernelrelease").strip()
+    if build_identity:
+        kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
+    else:
+        kernelrelease = shell.capture(
+            "make", "--silent", f"--directory={worktree}", f"O={build}", *flag_args,
+            "kernelrelease").strip()
 
     print(f"configured {len(fragments)} fragment(s) -> {kernelrelease or 'unknown'}", flush=True)
 

@@ -18,6 +18,7 @@ import shlex
 from pathlib import Path
 
 from f.common.devshell import DevShell
+from f.kernel.identity import bake_identity
 
 
 def main(
@@ -25,6 +26,7 @@ def main(
     build_dir: str,
     defconfig: list[str] | None = None,
     make_flags: str = "",
+    build_identity: bool = True,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
@@ -42,7 +44,10 @@ def main(
     shell = DevShell(workers)
     base = [f"--directory={worktree}", f"O={build}"]
     shell.run("make", *base, f"--jobs={len(os.sched_getaffinity(0))}", *flag_args, *config_goals)
-    kernelrelease = shell.capture("make", "--silent", *base, "kernelrelease").strip()
+    if build_identity:
+        kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
+    else:
+        kernelrelease = shell.capture("make", "--silent", *base, *flag_args, "kernelrelease").strip()
 
     print(f"configured [{' '.join(config_goals)}] -> {kernelrelease or 'unknown'}", flush=True)
 

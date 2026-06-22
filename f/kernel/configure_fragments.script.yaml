@@ -30,6 +30,7 @@ schema:
     - fragments
     - allnoconfig_base
     - make_flags
+    - build_identity
   properties:
     worktree:
       type: string
@@ -214,6 +215,10 @@ schema:
       type: string
       description: Toolchain make flags from `build_flags` (`LLVM=1` for clang); applied to config detection.
       default: ""
+    build_identity:
+      type: boolean
+      description: Bake a hash of the build inputs into kernelrelease (unique per config/toolchain/flags) so identical builds can be fetched or reused instead of rebuilt.
+      default: true
   required:
     - worktree
     - build_dir

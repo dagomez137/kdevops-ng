@@ -139,6 +139,9 @@ value:
                     make_flags:
                       type: javascript
                       expr: results.build_flags.make_flags
+                    build_identity:
+                      type: javascript
+                      expr: flow_input.configuration?.build_identity
                 retry:
                   constant:
                     attempts: 2
@@ -166,6 +169,9 @@ value:
                     make_flags:
                       type: javascript
                       expr: results.build_flags.make_flags
+                    build_identity:
+                      type: javascript
+                      expr: flow_input.configuration?.build_identity
                 retry:
                   constant:
                     attempts: 2
@@ -191,6 +197,9 @@ value:
                 make_flags:
                   type: javascript
                   expr: results.build_flags.make_flags
+                build_identity:
+                  type: javascript
+                  expr: flow_input.configuration?.build_identity
             retry:
               constant:
                 attempts: 2
@@ -416,6 +425,7 @@ schema:
         - defconfig
         - fragments
         - allnoconfig_base
+        - build_identity
       properties:
         config_method:
           type: string
@@ -426,6 +436,10 @@ schema:
             - make
             - fragments
             - skip
+        build_identity:
+          type: boolean
+          description: Bake a hash of the build inputs (config, toolchain, make flags, source commit) into kernelrelease, so the image and modules install under a unique release and an identical build can be fetched or reused instead of rebuilt.
+          default: true
         preset:
           type: string
           showExpr: "fields.config_method === 'preset'"

@@ -19,10 +19,11 @@ import shlex
 from pathlib import Path
 
 from f.common.devshell import DevShell
+from f.kernel.identity import bake_identity
 
 
 def main(worktree: str, build_dir: str, preset: str = "imageless_defconfig",
-         make_flags: str = "") -> dict:
+         make_flags: str = "", build_identity: bool = True) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     preset_file = _resolve_preset(workers, preset)
     build = Path(build_dir)
@@ -34,7 +35,10 @@ def main(worktree: str, build_dir: str, preset: str = "imageless_defconfig",
     shell = DevShell(workers)
     base = [f"--directory={worktree}", f"O={build}"]
     shell.run("make", *base, *flag_args, f"KCONFIG_ALLCONFIG={preset_file}", "alldefconfig")
-    kernelrelease = shell.capture("make", "--silent", *base, *flag_args, "kernelrelease").strip()
+    if build_identity:
+        kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
+    else:
+        kernelrelease = shell.capture("make", "--silent", *base, *flag_args, "kernelrelease").strip()
 
     return {
         "kernelrelease": kernelrelease,
