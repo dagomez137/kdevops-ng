@@ -26,6 +26,15 @@ value:
         type: script
         path: f/workbench/fetch
         input_transforms:
+          kernel_trees:
+            type: javascript
+            expr: flow_input.kernel_trees
+          protocol:
+            type: javascript
+            expr: flow_input.protocol
+          extra_trees:
+            type: javascript
+            expr: flow_input.extra_trees
           mirrors:
             type: javascript
             expr: flow_input.mirrors
@@ -55,6 +64,18 @@ value:
         path: f/workbench/mirror
         tag_override: vm
         input_transforms:
+          kernel_trees:
+            type: javascript
+            expr: flow_input.kernel_trees
+          protocol:
+            type: javascript
+            expr: flow_input.protocol
+          extra_trees:
+            type: javascript
+            expr: flow_input.extra_trees
+          mirrors:
+            type: javascript
+            expr: flow_input.mirrors
           on_boot:
             type: javascript
             expr: flow_input.mirror_on_boot
@@ -65,7 +86,9 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - mirrors
+    - kernel_trees
+    - protocol
+    - extra_trees
     - peers
     - refresh
     - setup_ssh
@@ -73,27 +96,29 @@ schema:
     - setup_mirrors
     - mirror_on_boot
     - mirror_on_inactive
+    - mirrors
   properties:
-    mirrors:
+    kernel_trees:
+      title: Kernel trees
       type: array
-      description: Mirrors to provision Bares from. Empty = the built-in kernel + QEMU defaults.
+      description: "Linux trees to mirror as remotes on the merged linux.git (Mainline always the base). torvalds=Mainline · linux-next · linux-stable · linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis · axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under Extra trees."
+      default: [torvalds, linux-next, linux-stable, modules, axboe]
+      items:
+        type: string
+        enum: [torvalds, linux-next, linux-stable, linux-stable-rc, modules, mcgrof, mcgrof-next, axboe, vfs, cel, jlayton, cxl, xfs]
+    protocol:
+      title: Protocol
+      type: string
+      enum: [https, git, https-googlesource]
+      default: https
+      description: How to reach git.kernel.org — https (default), git (faster, often firewalled), or https-googlesource (the Google mirror). Per-tree overrides live in the advanced mirrors config.
+    extra_trees:
+      title: Extra trees
+      type: array
+      description: "Additional git.kernel.org tree paths not in the curated list (e.g. pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The remote name derives from the path."
       default: []
       items:
-        type: object
-        properties:
-          name:
-            type: string
-          mirror:
-            type: string
-          namespace:
-            type: string
-          canonical:
-            type: string
-        required:
-          - name
-          - mirror
-          - namespace
-          - canonical
+        type: string
     peers:
       type: array
       description: "ssh-host aliases of other workbench hosts to add as <peer> remotes on each Bare, for cross-host dev branches (`git push <peer> <branch>`). List peer hosts, not self; empty = single-host."
@@ -129,4 +154,11 @@ schema:
       type: string
       description: Next mirror refresh this long after the previous one finishes (systemd `OnUnitInactiveSec`).
       default: 10m
+    mirrors:
+      title: Advanced — full mirror config
+      type: array
+      description: "Power-user override of the whole mirror layout (per-tree protocols, custom QEMU URL, extra projects). When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
+      default: []
+      items:
+        type: object
   required: []

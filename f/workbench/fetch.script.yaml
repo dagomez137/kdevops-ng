@@ -26,60 +26,34 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - mirrors
+    - kernel_trees
+    - protocol
+    - extra_trees
     - peers
     - refresh
+    - mirrors
   properties:
-    mirrors:
+    kernel_trees:
+      title: Kernel trees
       type: array
-      description: Mirrors to provision Bares from. Empty = the built-in kernel + QEMU defaults (under WORKERS_DIR/system/mirror).
+      description: "Linux trees to mirror as remotes on the merged linux.git (Mainline is always the base). torvalds=Mainline · linux-next · linux-stable · linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis · axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add anything else under Extra trees."
+      default: [torvalds, linux-next, linux-stable, modules, axboe]
+      items:
+        type: string
+        enum: [torvalds, linux-next, linux-stable, linux-stable-rc, modules, mcgrof, mcgrof-next, axboe, vfs, cel, jlayton, cxl, xfs]
+    protocol:
+      title: Protocol
+      type: string
+      enum: [https, git, https-googlesource]
+      default: https
+      description: How to reach git.kernel.org — https (default), git (faster, often firewalled), or https-googlesource (the Google mirror when kernel.org is down). Per-tree overrides live in the advanced mirrors config.
+    extra_trees:
+      title: Extra trees
+      type: array
+      description: "Additional git.kernel.org tree paths not in the curated list (e.g. pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The remote name derives from the path."
       default: []
       items:
-        type: object
-        properties:
-          name:
-            type: string
-            description: Mirror + timer instance name (the bare repo `<name>.git`, e.g. linux, qemu).
-          mirror:
-            type: string
-            description: The merged bare mirror repo path (e.g. WORKERS_DIR/system/mirror/linux.git). The Bare borrows its objects.
-          namespace:
-            type: string
-            description: Project-namespace for the Bare (e.g. kernel, qemu-project) — never equal to the canonical name.
-          canonical:
-            type: string
-            description: Upstream source-directory name (e.g. linux, qemu). The Bare lives at system/bare/<namespace>/<canonical>.git.
-          remotes:
-            type: array
-            description: The upstream git trees this mirror carries as remotes (all sharing its object store). The `primary` lands at refs/heads/* (and supplies the Bare's origin URL); the rest at refs/remotes/<name>/*.
-            items:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: Remote name (e.g. torvalds, linux-next, axboe).
-                path:
-                  type: string
-                  description: kernel.org tree path under /pub/scm/linux/kernel/git (e.g. torvalds/linux); the URL is built from this + protocol.
-                protocol:
-                  type: string
-                  enum: [git, https, https-googlesource]
-                  default: https
-                  description: kernel.org protocol for `path` — git (fastest, often firewalled), https (safe default), or https-googlesource (the Google mirror).
-                url:
-                  type: string
-                  description: Explicit clone URL, overriding path/protocol (for non-kernel.org trees, e.g. QEMU on GitLab).
-                primary:
-                  type: boolean
-                  description: The canonical tree; its heads land at the mirror's refs/heads/* and supply the Bare's origin URL.
-              required:
-                - name
-        required:
-          - name
-          - mirror
-          - namespace
-          - canonical
-          - remotes
+        type: string
     peers:
       type: array
       description: "ssh-host aliases of other workbench hosts. Each becomes a <peer> remote on every Bare (ssh://<peer>/<WORKERS_DIR>/system/bare/<ns>/<canonical>.git, same layout), so a developer can `git push <peer> <branch>` a dev branch cross-host for that host's worker to build. List peer hosts, not self; empty = single-host."
@@ -90,4 +64,11 @@ schema:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on). Off = create-if-absent only.
       default: true
+    mirrors:
+      title: Advanced — full mirror config
+      type: array
+      description: "Power-user override of the whole mirror layout — `[{name, mirror, namespace, canonical, remotes:[{name, path|url, protocol, primary}]}]` — for per-tree protocols, a custom QEMU URL, extra projects, etc. When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
+      default: []
+      items:
+        type: object
   required: []

@@ -53,20 +53,44 @@ from pathlib import Path
 
 from f.common.devshell import Git
 
-# A kernel.org git tree by protocol: the path is `<maintainer>/<repo>` under
-# /pub/scm/linux/kernel/git (e.g. torvalds/linux, next/linux-next, axboe/linux).
-# git is fastest but often firewalled; https is the safe default; https-googlesource
-# is the Google mirror for when kernel.org is unreachable.
+# A git tree at git.kernel.org by protocol. The `path` is the FULL path after the
+# host (so fs/ trees sit beside kernel/git/ ones). git is fastest but often
+# firewalled; https is the safe default; https-googlesource is the Google mirror for
+# when kernel.org itself is unreachable.
 _KERNEL_ORG = {
-    "git": "git://git.kernel.org/pub/scm/linux/kernel/git/{path}.git",
-    "https": "https://git.kernel.org/pub/scm/linux/kernel/git/{path}.git",
-    "https-googlesource": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/{path}.git",
+    "git": "git://git.kernel.org/{path}.git",
+    "https": "https://git.kernel.org/{path}.git",
+    "https-googlesource": "https://kernel.googlesource.com/{path}.git",
 }
+
+# Curated Linux trees the form offers as a checklist: name -> (path after git.kernel.org,
+# human label). These are the core trees plus the set kdevops mirrors today; all are the
+# kernel object graph, so they live as remotes on one merged linux.git. Extend freely.
+KERNEL_TREES = {
+    "torvalds":        ("pub/scm/linux/kernel/git/torvalds/linux",        "Mainline (Linus Torvalds)"),
+    "linux-next":      ("pub/scm/linux/kernel/git/next/linux-next",        "linux-next integration"),
+    "linux-stable":    ("pub/scm/linux/kernel/git/stable/linux",           "Stable"),
+    "linux-stable-rc": ("pub/scm/linux/kernel/git/stable/linux-stable-rc", "Stable release candidates"),
+    "modules":         ("pub/scm/linux/kernel/git/modules/linux",          "Modules (Luis Chamberlain)"),
+    "mcgrof":          ("pub/scm/linux/kernel/git/mcgrof/linux",           "Luis Chamberlain"),
+    "mcgrof-next":     ("pub/scm/linux/kernel/git/mcgrof/linux-next",      "Luis Chamberlain (next)"),
+    "axboe":           ("pub/scm/linux/kernel/git/axboe/linux",            "Block, io_uring, NVMe (Jens Axboe)"),
+    "vfs":             ("pub/scm/linux/kernel/git/vfs/vfs",                "VFS (Christian Brauner)"),
+    "cel":             ("pub/scm/linux/kernel/git/cel/linux",              "NFS server (Chuck Lever)"),
+    "jlayton":         ("pub/scm/linux/kernel/git/jlayton/linux",          "NFS / locks (Jeff Layton)"),
+    "cxl":             ("pub/scm/linux/kernel/git/cxl/cxl",                "CXL"),
+    "xfs":             ("pub/scm/fs/xfs/xfs-linux",                        "XFS"),
+}
+
+# Pre-checked when the operator does not pick: the common core.
+DEFAULT_KERNEL_TREES = ["torvalds", "linux-next", "linux-stable", "modules", "axboe"]
+
+DEFAULT_QEMU_URL = "https://gitlab.com/qemu-project/qemu.git"
 
 
 def remote_url(remote: dict) -> str:
-    """The clone URL for a mirror remote: an explicit `url`, or a kernel.org tree
-    `path` rendered with its `protocol` (git / https / https-googlesource)."""
+    """The clone URL for a mirror remote: an explicit `url`, or a `path` at git.kernel.org
+    rendered with its `protocol` (git / https / https-googlesource)."""
     if remote.get("url"):
         return remote["url"]
     proto = remote.get("protocol", "https")
@@ -74,41 +98,51 @@ def remote_url(remote: dict) -> str:
         raise ValueError(f"remote {remote.get('name')!r}: unknown protocol {proto!r} "
                          f"(want one of {', '.join(_KERNEL_ORG)})")
     if not remote.get("path"):
-        raise ValueError(f"remote {remote.get('name')!r}: needs a kernel.org `path` "
-                         "(e.g. torvalds/linux) or an explicit `url`")
+        raise ValueError(f"remote {remote.get('name')!r}: needs a git.kernel.org `path` "
+                         "or an explicit `url`")
     return _KERNEL_ORG[proto].format(path=remote["path"])
 
 
-def default_mirrors(mirror_dir: Path) -> list[dict]:
-    """The built-in merged mirrors under `WORKERS_DIR/system/mirror`. Each project is
-    ONE bare repo (`<name>.git`) carrying several upstream git trees as remotes that
-    all share its one object store; `git-mirror@<name>` (f/workbench/mirror) refreshes
-    every remote on a timer. The kernel mirror holds Linus's tree (the `primary`,
-    landing at `refs/heads/*`), -next/-stable/-modules and Axboe's block/io_uring/nvme
-    tree (each at `refs/remotes/<name>/*`); QEMU is its own mirror. Per-remote
-    `protocol` selects git / https / https-googlesource."""
-    def repo(name: str) -> str:
-        return str(mirror_dir / f"{name}.git")
+def _extra_name(path: str) -> str:
+    """A git remote name for a free-form kernel.org `path`: the maintainer when the leaf
+    is the generic `linux`/`linux-next`, else the leaf (e.g. fs/xfs/xfs-linux -> xfs-linux)."""
+    parts = path.strip("/").split("/")
+    return parts[-2] if len(parts) >= 2 and parts[-1] in ("linux", "linux-next") else parts[-1]
+
+
+def build_mirrors(kernel_trees: list[str], protocol: str, extra_trees: list[str],
+                  mirror_dir: Path, qemu_url: str = DEFAULT_QEMU_URL) -> list[dict]:
+    """Compose the full mirror config from a friendly selection: the curated kernel
+    `kernel_trees` (names in KERNEL_TREES) plus free-form `extra_trees` (git.kernel.org
+    paths), all over one `protocol`, as remotes on a single merged linux.git (torvalds is
+    always the primary object base, at refs/heads/*; the rest at refs/remotes/<name>/*),
+    plus the QEMU mirror. The advanced `mirrors` input bypasses this for full control."""
+    names = list(dict.fromkeys(["torvalds", *kernel_trees]))
+    remotes = []
+    for name in names:
+        if name not in KERNEL_TREES:
+            raise ValueError(f"unknown kernel tree {name!r} (curated: {', '.join(KERNEL_TREES)})")
+        path, _ = KERNEL_TREES[name]
+        remotes.append({"name": name, "path": path, "protocol": protocol,
+                        "primary": name == "torvalds"})
+    for path in extra_trees:
+        remotes.append({"name": _extra_name(path), "path": path, "protocol": protocol})
     return [
-        {"name": "linux", "namespace": "kernel", "canonical": "linux", "mirror": repo("linux"),
-         "remotes": [
-             {"name": "torvalds", "path": "torvalds/linux", "protocol": "git", "primary": True},
-             {"name": "linux-next", "path": "next/linux-next", "protocol": "https"},
-             {"name": "linux-stable", "path": "stable/linux", "protocol": "https"},
-             {"name": "linux-modules", "path": "modules/linux", "protocol": "https"},
-             {"name": "axboe", "path": "axboe/linux", "protocol": "https"},
-         ]},
-        {"name": "qemu", "namespace": "qemu-project", "canonical": "qemu", "mirror": repo("qemu"),
-         "remotes": [
-             {"name": "origin", "url": "https://gitlab.com/qemu-project/qemu.git", "primary": True},
-         ]},
+        {"name": "linux", "namespace": "kernel", "canonical": "linux",
+         "mirror": str(mirror_dir / "linux.git"), "remotes": remotes},
+        {"name": "qemu", "namespace": "qemu-project", "canonical": "qemu",
+         "mirror": str(mirror_dir / "qemu.git"),
+         "remotes": [{"name": "origin", "url": qemu_url, "primary": True}]},
     ]
 
 
-def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
-         refresh: bool = True) -> dict:
+def main(kernel_trees: list[str] | None = None, protocol: str = "https",
+         extra_trees: list[str] | None = None, mirrors: list[dict] | None = None,
+         peers: list[str] | None = None, refresh: bool = True) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
-    mirrors = mirrors or default_mirrors(workers / "system/mirror")
+    mirrors = mirrors or build_mirrors(
+        DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
+        protocol, extra_trees or [], workers / "system/mirror")
     peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
     git = Git()

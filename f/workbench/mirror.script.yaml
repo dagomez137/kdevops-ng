@@ -18,17 +18,35 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - mirrors
+    - kernel_trees
+    - protocol
+    - extra_trees
     - on_boot
     - on_inactive
     - mirror_dir
+    - mirrors
   properties:
-    mirrors:
+    kernel_trees:
+      title: Kernel trees
       type: array
-      description: "Mirror configs to provision: each `{name, mirror, remotes:[{name, path|url, protocol, primary}]}` is one bare repo carrying its upstream trees as remotes (protocol = git / https / https-googlesource). Empty = the built-in merged kernel + QEMU mirrors."
+      description: "Linux trees to mirror as remotes on the merged linux.git (Mainline always the base). torvalds=Mainline · linux-next · linux-stable · linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis · axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under Extra trees."
+      default: [torvalds, linux-next, linux-stable, modules, axboe]
+      items:
+        type: string
+        enum: [torvalds, linux-next, linux-stable, linux-stable-rc, modules, mcgrof, mcgrof-next, axboe, vfs, cel, jlayton, cxl, xfs]
+    protocol:
+      title: Protocol
+      type: string
+      enum: [https, git, https-googlesource]
+      default: https
+      description: How to reach git.kernel.org — https (default), git (faster, often firewalled), or https-googlesource (the Google mirror when kernel.org is down). Per-tree overrides live in the advanced mirrors config.
+    extra_trees:
+      title: Extra trees
+      type: array
+      description: "Additional git.kernel.org tree paths not in the curated list (e.g. pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The remote name derives from the path."
       default: []
       items:
-        type: object
+        type: string
     on_boot:
       title: On Boot
       type: string
@@ -44,5 +62,12 @@ schema:
       type: string
       description: Directory holding the `<repo>.git` mirrors. Empty = `WORKERS_DIR/system/mirror`.
       default: ""
+    mirrors:
+      title: Advanced — full mirror config
+      type: array
+      description: "Power-user override of the whole mirror layout — `[{name, mirror, namespace, canonical, remotes:[{name, path|url, protocol, primary}]}]` — for per-tree protocols, a custom QEMU URL, extra projects, etc. When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
+      default: []
+      items:
+        type: object
   required: []
 tag: vm

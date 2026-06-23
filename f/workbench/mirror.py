@@ -27,7 +27,7 @@ import os
 from pathlib import Path
 
 from f.common.devshell import Git, Systemd, _resolve_git
-from f.workbench.fetch import default_mirrors, remote_url
+from f.workbench.fetch import DEFAULT_KERNEL_TREES, build_mirrors, remote_url
 
 _SERVICE = """\
 [Unit]
@@ -100,11 +100,14 @@ def _provision_remotes(git: Git, repo: Path, remotes: list[dict]) -> list[dict]:
     return results
 
 
-def main(mirrors: list[dict] | None = None, on_boot: str = "10m",
-         on_inactive: str = "10m", mirror_dir: str = "") -> dict:
+def main(kernel_trees: list[str] | None = None, protocol: str = "https",
+         extra_trees: list[str] | None = None, mirrors: list[dict] | None = None,
+         on_boot: str = "10m", on_inactive: str = "10m", mirror_dir: str = "") -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     mdir = Path(mirror_dir) if mirror_dir else workers / "system/mirror"
-    mirrors = mirrors or default_mirrors(mdir)
+    mirrors = mirrors or build_mirrors(
+        DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
+        protocol, extra_trees or [], mdir)
     git = Git()
     gitbin = _resolve_git(workers)
     unit_dir = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "systemd/user"
