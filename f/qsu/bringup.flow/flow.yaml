@@ -50,7 +50,7 @@ value:
           expr: '({...flow_input.nix_guest, vm_name: (flow_input.nix_guest?.vm_name || flow_input.reuse_from_vm || flow_input.boot_vm?.vm_name), home_dir: ((flow_input.nix_guest?.home_dir || "").trim() || ("/home/" + (results.discover?.host_user || "kdevops")))})'
         closure:
           type: javascript
-          expr: flow_input.nix_closure
+          expr: '({...flow_input.nix_closure, test_suites: flow_input.nix_closure?.test_suites ?? []})'
         lock:
           type: javascript
           expr: flow_input.nix_lock

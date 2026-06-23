@@ -120,6 +120,13 @@ qt = add_build(qemu, "qemu", "QEMU build: ", 'fields.qemu_source === "build"')
 # Nix store; the boot step (a different worker group) resolves that store path from the
 # build manifest, so bringup needs no shared tree to hand artifacts across groups.
 
+# Pin test_suites so the closure and the boot share derivation default an omitted value
+# the same way (else render_config defaults to every suite — mounting the fstests share —
+# while the boot provides none, and the guest hangs on the missing mount).
+nt["closure"] = jx(
+    "({...flow_input.nix_closure, test_suites: flow_input.nix_closure?.test_suites ?? []})"
+)
+
 # The closure's hostname + per-VM config dir name default to the booted VM's name, so a
 # bringup that only sets the Boot VM Name can't silently render a generic `nixos` closure
 # (which would mismatch the guest and miss its test-suite units). home_dir defaults to the
