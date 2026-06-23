@@ -354,7 +354,7 @@ value:
     - id: publish
       summary: publish this identity's run layer to the Nix store
       skip_if:
-        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
+        expr: 'flow_input.installation?.install === false || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
         path: f/kernel/publish
