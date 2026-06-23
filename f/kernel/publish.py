@@ -17,6 +17,8 @@ Equivalent bash, the staged tree then added to the store:
     cp --recursive --force "$destdir"/boot/*-"$uts_release" "$stage"/boot/
     cp --recursive --force "$destdir"/lib/modules/"$uts_release" \\
         "$stage"/lib/modules/"$uts_release"
+    rm --force "$stage"/lib/modules/"$uts_release"/build \\
+        "$stage"/lib/modules/"$uts_release"/source   # dangling worktree symlinks
     nix store add-path "$stage" --name kernel-"$uts_release"
 """
 
@@ -45,6 +47,14 @@ def main(destdir: str, uts_release: str) -> dict:
         run_logged(["cp", "--recursive", "--force",
                     str(src / "lib/modules" / uts_release),
                     str(stage / "lib/modules" / uts_release)])
+        # The kbuild build/source symlinks are absolute paths into the builder's
+        # worktree; they dangle on a peer fetch and under the read-only store mount.
+        mod_stage = stage / "lib/modules" / uts_release
+        for link in ("build", "source"):
+            target = mod_stage / link
+            if target.is_symlink():
+                target.unlink()
+                print(f"stripped {uts_release}/{link} (dangling worktree symlink)", flush=True)
         sp = store.publish(name, str(stage))
     finally:
         shutil.rmtree(stage, ignore_errors=True)
