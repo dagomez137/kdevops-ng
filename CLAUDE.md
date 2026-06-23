@@ -25,6 +25,12 @@ example `mkdir --parents`, `rm --recursive --force`,
 `qemu-img create --format qcow2`. Use a short flag only when no long form
 exists, such as `ssh -L`.
 
+Avoid the em-dash and en-dash appositive style in all prose, including
+documentation, code comments, and commit messages. Rewrite such constructions
+as separate sentences, or use a colon, semicolon, or parentheses instead.
+Box-drawing connectors in a genuine diagram are fine; this rule is about em and
+en dashes inside sentences.
+
 Always use the modern unified Nix CLI (`nix <subcommand>`) everywhere — code,
 scripts, docs and "Equivalent command" lines — never the classic `nix-*`
 binaries. Use `nix build <path> --out-link <link>` to create a GC root (not
