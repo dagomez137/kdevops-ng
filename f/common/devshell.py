@@ -139,17 +139,43 @@ def main():
     return "f/common/devshell: shared DevShell/Git/Nix/Systemd helpers"
 
 
+def workbench_dir() -> Path:
+    """Root of the Workbench: the relocatable build area (ADR-0008).
+
+    Exposed to workers as WORKBENCH_DIR; falls back to the parent of the
+    worker-sandbox root (WORKERS_DIR sits at `<workbench>/workers`) so a local
+    `wmill script preview` outside the container resolves it from a single
+    exported variable. The worktree-groups (`vanilla`, ...) are its direct
+    children; `system/` and `workers/` are reserved siblings of those groups.
+    """
+    if os.environ.get("WORKBENCH_DIR"):
+        return Path(os.environ["WORKBENCH_DIR"])
+    return Path(os.environ["WORKERS_DIR"]).parent
+
+
+def system_dir() -> Path:
+    """The System workbench: host-local `bare/ mirror/ ssh/ store/` (ADR-0008).
+
+    Exposed to workers as SYSTEM_DIR; defaults to `system/` under the Workbench,
+    so it relocates with the build area unless pointed elsewhere on its own.
+    """
+    if os.environ.get("SYSTEM_DIR"):
+        return Path(os.environ["SYSTEM_DIR"])
+    return workbench_dir() / "system"
+
+
 def vendor_dir(workers: Path | str | None = None) -> Path:
     """Top-level `vendor/` of the pinned vendored projects (ADR-0006).
 
-    Exposed to workers as VENDOR_DIR (a sibling of WORKERS_DIR, bind-mounted
+    Exposed to workers as VENDOR_DIR (a sibling of the Workbench, bind-mounted
     read-only at the same absolute path); falls back to that sibling so a local
-    `wmill script preview` outside the container still resolves it.
+    `wmill script preview` outside the container still resolves it. When given
+    the worker-sandbox root it derives the Workbench as its parent.
     """
     if os.environ.get("VENDOR_DIR"):
         return Path(os.environ["VENDOR_DIR"])
-    base = Path(workers) if workers else Path(os.environ["WORKERS_DIR"])
-    return base.parent / "vendor"
+    workbench = Path(workers).parent if workers else workbench_dir()
+    return workbench.parent / "vendor"
 
 
 class DevShell:
