@@ -119,6 +119,7 @@
           virtiofsd
           socat
           git
+          git-subrepo
           ;
       });
 
