@@ -45,6 +45,16 @@ a match outside a filename or upstream proper noun is a regression.
 
 When writing or extending Windmill flows and steps, also follow these rules:
 
+- **Subsystem dirs, verb steps, thin flows.** A subsystem directory
+  (`f/kernel`, `f/qemu`, `f/qsu`, `f/nix`, `f/fstests`, `f/common`,
+  `f/workbench`) groups one concern. A step is a `.py` script named for the
+  action it performs in the imperative mood (`build`, `configure`, `compile`,
+  `install`, `boot`, `publish`, `fetch`), in `verb_object` snake_case when it
+  takes an object (`prepare_worktree`, `fetch_identity`, `install_modules`,
+  `reuse_check`). A flow is `<verb>.flow` that composes steps (`build.flow`,
+  `boot.flow`, `bringup.flow`). Shared libraries and data modules are nouns,
+  not steps (`common.py`, `identity.py`, `worktree.py`, `store.py`,
+  `devshell.py`). Keep one step per concern and let thin flows compose them.
 - **Terse comments, only when needed.** Add a comment only when what the code
   does is not obvious; it may state the why as well as the what. The full "why"
   always belongs in the commit body, never as a redundant inline explanation.
