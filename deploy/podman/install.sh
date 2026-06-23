@@ -96,13 +96,16 @@ for i in $(seq 1 "$VM_RUN_WORKERS"); do _render_vm_worker vm-run "vmrun$i"; done
 
 systemctl --user daemon-reload
 systemctl --user start windmill-caddy.service windmill-native.service
+# Restart, not start: a re-render changes the worker quadlets (mounts, WORKER_INDEX),
+# and an already-running container keeps its old config until it is restarted. On a
+# first run the units are inactive and restart simply starts them.
 for i in $(seq 1 "$WORKERS"); do
-		systemctl --user start "windmill-worker-$i.service"
+		systemctl --user restart "windmill-worker-$i.service"
 done
 for i in $(seq 1 "$VM_WORKERS"); do
-		systemctl --user start "windmill-worker-$(_vmself "$i").service"
+		systemctl --user restart "windmill-worker-$(_vmself "$i").service"
 done
 for i in $(seq 1 "$VM_RUN_WORKERS"); do
-		systemctl --user start "windmill-worker-vmrun$i.service"
+		systemctl --user restart "windmill-worker-vmrun$i.service"
 done
 echo "up -> http://127.0.0.1:8000 with $WORKERS build + $VM_WORKERS vm + $VM_RUN_WORKERS vm-run worker(s)  (ssh -L 8000:localhost:8000)"
