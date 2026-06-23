@@ -50,8 +50,8 @@ kernel-devel-7.1.0-rc7-b9e826508b1e  -> /nix/store/<hash>-kernel-devel-7.1.0-rc7
 qemu-<identity>                      -> /nix/store/<hash>-qemu-<identity>
 ```
 
-Each symlink is also a Nix **GC root** (created with `nix-store --add-root
---realise`), so the store path survives `nix-collect-garbage` until the entry is
+Each symlink is also a Nix **GC root** (created with `nix build --out-link`), so
+the store path survives `nix store gc` until the entry is
 removed. The catalog is the authoritative, host-local list — store-path *names*
 alone are noisy (nixpkgs ships its own `-kernel-*` paths). A peer's catalog is the
 same directory read over ssh.
@@ -106,7 +106,7 @@ the other way, by git — see [cross-host dev branches](cross-host-dev-branches.
   `remote`/`remote_index` are set.
 - `inspect <name>` — one identity's store path, closure size and validity.
 - `forget <name>` (with `confirm`) — drop one entry's GC root so
-  `nix-collect-garbage` can reclaim its store path. The build leaves the catalog
+  `nix store gc` can reclaim its store path. The build leaves the catalog
   but is rebuildable.
 - `prune` — drop every entry whose store path was already collected (dangling).
 
@@ -115,6 +115,6 @@ By hand the same is:
 ```sh
 ls -l "$WORKERS_DIR"/shared/store-index/                                   # list
 nix path-info --closure-size --human-readable "$(readlink .../<name>)"     # inspect
-rm "$WORKERS_DIR"/shared/store-index/<name> && nix-collect-garbage         # forget + reclaim
+rm "$WORKERS_DIR"/shared/store-index/<name> && nix store gc                # forget + reclaim
 ssh <host> ls "$WORKERS_DIR"/shared/store-index/                           # a peer's catalog
 ```

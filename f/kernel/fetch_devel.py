@@ -18,7 +18,7 @@ Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host
 
     sp=$(ssh "$remote" readlink "$remote_index"/kernel-devel-"$uts_release")
     nix copy --from ssh://"$remote" "$sp" --no-check-sigs
-    nix-store --add-root "$index"/kernel-devel-"$uts_release" --realise "$sp"
+    nix build "$sp" --out-link "$index"/kernel-devel-"$uts_release"
     cp --recursive --force "$sp"/. "$worktree/build"/
     chmod --recursive u+w "$worktree/build"
     python3 "$worktree/scripts/clang-tools/gen_compile_commands.py" \\

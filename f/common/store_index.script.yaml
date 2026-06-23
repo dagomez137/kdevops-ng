@@ -5,7 +5,7 @@ description: |
   at each published identity's Nix store path and double as its GC root. `list` shows the
   local catalog (and a peer's when `remote`/`remote_index` are set) with sizes and
   validity; `inspect` reports one identity; `forget` drops one entry's GC root so
-  `nix-collect-garbage` can reclaim it (needs `confirm`); `prune` drops every entry whose
+  `nix store gc` can reclaim it (needs `confirm`); `prune` drops every entry whose
   store path was already collected.
 kind: script
 schema:

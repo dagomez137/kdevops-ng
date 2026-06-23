@@ -19,7 +19,7 @@ Equivalent bash, run inside the nixos-flake transfer devShell:
 
     sp=$(ssh "$remote" readlink "$remote_index"/kernel-"$uts_release")
     nix copy --from ssh://"$remote" "$sp" --no-check-sigs
-    nix-store --add-root "$index"/kernel-"$uts_release" --realise "$sp"
+    nix build "$sp" --out-link "$index"/kernel-"$uts_release"
 """
 
 from __future__ import annotations

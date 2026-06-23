@@ -7,7 +7,7 @@ Moves a built identity's run layer between hosts through the Nix store instead o
 rsync. A builder publishes the tree with `nix store add-path` (its bytes land at a
 content-addressed `/nix/store/...` path identical on every host) and registers an
 identity->store-path index entry under `WORKERS_DIR/shared/store-index/<name>`; the
-same entry is an indirect GC root, so the path survives `nix-collect-garbage`. A
+same entry is an indirect GC root, so the path survives `nix store gc`. A
 fetcher reads the peer's index entry over ssh to learn the store path, pulls it with
 `nix copy --from ssh://<remote>`, and registers the path under its own index so it
 becomes a source for the next host. The fetched run layer is consumed in place from
@@ -21,12 +21,12 @@ Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host
 
     # publisher
     sp=$(nix store add-path "$tree" --name "$name")
-    nix-store --add-root "$index/$name" --realise "$sp"
+    nix build "$sp" --out-link "$index/$name"
 
     # fetcher
     sp=$(ssh "$remote" readlink "$remote_index/$name")
     nix copy --from ssh://"$remote" "$sp" --no-check-sigs
-    nix-store --add-root "$index/$name" --realise "$sp"
+    nix build "$sp" --out-link "$index/$name"
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.common.devshell import DevShell, Nix, run_logged
+from f.common.devshell import DevShell, Nix
 
 _INDEX_SUBDIR = "shared/store-index"
 
@@ -55,7 +55,7 @@ def publish(name: str, tree: str) -> str:
     """Add a tree to the store under `name`, index it + root it, return the store path."""
     sp = Nix().capture("store", "add-path", str(tree), "--name", name).strip()
     entry = index_dir() / name
-    run_logged(["nix-store", "--add-root", str(entry), "--realise", sp])
+    Nix().run("build", sp, "--out-link", str(entry))
     print(f"published {name} -> {sp}", flush=True)
     return sp
 
@@ -63,7 +63,7 @@ def publish(name: str, tree: str) -> str:
 def link_local(name: str, sp: str) -> None:
     """Index + GC-root an already-valid store path, making this host a source for it."""
     entry = index_dir() / name
-    run_logged(["nix-store", "--add-root", str(entry), "--realise", sp])
+    Nix().run("build", sp, "--out-link", str(entry))
     print(f"indexed {name} -> {sp}", flush=True)
 
 

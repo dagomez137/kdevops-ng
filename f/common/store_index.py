@@ -4,7 +4,7 @@
 Runnable step. The build Store indexes every published identity as a symlink
 under `WORKERS_DIR/shared/store-index/<name>` -> its `/nix/store` path, and each
 symlink is also an indirect Nix GC root (so the path survives
-`nix-collect-garbage`). Names are `kernel-<release>`, `kernel-devel-<release>`,
+`nix store gc`). Names are `kernel-<release>`, `kernel-devel-<release>`,
 or `qemu-<identity>`. This step reads and maintains that catalog through four
 actions:
 
@@ -23,7 +23,7 @@ Equivalent command:
     ls -l "$WORKERS_DIR/shared/store-index/"
     nix path-info --closure-size --human-readable \\
         "$(readlink "$WORKERS_DIR/shared/store-index/<name>")"
-    rm "$WORKERS_DIR/shared/store-index/<name>" && nix-collect-garbage
+    rm "$WORKERS_DIR/shared/store-index/<name>" && nix store gc
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def _forget(name: str, confirm: bool) -> dict:
     entry = store.index_dir() / name
     store_path = os.path.realpath(entry) if entry.is_symlink() else None
     entry.unlink(missing_ok=True)
-    print(f"forgot {name} (store path reclaimable on next nix-collect-garbage)", flush=True)
+    print(f"forgot {name} (store path reclaimable on next nix store gc)", flush=True)
     return {"action": "forget", "name": name, "removed": True, "store_path": store_path}
 
 

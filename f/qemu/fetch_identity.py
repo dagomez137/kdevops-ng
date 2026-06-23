@@ -17,7 +17,7 @@ Equivalent bash, run inside the nixos-flake transfer devShell:
 
     sp=$(ssh "$remote" readlink "$remote_index"/qemu-"$(basename "$prefix")")
     nix copy --from ssh://"$remote" "$sp" --no-check-sigs
-    nix-store --add-root "$index"/qemu-"$(basename "$prefix")" --realise "$sp"
+    nix build "$sp" --out-link "$index"/qemu-"$(basename "$prefix")"
 """
 
 from __future__ import annotations
