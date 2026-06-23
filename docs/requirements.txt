@@ -1,0 +1,6 @@
+# Read the Docs installs these on its build server. Keep the major versions
+# aligned with the flake's docs devShell (workers/shared/nixos-flake), which
+# is the source of truth for the local build.
+sphinx>=9.1,<10
+pydata-sphinx-theme>=0.19,<0.20
+sphinx-copybutton>=0.5,<0.6

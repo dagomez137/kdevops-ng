@@ -23,3 +23,6 @@
 
 # Python bytecode cache from local script checks
 __pycache__/
+
+# Sphinx HTML output; rebuilt locally and by Read the Docs, never tracked.
+/docs/_build/
