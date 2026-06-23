@@ -17,7 +17,7 @@ from pathlib import Path
 import jinja2
 import yaml
 
-from f.common.devshell import Systemd
+from f.common.devshell import DevShell, Systemd
 
 from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
@@ -89,20 +89,72 @@ def state_dir(vm_name: str) -> Path:
     return base / "qemu-system" / vm_name
 
 
+_VM_UNIT_PREFIX = "qemu-system@"
+_VM_UNIT_SUFFIX = ".service"
+# A loaded-unit glob fed to `systemctl --user list-units` (local and over ssh).
+_VM_UNITS_LISTING = ("list-units", "--type=service", "--no-legend",
+                     f"{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}")
+
+
+def _running_vms(out: str) -> set[str]:
+    """VM names from `systemctl --user list-units 'qemu-system@*.service'` output.
+
+    qsu boots each VM as a `qemu-system@<vm>.service` user unit, so the running set
+    is those loaded units. `machinectl` is not usable here: it has no `--user` scope
+    and the units register with the per-user machine registry over Varlink, not the
+    system `machined` the CLI talks to — so the user manager's own unit list is the
+    reliable source. Scans every token so a leading status bullet never hides a unit.
+    """
+    vms = set()
+    for line in out.splitlines():
+        for tok in line.split():
+            if tok.startswith(_VM_UNIT_PREFIX) and tok.endswith(_VM_UNIT_SUFFIX):
+                vms.add(tok[len(_VM_UNIT_PREFIX):-len(_VM_UNIT_SUFFIX)])
+                break
+    return vms
+
+
+def _peer_hosts(workers: Path) -> list[str]:
+    """Registered peer ssh-host aliases (one per line in `shared/peers`, written by
+    f/workspace/fetch). Missing/empty file means no peers, so discovery stays local."""
+    f = workers / "shared/peers"
+    if not f.is_file():
+        return []
+    return [h.strip() for h in f.read_text().splitlines() if h.strip()]
+
+
 def vm_options(filter_text: str = "") -> list[dict]:
     """Existing QEMU/systemd VMs as `[{label, value}]` for a `dynselect-` dropdown.
 
-    The live machines (`machinectl --user list`) plus any with a rendered `<vm>.env`
-    still on disk (stopped but not torn down). The lifecycle scripts wrap this as
-    their `list_vms` dynselect entrypoint; it runs on the `vm` worker (host manager).
+    Local VMs are the running user units (`systemctl --user list-units
+    'qemu-system@*.service'`) plus any with a rendered `<vm>.env` still on disk
+    (stopped but not torn down). Each registered peer (`shared/peers`) is then swept
+    best-effort over ssh (the same `systemctl --user list-units`) so the dropdown
+    spans every workbench host; an unreachable peer drops out silently rather than
+    failing the local list. Peer VMs are labelled `<vm> (<peer>)`. The lifecycle
+    scripts wrap this as their `list_vms` dynselect entrypoint; it runs on a
+    `vm`/`hetzie-vm` worker (host manager + ssh to peers).
     """
-    out = Systemd(Path(os.environ["WORKERS_DIR"])).machinectl(
-        "list", "--no-legend", capture=True, check=False) or ""
-    running = {cols[0] for line in out.splitlines()
-               if (cols := line.split()) and len(cols) >= 2 and cols[1] == "vm"}
+    workers = Path(os.environ["WORKERS_DIR"])
+    ft = filter_text.lower()
+    local = Systemd(workers).systemctl(*_VM_UNITS_LISTING, capture=True, check=False) or ""
     rendered = {p.stem for p in (systemd_config() / "qemu-system").glob("*.env")}
-    vms = sorted(v for v in (running | rendered) if filter_text.lower() in v.lower())
-    return [{"label": vm, "value": vm} for vm in vms]
+    options = [{"label": vm, "value": vm}
+               for vm in sorted(_running_vms(local) | rendered) if ft in vm.lower()]
+    seen = {o["value"] for o in options}
+    for peer in _peer_hosts(workers):
+        # BatchMode never prompts; ConnectTimeout bounds a dead peer. check=False so a
+        # down peer yields "" and is skipped, leaving the local dropdown intact. The
+        # glob is single-quoted so the peer's shell passes it to systemctl unexpanded.
+        remote = DevShell(workers, "systemd").capture(
+            "ssh", "-o", "ConnectTimeout=3", "-o", "BatchMode=yes", peer,
+            f"systemctl --user list-units --type=service --no-legend "
+            f"'{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}'", check=False) or ""
+        for vm in sorted(_running_vms(remote)):
+            if vm not in seen and ft in vm.lower():
+                options.append({"label": f"{vm} ({peer})", "value": vm})
+                seen.add(vm)
+    return options
 
 
 # --- vars composition (ports the qsu role's render-per-vm.yml glue) ------------

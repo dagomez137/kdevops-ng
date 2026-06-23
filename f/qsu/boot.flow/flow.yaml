@@ -30,7 +30,7 @@ description: |
 
       systemctl --user daemon-reload
       systemctl --user start qemu-system@<vm>
-      machinectl --user list
+      systemctl --user list-units 'qemu-system@*'
       journalctl --user-unit=qemu-system@<vm>.service
       systemctl --user stop qemu-system@<vm>
 value:

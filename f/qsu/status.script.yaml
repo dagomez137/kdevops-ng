@@ -18,7 +18,7 @@ schema:
     vm_name:
       title: VM Name
       type: object
-      description: VM to query (`qemu-system@<vm_name>`). The dropdown lists the existing VMs (`machinectl --user list` plus any with a rendered `<vm>.env`).
+      description: VM to query (`qemu-system@<vm_name>`). The dropdown lists the running VMs (`systemctl --user list-units 'qemu-system@*'`, across the local host and registered peers) plus any with a rendered `<vm>.env`.
       format: dynselect-list_vms
     ssh_port:
       title: SSH Port

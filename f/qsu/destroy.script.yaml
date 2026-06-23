@@ -23,7 +23,7 @@ schema:
     vm_name:
       title: VM Name
       type: object
-      description: VM to stop and tear down. The dropdown lists every destroyable VM — the live machines (`machinectl --user list`) plus any with a rendered `<vm>.env` still on disk.
+      description: VM to stop and tear down. The dropdown lists every destroyable VM — the running VMs (`systemctl --user list-units 'qemu-system@*'`, across the local host and registered peers) plus any with a rendered `<vm>.env` still on disk.
       format: dynselect-list_vms
   required:
     - vm_name

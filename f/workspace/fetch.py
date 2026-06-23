@@ -106,7 +106,14 @@ def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
             "peers": peer_results,
         })
 
-    return {"workers_dir": str(workers), "mirrors": results}
+    # Persist the peer registry where any worker can read it without touching git:
+    # the qsu VM discovery (f.qsu.common.vm_options) sweeps these hosts over ssh.
+    peers_file = workers / "shared/peers"
+    peers_file.parent.mkdir(parents=True, exist_ok=True)
+    peers_file.write_text("".join(f"{p}\n" for p in peers))
+    print(f"wrote {peers_file} ({len(peers)} peer(s))", flush=True)
+
+    return {"workers_dir": str(workers), "mirrors": results, "peers": peers}
 
 
 def _validate(entry: dict) -> tuple[str, str, str, str]:
