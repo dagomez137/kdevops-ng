@@ -13,6 +13,7 @@ build and guest environments.
    :caption: Reference
 
    terms
+   flows
 
 .. toctree::
    :maxdepth: 1
