@@ -1,7 +1,7 @@
 summary: "QEMU Build"
 description: |
   Build a custom QEMU from source, reproducibly, inside the `nixos-flake#build`
-  devShell over a detached worktree of the shared `/mirror/qemu.git`. Mirrors
+  devShell over this worker's warm `main` worktree cut from the durable Bare. Mirrors
   `f/kernel/build`; the distro `install-deps` the kdevops QEMU role performs is
   gone, because the devShell already carries QEMU's build toolchain
   (`inputsFrom = [ pkgs.qemu ]`: meson, ninja, GCC, pkg-config, glib, pixman).
@@ -11,19 +11,17 @@ description: |
 
   1. `prepare_worktree` — resolve the slot and check out `qemu_ref`.
   2. `configure` — out-of-tree `meson subprojects download`, then
-     `configure --target-list --prefix=<slot>/destdir --disable-download`.
+     `configure --target-list --prefix=<worktree>/destdir --disable-download`.
   3. `compile` — `make --jobs=$(nproc)` (drives ninja).
-  4. `install` — `make install` into `<slot>/destdir`.
+  4. `install` — `make install` into `<worktree>/destdir`.
   5. `publish` — add this identity's install tree to the Nix store so a peer can
      fetch it; only after a real install (skipped on reuse).
   6. `collect` — merge the step results into one manifest.
 
-  - `shared=false` (default) reuses this worker's own tree
-    `workers/<worker>/qemu` for every ref, so isolated builds on different workers
-    run in parallel without contending.
-  - `shared=true` lays down a shared, persistent named tree
-    `workers/shared/ws/qemu/<name>` (by `workspace` string, else the `b4_series`
-    slug, else the job id) that any worker can pick up.
+  Each worker builds in its own warm `main` worktree
+  (`workers/<worker>/qemu-project/main/qemu`), synced to `qemu_ref` every run so
+  rebuilds stay incremental and isolated builds on different workers run in parallel.
+  `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean build.
 
   Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
   `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the same way it
@@ -40,21 +38,15 @@ value:
           qemu_ref:
             type: javascript
             expr: flow_input.worktree?.qemu_ref
-          shared:
-            type: javascript
-            expr: flow_input.worker?.shared
-          workspace:
-            type: javascript
-            expr: flow_input.worker?.workspace
           b4_series:
             type: javascript
             expr: flow_input.worktree?.b4_series
-          reuse_worktree:
+          recreate_worktree:
             type: javascript
-            expr: flow_input.worktree?.reuse_worktree
+            expr: flow_input.worktree?.recreate_worktree
           wipe_build:
             type: javascript
-            expr: flow_input.worker?.wipe_build
+            expr: flow_input.worktree?.wipe_build
           clean_destdir:
             type: javascript
             expr: flow_input.installation?.clean_destdir
@@ -253,7 +245,14 @@ value:
             devtools: any,
             install: any,
             reuse: any,
+            publish: any,
           ) {
+            // After a real install, point the emulator at its /nix/store copy (the
+            // published tree is the prefix verbatim, so basenames match) so a
+            // cross-worker-group boot resolves it; on reuse the manifest already
+            // carries the store path, and a build-only run falls back to the destdir.
+            const storeBin = (p: string) =>
+              publish?.store_path && p ? publish.store_path + "/bin/" + p.split("/").pop() : p;
             return {
               worker: prepare?.worker ?? null,
               qemu_ref: prepare?.qemu_ref ?? null,
@@ -266,8 +265,12 @@ value:
               worktree: prepare?.worktree ?? null,
               build_dir: prepare?.build_dir ?? null,
               destdir: install?.destdir ?? identity?.prefix ?? prepare?.destdir ?? null,
-              qemu_binary: install?.qemu_binary ?? reuse?.qemu_binary ?? null,
-              qemu_binaries: install?.qemu_binaries ?? null,
+              qemu_binary: install?.qemu_binary
+                ? storeBin(install.qemu_binary)
+                : (reuse?.qemu_binary ?? null),
+              qemu_binaries: install?.qemu_binaries
+                ? install.qemu_binaries.map(storeBin)
+                : null,
               compile_commands: devtools?.compile_commands ?? null,
             };
           }
@@ -290,11 +293,13 @@ value:
           reuse:
             type: javascript
             expr: results.reuse_check
+          publish:
+            type: javascript
+            expr: results.publish
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - worker
     - worktree
     - configuration
     - build
@@ -302,56 +307,36 @@ schema:
     - installation
     - prebuilt
   properties:
-    worker:
-      title: Worker
+    worktree:
+      title: Worktree
       type: object
-      description: Worktree placement and build-dir reuse.
+      description: Source ref, optional patch series, and warm-tree lifecycle.
       default: {}
       order:
-        - shared
-        - workspace
+        - qemu_ref
+        - b4_series
+        - recreate_worktree
         - wipe_build
       properties:
-        shared:
-          type: boolean
-          description: Off = this worker's own workers/<worker>/qemu tree (fast, parallel across workers). On = a shared persistent named tree under workers/shared/ws/qemu/<name> any worker can pick up.
-          default: false
-        workspace:
+        qemu_ref:
+          title: QEMU Ref
           type: string
-          description: Name for the shared tree (workers/shared/ws/qemu/<name>). Empty = name from the b4 series, else the job id.
+          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
+          default: v11.0.0
+        b4_series:
+          title: b4 Series
+          type: string
+          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
           default: ""
-          showExpr: "fields.shared === true"
+        recreate_worktree:
+          title: Recreate Worktree
+          type: boolean
+          description: Lay a fresh detached checkout (rm the warm tree first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+          default: false
         wipe_build:
           type: boolean
           description: Wipe the build dir before building (default off = incremental reuse).
           default: false
-    worktree:
-      title: Worktree
-      type: object
-      description: Source ref and optional patch series to check out.
-      default: {}
-      order:
-        - reuse_worktree
-        - qemu_ref
-        - b4_series
-      properties:
-        reuse_worktree:
-          title: Reuse Worktree
-          type: boolean
-          description: Build the named worktree exactly as it stands — skip fetch, checkout and `b4 shazam` so a hand-checked-out local branch survives. Ignores `qemu_ref`/`b4 Series`; the tree must already exist (lay it down once with this off). Pair with `shared` + a `workspace` name in the Worker group.
-          default: false
-        qemu_ref:
-          title: QEMU Ref
-          type: string
-          description: Branch, tag or commit in the shared /mirror/qemu.git to build. Ignored when `reuse_worktree` is on.
-          default: v11.0.0
-          showExpr: "fields.reuse_worktree !== true"
-        b4_series:
-          title: b4 Series
-          type: string
-          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`. Ignored when `reuse_worktree` is on.
-          default: ""
-          showExpr: "fields.reuse_worktree !== true"
     configuration:
       title: Configuration
       type: object
@@ -442,7 +427,7 @@ schema:
           default: ""
         skip_configure:
           type: boolean
-          description: Skip configure and recompile the existing build dir (incremental rebuild of an already-configured workspace).
+          description: Skip configure and recompile the existing build dir (incremental rebuild — the build dir is already configured).
           default: false
     build:
       title: Build

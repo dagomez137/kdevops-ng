@@ -5,7 +5,9 @@ description: |
   not the whole multi-release destdir — and add it to the Nix store under
   `kernel-<release>`, indexed as a GC root. A peer can then fetch it by release with
   `nix copy`. Run only after a real install (the flow skips it on reuse). Returns the
-  index `name`, the resolved `store_path`, and the `uts_release`.
+  index `name`, the resolved `store_path`, the `uts_release`, and the run layer
+  resolved inside the store (`bzImage`, `boot`, `modules`) so the manifest can point a
+  cross-worker-group boot at `/nix/store`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

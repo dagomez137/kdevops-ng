@@ -116,17 +116,9 @@ kt = add_build(kernel, "kernel", "Kernel: ", 'fields.kernel_source === "build"')
 nt = add_build(nix, "nix", "NixOS: ", 'fields.closure_source === "build"')
 qt = add_build(qemu, "qemu", "QEMU build: ", 'fields.qemu_source === "build"')
 
-# Bringup builds one VM, not a parallel matrix, so default the kernel/qemu worktrees
-# to the shared tree (the standalone builds default per-worker for parallelism). Only
-# the bringup form default changes; the build subflows are untouched.
-for gk in ("kernel_worker", "qemu_worker"):
-    props[gk]["properties"]["shared"]["default"] = True
-
-# The schema default only fills the form; a headless run leaves the group unset and
-# falls through to the subflow's per-worker default. Merge shared:true as a floor in
-# the transform too (an explicit form value still wins via the spread).
-for t, prefix in ((kt, "kernel"), (qt, "qemu")):
-    t["worker"] = jx(f"({{ shared: true, ...flow_input.{prefix}_worker }})")
+# Each build lands in its worker's warm `main` tree and publishes its run layer to the
+# Nix store; the boot step (a different worker group) resolves that store path from the
+# build manifest, so bringup needs no shared tree to hand artifacts across groups.
 
 # The closure's hostname + per-VM config dir name default to the booted VM's name, so a
 # bringup that only sets the Boot VM Name can't silently render a generic `nixos` closure

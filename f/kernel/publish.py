@@ -8,7 +8,9 @@ release's run layer — the boot image artifacts (`boot/<image>-<release>`,
 the whole multi-release destdir — and add it to the store. A peer can then fetch it by
 release with `nix copy`. The store path is identical on every host.
 
-Returns the index `name`, the resolved `store_path`, and the `uts_release`.
+Returns the index `name`, the resolved `store_path`, the `uts_release`, and the run
+layer resolved inside the store (`bzImage`, `boot`, `modules`) so the manifest can
+point a cross-worker-group boot at `/nix/store` instead of this worker's local destdir.
 
 Equivalent bash, the staged tree then added to the store:
 
@@ -47,4 +49,13 @@ def main(destdir: str, uts_release: str) -> dict:
     finally:
         shutil.rmtree(stage, ignore_errors=True)
 
-    return {"name": name, "store_path": sp, "uts_release": uts_release}
+    boot_images = [i for i in images if not i.name.startswith(("System.map", "config"))]
+    bzImage = str(Path(sp) / "boot" / boot_images[0].name) if boot_images else None
+    return {
+        "name": name,
+        "store_path": sp,
+        "uts_release": uts_release,
+        "bzImage": bzImage,
+        "boot": str(Path(sp) / "boot"),
+        "modules": str(Path(sp) / "lib/modules"),
+    }

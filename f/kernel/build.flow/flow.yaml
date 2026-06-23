@@ -2,7 +2,7 @@ summary: "Linux Kernel Build"
 description: |
   First-class kernel build, composed from reusable step-scripts so each unit is
   independently runnable and testable. Builds inside the `nixos-flake#build`
-  devShell over a detached worktree of the shared mirror, with
+  devShell over this worker's warm `main` worktree cut from the durable Bare, with
   `make --jobs=$(nproc)` so the container cgroup governs CPU and N concurrent
   builds self-balance across the workers.
 
@@ -30,12 +30,10 @@ description: |
      can index a worktree from it; only after a real build (skipped on reuse).
   9. `collect` — merge the step results into one manifest.
 
-  - `shared=false` (default) reuses this worker's own tree
-    `workers/<worker>/kernel` for every ref, so isolated builds on different workers
-    run in parallel without contending.
-  - `shared=true` lays down a shared, persistent named tree
-    `workers/shared/ws/kernel/<name>` (by `workspace` string, else the `b4_series`
-    slug, else the job id) that any worker can pick up.
+  Each worker builds in its own warm `main` worktree
+  (`workers/<worker>/kernel/main/linux`), synced to `git_ref` every run so rebuilds
+  stay incremental and isolated builds on different workers run in parallel.
+  `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean build.
 
   Returns a manifest (`commit`, `uts_release`, `bzImage`, `build_dir`, `config`,
   `config_method`, `destdir`, the build provenance `linux_compiler`/`uts_version`/
@@ -53,21 +51,15 @@ value:
           git_ref:
             type: javascript
             expr: flow_input.worktree?.git_ref
-          shared:
-            type: javascript
-            expr: flow_input.worker?.shared
-          workspace:
-            type: javascript
-            expr: flow_input.worker?.workspace
           wipe_build:
             type: javascript
-            expr: flow_input.worker?.wipe_build
+            expr: flow_input.worktree?.wipe_build
           b4_series:
             type: javascript
             expr: flow_input.worktree?.b4_series
-          reuse_worktree:
+          recreate_worktree:
             type: javascript
-            expr: flow_input.worktree?.reuse_worktree
+            expr: flow_input.worktree?.recreate_worktree
           clean_destdir:
             type: javascript
             expr: flow_input.installation?.clean_destdir
@@ -411,6 +403,7 @@ value:
             install: any,
             modules: any,
             reuse: any,
+            publish: any,
           ) {
             return {
               worker: prepare?.worker ?? null,
@@ -430,10 +423,10 @@ value:
               worktree: prepare?.worktree ?? null,
               build_dir: prepare?.build_dir ?? null,
               config: configure?.config ?? null,
-              bzImage: compile?.image ?? reuse?.bzImage ?? null,
+              bzImage: publish?.bzImage ?? compile?.image ?? reuse?.bzImage ?? null,
               destdir: install?.destdir ?? modules?.destdir ?? reuse?.destdir ?? null,
-              boot: install?.boot ?? reuse?.boot ?? null,
-              modules: modules?.modules ?? reuse?.modules ?? null,
+              boot: publish?.boot ?? install?.boot ?? reuse?.boot ?? null,
+              modules: publish?.modules ?? modules?.modules ?? reuse?.modules ?? null,
               source: modules?.source ?? null,
               compile_commands: devtools?.compile_commands ?? null,
               vmlinux_gdb: devtools?.vmlinux_gdb ?? null,
@@ -462,11 +455,13 @@ value:
           reuse:
             type: javascript
             expr: results.reuse_check
+          publish:
+            type: javascript
+            expr: results.publish
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - worker
     - worktree
     - configuration
     - build
@@ -477,27 +472,32 @@ schema:
     worktree:
       title: Worktree
       type: object
-      description: Source ref and optional patch series to check out.
+      description: Source ref, optional patch series, and warm-tree lifecycle.
       default: {}
       order:
-        - reuse_worktree
         - git_ref
         - b4_series
+        - recreate_worktree
+        - wipe_build
       properties:
-        reuse_worktree:
-          title: Reuse Worktree
-          type: boolean
-          description: Build the named worktree exactly as it stands — skip fetch, checkout and `b4 shazam` so a hand-checked-out local branch survives. Ignores `git_ref`/`b4 Series`; the tree must already exist (lay it down once with this off). Pair with `shared` + a `workspace` name in the Worker group.
-          default: false
         git_ref:
           type: string
-          description: Branch, tag or commit in the shared mirror to build. Ignored when `reuse_worktree` is on.
+          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
           default: v7.1-rc7
         b4_series:
           title: b4 Series
           type: string
-          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`. Ignored when `reuse_worktree` is on.
+          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
           default: ""
+        recreate_worktree:
+          title: Recreate Worktree
+          type: boolean
+          description: Lay a fresh detached checkout (rm the warm tree first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+          default: false
+        wipe_build:
+          type: boolean
+          description: Wipe the build dir before building (default off = incremental reuse).
+          default: false
     configuration:
       title: Configuration
       type: object
@@ -829,30 +829,7 @@ schema:
           default: true
         clean_destdir:
           type: boolean
-          description: Wipe the install `destdir` (`<slot>/destdir`) first (default off). Leave off so an install never wipes modules a running QEMU/systemd VM has mounted over virtiofs.
-          default: false
-    worker:
-      title: Worker
-      type: object
-      description: Worktree placement and build-dir reuse.
-      default: {}
-      order:
-        - shared
-        - workspace
-        - wipe_build
-      properties:
-        shared:
-          type: boolean
-          description: Off = this worker's own workers/<worker>/kernel tree (fast, parallel across workers). On = a shared persistent named tree under workers/shared/ws/kernel/<name> any worker can pick up.
-          default: false
-        workspace:
-          type: string
-          description: Name for the shared tree (workers/shared/ws/kernel/<name>). Empty = name from the b4 series, else the job id.
-          default: ""
-          showExpr: "fields.shared === true"
-        wipe_build:
-          type: boolean
-          description: Wipe the build dir before building (default off = incremental reuse).
+          description: Wipe the install `destdir` (`<worktree>/destdir`) first (default off). Leave off so an install never wipes modules a running QEMU/systemd VM has mounted over virtiofs.
           default: false
     prebuilt:
       title: Prebuilt
