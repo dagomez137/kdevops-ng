@@ -1,48 +1,40 @@
 summary: "Kernel: prepare a build worktree"
 description: |
-  Resolve a build slot and lay down a detached worktree of the shared kernel
-  mirror (`workers/shared/kernel/linux`, a `--shared` clone of `/mirror/linux.git`)
-  at `git_ref`, refreshing the clone first so newly-mirrored refs/tags are usable.
-  Thin wrapper over `f/common/worktree`.
+  Lay down this worker's warm `main` kernel worktree
+  (`workers/<WORKER_INDEX>/kernel/main/linux`) detached at `git_ref`, cut from the
+  durable Bare at `workers/system/bare/kernel/linux.git` and refreshed from the
+  mirror first so newly-mirrored refs/tags are usable. Thin wrapper over
+  `f/common/worktree`. The same tree is reused for every ref and across runs
+  (parallel across workers); `recreate_worktree` lays a fresh checkout. `build` and
+  `destdir` are children of the source checkout.
 
-  - `shared=false` (default) reuses this worker's own tree
-    `workers/<WORKER_INDEX>/kernel` for every ref — isolated builds on different
-    workers run in parallel without contending.
-  - `shared=true` lays down a shared, persistent named tree
-    `workers/shared/ws/kernel/<name>`: `<name>` is the custom `workspace` string if
-    given, else a slug of `b4_series`, else the flow job id.
-
-  Returns `worktree`, `build_dir`, `slot`, `destdir`, `commit`, `worker`, `git_ref`, `name`.
+  Returns `worktree`, `build_dir`, `slot`, `destdir`, `commit`, `worker`,
+  `namespace`, `canonical`, `git_ref`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
     - git_ref
-    - shared
-    - workspace
     - b4_series
+    - recreate_worktree
     - wipe_build
     - clean_destdir
   properties:
     git_ref:
       type: string
-      description: Branch, tag or commit in the shared mirror to check out.
+      description: Branch, tag or commit in the Bare to check out (a tag, an upstream ref via the mirror, or a developer branch).
       default: v7.1-rc7
-    shared:
-      type: boolean
-      description: Off = this worker's own workers/<worker>/kernel tree (fast, parallel across workers). On = a shared persistent named tree under workers/shared/ws/kernel/<name> any worker can pick up.
-      default: false
-    workspace:
-      type: string
-      description: Name for the shared tree (workers/shared/ws/kernel/<name>). Empty = name from the b4 series, else the job id.
-      default: ""
-      showExpr: "fields.shared === true"
     b4_series:
       title: b4 Series
       type: string
       description: Optional lore series (message-id/URL) to apply on top via `b4 shazam`.
       default: ""
+    recreate_worktree:
+      title: Recreate Worktree
+      type: boolean
+      description: Lay a fresh detached checkout (rm the warm tree first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+      default: false
     wipe_build:
       type: boolean
       description: Wipe the build dir before building (default off = incremental reuse).
