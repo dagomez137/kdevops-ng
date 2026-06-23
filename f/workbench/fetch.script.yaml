@@ -32,23 +32,8 @@ schema:
   properties:
     mirrors:
       type: array
-      description: Mirrors to provision Bares from. Empty = the built-in kernel + QEMU defaults.
-      default:
-        - name: kernel
-          mirror: /mirror/linux.git
-          namespace: kernel
-          canonical: linux
-          remotes:
-            - name: linux-next
-              mirror: /mirror/linux-next.git
-            - name: linux-stable
-              mirror: /mirror/linux-stable.git
-            - name: linux-modules
-              mirror: /mirror/linux-modules.git
-        - name: qemu
-          mirror: /mirror/qemu.git
-          namespace: qemu-project
-          canonical: qemu
+      description: Mirrors to provision Bares from. Empty = the built-in kernel + QEMU defaults (under WORKERS_DIR/system/mirror).
+      default: []
       items:
         type: object
         properties:
@@ -57,7 +42,7 @@ schema:
             description: Short label for the mirror (used in the log/manifest).
           mirror:
             type: string
-            description: Local bare mirror to borrow objects from (e.g. /mirror/linux.git).
+            description: Local bare mirror to borrow objects from (e.g. WORKERS_DIR/system/mirror/linux.git).
           namespace:
             type: string
             description: Project-namespace for the Bare (e.g. kernel, qemu-project) — never equal to the canonical name.

@@ -34,7 +34,7 @@ scripts/min-tool-version.sh rustc      # -> e.g. 1.85.0
 scripts/min-tool-version.sh bindgen    # -> e.g. 0.71.1
 scripts/min-tool-version.sh llvm       # -> e.g. 15.0.0
 # or read it straight out of the mirror without checking out:
-git -C /mirror/linux.git show <ref>:scripts/min-tool-version.sh | grep -A2 'rustc)\|bindgen)'
+git -C workers/system/mirror/linux.git show <ref>:scripts/min-tool-version.sh | grep -A2 'rustc)\|bindgen)'
 ```
 
 That minimum, plus "no hard max but newer is CI-tested", is the whole requirement.

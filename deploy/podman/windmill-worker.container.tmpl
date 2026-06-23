@@ -20,10 +20,10 @@ Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,WORKER_INDEX
 Environment=WORKER_INDEX=@SELFDIR@
 Environment=WORKERS_DIR=@WORKERS_DIR@
 Volume=%t/bus:%t/bus
-# /nix and the bare git mirror (read-only). git worktrees share the mirror's
-# objects via the alternate, so each worker checkout is cheap.
+# /nix store, bind-mounted for building. The git mirror the worktrees borrow
+# objects from now lives under the system/ mount below (workers/system/mirror),
+# so no separate /mirror mount is needed.
 Volume=/nix:/nix
-Volume=/mirror:/mirror:ro
 Volume=%C/windmill/cache:/tmp/windmill/cache
 # Shared logs volume (see windmill.container): workers write large job logs here
 # so the server can serve them for download.

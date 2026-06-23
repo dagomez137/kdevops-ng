@@ -4,7 +4,7 @@ description: |
   durable Bares (default `workers/system/bare/kernel/linux.git` and
   `workers/system/bare/qemu-project/qemu.git`) that every worker cuts cheap detached
   worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
-  but borrows objects from the local `/mirror`, and keeps `refs/heads/*` for developer
+  but borrows objects from the local mirror (`workers/system/mirror`), and keeps `refs/heads/*` for developer
   pushes. Thin flow over `f/workbench/fetch` — override or extend the source list there;
   re-run it any time to refresh.
 

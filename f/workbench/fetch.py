@@ -33,8 +33,8 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     mkdir --parents "$(dirname "$bare")"
     git init --bare "$bare"
     # borrow the mirror objects (and each extra mirror's) instead of copying:
-    printf '%s\n' /mirror/linux.git/objects >> "$bare/objects/info/alternates"
-    printf '%s\n' /mirror/linux-next.git/objects >> "$bare/objects/info/alternates"
+    printf '%s\n' "$WORKERS_DIR"/system/mirror/linux.git/objects >> "$bare/objects/info/alternates"
+    printf '%s\n' "$WORKERS_DIR"/system/mirror/linux-next.git/objects >> "$bare/objects/info/alternates"
     # $preferred is the first of the per-entry upstream list (https preferred; git://
     # is often blocked); used only for an explicit human `git fetch origin`:
     git -C "$bare" remote add origin "$preferred"
@@ -44,7 +44,7 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     git -C "$bare" fetch --tags --force --prune mirror
     # add each extra remote (URL = its preferred upstream) and fetch refs from its mirror:
     git -C "$bare" remote add linux-next "$next_preferred"
-    git -C "$bare" fetch --tags --force --prune /mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
+    git -C "$bare" fetch --tags --force --prune "$WORKERS_DIR"/system/mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
     # a peer host's Bare at the same WORKERS_DIR layout, for cross-host dev branches:
     git -C "$bare" remote add hetzie "ssh://hetzie$WORKERS_DIR/system/bare/kernel/linux.git"
     git -C "$bare" config remote.hetzie.fetch '+refs/heads/*:refs/remotes/hetzie/*'
@@ -57,22 +57,30 @@ from pathlib import Path
 
 from f.common.devshell import Git
 
-DEFAULT_MIRRORS = [
-    {"name": "kernel", "mirror": "/mirror/linux.git",
-     "namespace": "kernel", "canonical": "linux",
-     "remotes": [
-         {"name": "linux-next", "mirror": "/mirror/linux-next.git"},
-         {"name": "linux-stable", "mirror": "/mirror/linux-stable.git"},
-         {"name": "linux-modules", "mirror": "/mirror/linux-modules.git"},
-     ]},
-    {"name": "qemu", "mirror": "/mirror/qemu.git",
-     "namespace": "qemu-project", "canonical": "qemu"},
-]
+def _default_mirrors(mirror_dir: Path) -> list[dict]:
+    """The built-in kernel + QEMU sources under the System workbench's mirror dir
+    (`WORKERS_DIR/system/mirror`). Each `<repo>.git` is a `--mirror` clone whose
+    `origin` points upstream; `git-mirror@<repo>` (f/workbench/mirror) keeps it
+    fresh on a timer."""
+    def m(repo: str) -> str:
+        return str(mirror_dir / f"{repo}.git")
+    return [
+        {"name": "kernel", "mirror": m("linux"),
+         "namespace": "kernel", "canonical": "linux",
+         "remotes": [
+             {"name": "linux-next", "mirror": m("linux-next")},
+             {"name": "linux-stable", "mirror": m("linux-stable")},
+             {"name": "linux-modules", "mirror": m("linux-modules")},
+         ]},
+        {"name": "qemu", "mirror": m("qemu"),
+         "namespace": "qemu-project", "canonical": "qemu"},
+    ]
 
 
 def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
          refresh: bool = True) -> dict:
-    mirrors = mirrors or DEFAULT_MIRRORS
+    workers = Path(os.environ["WORKERS_DIR"])
+    mirrors = mirrors or _default_mirrors(workers / "system/mirror")
     peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
     git = Git()
@@ -80,7 +88,6 @@ def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
     if "*" not in existing.split("\n"):
         git.run("config", "--global", "--add", "safe.directory", "*")
 
-    workers = Path(os.environ["WORKERS_DIR"])
     results = []
     for entry in mirrors:
         name, mirror, namespace, canonical = _validate(entry)

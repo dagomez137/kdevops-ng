@@ -65,9 +65,8 @@ Volume=%h/.local/state/qemu-system:%h/.local/state/qemu-system:rw
 # worker on a loopback-only instance; the build workers keep the default.
 AddDevice=/dev/vsock
 SeccompProfile=@SECCOMP_PROFILE@
-# /nix and the bare git mirror (read-only).
+# /nix store; the git mirror rides the system/ mount below (workers/system/mirror).
 Volume=/nix:/nix
-Volume=/mirror:/mirror:ro
 Volume=%C/windmill/cache:/tmp/windmill/cache
 Volume=%C/windmill/logs:/tmp/windmill/logs
 # Build workbench at IDENTICAL host paths: the system workbench (the durable Bare

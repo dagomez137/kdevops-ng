@@ -2,7 +2,7 @@
 
 Design for `f/qemu/build` — a Windmill flow that builds a custom QEMU from
 source, reproducibly, for the VM layer (qsu) to consume. It mirrors the existing
-`f/kernel/build` flow: a `/mirror`-backed git worktree built inside the
+`f/kernel/build` flow: a `workers/system/mirror`-backed git worktree built inside the
 `nixos-flake` devShell, producing a `result.json` manifest a downstream flow
 reads. The kernel flow is the template; this document is mostly "do what kernel
 does, for QEMU."
@@ -55,9 +55,10 @@ pixman, …). No distro packages, no `qemu-controller-setup`.
 The kernel build is backed by a durable Bare borrowing a host bare mirror, with
 one warm worktree per worker (ADR-0001). The chain:
 
-1. **Host bare mirror** `/mirror/linux.git`. Each worker container mounts
-   `/mirror:ro` (`windmill-worker.container.tmpl`). A QEMU mirror
-   `/mirror/qemu.git` rides the *same* mount — no quadlet change needed.
+1. **System workbench mirror** `workers/system/mirror/linux.git`, user-owned and
+   refreshed by the `git-mirror@linux` timer (`f/workbench/mirror`). It rides the
+   `system/` mount every worker already has — no separate `/mirror` mount. A QEMU
+   mirror `workers/system/mirror/qemu.git` sits alongside it.
 2. **Workbench bootstrap** (idempotent): the `f/workbench/init` flow (over
    `f/workbench/fetch`) provisions a durable **Bare** at
    `workers/system/bare/kernel/linux.git` with `git init --bare`, borrowing the
@@ -192,8 +193,8 @@ it, so qsu consumes the manifest without knowing how QEMU was built.
 - **New**: `f/qemu/{configure,compile,install,collect}.py` and
   `f/qemu/build.flow`.
 
-Prerequisite: `/mirror/qemu.git` exists on the host (a bare mirror of
-`qemu/qemu.git`), parallel to `/mirror/linux.git`.
+Prerequisite: `workers/system/mirror/qemu.git` exists on the host (a bare mirror of
+`qemu/qemu.git`), parallel to `workers/system/mirror/linux.git`.
 
 ## How qsu consumes this
 
