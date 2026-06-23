@@ -17,7 +17,7 @@ from pathlib import Path
 import jinja2
 import yaml
 
-from f.common.devshell import DevShell, Systemd
+from f.common.devshell import DevShell, Systemd, vendor_dir
 
 from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
@@ -33,8 +33,8 @@ CANONICAL_SHARE_TAGS = [
 
 
 def qsu_dir(workers: Path | None = None) -> Path:
-    """The vendored qemu-system-units tree (host-visible under workers/shared)."""
-    return (workers or _workers()) / "shared/qemu-system-units"
+    """The vendored qemu-system-units tree (host-visible under vendor/)."""
+    return vendor_dir(workers) / "qemu-system-units"
 
 
 def resolve_vm_name(fi: dict) -> str:

@@ -18,7 +18,7 @@ import os
 import shlex
 from pathlib import Path
 
-from f.common.devshell import DevShell
+from f.common.devshell import DevShell, vendor_dir
 from f.kernel.identity import bake_identity
 
 
@@ -50,7 +50,7 @@ def main(worktree: str, build_dir: str, preset: str = "imageless_defconfig",
 
 def _resolve_preset(workers: Path, preset: str) -> Path:
     """Resolve a preset name to a file under the library, rejecting path escapes."""
-    fragments = workers / "shared/linux-config-fragments/defconfigs"
+    fragments = vendor_dir(workers) / "linux-config-fragments/defconfigs"
     candidate = (fragments / preset).resolve()
     if fragments.resolve() not in candidate.parents:
         raise ValueError(f"preset {preset!r} resolves outside {fragments}")

@@ -18,7 +18,7 @@ maintainers:
 
 # Render the documentation locally with the flake's pinned Sphinx toolchain.
 docs:
-	nix develop ./workers/shared/nixos-flake#docs --command \
+	nix develop ./vendor/nixos-flake#docs --command \
 		sphinx-build docs docs/_build/html
 	@echo "docs ready: docs/_build/html/index.html"
 

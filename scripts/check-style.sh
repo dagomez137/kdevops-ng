@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Style + commit-message checks for kdevops-ng. Invoked by `make style`.
 # Hand-authored files only: machine-generated workspace content (f/, wmill-lock.yaml)
-# is owned by wmill, the vendored git subtrees under workers/ are upstream-owned, the
+# is owned by wmill, the vendored git subtrees under vendor/ are upstream-owned, the
 # verbatim license texts under LICENSES/ must stay byte-for-byte,
 # scripts/get_maintainer.pl is vendored from the kernel and tracked verbatim, and
 # screenshots/ holds binary image artifacts (no text style applies); all exempt.
 set -o errexit -o nounset -o pipefail
 
-scope=(-- . ':!f' ':!workers' ':!LICENSES' ':!wmill-lock.yaml' ':!scripts/get_maintainer.pl' ':!screenshots')
+scope=(-- . ':!f' ':!workers' ':!vendor' ':!LICENSES' ':!wmill-lock.yaml' ':!scripts/get_maintainer.pl' ':!screenshots')
 status=0
 
 # 1. Trailing whitespace.

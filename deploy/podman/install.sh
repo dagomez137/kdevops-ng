@@ -17,6 +17,9 @@ WORKERS="${WORKERS:-2}"
 # their count is the concurrent-test-run cap.
 VM_WORKERS="${VM_WORKERS:-4}"
 VM_RUN_WORKERS="${VM_RUN_WORKERS:-3}"
+# Vendored projects (ADR-0006) live in the top-level vendor/, a sibling of
+# WORKERS_DIR; every worker bind-mounts it read-only at the same absolute path.
+VENDOR_DIR="${VENDOR_DIR:-$(dirname "$WORKERS_DIR")/vendor}"
 
 # The per-worker identity of the i-th vm control worker: the first stays `vm` (its
 # sandbox dir, WORKER_INDEX and container name are unchanged), the rest are
@@ -27,6 +30,7 @@ _vmself() { [ "$1" = 1 ] && echo vm || echo "vm$1"; }
 _render_vm_worker() {
 	mkdir --parents "$WORKERS_DIR/$2"
 	sed --expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
+			--expression "s|@VENDOR_DIR@|$VENDOR_DIR|g" \
 			--expression "s|@SECCOMP_PROFILE@|$SECCOMP|g" \
 			--expression "s|@VMTAG@|$1|g" \
 			--expression "s|@VMSELF@|$2|g" \
@@ -41,10 +45,11 @@ install --mode=644 "$HERE"/systemd/*.network "$HERE"/systemd/*.container "$UNITS
 
 # Render WORKERS worker replicas (idempotent: clear stale ones first). Each
 # worker gets a numbered sandbox dir workers/w<NNNN> (0-based, zero-padded). The
-# shared/ tree carries the repo-tracked vendored deps (nixos-flake,
-# qemu-system-units, linux-config-fragments); the system/ tree holds the durable
-# Bare every build worktree hangs off; the f/workbench setup flow provisions the
-# runtime bits (the Bare, SSH key) once Windmill is up.
+# shared/ tree holds runtime caches (ccache, source mirrors of the test suites);
+# the repo-tracked vendored deps (nixos-flake, qemu-system-units,
+# linux-config-fragments) live in the top-level vendor/ (ADR-0006); the system/
+# tree holds the durable Bare every build worktree hangs off; the f/workbench
+# setup flow provisions the runtime bits (the Bare, SSH key) once Windmill is up.
 mkdir --parents "$WORKERS_DIR/shared" "$WORKERS_DIR/system"
 rm --force "$UNITS"/windmill-worker-*.container
 for i in $(seq 1 "$WORKERS"); do
@@ -53,6 +58,7 @@ for i in $(seq 1 "$WORKERS"); do
 		sed --expression "s|@INDEX@|$i|g" \
 				--expression "s|@SELFDIR@|$self|g" \
 				--expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
+				--expression "s|@VENDOR_DIR@|$VENDOR_DIR|g" \
 				"$HERE/windmill-worker.container.tmpl" >"$UNITS/windmill-worker-$i.container"
 done
 

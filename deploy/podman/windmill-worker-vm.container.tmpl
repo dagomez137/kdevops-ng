@@ -44,9 +44,10 @@ Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
 Environment=HOME=%h
 Environment=XDG_CONFIG_HOME=%h/.config
 Environment=XDG_STATE_HOME=%h/.local/state
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKERS_DIR
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKERS_DIR,VENDOR_DIR
 Environment=WORKER_INDEX=@VMSELF@
 Environment=WORKERS_DIR=@WORKERS_DIR@
+Environment=VENDOR_DIR=@VENDOR_DIR@
 Volume=%t/bus:%t/bus
 # Host user systemd search path + VM state, at identical paths: rendered units
 # land where the host manager reads them; qcow2 + sockets are the same inodes.
@@ -71,9 +72,11 @@ Volume=%C/windmill/cache:/tmp/windmill/cache
 Volume=%C/windmill/logs:/tmp/windmill/logs
 # Build workbench at IDENTICAL host paths: the system workbench (the durable Bare
 # and the Store catalog a vm worker resolves boot artifacts through), the shared
-# repos + flake + qsu templates, and this worker's own sandbox.
+# runtime caches, the pinned vendored deps + flake + qsu templates (read-only,
+# ADR-0006), and this worker's own sandbox.
 Volume=@WORKERS_DIR@/system:@WORKERS_DIR@/system:rw
 Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
+Volume=@VENDOR_DIR@:@VENDOR_DIR@:ro
 Volume=@WORKERS_DIR@/@VMSELF@:@WORKERS_DIR@/@VMSELF@:rw
 [Service]
 Restart=always

@@ -15,9 +15,6 @@ description: |
   Finally provisions the mirror refresh timers (`f/workbench/mirror`): a
   `git-mirror@<repo>.{service,timer}` per mirror under `workers/system/mirror`,
   force-refreshing each from upstream on a self-pacing loop.
-
-  TODO: also provision the `nixos-flake` devShell and `linux-config-fragments` here
-  (currently the host `setup-workspace.sh` does that — future git subtree).
 value:
   modules:
     - id: fetch

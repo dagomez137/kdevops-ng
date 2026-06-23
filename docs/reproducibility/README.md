@@ -52,7 +52,7 @@ handoff (broader Store/workbench roadmap) is preserved at
 - `flake: reproducible QEMU builds across hosts` — shared `reproducibleShellHook`,
   applied to `build-qemu` too.
 
-File: `workers/shared/nixos-flake/flake.nix`. Verified with `nix fmt`, `nix flake
+File: `vendor/nixos-flake/flake.nix`. Verified with `nix fmt`, `nix flake
 check`, and a vanilla (no env hacks) cross-host build that came out byte-identical.
 
 ## Consumer-side fixes — implemented this session

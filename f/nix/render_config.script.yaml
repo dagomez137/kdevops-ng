@@ -5,7 +5,7 @@ description: |
   `nixosfi` generate-configs phase.
 
   - `flake.nix` is a near-verbatim copy of the vendored imageless **template**
-    (`workers/shared/nixos-flake/templates/imageless/flake.nix`); only the
+    (`vendor/nixos-flake/templates/imageless/flake.nix`); only the
     `nixos-flake` path input is set, plus one `<pkg>-src` non-flake input per source
     override. The closure it builds is therefore byte-for-byte what kdevops builds.
   - `default.nix` is generated from the typed inputs and carries the per-VM

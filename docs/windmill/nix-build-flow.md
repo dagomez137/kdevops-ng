@@ -12,7 +12,7 @@ closure is the qsu half (parked, see
 
 ## The one distinction everything follows from
 
-The vendored `workers/shared/nixos-flake` is consumed in **two unrelated ways**,
+The vendored `vendor/nixos-flake` is consumed in **two unrelated ways**,
 and the right answer to "should we generate our own flake?" is opposite for each.
 
 | | Kernel build (today) | NixOS closure (this doc) |
@@ -53,7 +53,7 @@ reimplemented**.
 
 | Layer | kdevops `nixosfi` role | This flow | Same? |
 |---|---|---|---|
-| Library | `scripts/nixos-flake` (vendored) | `workers/shared/nixos-flake` (vendored) | identical (same repo) |
+| Library | `scripts/nixos-flake` (vendored) | `vendor/nixos-flake` (vendored) | identical (same repo) |
 | Per-VM artifact | dir: `flake.nix`+`default.nix`+`flake.lock` | same | identical shape |
 | `flake.nix` | `flake.nix.j2`, mirrors `templates/imageless/flake.nix` | render from that same template | identical output |
 | Modules | `nixosModules.{backends.imageless,user,profiles.*,testSuites.*,mounts.*}` | same | identical |
@@ -85,7 +85,7 @@ The unit of customization is a **per-VM configuration directory** with its own
 `flake.nix` + `default.nix` + `flake.lock` (`nixos-flake/docs/usage.md` "Multiple
 configurations"). Not one global flake rebuilt in place.
 
-- `inputs.nixos-flake.url = "path:<abs>/workers/shared/nixos-flake"` — we already
+- `inputs.nixos-flake.url = "path:<abs>/vendor/nixos-flake"` — we already
   vendor it there.
 - `inputs.nixpkgs.follows = "nixos-flake/nixpkgs"` — avoid a second nixpkgs.
 - `flake.nix` is essentially **static**; `nixos-flake` + `inputs` are passed via
@@ -240,10 +240,10 @@ the worker's nix.conf need not be configured.
 
 - [`flow-reference.md`](flow-reference.md) — OpenFlow/script model.
 - [`qsu-execution-model.md`](qsu-execution-model.md) — host-systemd boot model (qsu).
-- `workers/shared/nixos-flake/README.md` — backends, controller, boot model.
-- `workers/shared/nixos-flake/docs/usage.md` — configurations, modules, overlays,
+- `vendor/nixos-flake/README.md` — backends, controller, boot model.
+- `vendor/nixos-flake/docs/usage.md` — configurations, modules, overlays,
   the git-tracked requirement, source overrides.
-- `workers/shared/nixos-flake/templates/imageless/{flake,default}.nix` — the
+- `vendor/nixos-flake/templates/imageless/{flake,default}.nix` — the
   starter we render from (same source kdevops's `nixosfi` role mirrors).
 - kdevops `playbooks/roles/nixosfi/` + `playbooks/roles/qsu/` — the Ansible role
   this flow reimplements.

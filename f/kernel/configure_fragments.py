@@ -21,7 +21,7 @@ import os
 import shlex
 from pathlib import Path
 
-from f.common.devshell import DevShell, flags_to_env
+from f.common.devshell import DevShell, flags_to_env, vendor_dir
 from f.kernel.identity import bake_identity
 
 # Canonical category order. Builtin (=y) overrides always sort last (handled by a
@@ -49,7 +49,7 @@ def main(
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
-    configs = workers / "shared/linux-config-fragments/kernel/configs"
+    configs = vendor_dir(workers) / "linux-config-fragments/kernel/configs"
     if not configs.is_dir():
         raise FileNotFoundError(
             f"fragment library missing at {configs} — run f/workbench/init first")

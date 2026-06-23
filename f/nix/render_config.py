@@ -14,8 +14,8 @@ host-visible path, so a host-forked QEMU (qsu) can later serve the built closure
 
 Equivalent bash: scaffold from the imageless template, then edit the two files.
 
-    nix flake init --template "path:$WORKERS_DIR/shared/nixos-flake#imageless"
-    # flake.nix:    set inputs.nixos-flake.url = "path:$WORKERS_DIR/shared/nixos-flake"
+    nix flake init --template "path:$VENDOR_DIR/nixos-flake#imageless"
+    # flake.nix:    set inputs.nixos-flake.url = "path:$VENDOR_DIR/nixos-flake"
     # default.nix:  imports = [ nixos-flake.nixosModules.profiles.devel ... ];
     #               networking.hostName = "<vm_name>"; users...authorizedKeys = [ ... ];
 """
@@ -26,7 +26,9 @@ import os
 import re
 from pathlib import Path
 
-# Composable nixos-flake module attributes (see workers/shared/nixos-flake/flake.nix).
+from f.common.devshell import vendor_dir
+
+# Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
 _PROFILES = {"build-tools", "controller", "devel", "monitoring"}
 _TEST_SUITES = ["blktests", "fstests", "gitr", "ltp", "mmtests", "pynfs", "selftests", "sysbench"]
 
@@ -119,7 +121,7 @@ def main(
         print("note: no kdevops VM key at system/ssh/id_ed25519.pub (run "
               "f/workbench/init); guest will accept no SSH key", flush=True)
 
-    nixos_flake = workers / "shared/nixos-flake"
+    nixos_flake = vendor_dir(workers) / "nixos-flake"
     template = nixos_flake / "templates/imageless/flake.nix"
     if not template.is_file():
         raise FileNotFoundError(f"imageless template missing at {template} — provision nixos-flake first")

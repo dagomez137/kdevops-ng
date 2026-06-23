@@ -13,7 +13,7 @@ import os
 import re
 from pathlib import Path
 
-from f.common.devshell import Nix, run_logged
+from f.common.devshell import Nix, run_logged, vendor_dir
 
 
 def main():
@@ -30,7 +30,7 @@ def _flake(workers: Path | None = None) -> str:
     # #virtiofsd/#socat stay content-addressed by the subtree alone, not by the
     # enclosing kdevops-ng git rev (which would re-copy the repo and, when dirty,
     # churn the resolved paths the rendered units embed).
-    return f"path:{(workers or _workers())}/shared/nixos-flake"
+    return f"path:{vendor_dir(workers)}/nixos-flake"
 
 
 # --- nix store-path resolution -------------------------------------------------

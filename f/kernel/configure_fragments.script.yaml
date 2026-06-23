@@ -11,7 +11,7 @@ description: |
   to force that feature built-in (`=y`) instead — it always merges last so
   last-wins applies. With `allnoconfig_base` (default) unset symbols default to
   `n` for a minimal, explicit config. The library is provisioned at
-  `workers/shared/linux-config-fragments` by `f/workbench/init`.
+  `vendor/linux-config-fragments` by `f/workbench/init`.
 
   One of the interchangeable configure steps (see also `configure_make` and
   `configure_preset`). This is the guided multiselect over the curated library.
@@ -19,7 +19,7 @@ description: |
 
   > The fragment list below is a static snapshot of the library (117 entries).
   > Regenerate it when the library changes, as paths relative to `kernel/configs/`,
-  > sorted: `cd workers/shared/linux-config-fragments/kernel/configs && find . -name '*.config' | sed 's|^\./||' | sort`.
+  > sorted: `cd vendor/linux-config-fragments/kernel/configs && find . -name '*.config' | sed 's|^\./||' | sort`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

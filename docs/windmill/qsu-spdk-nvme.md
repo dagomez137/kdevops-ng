@@ -152,7 +152,7 @@ smaller); `00:05.0` ↔ drive index 1 ↔ `nvme-pmr-1.img`.
   closure needs `echo 1 > /sys/module/vfio_iommu_type1/parameters/allow_unsafe_interrupts`).
 - **No spdk after editing the vendored nixos-flake** — the closure pins it by narHash, so
   rebuild with `nix_lock.update_lock=true`; and a **new** file (e.g. an overlay) must be
-  `git add`ed in `workers/shared/nixos-flake` (a git flake sees only tracked files), not
+  `git add`ed in `vendor/nixos-flake` (a git flake sees only tracked files), not
   just copied.
 - **nixpkgs SPDK lags upstream** — the pinned channel ships an older SPDK than the latest
   `vYY.MM` tag; the overlay only recovers the missing example binaries, it does not bump

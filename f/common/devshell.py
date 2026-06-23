@@ -139,6 +139,19 @@ def main():
     return "f/common/devshell: shared DevShell/Git/Nix/Systemd helpers"
 
 
+def vendor_dir(workers: Path | str | None = None) -> Path:
+    """Top-level `vendor/` of the pinned vendored projects (ADR-0006).
+
+    Exposed to workers as VENDOR_DIR (a sibling of WORKERS_DIR, bind-mounted
+    read-only at the same absolute path); falls back to that sibling so a local
+    `wmill script preview` outside the container still resolves it.
+    """
+    if os.environ.get("VENDOR_DIR"):
+        return Path(os.environ["VENDOR_DIR"])
+    base = Path(workers) if workers else Path(os.environ["WORKERS_DIR"])
+    return base.parent / "vendor"
+
+
 class DevShell:
     """Run commands in the shared nixos-flake build devShell (argv, no shell).
 
@@ -150,7 +163,7 @@ class DevShell:
         # Default to the lean kernel shell; qemu steps pass shell="build" for the
         # qemu-laden one (see flake.nix devShells). path: resolves the subtree as a
         # standalone flake, not a subdir of the enclosing kdevops-ng git repo.
-        self._flake = f"path:{workers}/shared/nixos-flake#{shell}"
+        self._flake = f"path:{vendor_dir(workers)}/nixos-flake#{shell}"
         # Locate the managed ccache config (written by f/kernel/build_flags). All
         # ccache settings, including cache_dir, live in that file — CCACHE_CONFIGPATH
         # only points at it. Harmless when a build does not set CC="ccache ...".
@@ -189,7 +202,7 @@ def _resolve_git(workers: Path | str | None = None) -> str:
     link = base / "shared" / "gitbin"
     git = link / "bin" / "git"
     if not git.exists():
-        Nix().run("build", f"path:{base}/shared/nixos-flake#git", "--out-link", str(link))
+        Nix().run("build", f"path:{vendor_dir(base)}/nixos-flake#git", "--out-link", str(link))
     return str(git)
 
 

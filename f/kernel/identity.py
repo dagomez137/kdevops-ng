@@ -30,7 +30,7 @@ import re
 import shlex
 from pathlib import Path
 
-from f.common.devshell import Git, Nix
+from f.common.devshell import Git, Nix, vendor_dir
 
 
 def main():
@@ -67,7 +67,7 @@ def _digest(config_text: str, worktree: str, make_flags: str) -> str:
 
 def _toolchain() -> str:
     """The build-kernel devShell's derivation path — the toolchain store hash."""
-    flake = Path(os.environ["WORKERS_DIR"]) / "shared/nixos-flake"
+    flake = vendor_dir() / "nixos-flake"
     system = f"{os.uname().machine}-linux"
     return Nix().capture(
         "eval", "--raw", f"path:{flake}#devShells.{system}.build-kernel.drvPath").strip()

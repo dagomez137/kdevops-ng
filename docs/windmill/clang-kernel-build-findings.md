@@ -135,7 +135,7 @@ using the wrong (`out`) output for the resource include.
 The store paths above are nix-internal, so the clean home is the **nixos-flake**, not
 `build_flags` (which runs outside the devShell and can't compute them):
 
-1. In `workers/shared/nixos-flake`, expose the LLVM kernel make-flags string,
+1. In `vendor/nixos-flake`, expose the LLVM kernel make-flags string,
    computed in nix from `llvmPackages.clang-unwrapped` (CC + resource `-I` from its
    `lib` output), the wrapped clang (`HOSTCC`/`HOSTCXX`), and `lld` (`LD`). Either a
    flake output (`packages.<sys>.kernelLlvmFlags`, a text file) or a devShell env var

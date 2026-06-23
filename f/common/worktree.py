@@ -43,7 +43,7 @@ import re
 import shutil
 from pathlib import Path
 
-from f.common.devshell import DevShell, Git
+from f.common.devshell import DevShell, Git, vendor_dir
 
 
 def main():
@@ -79,9 +79,9 @@ def prepare(
 
     if not (bare / "objects").is_dir():
         raise FileNotFoundError(f"Bare {bare} missing — run f/workbench/init first")
-    if not (workers / "shared/nixos-flake/flake.nix").exists():
+    if not (vendor_dir(workers) / "nixos-flake/flake.nix").exists():
         raise FileNotFoundError(
-            f"nixos-flake devShell missing at {workers / 'shared/nixos-flake'} "
+            f"nixos-flake devShell missing at {vendor_dir(workers) / 'nixos-flake'} "
             "— provision it first")
 
     print(f"worker={worker_index} ref={ref} worktree={worktree}", flush=True)
