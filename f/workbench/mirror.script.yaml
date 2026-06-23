@@ -18,22 +18,17 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - repos
+    - mirrors
     - on_boot
     - on_inactive
     - mirror_dir
   properties:
-    repos:
+    mirrors:
       type: array
-      description: Mirror repo base names to keep fresh (each `<repo>.git` under the mirror dir). Empty = the built-in kernel + QEMU set.
-      default:
-        - linux
-        - linux-next
-        - linux-stable
-        - linux-modules
-        - qemu
+      description: "Mirror configs to provision: each `{name, mirror, remotes:[{name, path|url, protocol, primary}]}` is one bare repo carrying its upstream trees as remotes (protocol = git / https / https-googlesource). Empty = the built-in merged kernel + QEMU mirrors."
+      default: []
       items:
-        type: string
+        type: object
     on_boot:
       title: On Boot
       type: string

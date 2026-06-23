@@ -3,21 +3,20 @@
 
 Runnable step. For each entry it ensures the Bare at
 `WORKERS_DIR/system/bare/<namespace>/<canonical>.git` exists as a bare repo
-(`git init --bare`) that borrows the local mirror's objects via its alternates
-file (no objects copied, no upstream network). A `mirror` remote points at the
-local bare mirror and fetches its heads into `refs/remotes/mirror/*`; `origin`
-is set to the preferred upstream URL purely so a human `git fetch origin` works.
-`refs/heads/*` is left empty, reserved for developer pushes. Idempotent (ADR-0001:
-the Bare is the working repo).
+(`git init --bare`) that borrows the ONE merged mirror's objects via its alternates
+file (no objects copied, no upstream network). A single `mirror` remote points at the
+local merged mirror with per-tree refspecs: the mirror's primary heads land in
+`refs/remotes/mirror/*` (so worktree resolves `mirror/<ref>`), and every other tree the
+mirror carries (`refs/remotes/<tree>/*`, e.g. `linux-next`, `axboe`) is copied through
+unchanged, so a build can resolve `axboe/for-next` and friends. `origin` is set to the
+primary remote's upstream URL purely so a human `git fetch origin` works. `refs/heads/*`
+is left empty, reserved for developer pushes. Idempotent (ADR-0001: the Bare is the
+working repo).
 
-The upstream candidates come from the entry's `upstreams` list (user order), else its
-back-compat `upstream` string, else are derived from the mirror's `remote.origin.url`
-(https preferred, googlesource next, the raw `git://` last).
-
-An entry may carry extra `remotes`, each `{name, mirror, upstream?/upstreams?}`: a git
-remote whose URL is its own preferred upstream but whose refs are fetched from its own
-local mirror into `refs/remotes/<name>/*`, and whose objects are borrowed via the
-Bare's `objects/info/alternates` file alongside the main mirror's objects.
+The mirror's own remotes — which upstream trees it carries and over which protocol — are
+provisioned by `f/workbench/mirror`; `default_mirrors()`/`remote_url()` here are the
+shared source of truth for both. The entry's primary remote (the canonical tree, e.g.
+`torvalds/linux`) supplies the Bare's `origin` URL.
 
 `peers` is a list of ssh-host aliases of other workbench hosts. Each becomes a
 `<peer>` remote on every Bare, its URL the peer's Bare under the same WORKERS_DIR
@@ -32,19 +31,16 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     git config --global --add safe.directory '*'        # once per container
     mkdir --parents "$(dirname "$bare")"
     git init --bare "$bare"
-    # borrow the mirror objects (and each extra mirror's) instead of copying:
+    # borrow the ONE merged mirror's objects (every tree shares it) instead of copying:
     printf '%s\n' "$WORKERS_DIR"/system/mirror/linux.git/objects >> "$bare/objects/info/alternates"
-    printf '%s\n' "$WORKERS_DIR"/system/mirror/linux-next.git/objects >> "$bare/objects/info/alternates"
-    # $preferred is the first of the per-entry upstream list (https preferred; git://
-    # is often blocked); used only for an explicit human `git fetch origin`:
-    git -C "$bare" remote add origin "$preferred"
-    # the mirror remote: its heads land in refs/remotes/mirror/*, never refs/heads/*:
+    # origin = the primary tree's upstream, only for an explicit human `git fetch origin`:
+    git -C "$bare" remote add origin git://git.kernel.org/.../torvalds/linux.git
+    # one mirror remote, per-tree refspecs: primary heads -> refs/remotes/mirror/*,
+    # every other tree (axboe, linux-next, ...) copied through unchanged:
     git -C "$bare" remote add mirror "$mirror"
-    git -C "$bare" config remote.mirror.fetch '+refs/heads/*:refs/remotes/mirror/*'
+    git -C "$bare" config --replace-all remote.mirror.fetch '+refs/heads/*:refs/remotes/mirror/*'
+    git -C "$bare" config --add     remote.mirror.fetch '+refs/remotes/axboe/*:refs/remotes/axboe/*'
     git -C "$bare" fetch --tags --force --prune mirror
-    # add each extra remote (URL = its preferred upstream) and fetch refs from its mirror:
-    git -C "$bare" remote add linux-next "$next_preferred"
-    git -C "$bare" fetch --tags --force --prune "$WORKERS_DIR"/system/mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
     # a peer host's Bare at the same WORKERS_DIR layout, for cross-host dev branches:
     git -C "$bare" remote add hetzie "ssh://hetzie$WORKERS_DIR/system/bare/kernel/linux.git"
     git -C "$bare" config remote.hetzie.fetch '+refs/heads/*:refs/remotes/hetzie/*'
@@ -57,30 +53,62 @@ from pathlib import Path
 
 from f.common.devshell import Git
 
-def _default_mirrors(mirror_dir: Path) -> list[dict]:
-    """The built-in kernel + QEMU sources under the System workbench's mirror dir
-    (`WORKERS_DIR/system/mirror`). Each `<repo>.git` is a `--mirror` clone whose
-    `origin` points upstream; `git-mirror@<repo>` (f/workbench/mirror) keeps it
-    fresh on a timer."""
-    def m(repo: str) -> str:
-        return str(mirror_dir / f"{repo}.git")
+# A kernel.org git tree by protocol: the path is `<maintainer>/<repo>` under
+# /pub/scm/linux/kernel/git (e.g. torvalds/linux, next/linux-next, axboe/linux).
+# git is fastest but often firewalled; https is the safe default; https-googlesource
+# is the Google mirror for when kernel.org is unreachable.
+_KERNEL_ORG = {
+    "git": "git://git.kernel.org/pub/scm/linux/kernel/git/{path}.git",
+    "https": "https://git.kernel.org/pub/scm/linux/kernel/git/{path}.git",
+    "https-googlesource": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/{path}.git",
+}
+
+
+def remote_url(remote: dict) -> str:
+    """The clone URL for a mirror remote: an explicit `url`, or a kernel.org tree
+    `path` rendered with its `protocol` (git / https / https-googlesource)."""
+    if remote.get("url"):
+        return remote["url"]
+    proto = remote.get("protocol", "https")
+    if proto not in _KERNEL_ORG:
+        raise ValueError(f"remote {remote.get('name')!r}: unknown protocol {proto!r} "
+                         f"(want one of {', '.join(_KERNEL_ORG)})")
+    if not remote.get("path"):
+        raise ValueError(f"remote {remote.get('name')!r}: needs a kernel.org `path` "
+                         "(e.g. torvalds/linux) or an explicit `url`")
+    return _KERNEL_ORG[proto].format(path=remote["path"])
+
+
+def default_mirrors(mirror_dir: Path) -> list[dict]:
+    """The built-in merged mirrors under `WORKERS_DIR/system/mirror`. Each project is
+    ONE bare repo (`<name>.git`) carrying several upstream git trees as remotes that
+    all share its one object store; `git-mirror@<name>` (f/workbench/mirror) refreshes
+    every remote on a timer. The kernel mirror holds Linus's tree (the `primary`,
+    landing at `refs/heads/*`), -next/-stable/-modules and Axboe's block/io_uring/nvme
+    tree (each at `refs/remotes/<name>/*`); QEMU is its own mirror. Per-remote
+    `protocol` selects git / https / https-googlesource."""
+    def repo(name: str) -> str:
+        return str(mirror_dir / f"{name}.git")
     return [
-        {"name": "kernel", "mirror": m("linux"),
-         "namespace": "kernel", "canonical": "linux",
+        {"name": "linux", "namespace": "kernel", "canonical": "linux", "mirror": repo("linux"),
          "remotes": [
-             {"name": "linux-next", "mirror": m("linux-next")},
-             {"name": "linux-stable", "mirror": m("linux-stable")},
-             {"name": "linux-modules", "mirror": m("linux-modules")},
+             {"name": "torvalds", "path": "torvalds/linux", "protocol": "git", "primary": True},
+             {"name": "linux-next", "path": "next/linux-next", "protocol": "https"},
+             {"name": "linux-stable", "path": "stable/linux", "protocol": "https"},
+             {"name": "linux-modules", "path": "modules/linux", "protocol": "https"},
+             {"name": "axboe", "path": "axboe/linux", "protocol": "https"},
          ]},
-        {"name": "qemu", "mirror": m("qemu"),
-         "namespace": "qemu-project", "canonical": "qemu"},
+        {"name": "qemu", "namespace": "qemu-project", "canonical": "qemu", "mirror": repo("qemu"),
+         "remotes": [
+             {"name": "origin", "url": "https://gitlab.com/qemu-project/qemu.git", "primary": True},
+         ]},
     ]
 
 
 def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
          refresh: bool = True) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
-    mirrors = mirrors or _default_mirrors(workers / "system/mirror")
+    mirrors = mirrors or default_mirrors(workers / "system/mirror")
     peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
     git = Git()
@@ -91,25 +119,23 @@ def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
     results = []
     for entry in mirrors:
         name, mirror, namespace, canonical = _validate(entry)
-        remotes = entry.get("remotes") or []
+        # Non-primary trees the merged mirror carries (refs/remotes/<tree>/*); the Bare
+        # copies each through verbatim so a build can resolve e.g. `axboe/for-next`.
+        trees = [r["name"] for r in entry["remotes"] if not r.get("primary")]
         bare = workers / "system" / "bare" / namespace / f"{canonical}.git"
-        upstreams = _upstreams(git, mirror, entry)
-        preferred = _preferred(upstreams)
-        origin = preferred or mirror
-        action = _ensure(git, mirror, bare, preferred, remotes, refresh)
-        remote_results = _ensure_remotes(git, bare, remotes, action == "created", refresh, name)
+        origin = remote_url(_primary(entry))
+        action = _ensure(git, mirror, bare, origin, trees, refresh)
         peer_results = _ensure_peers(git, bare, peers, workers, namespace, canonical)
         head = git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip() or None
         print(f"{name}: {_progress(action, refresh)} (origin {origin})", flush=True)
         results.append({
             "name": name,
             "mirror": mirror,
-            "upstreams": upstreams,
             "origin": origin,
+            "trees": trees,
             "bare": str(bare),
             "action": action,
             "head": head,
-            "remotes": remote_results,
             "peers": peer_results,
         })
 
@@ -133,7 +159,8 @@ def _validate(entry: dict) -> tuple[str, str, str, str]:
                        ("namespace", namespace), ("canonical", canonical)):
         if not isinstance(value, str) or not value:
             raise ValueError(f"mirror entry {entry!r}: {key} must be a non-empty string")
-    _validate_upstreams(entry)
+    if not entry.get("remotes"):
+        raise ValueError(f"mirror {name!r}: needs at least one remote")
     if mirror.startswith("-"):
         raise ValueError(f"invalid mirror: {mirror}")
     for key, value in (("namespace", namespace), ("canonical", canonical)):
@@ -142,106 +169,47 @@ def _validate(entry: dict) -> tuple[str, str, str, str]:
     return name, mirror, namespace, canonical
 
 
-def _validate_remote(entry: dict) -> tuple[str, str]:
-    """Validate one remote entry and return its (name, mirror)."""
-    name = entry.get("name")
-    mirror = entry.get("mirror")
-    for key, value in (("name", name), ("mirror", mirror)):
-        if not isinstance(value, str) or not value:
-            raise ValueError(f"remote entry {entry!r}: {key} must be a non-empty string")
-    _validate_upstreams(entry)
-    if mirror.startswith("-"):
-        raise ValueError(f"invalid remote mirror: {mirror}")
-    return name, mirror
+def _primary(entry: dict) -> dict:
+    """The entry's primary remote (the canonical tree at the mirror's refs/heads/*),
+    else the first remote."""
+    remotes = entry.get("remotes") or []
+    for r in remotes:
+        if r.get("primary"):
+            return r
+    return remotes[0]
 
 
-def _validate_upstreams(entry: dict) -> None:
-    """Require `upstreams`, if present, to be a list of non-empty strings."""
-    upstreams = entry.get("upstreams")
-    if upstreams is None:
-        return
-    if not isinstance(upstreams, list) or any(
-            not isinstance(u, str) or not u for u in upstreams):
-        raise ValueError(f"entry {entry!r}: upstreams must be a list of non-empty strings")
-
-
-def _upstreams(git: Git, mirror: str, entry: dict) -> list[str]:
-    """Resolve candidate upstream URLs: explicit list, explicit string, else derived."""
-    explicit = entry.get("upstreams")
-    if explicit:
-        return list(explicit)
-    one = entry.get("upstream")
-    if one:
-        return [one]
-    origin = git.capture("-C", mirror, "config", "--get", "remote.origin.url",
-                         check=False).strip()
-    if not origin:
-        return []
-    https = origin
-    if https.startswith("git://"):
-        https = "https://" + https[len("git://"):]
-    candidates = [https if https.startswith("https://") else None]
-    if "git.kernel.org/" in https:
-        path = https.split("git.kernel.org/", 1)[1]
-        candidates.append(f"https://kernel.googlesource.com/{path}")
-    candidates.append(origin)
-    return list(dict.fromkeys(c for c in candidates if c))
-
-
-def _preferred(upstreams: list[str]) -> str | None:
-    """The preferred upstream URL: the first candidate, else None."""
-    return upstreams[0] if upstreams else None
-
-
-def _ensure(git: Git, mirror: str, bare: Path, preferred: str | None,
-            remotes: list[dict], refresh: bool) -> str:
-    """Ensure `bare` is a bare repo borrowing the mirror objects; return the action taken."""
+def _ensure(git: Git, mirror: str, bare: Path, origin: str, trees: list[str],
+            refresh: bool) -> str:
+    """Ensure `bare` borrows the merged mirror's objects and has a single `mirror`
+    remote that copies the mirror's primary heads to refs/remotes/mirror/* (so worktree
+    resolves `mirror/<ref>`) and each extra tree (refs/remotes/<tree>/*) through
+    unchanged. One alternate, one remote. Return the action taken."""
     fresh = not (bare / "objects").is_dir()
     if fresh:
         bare.parent.mkdir(parents=True, exist_ok=True)
         git.run("init", "--bare", str(bare))
-    _reconcile_alternates(bare, [mirror] + [_validate_remote(r)[1] for r in remotes])
-    if preferred:
-        if git.ok("-C", str(bare), "remote", "get-url", "origin"):
-            git.ok("-C", str(bare), "remote", "set-url", "origin", preferred)
-        else:
-            git.ok("-C", str(bare), "remote", "add", "origin", preferred)
+    _reconcile_alternates(bare, [mirror])
+    # origin: the primary upstream URL, only for an explicit human `git fetch origin`.
+    if git.ok("-C", str(bare), "remote", "get-url", "origin"):
+        git.ok("-C", str(bare), "remote", "set-url", "origin", origin)
+    else:
+        git.ok("-C", str(bare), "remote", "add", "origin", origin)
+    # mirror: the local merged mirror. Per-tree refspecs (not a catch-all), so each
+    # prunes only its own namespace and the mirror/* heads are never fought over.
     if git.ok("-C", str(bare), "remote", "get-url", "mirror"):
         git.ok("-C", str(bare), "remote", "set-url", "mirror", mirror)
     else:
         git.ok("-C", str(bare), "remote", "add", "mirror", mirror)
-    git.ok("-C", str(bare), "config", "remote.mirror.fetch",
-           "+refs/heads/*:refs/remotes/mirror/*")
+    git.run("-C", str(bare), "config", "--replace-all", "remote.mirror.fetch",
+            "+refs/heads/*:refs/remotes/mirror/*")
+    for tree in trees:
+        git.run("-C", str(bare), "config", "--add", "remote.mirror.fetch",
+                f"+refs/remotes/{tree}/*:refs/remotes/{tree}/*")
     if (fresh or refresh) and not git.ok("-C", str(bare), "fetch", "--tags", "--force",
                                          "--prune", "mirror"):
         print(f"note: fetch of {bare} from {mirror} failed; using local refs", flush=True)
     return "created" if fresh else ("refreshed" if refresh else "present")
-
-
-def _ensure_remotes(git: Git, bare: Path, remotes: list[dict], fresh: bool,
-                    refresh: bool, label: str) -> list[dict]:
-    """Wire each extra remote's remote URL and fetch; return per-remote actions."""
-    results = []
-    for remote in remotes:
-        rname, rmirror = _validate_remote(remote)
-        rupstreams = _upstreams(git, rmirror, remote)
-        url = _preferred(rupstreams) or rmirror
-        if git.ok("-C", str(bare), "remote", "get-url", rname):
-            git.ok("-C", str(bare), "remote", "set-url", rname, url)
-            action = "present"
-        else:
-            git.ok("-C", str(bare), "remote", "add", rname, url)
-            action = "added"
-        if fresh or refresh:
-            if git.ok("-C", str(bare), "fetch", "--tags", "--force", "--prune", rmirror,
-                      f"+refs/heads/*:refs/remotes/{rname}/*"):
-                action = "fetched"
-            else:
-                print(f"note: fetch of {bare} from {rmirror} ({rname}) failed; "
-                      "using local refs", flush=True)
-        print(f"{label}/{rname}: {action} (upstream {url})", flush=True)
-        results.append({"name": rname, "upstreams": rupstreams, "action": action})
-    return results
 
 
 def _ensure_peers(git: Git, bare: Path, peers: list[str], workers: Path,

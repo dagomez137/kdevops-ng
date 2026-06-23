@@ -1,29 +1,24 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-"""Provision the System workbench's git-mirror refresh timers (runnable step).
+"""Provision the System workbench's merged git mirrors and their refresh timers.
 
-Each local mirror under `WORKERS_DIR/system/mirror/<repo>.git` is a `--mirror`
-clone whose `origin` points upstream. This installs a `git-mirror@.{service,timer}`
-template pair into the host `systemd --user` manager and enables one instance per
-repo, so `git-mirror@<repo>.timer` force-refreshes that mirror from upstream on a
-self-pacing loop: the first run fires `OnBootSec`/`OnActiveSec` after the timer
-activates (at boot, or when it is enabled — `OnActiveSec` is what makes a timer
-enabled long after boot still start), then `OnUnitInactiveSec` after each run
-*finishes* (no overlap, and each repo paces independently — a slow `linux` fetch
-never delays `qemu`). The Bares borrow these mirrors' objects; this refresh is
-separate from (and slower-cadence than) the per-build fetch of the one target ref.
+Each project is ONE bare mirror under `WORKERS_DIR/system/mirror/<name>.git` holding
+several upstream git trees as remotes that share its single object store (the kernel
+mirror carries Linus's tree, -next, -stable, -modules and Axboe's block/io_uring/nvme
+tree; QEMU is its own). This step does two things:
 
-`git` is the flake's own, resolved once to a stable gc-rooted path
-(`f.common.devshell._resolve_git` → `shared/gitbin/bin/git`), so the host unit needs
-nothing on PATH. Units are written into the host user-manager search path and driven
-through `f.common.devshell.Systemd` (systemctl --user over the user bus), exactly as
-the qsu steps drive the host manager — so this runs on a `vm` worker.
+1. **Configure each mirror's remotes** from the shared config in `f.workbench.fetch`
+   (`default_mirrors`/`remote_url`): the primary tree's heads land at `refs/heads/*`,
+   every other tree at `refs/remotes/<tree>/*`, and each remote's clone URL is chosen by
+   its `protocol` (git / https / https-googlesource). A bare mirror is created if absent;
+   a stale remote not in the config (e.g. an old `--mirror` origin) is removed.
+2. **Install the refresh timers**: a `git-mirror@.{service,timer}` pair, one enabled
+   instance per mirror, so `git-mirror@<name>` runs `git remote update --prune` (refresh
+   every remote) on a self-pacing loop — the first run fires `OnBootSec`/`OnActiveSec`
+   after the timer activates, then `OnUnitInactiveSec` after each run finishes.
 
-Equivalent manual workflow:
-
-    install -m644 git-mirror@.service git-mirror@.timer ~/.config/systemd/user/
-    systemctl --user daemon-reload
-    systemctl --user enable --now git-mirror@linux.timer git-mirror@qemu.timer ...
-    systemctl --user list-timers 'git-mirror@*'
+git is the flake's own resolved path (so the host unit needs nothing on PATH); the units
+are driven through `f.common.devshell.Systemd` over the user bus, so this runs on a `vm`
+worker. Check with `systemctl --user list-timers 'git-mirror@*'`.
 """
 
 from __future__ import annotations
@@ -31,9 +26,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.common.devshell import Systemd, _resolve_git
-
-DEFAULT_REPOS = ["linux", "linux-next", "linux-stable", "linux-modules", "qemu"]
+from f.common.devshell import Git, Systemd, _resolve_git
+from f.workbench.fetch import default_mirrors, remote_url
 
 _SERVICE = """\
 [Unit]
@@ -77,35 +71,69 @@ def _write_unit(path: Path, content: str) -> None:
     print(f"wrote {path} ({len(content.encode())}B)", flush=True)
 
 
-def main(repos: list[str] | None = None, on_boot: str = "10m",
+def _provision_remotes(git: Git, repo: Path, remotes: list[dict]) -> list[dict]:
+    """Configure the bare mirror repo's remotes from the config (idempotent). The
+    primary tree fetches into refs/heads/*; the others into refs/remotes/<name>/*."""
+    if not (repo / "objects").is_dir():
+        repo.parent.mkdir(parents=True, exist_ok=True)
+        git.run("init", "--bare", str(repo))
+    wanted = {r["name"] for r in remotes}
+    for name in git.capture("-C", str(repo), "remote").split():
+        if name not in wanted:
+            git.run("-C", str(repo), "remote", "remove", name)
+            print(f"{repo.name}: removed stale remote {name}", flush=True)
+    results = []
+    for r in remotes:
+        name, url = r["name"], remote_url(r)
+        refspec = ("+refs/heads/*:refs/heads/*" if r.get("primary")
+                   else f"+refs/heads/*:refs/remotes/{name}/*")
+        if git.ok("-C", str(repo), "remote", "get-url", name):
+            git.run("-C", str(repo), "remote", "set-url", name, url)
+        else:
+            git.run("-C", str(repo), "remote", "add", name, url)
+        git.run("-C", str(repo), "config", f"remote.{name}.fetch", refspec)
+        git.run("-C", str(repo), "config", f"remote.{name}.tagOpt", "--tags")
+        # A leftover `--mirror` flag would override our refspec with +refs/*:refs/*.
+        git.ok("-C", str(repo), "config", "--unset", f"remote.{name}.mirror")
+        print(f"{repo.name}/{name} -> {url}", flush=True)
+        results.append({"name": name, "url": url, "primary": bool(r.get("primary"))})
+    return results
+
+
+def main(mirrors: list[dict] | None = None, on_boot: str = "10m",
          on_inactive: str = "10m", mirror_dir: str = "") -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
-    repos = [r.strip() for r in (repos or DEFAULT_REPOS) if r and r.strip()]
     mdir = Path(mirror_dir) if mirror_dir else workers / "system/mirror"
-    git = _resolve_git(workers)
+    mirrors = mirrors or default_mirrors(mdir)
+    git = Git()
+    gitbin = _resolve_git(workers)
     unit_dir = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "systemd/user"
 
     _write_unit(unit_dir / "git-mirror@.service",
-                _SERVICE.format(git=git, mirror_dir=mdir))
+                _SERVICE.format(git=gitbin, mirror_dir=mdir))
     _write_unit(unit_dir / "git-mirror@.timer",
                 _TIMER.format(on_boot=on_boot, on_inactive=on_inactive))
 
     sd = Systemd(workers)
     sd.systemctl("daemon-reload")
-    enabled, skipped = [], []
-    for repo in repos:
-        # Don't enable a timer for a mirror that is not on disk — it would just fail
-        # every cycle. The relocation/clone of the mirror itself is provisioned apart.
-        if not (mdir / f"{repo}.git").is_dir():
-            print(f"skip {repo}: no mirror at {mdir / f'{repo}.git'}", flush=True)
-            skipped.append(repo)
-            continue
-        # enable (the timers.target symlink, for the next boot) + restart (force a
-        # fresh start now with the current template; a plain `enable --now` left an
-        # already-present timer inactive over the worker's user bus).
-        sd.systemctl("enable", f"git-mirror@{repo}.timer")
-        sd.systemctl("restart", f"git-mirror@{repo}.timer")
-        enabled.append(repo)
+    wanted = {m["name"] for m in mirrors}
+    # Disable any leftover timer for a mirror no longer in the config (e.g. a tree that
+    # was merged into another mirror, so its repo is gone and the service would just fail).
+    wants = unit_dir / "timers.target.wants"
+    for link in sorted(wants.glob("git-mirror@*.timer")):
+        inst = link.name[len("git-mirror@"):-len(".timer")]
+        if inst not in wanted:
+            sd.systemctl("disable", "--now", link.name)
+            print(f"disabled stale timer {link.name}", flush=True)
+    provisioned = []
+    for m in mirrors:
+        remotes = _provision_remotes(git, Path(m["mirror"]), m["remotes"])
+        # enable (the timers.target symlink, for the next boot) + restart (force a fresh
+        # start now with the current template; a plain `enable --now` left an already
+        # present timer inactive over the worker's user bus).
+        sd.systemctl("enable", f"git-mirror@{m['name']}.timer")
+        sd.systemctl("restart", f"git-mirror@{m['name']}.timer")
+        provisioned.append({"name": m["name"], "remotes": remotes})
 
-    return {"mirror_dir": str(mdir), "git": git, "on_boot": on_boot,
-            "on_inactive": on_inactive, "enabled": enabled, "skipped": skipped}
+    return {"mirror_dir": str(mdir), "git": gitbin, "on_boot": on_boot,
+            "on_inactive": on_inactive, "mirrors": provisioned}

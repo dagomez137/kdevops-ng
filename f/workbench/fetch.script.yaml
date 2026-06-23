@@ -39,52 +39,47 @@ schema:
         properties:
           name:
             type: string
-            description: Short label for the mirror (used in the log/manifest).
+            description: Mirror + timer instance name (the bare repo `<name>.git`, e.g. linux, qemu).
           mirror:
             type: string
-            description: Local bare mirror to borrow objects from (e.g. WORKERS_DIR/system/mirror/linux.git).
+            description: The merged bare mirror repo path (e.g. WORKERS_DIR/system/mirror/linux.git). The Bare borrows its objects.
           namespace:
             type: string
             description: Project-namespace for the Bare (e.g. kernel, qemu-project) — never equal to the canonical name.
           canonical:
             type: string
             description: Upstream source-directory name (e.g. linux, qemu). The Bare lives at system/bare/<namespace>/<canonical>.git.
-          upstreams:
-            type: array
-            description: Candidate upstream URLs, preferred first (git/https/googlesource/github). Empty = auto-derive https/googlesource/git from the mirror's origin.
-            items:
-              type: string
-          upstream:
-            type: string
-            description: Single upstream URL (back-compat shorthand for a one-item upstreams list).
           remotes:
             type: array
-            description: Extra remotes, each borrowing objects from its own local mirror.
+            description: The upstream git trees this mirror carries as remotes (all sharing its object store). The `primary` lands at refs/heads/* (and supplies the Bare's origin URL); the rest at refs/remotes/<name>/*.
             items:
               type: object
               properties:
                 name:
                   type: string
-                  description: Remote name (e.g. linux-next).
-                mirror:
+                  description: Remote name (e.g. torvalds, linux-next, axboe).
+                path:
                   type: string
-                  description: Local bare mirror to borrow objects from.
-                upstreams:
-                  type: array
-                  description: Candidate upstream URLs for this remote, preferred first. Empty = auto-derive.
-                  items:
-                    type: string
-                upstream:
+                  description: kernel.org tree path under /pub/scm/linux/kernel/git (e.g. torvalds/linux); the URL is built from this + protocol.
+                protocol:
                   type: string
-                  description: Single upstream URL (back-compat shorthand).
+                  enum: [git, https, https-googlesource]
+                  default: https
+                  description: kernel.org protocol for `path` — git (fastest, often firewalled), https (safe default), or https-googlesource (the Google mirror).
+                url:
+                  type: string
+                  description: Explicit clone URL, overriding path/protocol (for non-kernel.org trees, e.g. QEMU on GitLab).
+                primary:
+                  type: boolean
+                  description: The canonical tree; its heads land at the mirror's refs/heads/* and supply the Bare's origin URL.
               required:
                 - name
-                - mirror
         required:
           - name
           - mirror
           - namespace
           - canonical
+          - remotes
     peers:
       type: array
       description: "ssh-host aliases of other workbench hosts. Each becomes a <peer> remote on every Bare (ssh://<peer>/<WORKERS_DIR>/system/bare/<ns>/<canonical>.git, same layout), so a developer can `git push <peer> <branch>` a dev branch cross-host for that host's worker to build. List peer hosts, not self; empty = single-host."
