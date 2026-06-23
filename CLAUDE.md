@@ -11,7 +11,7 @@ later.
 ## Layout
 
 `BOOTSTRAP.md` is the minimal end-to-end setup. `deploy/` holds the instance
-backends — `podman/` works today, `distro/` and `nix/` are planned; see
+backends. `podman/` works today; `distro/` and `nix/` are planned. See
 `deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
 and resources, no secrets, single `kdevops` workspace on branch `main`). `f/`
 holds the workspace content and is machine-managed by `wmill`. `Makefile` and
@@ -31,8 +31,8 @@ as separate sentences, or use a colon, semicolon, or parentheses instead.
 Box-drawing connectors in a genuine diagram are fine; this rule is about em and
 en dashes inside sentences.
 
-Always use the modern unified Nix CLI (`nix <subcommand>`) everywhere — code,
-scripts, docs and "Equivalent command" lines — never the classic `nix-*`
+Always use the modern unified Nix CLI (`nix <subcommand>`) everywhere, in code,
+scripts, docs and "Equivalent command" lines, and never the classic `nix-*`
 binaries. Use `nix build <path> --out-link <link>` to create a GC root (not
 `nix-store --add-root --realise`), `nix store add-path` to add a tree, `nix
 store gc` to collect garbage (not `nix-collect-garbage`), `nix develop` for a
@@ -55,11 +55,11 @@ When writing or extending Windmill flows and steps, also follow these rules:
   `subprocess.run`/`os.system`/`shell=True`.
 - **Compose commands explicitly; never bury execution.** Build an argv list
   (no shell strings) and let the runner print the exact, copy-pasteable
-  invocation before it runs. Surface filesystem mutations in the job log too —
-  print `wrote <path>` / `copied <src> -> <dest>`, matching `f/kernel`'s
+  invocation before it runs. Surface filesystem mutations in the job log too.
+  Print `wrote <path>` / `copied <src> -> <dest>`, matching `f/kernel`'s
   "artifact ready" style. Nothing silent.
 - **Don't restate what the runner logs; log it once, at the source.** The runner
-  already prints the exact command, so never hand-write a second copy of it — a
+  already prints the exact command, so never hand-write a second copy of it. A
   mirrored string drifts from what actually executes and quietly lies. A
   hand-written log line should carry only what the runner's output lacks (a
   baseline value, a decision, a count), as data, never a paraphrase of the
@@ -70,12 +70,12 @@ When writing or extending Windmill flows and steps, also follow these rules:
 - **Canonical upstream vocabulary.** In prose use the upstream spelling
   (`QEMU`, `NVMe`, `VFIO`, `IOMMU`, `SSH`, `QMP`, `NixOS`) and backtick
   commands/flags/units. Knob names are the upstream tool's own keywords (QEMU
-  flag names — `cpu`, `accel`, `machine_type`), never invented `*_*` names.
+  flag names such as `cpu`, `accel`, `machine_type`), never invented `*_*` names.
   Override Windmill's auto-title-cased field label with a schema `title:` for
   acronyms (`qemu_binary` → `QEMU Binary`, `cpu` → `CPU`, `ram` → `RAM`).
 - **Name the consumer, not the generator.** User-facing output (flow/step
-  summaries, descriptions, field labels) names the concept it produces —
-  `QEMU/systemd`, the `qemu-system@.service` unit — never the vendored
+  summaries, descriptions, field labels) names the concept it produces,
+  such as `QEMU/systemd` or the `qemu-system@.service` unit, never the vendored
   generator's codename (`qsu`/qemu-system-units). The codename appears only
   where it is the accurate, structural name: code paths (`f/qsu/`,
   `f.qsu.common`), the kdevops `qsu` ansible role being ported, the vendored
@@ -91,7 +91,7 @@ subflows it composes (`f/qsu/boot`, `f/kernel/build`, `f/nix/build`,
 edit the source subflow schema and/or `gen-bringup.py`, then run
 `python3 scripts/gen-bringup.py`. Never hand-edit the generated flow directly.
 `python3 scripts/gen-bringup.py --check` (run by `make generated`/`make style`)
-enforces this — it fails if the committed flow drifts from the generator output.
+enforces this; it fails if the committed flow drifts from the generator output.
 
 ## Commit rules
 
