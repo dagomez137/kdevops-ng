@@ -6,9 +6,9 @@ Imported with:  from f.common.worktree import prepare
 `prepare()` lays down one warm, detached `main` worktree per (worker, namespace)
 off the durable Bare at `workers/system/bare/<namespace>/<canonical>.git` (see
 `f/workspace/fetch.py`). The Bare borrows the local mirror's objects, so cutting a
-worktree is cheap and every worker sees the same trees. It runs `git` on the host
-(NOT in the devShell); only the optional `b4 shazam` step crosses into the
-`nixos-flake#build` devShell.
+worktree is cheap and every worker sees the same trees. Its `git` comes from the
+flake (`nixos-flake#git`, resolved once), so the worker needs only `nix` on PATH;
+the optional `b4 shazam` step runs in the `nixos-flake#build` devShell.
 
 The slot is `workers/<WORKER_INDEX>/<namespace>/main`; the worktree is
 `<slot>/<canonical>`, reused for every ref and across runs. `build` and `destdir`

@@ -1,4 +1,4 @@
-summary: "Shared helpers: nixos-flake devShell + host git + raw nix runners"
+summary: "Shared helpers: nixos-flake devShell + flake git + raw nix runners"
 description: |
   Library module imported by the build/provisioning steps
   (`from f.common.devshell import DevShell, Git, Nix`). Not a runnable step on its

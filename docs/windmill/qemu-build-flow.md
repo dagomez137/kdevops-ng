@@ -94,7 +94,7 @@ prepare_worktree → configure → compile → devtools → install → collect
 
 | Step (`f/qemu/*.py`) | Action | Runs in |
 |---|---|---|
-| `prepare_worktree` | sync this worker's warm `main` worktree of QEMU to `ref` off the Bare; make `build/` and `destdir/` (host `git`) | host |
+| `prepare_worktree` | sync this worker's warm `main` worktree of QEMU to `ref` off the Bare; make `build/` and `destdir/` (flake `git`) | host |
 | `configure` | `meson subprojects download` (in source), then `{src}/configure --target-list --prefix={destdir} --cc/--cxx --disable-download {configure_args}` in `build/` | `.#build` |
 | `compile` | `make -j$(nproc)` in `build/` (drives ninja) | `.#build` |
 | `devtools` | copy meson's `compile_commands.json` into the source root for clangd (on by default) | host |

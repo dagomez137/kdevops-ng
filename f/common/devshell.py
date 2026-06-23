@@ -4,7 +4,8 @@
 Imported with:  from f.common.devshell import DevShell, Git, Nix, Systemd
 
 `DevShell` runs commands inside the shared nixos-flake build devShell; `Git` runs
-host `git`; `Nix` runs the raw `nix` CLI (build, flake lock, ...); `Systemd` drives the
+the flake's `git` (`#git`, resolved once); `Nix` runs the raw `nix` CLI (build,
+flake lock, ...); `Systemd` drives the
 host `systemd --user` manager (systemctl/machinectl/journalctl) through the
 `#systemd` devShell. All build an argv list (no shell tokenizes caller values, so
 paths with spaces or metacharacters can neither break nor inject) and print the
@@ -19,10 +20,11 @@ import shlex
 import subprocess
 from pathlib import Path
 
-# The host nix profile bin (nix + git) prepended to a build step's PATH. Configurable
-# via NIX_BIN so a worker on a host that installs nix elsewhere (e.g. NixOS, where the
-# default profile lives under the store, not /nix/var/nix/profiles/default) can point it
-# at a reachable directory.
+# The nix bin prepended to a build step's PATH. Only `nix` need live here -- `git`
+# is resolved from the flake (see `_resolve_git`) and other tools come from the
+# devShells. Configurable via NIX_BIN so a worker on a host that installs nix
+# elsewhere (e.g. NixOS, where the default profile lives under the store, not
+# /nix/var/nix/profiles/default) can point it at a reachable directory.
 _NIX_BIN = os.environ.get("NIX_BIN", "/nix/var/nix/profiles/default/bin")
 
 # Enable flakes + the new CLI without depending on the worker's nix.conf, so a
@@ -174,29 +176,48 @@ class DevShell:
                               stdout=subprocess.PIPE, cwd=cwd).stdout
 
 
-class Git:
-    """Run host `git` by argv (no shell), PATH prefixed with the nix default profile.
+def _resolve_git(workers: Path | str | None = None) -> str:
+    """Resolve the nixos-flake's `git` binary, gc-rooting it for reuse.
 
-    `run` streams output; `ok` returns whether the command succeeded; `capture`
-    returns stdout.
+    The worker only needs `nix` on `NIX_BIN`; `git` itself comes from the flake
+    (its pinned nixpkgs + overlays). The first call builds the `#git` output and
+    pins it at `WORKERS_DIR/shared/gitbin` via `nix build --out-link` (a GC root),
+    so later steps and other workers on the host reuse the same store path with a
+    bare stat, no re-evaluation.
+    """
+    base = Path(workers) if workers else Path(os.environ["WORKERS_DIR"])
+    link = base / "shared" / "gitbin"
+    git = link / "bin" / "git"
+    if not git.exists():
+        Nix().run("build", f"path:{base}/shared/nixos-flake#git", "--out-link", str(link))
+    return str(git)
+
+
+class Git:
+    """Run the nixos-flake's `git` by argv (no shell).
+
+    The binary is resolved from the flake's `#git` output (see `_resolve_git`), so
+    the worker's `NIX_BIN` only needs `nix`. `run` streams output; `ok` returns
+    whether the command succeeded; `capture` returns stdout.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, workers: Path | str | None = None) -> None:
         self._env = _nix_env()
+        self._git = _resolve_git(workers)
 
     def run(self, *args: str, check: bool = True) -> int:
-        argv = ["git", *args]
+        argv = [self._git, *args]
         _log(argv)
         return subprocess.run(argv, env=self._env, check=check).returncode
 
     def ok(self, *args: str) -> bool:
-        argv = ["git", *args]
+        argv = [self._git, *args]
         _log(argv)
         return subprocess.run(argv, env=self._env,
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
     def capture(self, *args: str, check: bool = True) -> str:
-        argv = ["git", *args]
+        argv = [self._git, *args]
         _log(argv)
         return subprocess.run(argv, env=self._env, check=check, text=True,
                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout
