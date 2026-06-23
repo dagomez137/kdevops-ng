@@ -1,11 +1,12 @@
 summary: "Workspace Init"
 description: |
-  One-time (idempotent) bootstrap, run from the UI after Windmill is up. Creates the
-  shared no-checkout clones (default `workers/shared/kernel/linux` and
-  `workers/shared/qemu/qemu`) that every worker cuts cheap detached worktrees off
-  (`f/kernel/build`, `f/qemu/build`). Each clone tracks its real upstream but borrows
-  objects from the local `/mirror` for a fast clone. Thin flow over `f/workspace/fetch`
-  — override or extend the source list there; re-run it any time to refresh.
+  One-time (idempotent) bootstrap, run from the UI after Windmill is up. Provisions the
+  durable Bares (default `workers/system/bare/kernel/linux.git` and
+  `workers/system/bare/qemu-project/qemu.git`) that every worker cuts cheap detached
+  worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
+  but borrows objects from the local `/mirror`, and keeps `refs/heads/*` for developer
+  pushes. Thin flow over `f/workspace/fetch` — override or extend the source list there;
+  re-run it any time to refresh.
 
   Also provisions the kdevops-managed VM SSH key (`f/workspace/ssh_key`): one
   keypair under `workers/shared/ssh/` that every guest trusts, so after a one-time
@@ -49,7 +50,7 @@ schema:
   properties:
     mirrors:
       type: array
-      description: Mirrors to clone/refresh. Empty = the built-in kernel + QEMU defaults.
+      description: Mirrors to provision Bares from. Empty = the built-in kernel + QEMU defaults.
       default: []
       items:
         type: object
@@ -58,15 +59,18 @@ schema:
             type: string
           mirror:
             type: string
-          subpath:
+          namespace:
+            type: string
+          canonical:
             type: string
         required:
           - name
           - mirror
-          - subpath
+          - namespace
+          - canonical
     refresh:
       type: boolean
-      description: Fetch new refs/tags on already-present clones (default on).
+      description: Fetch new refs/tags on already-present Bares (default on).
       default: true
     setup_ssh:
       title: Setup SSH

@@ -1,49 +1,42 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-"""Clone/refresh the shared no-checkout main repos every build worktree is cut from.
+"""Provision the durable Bare main repos every build worktree is cut from.
 
-Runnable step. For each entry it ensures `WORKERS_DIR/<subpath>` exists as a
-`--no-checkout` clone built **from the local bare mirror** (`--shared`), borrowing the
-extra trees' objects via `--reference-if-able`, so the clone is fast (no objects
-copied) and needs no upstream network. `origin` is then re-pointed at the preferred
-upstream URL purely so a human `git fetch origin` works; everything automated fetches
-refs from the local mirrors, which the worker can always reach (`git.kernel.org` is
-often unreachable). The per-worker worktrees `f/common/worktree.prepare` adds on top
-are cheap because they share the same object store. Idempotent.
+Runnable step. For each entry it ensures the Bare at
+`WORKERS_DIR/system/bare/<namespace>/<canonical>.git` exists as a bare repo
+(`git init --bare`) that borrows the local mirror's objects via its alternates
+file (no objects copied, no upstream network). A `mirror` remote points at the
+local bare mirror and fetches its heads into `refs/remotes/mirror/*`; `origin`
+is set to the preferred upstream URL purely so a human `git fetch origin` works.
+`refs/heads/*` is left empty, reserved for developer pushes. Idempotent (ADR-0001:
+the Bare is the working repo).
 
 The upstream candidates come from the entry's `upstreams` list (user order), else its
 back-compat `upstream` string, else are derived from the mirror's `remote.origin.url`
-(https preferred, googlesource next, the raw `git://` last). The clone's HEAD is
-detached so a fetch into `refs/heads/*` is not refused.
+(https preferred, googlesource next, the raw `git://` last).
 
 An entry may carry extra `remotes`, each `{name, mirror, upstream?/upstreams?}`: a git
 remote whose URL is its own preferred upstream but whose refs are fetched from its own
-local mirror, and whose objects are borrowed via the repo-wide alternates file (not a
-per-remote flag — `git remote add` / `git fetch` take no `--reference`), wired as a
-clone-time `--reference-if-able` and reconciled into `.git/objects/info/alternates` to
-cover preexisting clones made without it.
+local mirror into `refs/remotes/<name>/*`, and whose objects are borrowed via the
+Bare's `objects/info/alternates` file alongside the main mirror's objects.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirror:
 
     git config --global --add safe.directory '*'        # once per container
-    mkdir --parents "$(dirname "$shared")"
-    # offline clone: refs+objects from the local mirror, extra objects borrowed too:
-    git clone --no-checkout --shared "$mirror" \
-        --reference-if-able /mirror/linux-next.git \
-        --reference-if-able /mirror/linux-stable.git \
-        --reference-if-able /mirror/linux-modules.git "$shared"
-    # existing clones made without the extra references: borrow their objects too:
-    printf '%s\n' /mirror/linux-next.git/objects >> "$shared/.git/objects/info/alternates"
-    # detach HEAD so the fetch into refs/heads/* is not refused:
-    git -C "$shared" update-ref --no-deref HEAD "$(git -C "$shared" rev-parse HEAD)"
+    mkdir --parents "$(dirname "$bare")"
+    git init --bare "$bare"
+    # borrow the mirror objects (and each extra mirror's) instead of copying:
+    printf '%s\n' /mirror/linux.git/objects >> "$bare/objects/info/alternates"
+    printf '%s\n' /mirror/linux-next.git/objects >> "$bare/objects/info/alternates"
     # $preferred is the first of the per-entry upstream list (https preferred; git://
     # is often blocked); used only for an explicit human `git fetch origin`:
-    git -C "$shared" remote set-url origin "$preferred"
-    # refresh refs from the LOCAL mirror (reliable; the host keeps it fresh):
-    git -C "$shared" fetch --tags --force --prune "$mirror" '+refs/heads/*:refs/heads/*'
+    git -C "$bare" remote add origin "$preferred"
+    # the mirror remote: its heads land in refs/remotes/mirror/*, never refs/heads/*:
+    git -C "$bare" remote add mirror "$mirror"
+    git -C "$bare" config remote.mirror.fetch '+refs/heads/*:refs/remotes/mirror/*'
+    git -C "$bare" fetch --tags --force mirror
     # add each extra remote (URL = its preferred upstream) and fetch refs from its mirror:
-    git -C "$shared" remote add linux-next "$next_preferred"
-    git -C "$shared" fetch --tags --force --prune /mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
-    git -C "$shared" worktree list
+    git -C "$bare" remote add linux-next "$next_preferred"
+    git -C "$bare" fetch --tags --force --prune /mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
 """
 
 from __future__ import annotations
@@ -54,13 +47,15 @@ from pathlib import Path
 from f.common.devshell import Git
 
 DEFAULT_MIRRORS = [
-    {"name": "kernel", "mirror": "/mirror/linux.git", "subpath": "shared/kernel/linux",
+    {"name": "kernel", "mirror": "/mirror/linux.git",
+     "namespace": "kernel", "canonical": "linux",
      "remotes": [
          {"name": "linux-next", "mirror": "/mirror/linux-next.git"},
          {"name": "linux-stable", "mirror": "/mirror/linux-stable.git"},
          {"name": "linux-modules", "mirror": "/mirror/linux-modules.git"},
      ]},
-    {"name": "qemu", "mirror": "/mirror/qemu.git", "subpath": "shared/qemu/qemu"},
+    {"name": "qemu", "mirror": "/mirror/qemu.git",
+     "namespace": "qemu-project", "canonical": "qemu"},
 ]
 
 
@@ -75,23 +70,22 @@ def main(mirrors: list[dict] | None = None, refresh: bool = True) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     results = []
     for entry in mirrors:
-        name, mirror, subpath = _validate(entry)
+        name, mirror, namespace, canonical = _validate(entry)
         remotes = entry.get("remotes") or []
-        shared = workers / subpath
+        bare = workers / "system" / "bare" / namespace / f"{canonical}.git"
         upstreams = _upstreams(git, mirror, entry)
         preferred = _preferred(upstreams)
         origin = preferred or mirror
-        action = _ensure(git, mirror, shared, preferred, remotes, refresh)
-        remote_results = _ensure_remotes(git, shared, remotes, action == "cloned", refresh, name)
-        head = git.capture("-C", str(shared), "rev-parse", "HEAD", check=False).strip() or None
-        git.ok("-C", str(shared), "worktree", "list")
+        action = _ensure(git, mirror, bare, preferred, remotes, refresh)
+        remote_results = _ensure_remotes(git, bare, remotes, action == "created", refresh, name)
+        head = git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip() or None
         print(f"{name}: {_progress(action, refresh)} (origin {origin})", flush=True)
         results.append({
             "name": name,
             "mirror": mirror,
             "upstreams": upstreams,
             "origin": origin,
-            "shared": str(shared),
+            "bare": str(bare),
             "action": action,
             "head": head,
             "remotes": remote_results,
@@ -100,20 +94,23 @@ def main(mirrors: list[dict] | None = None, refresh: bool = True) -> dict:
     return {"workers_dir": str(workers), "mirrors": results}
 
 
-def _validate(entry: dict) -> tuple[str, str, str]:
-    """Validate one mirror entry and return its (name, mirror, subpath)."""
+def _validate(entry: dict) -> tuple[str, str, str, str]:
+    """Validate one mirror entry and return its (name, mirror, namespace, canonical)."""
     name = entry.get("name")
     mirror = entry.get("mirror")
-    subpath = entry.get("subpath")
-    for key, value in (("name", name), ("mirror", mirror), ("subpath", subpath)):
+    namespace = entry.get("namespace")
+    canonical = entry.get("canonical")
+    for key, value in (("name", name), ("mirror", mirror),
+                       ("namespace", namespace), ("canonical", canonical)):
         if not isinstance(value, str) or not value:
             raise ValueError(f"mirror entry {entry!r}: {key} must be a non-empty string")
     _validate_upstreams(entry)
     if mirror.startswith("-"):
         raise ValueError(f"invalid mirror: {mirror}")
-    if ".." in subpath or Path(subpath).is_absolute():
-        raise ValueError(f"invalid subpath: {subpath}")
-    return name, mirror, subpath
+    for key, value in (("namespace", namespace), ("canonical", canonical)):
+        if ".." in value or value.startswith("-") or Path(value).is_absolute():
+            raise ValueError(f"invalid {key}: {value}")
+    return name, mirror, namespace, canonical
 
 
 def _validate_remote(entry: dict) -> tuple[str, str]:
@@ -167,67 +164,60 @@ def _preferred(upstreams: list[str]) -> str | None:
     return upstreams[0] if upstreams else None
 
 
-def _ensure(git: Git, mirror: str, shared: Path, preferred: str | None,
+def _ensure(git: Git, mirror: str, bare: Path, preferred: str | None,
             remotes: list[dict], refresh: bool) -> str:
-    """Ensure `shared` is a no-checkout clone of the local mirror; return the action taken."""
-    fresh = not ((shared / ".git").exists() or (shared / "objects").is_dir())
+    """Ensure `bare` is a bare repo borrowing the mirror objects; return the action taken."""
+    fresh = not (bare / "objects").is_dir()
     if fresh:
-        shared.parent.mkdir(parents=True, exist_ok=True)
-        refs = []
-        for remote in remotes:
-            refs += ["--reference-if-able", _validate_remote(remote)[1]]
-        git.run("clone", "--no-checkout", "--shared", mirror, *refs, str(shared))
-    _detach_head(git, shared)
+        bare.parent.mkdir(parents=True, exist_ok=True)
+        git.run("init", "--bare", str(bare))
+    _reconcile_alternates(bare, [mirror] + [_validate_remote(r)[1] for r in remotes])
     if preferred:
-        git.ok("-C", str(shared), "remote", "set-url", "origin", preferred)
-    if (fresh or refresh) and not git.ok("-C", str(shared), "fetch", "--tags", "--force",
-                                         "--prune", mirror, "+refs/heads/*:refs/heads/*"):
-        print(f"note: fetch of {shared} from {mirror} failed; using local refs", flush=True)
-    return "cloned" if fresh else ("refreshed" if refresh else "present")
+        if git.ok("-C", str(bare), "remote", "get-url", "origin"):
+            git.ok("-C", str(bare), "remote", "set-url", "origin", preferred)
+        else:
+            git.ok("-C", str(bare), "remote", "add", "origin", preferred)
+    if git.ok("-C", str(bare), "remote", "get-url", "mirror"):
+        git.ok("-C", str(bare), "remote", "set-url", "mirror", mirror)
+    else:
+        git.ok("-C", str(bare), "remote", "add", "mirror", mirror)
+    git.ok("-C", str(bare), "config", "remote.mirror.fetch",
+           "+refs/heads/*:refs/remotes/mirror/*")
+    if (fresh or refresh) and not git.ok("-C", str(bare), "fetch", "--tags", "--force",
+                                         "mirror"):
+        print(f"note: fetch of {bare} from {mirror} failed; using local refs", flush=True)
+    return "created" if fresh else ("refreshed" if refresh else "present")
 
 
-def _ensure_remotes(git: Git, shared: Path, remotes: list[dict], fresh: bool,
+def _ensure_remotes(git: Git, bare: Path, remotes: list[dict], fresh: bool,
                     refresh: bool, label: str) -> list[dict]:
-    """Wire each extra remote's alternate, remote URL and fetch; return per-remote actions."""
-    if not remotes:
-        return []
-    _reconcile_alternates(shared, [_validate_remote(r)[1] for r in remotes])
+    """Wire each extra remote's remote URL and fetch; return per-remote actions."""
     results = []
     for remote in remotes:
         rname, rmirror = _validate_remote(remote)
         rupstreams = _upstreams(git, rmirror, remote)
         url = _preferred(rupstreams) or rmirror
-        if git.ok("-C", str(shared), "remote", "get-url", rname):
-            git.ok("-C", str(shared), "remote", "set-url", rname, url)
+        if git.ok("-C", str(bare), "remote", "get-url", rname):
+            git.ok("-C", str(bare), "remote", "set-url", rname, url)
             action = "present"
         else:
-            git.ok("-C", str(shared), "remote", "add", rname, url)
+            git.ok("-C", str(bare), "remote", "add", rname, url)
             action = "added"
         if fresh or refresh:
-            if git.ok("-C", str(shared), "fetch", "--tags", "--force", "--prune", rmirror,
+            if git.ok("-C", str(bare), "fetch", "--tags", "--force", "--prune", rmirror,
                       f"+refs/heads/*:refs/remotes/{rname}/*"):
                 action = "fetched"
             else:
-                print(f"note: fetch of {shared} from {rmirror} ({rname}) failed; "
+                print(f"note: fetch of {bare} from {rmirror} ({rname}) failed; "
                       "using local refs", flush=True)
         print(f"{label}/{rname}: {action} (upstream {url})", flush=True)
         results.append({"name": rname, "upstreams": rupstreams, "action": action})
     return results
 
 
-def _detach_head(git: Git, shared: Path) -> None:
-    """Detach the shared clone's HEAD so a fetch into `refs/heads/*` is not refused."""
-    branch = git.capture("-C", str(shared), "symbolic-ref", "--quiet", "HEAD", check=False).strip()
-    if not branch:
-        return
-    sha = git.capture("-C", str(shared), "rev-parse", "HEAD", check=False).strip()
-    if sha:
-        git.run("-C", str(shared), "update-ref", "--no-deref", "HEAD", sha)
-
-
-def _reconcile_alternates(shared: Path, mirrors: list[str]) -> None:
-    """Append each mirror's `objects` dir to the clone's alternates file, deduped."""
-    info = shared / ".git" / "objects" / "info"
+def _reconcile_alternates(bare: Path, mirrors: list[str]) -> None:
+    """Append each mirror's `objects` dir to the bare repo's alternates file, deduped."""
+    info = bare / "objects" / "info"
     alternates = info / "alternates"
     present = alternates.read_text().splitlines() if alternates.exists() else []
     wanted = [str(Path(m) / "objects") for m in mirrors]

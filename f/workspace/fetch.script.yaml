@@ -1,10 +1,12 @@
-summary: "Workspace fetch: clone/refresh shared sources from upstream"
+summary: "Workspace fetch: provision the durable Bare repos from local mirrors"
 description: |
-  Clone/refresh the shared no-checkout main repos every build worktree is cut from.
-  Each `WORKERS_DIR/<subpath>` is an **offline** `--no-checkout --shared` clone of the
-  local bare **mirror** (so it never needs upstream network); `refresh` then pulls new
-  refs from that local mirror, which the host keeps current. `origin`'s URL is set to
-  the **preferred upstream** for an explicit `git fetch origin`.
+  Provision the durable **Bare** main repos every build worktree is cut from. Each
+  Bare at `WORKERS_DIR/system/bare/<namespace>/<canonical>.git` is a `git init --bare`
+  repo that **borrows** the local bare **mirror**'s objects via its alternates file (no
+  objects copied, no upstream network). A `mirror` remote fetches the mirror's heads
+  into `refs/remotes/mirror/*`; `refs/heads/*` is left empty, reserved for developer
+  pushes. `origin`'s URL is set to the **preferred upstream** for an explicit
+  `git fetch origin` (ADR-0001: the Bare is the working repo).
 
   `upstreams` is a **list** of candidate clone URLs (git / https / googlesource /
   github) — the first is preferred. Many servers block `git://`, so for a kernel.org
@@ -12,11 +14,12 @@ description: |
   `https://kernel.googlesource.com/…` then the raw `git://…`; set `upstreams` (or the
   single `upstream`) explicitly to add e.g. a github URL. Idempotent.
 
-  An entry may carry extra `remotes` — each its own tree, borrowing objects from its
-  own local mirror (the default kernel clone carries `linux-next`, `linux-stable`,
-  `linux-modules`); works on preexisting clones too (alternates are reconciled).
+  An entry may carry extra `remotes` — each its own upstream, borrowing objects from
+  its own local mirror and fetched into `refs/remotes/<name>/*` (the default kernel
+  Bare carries `linux-next`, `linux-stable`, `linux-modules`); works on preexisting
+  Bares too (alternates are reconciled).
 
-  Returns a manifest of each clone (`shared`, `upstreams`, `origin`, `action`, `head`,
+  Returns a manifest of each Bare (`bare`, `upstreams`, `origin`, `action`, `head`,
   `remotes`).
 kind: script
 schema:
@@ -28,11 +31,12 @@ schema:
   properties:
     mirrors:
       type: array
-      description: Mirrors to clone/refresh. Empty = the built-in kernel + QEMU defaults.
+      description: Mirrors to provision Bares from. Empty = the built-in kernel + QEMU defaults.
       default:
         - name: kernel
           mirror: /mirror/linux.git
-          subpath: shared/kernel/linux
+          namespace: kernel
+          canonical: linux
           remotes:
             - name: linux-next
               mirror: /mirror/linux-next.git
@@ -42,7 +46,8 @@ schema:
               mirror: /mirror/linux-modules.git
         - name: qemu
           mirror: /mirror/qemu.git
-          subpath: shared/qemu/qemu
+          namespace: qemu-project
+          canonical: qemu
       items:
         type: object
         properties:
@@ -52,9 +57,12 @@ schema:
           mirror:
             type: string
             description: Local bare mirror to borrow objects from (e.g. /mirror/linux.git).
-          subpath:
+          namespace:
             type: string
-            description: Destination under WORKERS_DIR (e.g. shared/kernel/linux).
+            description: Project-namespace for the Bare (e.g. kernel, qemu-project) — never equal to the canonical name.
+          canonical:
+            type: string
+            description: Upstream source-directory name (e.g. linux, qemu). The Bare lives at system/bare/<namespace>/<canonical>.git.
           upstreams:
             type: array
             description: Candidate upstream URLs, preferred first (git/https/googlesource/github). Empty = auto-derive https/googlesource/git from the mirror's origin.
@@ -89,9 +97,10 @@ schema:
         required:
           - name
           - mirror
-          - subpath
+          - namespace
+          - canonical
     refresh:
       type: boolean
-      description: Fetch new refs/tags on already-present clones (default on). Off = clone-if-absent only.
+      description: Fetch new refs/tags on already-present Bares (default on). Off = create-if-absent only.
       default: true
   required: []
