@@ -20,6 +20,12 @@ name = "markdown"
 text-width = 80
 
 [[language]]
+name = "rst"
+text-width = 80
+rulers = [80]
+soft-wrap = { enable = true, wrap-at-text-width = true }
+
+[[language]]
 name = "python"
 language-servers = ["pyright"]
 auto-format = true
