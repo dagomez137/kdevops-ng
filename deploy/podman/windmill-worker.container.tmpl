@@ -29,7 +29,10 @@ Volume=%C/windmill/cache:/tmp/windmill/cache
 # so the server can serve them for download.
 Volume=%C/windmill/logs:/tmp/windmill/logs
 # Build workspace mounted at IDENTICAL host paths so git worktree links resolve:
-# the shared main repos + flake, and this worker's own numbered sandbox.
+# the system workbench (the durable Bare every worktree hangs off, writable for
+# the per-build mirror fetch and developer pushes), the shared vendored deps +
+# flake, and this worker's own numbered sandbox.
+Volume=@WORKERS_DIR@/system:@WORKERS_DIR@/system:rw
 Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
 Volume=@WORKERS_DIR@/@SELFDIR@:@WORKERS_DIR@/@SELFDIR@:rw
 [Service]

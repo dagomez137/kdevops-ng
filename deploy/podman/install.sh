@@ -40,14 +40,15 @@ install --mode=644 "$HERE/Caddyfile" "$STATE/Caddyfile"
 install --mode=644 "$HERE"/systemd/*.network "$HERE"/systemd/*.container "$UNITS"/
 
 # Render WORKERS worker replicas (idempotent: clear stale ones first). Each
-# worker gets a numbered sandbox dir workers/<NNNN> (0-based, zero-padded). The
+# worker gets a numbered sandbox dir workers/w<NNNN> (0-based, zero-padded). The
 # shared/ tree carries the repo-tracked vendored deps (nixos-flake,
-# qemu-system-units, linux-config-fragments); the f/workspace setup flow
-# provisions the runtime bits (mirrors, SSH key) once Windmill is up.
-mkdir --parents "$WORKERS_DIR/shared"
+# qemu-system-units, linux-config-fragments); the system/ tree holds the durable
+# Bare every build worktree hangs off; the f/workspace setup flow provisions the
+# runtime bits (the Bare, SSH key) once Windmill is up.
+mkdir --parents "$WORKERS_DIR/shared" "$WORKERS_DIR/system"
 rm --force "$UNITS"/windmill-worker-*.container
 for i in $(seq 1 "$WORKERS"); do
-		self=$(printf '%04d' "$((i - 1))")
+		self=$(printf 'w%04d' "$((i - 1))")
 		mkdir --parents "$WORKERS_DIR/$self"
 		sed --expression "s|@INDEX@|$i|g" \
 				--expression "s|@SELFDIR@|$self|g" \
