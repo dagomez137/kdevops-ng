@@ -12,6 +12,10 @@ description: |
   keypair under `workers/system/ssh/` that every guest trusts, so after a one-time
   `Include` line in `~/.ssh/config` a plain `ssh <vm>` works. Returns that line.
 
+  Finally provisions the mirror refresh timers (`f/workbench/mirror`): a
+  `git-mirror@<repo>.{service,timer}` per mirror under `workers/system/mirror`,
+  force-refreshing each from upstream on a self-pacing loop.
+
   TODO: also provision the `nixos-flake` devShell and `linux-config-fragments` here
   (currently the host `setup-workspace.sh` does that — future git subtree).
 value:
@@ -42,6 +46,21 @@ value:
           regenerate:
             type: javascript
             expr: flow_input.regenerate_ssh_key
+    - id: mirror
+      summary: Provision the git-mirror refresh timers
+      skip_if:
+        expr: flow_input.setup_mirrors === false
+      value:
+        type: script
+        path: f/workbench/mirror
+        tag_override: vm
+        input_transforms:
+          on_boot:
+            type: javascript
+            expr: flow_input.mirror_on_boot
+          on_inactive:
+            type: javascript
+            expr: flow_input.mirror_on_inactive
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -51,6 +70,9 @@ schema:
     - refresh
     - setup_ssh
     - regenerate_ssh_key
+    - setup_mirrors
+    - mirror_on_boot
+    - mirror_on_inactive
   properties:
     mirrors:
       type: array
@@ -92,4 +114,19 @@ schema:
       type: boolean
       description: Force a fresh VM keypair even if one exists. Invalidates the authorized key already baked into every built closure — rebuild closures after.
       default: false
+    setup_mirrors:
+      title: Setup Mirrors
+      type: boolean
+      description: Install + enable the `git-mirror@<repo>` refresh timers for the mirrors under `workers/system/mirror` (default on). Off = skip; existing timers untouched.
+      default: true
+    mirror_on_boot:
+      title: Mirror On Boot
+      type: string
+      description: First mirror refresh this long after boot (systemd `OnBootSec`).
+      default: 10m
+    mirror_on_inactive:
+      title: Mirror On Inactive
+      type: string
+      description: Next mirror refresh this long after the previous one finishes (systemd `OnUnitInactiveSec`).
+      default: 10m
   required: []

@@ -1,0 +1,53 @@
+summary: "Workbench mirror: provision git-mirror@ refresh timers"
+description: |
+  Install the `git-mirror@.{service,timer}` template pair into the host
+  `systemd --user` manager and enable one instance per mirror repo, so each local
+  `WORKERS_DIR/system/mirror/<repo>.git` is force-refreshed from its upstream
+  `origin` (`git remote update --prune`) on a self-pacing loop — `OnBootSec` after
+  boot, then `OnUnitInactiveSec` after each run finishes. Per-repo instances pace
+  and fail independently (a slow `linux` fetch never delays `qemu`).
+
+  `git` is the flake's own (a stable gc-rooted path), so the host unit needs nothing
+  on PATH. A repo with no mirror on disk is skipped, not enabled. Runs on a `vm`
+  worker (it drives the host user manager over the user bus, like the qsu steps).
+
+  Returns the enabled/skipped repos and the resolved git + mirror dir. Check with
+  `systemctl --user list-timers 'git-mirror@*'`.
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - repos
+    - on_boot
+    - on_inactive
+    - mirror_dir
+  properties:
+    repos:
+      type: array
+      description: Mirror repo base names to keep fresh (each `<repo>.git` under the mirror dir). Empty = the built-in kernel + QEMU set.
+      default:
+        - linux
+        - linux-next
+        - linux-stable
+        - linux-modules
+        - qemu
+      items:
+        type: string
+    on_boot:
+      title: On Boot
+      type: string
+      description: First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`, `1h`).
+      default: 10m
+    on_inactive:
+      title: On Inactive
+      type: string
+      description: Next refresh this long after the previous one finishes (systemd `OnUnitInactiveSec`).
+      default: 10m
+    mirror_dir:
+      title: Mirror Dir
+      type: string
+      description: Directory holding the `<repo>.git` mirrors. Empty = `WORKERS_DIR/system/mirror`.
+      default: ""
+  required: []
+tag: vm
