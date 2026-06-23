@@ -9,7 +9,7 @@ description: |
   re-run it any time to refresh.
 
   Also provisions the kdevops-managed VM SSH key (`f/workspace/ssh_key`): one
-  keypair under `workers/shared/ssh/` that every guest trusts, so after a one-time
+  keypair under `workers/system/ssh/` that every guest trusts, so after a one-time
   `Include` line in `~/.ssh/config` a plain `ssh <vm>` works. Returns that line.
 
   TODO: also provision the `nixos-flake` devShell and `linux-config-fragments` here

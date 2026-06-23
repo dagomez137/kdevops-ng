@@ -116,7 +116,7 @@ def main(
     if managed:
         ssh_keys = [managed, *(k for k in ssh_keys if k != managed)]
     elif not ssh_keys:
-        print("note: no kdevops VM key at shared/ssh/id_ed25519.pub (run "
+        print("note: no kdevops VM key at system/ssh/id_ed25519.pub (run "
               "f/workspace/init); guest will accept no SSH key", flush=True)
 
     nixos_flake = workers / "shared/nixos-flake"
@@ -149,7 +149,7 @@ def main(
 
 def _managed_pubkey(workers: Path) -> str | None:
     """The kdevops-managed VM public key, baked into every guest's authorizedKeys."""
-    pub = workers / "shared/ssh/id_ed25519.pub"
+    pub = workers / "system/ssh/id_ed25519.pub"
     return pub.read_text().strip() if pub.is_file() else None
 
 

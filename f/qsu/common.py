@@ -115,9 +115,9 @@ def _running_vms(out: str) -> set[str]:
 
 
 def _peer_hosts(workers: Path) -> list[str]:
-    """Registered peer ssh-host aliases (one per line in `shared/peers`, written by
+    """Registered peer ssh-host aliases (one per line in `system/peers`, written by
     f/workspace/fetch). Missing/empty file means no peers, so discovery stays local."""
-    f = workers / "shared/peers"
+    f = workers / "system/peers"
     if not f.is_file():
         return []
     return [h.strip() for h in f.read_text().splitlines() if h.strip()]
@@ -128,7 +128,7 @@ def vm_options(filter_text: str = "") -> list[dict]:
 
     Local VMs are the running user units (`systemctl --user list-units
     'qemu-system@*.service'`) plus any with a rendered `<vm>.env` still on disk
-    (stopped but not torn down). Each registered peer (`shared/peers`) is then swept
+    (stopped but not torn down). Each registered peer (`system/peers`) is then swept
     best-effort over ssh (the same `systemctl --user list-units`) so the dropdown
     spans every workbench host; an unreachable peer drops out silently rather than
     failing the local list. Peer VMs are labelled `<vm> (<peer>)`. The lifecycle

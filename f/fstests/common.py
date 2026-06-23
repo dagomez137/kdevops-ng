@@ -801,7 +801,7 @@ class RemoteSystemd:
     command line (not hidden in a config file or a SYSTEMD_SSH wrapper), so the
     runner logs the exact, copy-pasteable invocation. `ssh` and `systemd-ssh-proxy`
     come from the `#systemd` devShell; the vsock cid is read from `f/qsu/boot`'s
-    `shared/ssh/config.d/<vm>.conf`, or supplied explicitly. `systemctl`/`journalctl`
+    `system/ssh/config.d/<vm>.conf`, or supplied explicitly. `systemctl`/`journalctl`
     run in the guest over that `ssh`.
 
     Equivalent command, against the guest over vsock-SSH:
@@ -813,26 +813,26 @@ class RemoteSystemd:
     def __init__(self, workers: Path, vm_name: str, cid: int | None = None) -> None:
         self._vm = vm_name
         self._shell = DevShell(workers, shell="systemd")
-        self._key = workers / "shared/ssh/id_ed25519"
+        self._key = workers / "system/ssh/id_ed25519"
         # Read OUR managed ssh config instead of the worker container's /etc/ssh/
         # ssh_config (which carries a GSSAPIAuthentication option the devShell's ssh
         # build rejects, warning on every call). -F makes the system config ignored;
         # our explicit -o below still take precedence. Fall back to /dev/null if the
         # managed config is absent (workspace not initialised).
-        config = workers / "shared/ssh/config"
+        config = workers / "system/ssh/config"
         self._config = str(config) if config.is_file() else "/dev/null"
         self._cid = cid if cid is not None else self._resolve_cid(workers, vm_name)
         if self._cid is None:
             raise ValueError(
                 f"no vsock cid for {vm_name!r}: pass cid= or boot the VM so "
-                f"{workers}/shared/ssh/config.d/{vm_name}.conf carries HostName vsock/<cid>"
+                f"{workers}/system/ssh/config.d/{vm_name}.conf carries HostName vsock/<cid>"
             )
         self._proxy = self._resolve_proxy()
 
     @staticmethod
     def _resolve_cid(workers: Path, vm_name: str) -> int | None:
-        """Parse the vsock cid from `f/qsu/boot`'s `shared/ssh/config.d/<vm>.conf`."""
-        conf = workers / "shared/ssh/config.d" / f"{vm_name}.conf"
+        """Parse the vsock cid from `f/qsu/boot`'s `system/ssh/config.d/<vm>.conf`."""
+        conf = workers / "system/ssh/config.d" / f"{vm_name}.conf"
         if not conf.is_file():
             return None
         for line in conf.read_text().splitlines():

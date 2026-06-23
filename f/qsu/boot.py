@@ -68,16 +68,16 @@ def _ssh_banner(port: int, timeout: float = 3.0) -> bool:
 
 
 def _write_ssh_alias(workers: Path, vm_name: str, vsock_cid: int | None) -> str | None:
-    """Write this VM's `Host <vm>` block into shared/ssh/config.d so `ssh <vm>` works.
+    """Write this VM's `Host <vm>` block into system/ssh/config.d so `ssh <vm>` works.
 
     Needs the kdevops-managed key (f/workspace/ssh_key) and a vsock cid; the block
     routes `<vm>` over vsock with that key, picked up by the operator's one-time
-    `Include <workers>/shared/ssh/config` in ~/.ssh/config.
+    `Include <workers>/system/ssh/config` in ~/.ssh/config.
     """
-    priv = workers / "shared/ssh/id_ed25519"
+    priv = workers / "system/ssh/id_ed25519"
     if not vsock_cid or not priv.is_file():
         return None
-    conf = workers / "shared/ssh/config.d" / f"{vm_name}.conf"
+    conf = workers / "system/ssh/config.d" / f"{vm_name}.conf"
     _atomic_write(conf, "\n".join([
         f"Host {vm_name}",
         f"    HostName vsock/{vsock_cid}",

@@ -108,7 +108,7 @@ def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
 
     # Persist the peer registry where any worker can read it without touching git:
     # the qsu VM discovery (f.qsu.common.vm_options) sweeps these hosts over ssh.
-    peers_file = workers / "shared/peers"
+    peers_file = workers / "system/peers"
     peers_file.parent.mkdir(parents=True, exist_ok=True)
     peers_file.write_text("".join(f"{p}\n" for p in peers))
     print(f"wrote {peers_file} ({len(peers)} peer(s))", flush=True)
