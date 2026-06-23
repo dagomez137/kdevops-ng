@@ -118,6 +118,7 @@
           qemu
           virtiofsd
           socat
+          git
           ;
       });
 
