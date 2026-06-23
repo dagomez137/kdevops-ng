@@ -19,6 +19,14 @@ remote whose URL is its own preferred upstream but whose refs are fetched from i
 local mirror into `refs/remotes/<name>/*`, and whose objects are borrowed via the
 Bare's `objects/info/alternates` file alongside the main mirror's objects.
 
+`peers` is a list of ssh-host aliases of other workbench hosts. Each becomes a
+`<peer>` remote on every Bare, its URL the peer's Bare under the same WORKERS_DIR
+layout (`ssh://<peer>/<WORKERS_DIR>/system/bare/<namespace>/<canonical>.git`), with a
+`+refs/heads/*:refs/remotes/<peer>/*` refspec. A developer publishes a branch
+cross-host with `git -C <worktree> push <peer> <branch>`, and the peer's worker builds
+it as a local `refs/heads/*` ref (ADR-0001's per-host ref channel). Not fetched here.
+List peer hosts, not self.
+
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirror:
 
     git config --global --add safe.directory '*'        # once per container
@@ -37,6 +45,9 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     # add each extra remote (URL = its preferred upstream) and fetch refs from its mirror:
     git -C "$bare" remote add linux-next "$next_preferred"
     git -C "$bare" fetch --tags --force --prune /mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
+    # a peer host's Bare at the same WORKERS_DIR layout, for cross-host dev branches:
+    git -C "$bare" remote add hetzie "ssh://hetzie$WORKERS_DIR/system/bare/kernel/linux.git"
+    git -C "$bare" config remote.hetzie.fetch '+refs/heads/*:refs/remotes/hetzie/*'
 """
 
 from __future__ import annotations
@@ -59,8 +70,10 @@ DEFAULT_MIRRORS = [
 ]
 
 
-def main(mirrors: list[dict] | None = None, refresh: bool = True) -> dict:
+def main(mirrors: list[dict] | None = None, peers: list[str] | None = None,
+         refresh: bool = True) -> dict:
     mirrors = mirrors or DEFAULT_MIRRORS
+    peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
     git = Git()
     existing = git.capture("config", "--global", "--get-all", "safe.directory", check=False)
@@ -78,6 +91,7 @@ def main(mirrors: list[dict] | None = None, refresh: bool = True) -> dict:
         origin = preferred or mirror
         action = _ensure(git, mirror, bare, preferred, remotes, refresh)
         remote_results = _ensure_remotes(git, bare, remotes, action == "created", refresh, name)
+        peer_results = _ensure_peers(git, bare, peers, workers, namespace, canonical)
         head = git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip() or None
         print(f"{name}: {_progress(action, refresh)} (origin {origin})", flush=True)
         results.append({
@@ -89,6 +103,7 @@ def main(mirrors: list[dict] | None = None, refresh: bool = True) -> dict:
             "action": action,
             "head": head,
             "remotes": remote_results,
+            "peers": peer_results,
         })
 
     return {"workers_dir": str(workers), "mirrors": results}
@@ -213,6 +228,38 @@ def _ensure_remotes(git: Git, bare: Path, remotes: list[dict], fresh: bool,
         print(f"{label}/{rname}: {action} (upstream {url})", flush=True)
         results.append({"name": rname, "upstreams": rupstreams, "action": action})
     return results
+
+
+def _ensure_peers(git: Git, bare: Path, peers: list[str], workers: Path,
+                  namespace: str, canonical: str) -> list[dict]:
+    """Wire a `<peer>` remote per ssh-host alias -> that peer's Bare, deriving the URL
+    from the shared WORKERS_DIR layout. Adds the remote and its
+    `+refs/heads/*:refs/remotes/<peer>/*` refspec; does not fetch (push is the workflow,
+    the peer may be empty or unreachable). List peer hosts, not self.
+    """
+    results = []
+    for peer in peers:
+        _validate_peer(peer)
+        url = f"ssh://{peer}{workers}/system/bare/{namespace}/{canonical}.git"
+        if git.ok("-C", str(bare), "remote", "get-url", peer):
+            git.ok("-C", str(bare), "remote", "set-url", peer, url)
+            action = "present"
+        else:
+            git.ok("-C", str(bare), "remote", "add", peer, url)
+            action = "added"
+        git.ok("-C", str(bare), "config", f"remote.{peer}.fetch",
+               f"+refs/heads/*:refs/remotes/{peer}/*")
+        print(f"{namespace}/{peer}: {action} ({url})", flush=True)
+        results.append({"name": peer, "url": url})
+    return results
+
+
+def _validate_peer(peer: str) -> None:
+    """A peer alias is both a git remote name and an ssh target, so reject path/flag chars."""
+    if not isinstance(peer, str) or not peer:
+        raise ValueError(f"peer must be a non-empty string: {peer!r}")
+    if "/" in peer or ".." in peer or peer.startswith("-"):
+        raise ValueError(f"invalid peer alias: {peer}")
 
 
 def _reconcile_alternates(bare: Path, mirrors: list[str]) -> None:

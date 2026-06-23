@@ -27,6 +27,7 @@ schema:
   type: object
   order:
     - mirrors
+    - peers
     - refresh
   properties:
     mirrors:
@@ -99,6 +100,12 @@ schema:
           - mirror
           - namespace
           - canonical
+    peers:
+      type: array
+      description: "ssh-host aliases of other workbench hosts. Each becomes a <peer> remote on every Bare (ssh://<peer>/<WORKERS_DIR>/system/bare/<ns>/<canonical>.git, same layout), so a developer can `git push <peer> <branch>` a dev branch cross-host for that host's worker to build. List peer hosts, not self; empty = single-host."
+      default: []
+      items:
+        type: string
     refresh:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on). Off = create-if-absent only.

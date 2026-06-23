@@ -25,6 +25,9 @@ value:
           mirrors:
             type: javascript
             expr: flow_input.mirrors
+          peers:
+            type: javascript
+            expr: flow_input.peers
           refresh:
             type: javascript
             expr: flow_input.refresh
@@ -44,6 +47,7 @@ schema:
   type: object
   order:
     - mirrors
+    - peers
     - refresh
     - setup_ssh
     - regenerate_ssh_key
@@ -68,6 +72,12 @@ schema:
           - mirror
           - namespace
           - canonical
+    peers:
+      type: array
+      description: "ssh-host aliases of other workbench hosts to add as <peer> remotes on each Bare, for cross-host dev branches (`git push <peer> <branch>`). List peer hosts, not self; empty = single-host."
+      default: []
+      items:
+        type: string
     refresh:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on).
