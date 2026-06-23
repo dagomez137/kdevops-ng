@@ -25,6 +25,18 @@ example `mkdir --parents`, `rm --recursive --force`,
 `qemu-img create --format qcow2`. Use a short flag only when no long form
 exists, such as `ssh -L`.
 
+Always use the modern unified Nix CLI (`nix <subcommand>`) everywhere — code,
+scripts, docs and "Equivalent command" lines — never the classic `nix-*`
+binaries. Use `nix build <path> --out-link <link>` to create a GC root (not
+`nix-store --add-root --realise`), `nix store add-path` to add a tree, `nix
+store gc` to collect garbage (not `nix-collect-garbage`), `nix develop` for a
+dev shell (not `nix-shell`), `nix build`/`nix path-info` (not
+`nix-build`/`nix-instantiate`/`nix-env`). The unified CLI is gated behind the
+`nix-command flakes` experimental features, which `f/common/devshell`'s `Nix`
+runner already enables, so route store/build commands through it. Audit with
+`grep -rnE 'nix-store|nix-build|nix-instantiate|nix-env|nix-shell|nix-collect-garbage' f/ scripts/ docs/`;
+a match outside a filename or upstream proper noun is a regression.
+
 When writing or extending Windmill flows and steps, also follow these rules:
 
 - **Terse comments, only when needed.** Add a comment only when what the code
