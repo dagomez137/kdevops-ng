@@ -52,7 +52,7 @@ def main(
     configs = workers / "shared/linux-config-fragments/kernel/configs"
     if not configs.is_dir():
         raise FileNotFoundError(
-            f"fragment library missing at {configs} — run f/workspace/init first")
+            f"fragment library missing at {configs} — run f/workbench/init first")
 
     if not fragments:
         raise ValueError("select at least one fragment")

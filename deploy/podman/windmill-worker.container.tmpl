@@ -28,7 +28,7 @@ Volume=%C/windmill/cache:/tmp/windmill/cache
 # Shared logs volume (see windmill.container): workers write large job logs here
 # so the server can serve them for download.
 Volume=%C/windmill/logs:/tmp/windmill/logs
-# Build workspace mounted at IDENTICAL host paths so git worktree links resolve:
+# Build workbench mounted at IDENTICAL host paths so git worktree links resolve:
 # the system workbench (the durable Bare every worktree hangs off, writable for
 # the per-build mirror fetch and developer pushes), the shared vendored deps +
 # flake, and this worker's own numbered sandbox.

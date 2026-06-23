@@ -43,7 +43,7 @@ install --mode=644 "$HERE"/systemd/*.network "$HERE"/systemd/*.container "$UNITS
 # worker gets a numbered sandbox dir workers/w<NNNN> (0-based, zero-padded). The
 # shared/ tree carries the repo-tracked vendored deps (nixos-flake,
 # qemu-system-units, linux-config-fragments); the system/ tree holds the durable
-# Bare every build worktree hangs off; the f/workspace setup flow provisions the
+# Bare every build worktree hangs off; the f/workbench setup flow provisions the
 # runtime bits (the Bare, SSH key) once Windmill is up.
 mkdir --parents "$WORKERS_DIR/shared" "$WORKERS_DIR/system"
 rm --force "$UNITS"/windmill-worker-*.container
@@ -111,8 +111,8 @@ SSH_DIR="$WORKERS_DIR/system/ssh"
 PEER_KEY="$SSH_DIR/peer_ed25519"
 mkdir --parents "$SSH_DIR/config.d"
 [ -f "$PEER_KEY" ] || ssh-keygen -t ed25519 -N "" -C kdevops-workbench-peer -f "$PEER_KEY"
-# f/workspace/ssh_key rewrites system/ssh/config later; seed the Include so a sweep
-# resolves config.d/peers.conf even before the first workspace init.
+# f/workbench/ssh_key rewrites system/ssh/config later; seed the Include so a sweep
+# resolves config.d/peers.conf even before the first workbench init.
 grep -qs 'config.d/\*.conf' "$SSH_DIR/config" 2>/dev/null \
 		|| printf 'Include %s/config.d/*.conf\n' "$SSH_DIR" >"$SSH_DIR/config"
 : >"$SSH_DIR/config.d/peers.conf"

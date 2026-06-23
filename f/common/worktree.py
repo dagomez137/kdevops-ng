@@ -5,7 +5,7 @@ Imported with:  from f.common.worktree import prepare
 
 `prepare()` lays down one warm, detached `main` worktree per (worker, namespace)
 off the durable Bare at `workers/system/bare/<namespace>/<canonical>.git` (see
-`f/workspace/fetch.py`). The Bare borrows the local mirror's objects, so cutting a
+`f/workbench/fetch.py`). The Bare borrows the local mirror's objects, so cutting a
 worktree is cheap and every worker sees the same trees. Its `git` comes from the
 flake (`nixos-flake#git`, resolved once), so the worker needs only `nix` on PATH;
 the optional `b4 shazam` step runs in the `nixos-flake#build` devShell.
@@ -78,7 +78,7 @@ def prepare(
     build_dir = worktree / "build"
 
     if not (bare / "objects").is_dir():
-        raise FileNotFoundError(f"Bare {bare} missing — run f/workspace/init first")
+        raise FileNotFoundError(f"Bare {bare} missing — run f/workbench/init first")
     if not (workers / "shared/nixos-flake/flake.nix").exists():
         raise FileNotFoundError(
             f"nixos-flake devShell missing at {workers / 'shared/nixos-flake'} "

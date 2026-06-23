@@ -70,7 +70,7 @@ Volume=/nix:/nix
 Volume=/mirror:/mirror:ro
 Volume=%C/windmill/cache:/tmp/windmill/cache
 Volume=%C/windmill/logs:/tmp/windmill/logs
-# Build workspace at IDENTICAL host paths: the system workbench (the durable Bare
+# Build workbench at IDENTICAL host paths: the system workbench (the durable Bare
 # and the Store catalog a vm worker resolves boot artifacts through), the shared
 # repos + flake + qsu templates, and this worker's own sandbox.
 Volume=@WORKERS_DIR@/system:@WORKERS_DIR@/system:rw

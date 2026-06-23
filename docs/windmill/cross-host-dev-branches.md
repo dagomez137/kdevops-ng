@@ -14,11 +14,11 @@ ref against the Bare.
 
 ## Provisioning the peer remotes
 
-Run `f/workspace/init` (over `f/workspace/fetch`) with a `peers` list of the **ssh-host
+Run `f/workbench/init` (over `f/workbench/fetch`) with a `peers` list of the **ssh-host
 aliases** of the other hosts:
 
 ```sh
-wmill flow run f/workspace/init --data '{"peers": ["hetzie"]}'
+wmill flow run f/workbench/init --data '{"peers": ["hetzie"]}'
 ```
 
 Each alias becomes a `<peer>` remote on every Bare, its URL the peer's Bare under the

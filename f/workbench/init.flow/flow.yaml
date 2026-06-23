@@ -1,14 +1,14 @@
-summary: "Workspace Init"
+summary: "Workbench Init"
 description: |
   One-time (idempotent) bootstrap, run from the UI after Windmill is up. Provisions the
   durable Bares (default `workers/system/bare/kernel/linux.git` and
   `workers/system/bare/qemu-project/qemu.git`) that every worker cuts cheap detached
   worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
   but borrows objects from the local `/mirror`, and keeps `refs/heads/*` for developer
-  pushes. Thin flow over `f/workspace/fetch` — override or extend the source list there;
+  pushes. Thin flow over `f/workbench/fetch` — override or extend the source list there;
   re-run it any time to refresh.
 
-  Also provisions the kdevops-managed VM SSH key (`f/workspace/ssh_key`): one
+  Also provisions the kdevops-managed VM SSH key (`f/workbench/ssh_key`): one
   keypair under `workers/system/ssh/` that every guest trusts, so after a one-time
   `Include` line in `~/.ssh/config` a plain `ssh <vm>` works. Returns that line.
 
@@ -20,7 +20,7 @@ value:
       summary: Clone/refresh the shared sources
       value:
         type: script
-        path: f/workspace/fetch
+        path: f/workbench/fetch
         input_transforms:
           mirrors:
             type: javascript
@@ -37,7 +37,7 @@ value:
         expr: flow_input.setup_ssh === false
       value:
         type: script
-        path: f/workspace/ssh_key
+        path: f/workbench/ssh_key
         input_transforms:
           regenerate:
             type: javascript

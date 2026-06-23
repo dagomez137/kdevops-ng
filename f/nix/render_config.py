@@ -117,7 +117,7 @@ def main(
         ssh_keys = [managed, *(k for k in ssh_keys if k != managed)]
     elif not ssh_keys:
         print("note: no kdevops VM key at system/ssh/id_ed25519.pub (run "
-              "f/workspace/init); guest will accept no SSH key", flush=True)
+              "f/workbench/init); guest will accept no SSH key", flush=True)
 
     nixos_flake = workers / "shared/nixos-flake"
     template = nixos_flake / "templates/imageless/flake.nix"

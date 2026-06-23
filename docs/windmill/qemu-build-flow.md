@@ -58,8 +58,8 @@ one warm worktree per worker (ADR-0001). The chain:
 1. **Host bare mirror** `/mirror/linux.git`. Each worker container mounts
    `/mirror:ro` (`windmill-worker.container.tmpl`). A QEMU mirror
    `/mirror/qemu.git` rides the *same* mount — no quadlet change needed.
-2. **Workspace bootstrap** (idempotent): the `f/workspace/init` flow (over
-   `f/workspace/fetch`) provisions a durable **Bare** at
+2. **Workbench bootstrap** (idempotent): the `f/workbench/init` flow (over
+   `f/workbench/fetch`) provisions a durable **Bare** at
    `workers/system/bare/kernel/linux.git` with `git init --bare`, borrowing the
    mirror's objects through an alternate and fetching its heads into
    `refs/remotes/mirror/*`; `refs/heads/*` is reserved for developer branches. The
@@ -78,7 +78,7 @@ QEMU copies this verbatim, substituting the namespace (`qemu-project`) and canon
 name (`qemu`).
 
 > Migration: a host provisioned under the old `workers/shared/<ns>/<canonical>` clone
-> layout re-provisions fresh — `f/workspace/init` builds the new Bare under `system/`,
+> layout re-provisions fresh — `f/workbench/init` builds the new Bare under `system/`,
 > and the old `shared/<ns>/...` clones, `shared/ws/*` trees, and the numeric
 > `workers/<NNNN>` sandbox dirs (now `w<NNNN>`) become unused. Remove them with
 > `rm --recursive --force` once no build references them.
@@ -185,9 +185,9 @@ it, so qsu consumes the manifest without knowing how QEMU was built.
   `f/kernel/prepare_worktree.py`. Slot resolution, `safe.directory` handling,
   prune / warm-tree re-sync, `recreate_worktree`, and `b4 shazam` (published to the
   Bare as `b4/<slug>`) all live in the shared library.
-- **Bootstrap**: the QEMU mirror is provisioned by `f/workspace/fetch`
+- **Bootstrap**: the QEMU mirror is provisioned by `f/workbench/fetch`
   (a Python step over a source list, default kernel + qemu, the kernel clone also
-  carrying the linux-next/stable/modules remotes), run via the `f/workspace/init`
+  carrying the linux-next/stable/modules remotes), run via the `f/workbench/init`
   flow.
 - **New**: `f/qemu/{configure,compile,install,collect}.py` and
   `f/qemu/build.flow`.
@@ -237,7 +237,7 @@ derivation method later.
    `flow.yaml` (modules + schema).
 3. Write each step with the `write-script-python3` skill; import
    `f/common/devshell`.
-4. Extend `f/workspace/fetch` (run via `f/workspace/init`) for the QEMU mirror.
+4. Extend `f/workbench/fetch` (run via `f/workbench/init`) for the QEMU mirror.
 5. `wmill flow preview f/qemu/build -d '{…}'` against a small `target_list` to
    validate end to end (don't deploy).
 6. `wmill sync push` to deploy (Option B — no CI runs `wmill sync push` in this

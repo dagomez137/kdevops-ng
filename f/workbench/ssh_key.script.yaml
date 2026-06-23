@@ -1,4 +1,4 @@
-summary: "Workspace: provision the VM SSH key + host ssh-config"
+summary: "Workbench: provision the VM SSH key + host ssh-config"
 description: |
   Provision the kdevops-managed VM SSH key under `WORKERS_DIR/system/ssh/` and the
   `~/.ssh`-includable `config`. One ed25519 keypair is the access credential for

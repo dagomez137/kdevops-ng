@@ -116,7 +116,7 @@ def _running_vms(out: str) -> set[str]:
 
 def _peer_hosts(workers: Path) -> list[str]:
     """Registered peer ssh-host aliases (one per line in `system/peers`, written by
-    f/workspace/fetch). Missing/empty file means no peers, so discovery stays local."""
+    f/workbench/fetch). Missing/empty file means no peers, so discovery stays local."""
     f = workers / "system/peers"
     if not f.is_file():
         return []

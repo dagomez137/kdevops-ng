@@ -818,7 +818,7 @@ class RemoteSystemd:
         # ssh_config (which carries a GSSAPIAuthentication option the devShell's ssh
         # build rejects, warning on every call). -F makes the system config ignored;
         # our explicit -o below still take precedence. Fall back to /dev/null if the
-        # managed config is absent (workspace not initialised).
+        # managed config is absent (workbench not initialised).
         config = workers / "system/ssh/config"
         self._config = str(config) if config.is_file() else "/dev/null"
         self._cid = cid if cid is not None else self._resolve_cid(workers, vm_name)
