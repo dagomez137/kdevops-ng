@@ -92,6 +92,9 @@ ssh://<remote>`. Because the two hosts share one toolchain closure, a transporte
 QEMU binary runs with zero missing dependencies. All cross-host I/O happens inside
 the `transfer` devShell (`nix` + OpenSSH); nothing uses `rsync`.
 
+This moves build *outputs* across hosts. Build *inputs* (a developer's branch) cross
+the other way, by git — see [cross-host dev branches](cross-host-dev-branches.md).
+
 > ssh prerequisite: the `transfer` devShell's OpenSSH rejects a group-writable
 > `~/.ssh/config` ("Bad owner or permissions"); keep it `0600`.
 
