@@ -204,12 +204,16 @@ wmill flow run f/kernel/build --data '{"config_method":"make","defconfig":["tiny
 - **N concurrent kernels:** a `forloopflow` with `parallel: true,
   parallelism: N` over a list of refs/defconfigs — each iteration is one build;
   the container cgroups keep `make --jobs=$(nproc)` self-balancing.
-- **build → boot:** `same_worker: true`; step 1 returns the manifest, step 2
-  reads `results.build.bzImage`.
-- **worktree isolation:** `shared=false` (default) builds in this worker's own
-  `workers/<WORKER_INDEX>/<project>` tree (parallel across workers); `shared=true`
-  uses a persistent named `workers/shared/ws/<project>/<name>` tree any worker can
-  pick up (already in `f/kernel/build`).
+- **build → boot:** same worker group, `same_worker: true`; step 1 returns the
+  manifest, step 2 reads `results.build.bzImage`. Across worker groups (e.g. bringup
+  builds on `default`, boots on `vm`) the manifest points at the published run layer
+  in `/nix/store`, which every worker mounts — no shared tree needed.
+- **worktree isolation:** each worker builds in its own warm `main` worktree
+  `workers/<WORKER_INDEX>/<namespace>/main/<canonical>`, cut from the durable Bare
+  (`workers/system/bare/<namespace>/<canonical>.git`) and synced to the requested ref
+  every build — parallel across workers, incremental across runs. See
+  [`CONTEXT.md`](../../CONTEXT.md) and
+  [ADR-0001](../adr/0001-bare-is-the-working-repo.md).
 - **dedicated VM workers (future):** tag VM steps and run a worker group with
   that tag; until then everything runs on the `default` group.
 - **build reuse & cross-host fetch (the Store):** an identical kernel/QEMU build is

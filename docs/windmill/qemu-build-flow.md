@@ -52,32 +52,35 @@ pixman, …). No distro packages, no `qemu-controller-setup`.
 
 ## The provisioning method we copy from the kernel flow
 
-The kernel build is backed by a shared bare mirror and per-worker worktrees
-(commits `ce0a834`, `36a7a36`, `b1e0a08`, `849c471`). The chain:
+The kernel build is backed by a durable Bare borrowing a host bare mirror, with
+one warm worktree per worker (ADR-0001). The chain:
 
 1. **Host bare mirror** `/mirror/linux.git`. Each worker container mounts
-   `/mirror:ro` (`windmill-worker.container.tmpl:25`). A QEMU mirror
+   `/mirror:ro` (`windmill-worker.container.tmpl`). A QEMU mirror
    `/mirror/qemu.git` rides the *same* mount — no quadlet change needed.
 2. **Workspace bootstrap** (idempotent): the `f/workspace/init` flow (over
-   `f/workspace/fetch`) runs
-   `git clone --no-checkout --reference-if-able "$MIRROR" "$UPSTREAM" workers/shared/kernel/linux`,
-   where `$UPSTREAM` is the mirror's own `remote.origin.url`. The clone tracks the
-   real upstream (so `fetch` pulls new commits) but borrows objects from the local
-   mirror through an alternate, so it is tiny and every worktree off it is cheap.
-   (The host `setup-workspace.sh` no longer clones mirrors — `init` owns that; it
-   only provisions the host-sourced nixos-flake + config fragments for now.)
-3. **Per-slot worktree** (`f/kernel/prepare_worktree.py`): off the shared clone,
-   `git worktree add --force --detach <slot>/linux <ref>`, plus a sibling
-   `<slot>/build`. `shared=false` reuses this worker's own tree
-   (`WORKERS_DIR/<WORKER_INDEX>/kernel`) for every ref, so isolated builds on
-   different workers run in parallel without contending; `shared=true`
-   gives a shared, persistent named tree `WORKERS_DIR/shared/ws/kernel/<name>`
-   (named by a `workspace` string, else a `b4_series` slug, else the job id) that
-   any worker can pick up. All of it lives under `WORKERS_DIR`, bind-mounted at
-   **identical host paths**, so a host-forked process (the qsu QEMU) reads the
-   artifacts directly.
+   `f/workspace/fetch`) provisions a durable **Bare** at
+   `workers/system/bare/kernel/linux.git` with `git init --bare`, borrowing the
+   mirror's objects through an alternate and fetching its heads into
+   `refs/remotes/mirror/*`; `refs/heads/*` is reserved for developer branches. The
+   `system/` tree is bind-mounted into every worker. (The host `setup-workspace.sh`
+   no longer clones mirrors — `init` owns that; it only provisions the host-sourced
+   nixos-flake + config fragments for now.)
+3. **Warm worktree** (`f/kernel/prepare_worktree.py`): off the Bare,
+   `git worktree add --force --detach <slot>/linux <ref>` into this worker's one
+   warm `main` slot `WORKERS_DIR/<WORKER_INDEX>/kernel/main`, re-synced to the ref
+   every build so rebuilds stay incremental and builds on different workers run in
+   parallel. `build/` and `destdir/` are children of the source checkout. All of it
+   lives under `WORKERS_DIR`, bind-mounted at **identical host paths**, so a
+   host-forked process (the qsu QEMU) reads the artifacts directly.
 
-QEMU copies this verbatim, substituting the repo and slot names.
+QEMU copies this verbatim, substituting the namespace (`qemu-project`) and canonical
+name (`qemu`).
+
+> Migration: a host provisioned under the old `workers/shared/<ns>/<canonical>` clone
+> layout re-provisions fresh — `f/workspace/init` builds the new Bare under `system/`
+> and the old `shared/<ns>/...` clones and `shared/ws/*` trees become unused. Remove
+> them with `rm --recursive --force` once no build references them.
 
 ## The `f/qemu/build` flow
 
@@ -90,21 +93,22 @@ prepare_worktree → configure → compile → devtools → install → collect
 
 | Step (`f/qemu/*.py`) | Action | Runs in |
 |---|---|---|
-| `prepare_worktree` | resolve a slot; detached worktree of QEMU at `ref` off the shared clone; make `build/` and `destdir/` (host `git`) | host |
+| `prepare_worktree` | sync this worker's warm `main` worktree of QEMU to `ref` off the Bare; make `build/` and `destdir/` (host `git`) | host |
 | `configure` | `meson subprojects download` (in source), then `{src}/configure --target-list --prefix={destdir} --cc/--cxx --disable-download {configure_args}` in `build/` | `.#build` |
 | `compile` | `make -j$(nproc)` in `build/` (drives ninja) | `.#build` |
 | `devtools` | copy meson's `compile_commands.json` into the source root for clangd (on by default) | host |
 | `install` | `make install` in `build/` → `destdir/` (user-writable, no sudo) | `.#build` |
 | `collect` | write `result.json` and return it as the flow result | host |
 
-Per-slot layout (worker scope): `WORKERS_DIR/<WORKER_INDEX>/qemu/{qemu,build,destdir}`.
-`--prefix={destdir}` makes `make install` populate `destdir/bin` and
+Warm-tree layout (worker scope): the source at
+`WORKERS_DIR/<WORKER_INDEX>/qemu-project/main/qemu`, with `build/` and `destdir/` as
+children of it. `--prefix={destdir}` makes `make install` populate `destdir/bin` and
 `destdir/share/qemu`; QEMU resolves its data dir relative to that prefix, which
 is stable because the slot path is stable.
 
 ### Schema inputs (the kdevops vars, as a Windmill form)
 
-- `qemu_ref` — tag / branch / SHA to check out from the shared clone (default
+- `qemu_ref` — tag / branch / SHA to check out from the Bare (default
   `v11.0.0`; configurable, like the kernel flow's `git_ref`).
 - `target_list` — a multiselect of QEMU's emulator targets (`--target-list`,
   enumerated from the source's `configs/targets/*.mak` — `*-softmmu` for system
@@ -173,13 +177,13 @@ it, so qsu consumes the manifest without knowing how QEMU was built.
 
 - **Reuse verbatim**: `f/common/devshell` (`DevShell` already targets
   `nixos-flake#build`; `Git` runs host-side worktree ops) and
-  `f/common/worktree` (the shared slot/worktree logic). No new wiring.
+  `f/common/worktree` (the warm-worktree logic). No new wiring.
 - **Thin wrapper**: `f/qemu/prepare_worktree.py` wraps `f/common/worktree.prepare`
-  with QEMU paths (`shared/qemu/qemu`, slot `qemu`, worktree `qemu`, plus
-  `destdir` and the `VERSION` read) — the exact same step name and shape as
+  with QEMU coordinates (namespace `qemu-project`, canonical `qemu`, plus `destdir`
+  and the `VERSION` read) — the exact same step name and shape as
   `f/kernel/prepare_worktree.py`. Slot resolution, `safe.directory` handling,
-  prune / reuse-or-re-add, the `shared` mode (per-worker vs shared named tree), and
-  `b4 shazam` all live in the shared library.
+  prune / warm-tree re-sync, `recreate_worktree`, and `b4 shazam` (published to the
+  Bare as `b4/<slug>`) all live in the shared library.
 - **Bootstrap**: the QEMU mirror is provisioned by `f/workspace/fetch`
   (a Python step over a source list, default kernel + qemu, the kernel clone also
   carrying the linux-next/stable/modules remotes), run via the `f/workspace/init`
