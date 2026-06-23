@@ -135,6 +135,7 @@
             ++ [
               pkgs.ccache
               pkgs.b4
+              pkgs.git
             ];
           # CONFIG_RUST builds core/alloc from source -> needs rust-src.
           rustLibSrc = pkgs.rustPlatform.rustLibSrc;
@@ -172,7 +173,6 @@
           build-qemu = pkgs.mkShell {
             inputsFrom = [ pkgs.qemu ];
             packages = kernelPackages ++ [
-              pkgs.git
               (pkgs.python3.withPackages (
                 ps: with ps; [
                   setuptools
