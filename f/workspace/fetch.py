@@ -33,7 +33,7 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     # the mirror remote: its heads land in refs/remotes/mirror/*, never refs/heads/*:
     git -C "$bare" remote add mirror "$mirror"
     git -C "$bare" config remote.mirror.fetch '+refs/heads/*:refs/remotes/mirror/*'
-    git -C "$bare" fetch --tags --force mirror
+    git -C "$bare" fetch --tags --force --prune mirror
     # add each extra remote (URL = its preferred upstream) and fetch refs from its mirror:
     git -C "$bare" remote add linux-next "$next_preferred"
     git -C "$bare" fetch --tags --force --prune /mirror/linux-next.git '+refs/heads/*:refs/remotes/linux-next/*'
@@ -184,7 +184,7 @@ def _ensure(git: Git, mirror: str, bare: Path, preferred: str | None,
     git.ok("-C", str(bare), "config", "remote.mirror.fetch",
            "+refs/heads/*:refs/remotes/mirror/*")
     if (fresh or refresh) and not git.ok("-C", str(bare), "fetch", "--tags", "--force",
-                                         "mirror"):
+                                         "--prune", "mirror"):
         print(f"note: fetch of {bare} from {mirror} failed; using local refs", flush=True)
     return "created" if fresh else ("refreshed" if refresh else "present")
 

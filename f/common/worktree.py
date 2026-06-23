@@ -20,7 +20,7 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
     git config --global --add safe.directory '*'          # once per container
     # refresh upstream refs into the Bare's refs/remotes/mirror/* (developer
     # branches already live in the Bare's refs/heads/* on the same host):
-    git -C "$BARE" fetch --tags --force mirror
+    git -C "$BARE" fetch --tags --force --prune mirror
     # resolve to a commit (tag, else mirror/<ref>, else literal) and detach onto it:
     TARGET=$(git -C "$BARE" rev-parse --verify "refs/tags/$ref^{commit}" 2>/dev/null \
              || git -C "$BARE" rev-parse --verify "mirror/$ref^{commit}" 2>/dev/null \
@@ -89,7 +89,7 @@ def prepare(
 
     # Only upstream refs need a fetch; developer branches are already in the Bare's
     # refs/heads/* on the same host. A failed fetch is non-fatal — fall back to local refs.
-    if not git.ok("-C", str(bare), "fetch", "--tags", "--force", "mirror"):
+    if not git.ok("-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"):
         print(f"note: fetch of {bare} from mirror failed; using local refs", flush=True)
     target = _resolve_ref(git, bare, ref)
     git.run("-C", str(bare), "worktree", "prune")
