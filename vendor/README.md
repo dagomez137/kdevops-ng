@@ -24,8 +24,8 @@ itself.
 
 - **Read-only users**: install nothing. `git clone` gets every subrepo already in
   place.
-- **Collaborators** who pull or push a subrepo: install git-subrepo once with
-  `source /path/to/git-subrepo/.rc`. (Needs git >= 2.23.)
+- **Collaborators** who pull or push a subrepo: get git-subrepo from the flake
+  with `nix shell path:vendor/nixos-flake#git-subrepo`. (Needs git >= 2.23.)
 
 ## Commands (collaborators)
 
