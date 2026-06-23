@@ -19,7 +19,11 @@ import shlex
 import subprocess
 from pathlib import Path
 
-_NIX_BIN = "/nix/var/nix/profiles/default/bin"
+# The host nix profile bin (nix + git) prepended to a build step's PATH. Configurable
+# via NIX_BIN so a worker on a host that installs nix elsewhere (e.g. NixOS, where the
+# default profile lives under the store, not /nix/var/nix/profiles/default) can point it
+# at a reachable directory.
+_NIX_BIN = os.environ.get("NIX_BIN", "/nix/var/nix/profiles/default/bin")
 
 # Enable flakes + the new CLI without depending on the worker's nix.conf, so a
 # fresh container behaves the same as a configured one.
