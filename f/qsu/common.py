@@ -143,11 +143,15 @@ def vm_options(filter_text: str = "") -> list[dict]:
                for vm in sorted(_running_vms(local) | rendered) if ft in vm.lower()]
     seen = {o["value"] for o in options}
     for peer in _peer_hosts(workers):
-        # BatchMode never prompts; ConnectTimeout bounds a dead peer. check=False so a
-        # down peer yields "" and is skipped, leaving the local dropdown intact. The
-        # glob is single-quoted so the peer's shell passes it to systemctl unexpanded.
+        # -F names the config explicitly: the `#systemd` dev shell does not read
+        # ~/.ssh/config, so the peer Host/IdentityFile aliases (system/ssh) must be
+        # pointed at directly. BatchMode never prompts; ConnectTimeout bounds a dead
+        # peer; check=False so a down peer yields "" and is skipped, leaving the local
+        # dropdown intact. The glob is single-quoted so the peer's shell passes it to
+        # systemctl unexpanded.
         remote = DevShell(workers, "systemd").capture(
-            "ssh", "-o", "ConnectTimeout=3", "-o", "BatchMode=yes", peer,
+            "ssh", "-F", str(workers / "system/ssh/config"),
+            "-o", "ConnectTimeout=3", "-o", "BatchMode=yes", peer,
             f"systemctl --user list-units --type=service --no-legend "
             f"'{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}'", check=False) or ""
         for vm in sorted(_running_vms(remote)):
