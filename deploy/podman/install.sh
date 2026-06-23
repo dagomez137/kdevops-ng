@@ -98,6 +98,48 @@ json.dump(prof, open(dst, "w"), indent=2)
 print(f"derived {dst} (host default + AF_VSOCK allowed)")
 PY
 
+# Peer workbench hosts the vm workers sweep for cross-host VM discovery
+# (f.qsu.common.vm_options lists `qemu-system@*` over ssh). PEERS is a
+# space-separated list of ssh-config host aliases of OTHER workbench hosts (never
+# self). The worker has no ~/.ssh, so the sweep runs `ssh -F system/ssh/config`:
+# resolve each alias from the operator's ssh config here (host-side) into a Host
+# block that points at one dedicated, least-privilege peer key, and record the
+# alias in system/peers (the registry vm_options reads). The peer key's public
+# half must be authorized on each peer's authorized_keys out of band.
+PEERS="${PEERS:-}"
+SSH_DIR="$WORKERS_DIR/system/ssh"
+PEER_KEY="$SSH_DIR/peer_ed25519"
+mkdir --parents "$SSH_DIR/config.d"
+[ -f "$PEER_KEY" ] || ssh-keygen -t ed25519 -N "" -C kdevops-workbench-peer -f "$PEER_KEY"
+# f/workspace/ssh_key rewrites system/ssh/config later; seed the Include so a sweep
+# resolves config.d/peers.conf even before the first workspace init.
+grep -qs 'config.d/\*.conf' "$SSH_DIR/config" 2>/dev/null \
+		|| printf 'Include %s/config.d/*.conf\n' "$SSH_DIR" >"$SSH_DIR/config"
+: >"$SSH_DIR/config.d/peers.conf"
+: >"$WORKERS_DIR/system/peers"
+for peer in $PEERS; do
+		g=$(ssh -G "$peer")
+		ph=$(printf '%s\n' "$g" | awk '/^hostname /{print $2; exit}')
+		pp=$(printf '%s\n' "$g" | awk '/^port /{print $2; exit}')
+		pu=$(printf '%s\n' "$g" | awk '/^user /{print $2; exit}')
+		cat >>"$SSH_DIR/config.d/peers.conf" <<EOF
+Host $peer
+    HostName $ph
+    Port $pp
+    User $pu
+    IdentityFile $PEER_KEY
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile $SSH_DIR/known_hosts
+EOF
+		printf '%s\n' "$peer" >>"$WORKERS_DIR/system/peers"
+		ssh-keyscan -p "$pp" "$ph" >>"$SSH_DIR/known_hosts" 2>/dev/null || true
+		echo "peer $peer -> $pu@$ph:$pp (authorize $PEER_KEY.pub on $peer)"
+done
+# OpenSSH refuses a group/world-writable config (the default umask makes the
+# heredoc above 0664), so the sweep would fail with "bad owner or permissions".
+chmod go-w "$SSH_DIR/config" "$SSH_DIR/config.d/peers.conf" 2>/dev/null || true
+
 # Control/lifecycle pool (tag vm), then the long-poll pool (tag vm-run).
 for i in $(seq 1 "$VM_WORKERS"); do _render_vm_worker vm "$(_vmself "$i")"; done
 for i in $(seq 1 "$VM_RUN_WORKERS"); do _render_vm_worker vm-run "vmrun$i"; done
