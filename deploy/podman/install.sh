@@ -64,7 +64,15 @@ mkdir --parents "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" \
 		"${XDG_CONFIG_HOME:-$HOME/.config}/systemd/qemu-system" \
 		"${XDG_CONFIG_HOME:-$HOME/.config}/systemd/virtiofsd" \
 		"${XDG_STATE_HOME:-$HOME/.local/state}/qemu-system"
-# The vm worker drives booted guests over vsock (`systemctl --host
+# The vm worker reaches booted guests over AF_VSOCK, which needs the host's
+# vhost_vsock module loaded (it creates /dev/vsock). Loading a module is the one
+# step that needs root in an otherwise rootless install; persist it across reboots
+# via /etc/modules-load.d. Idempotent: skipped once /dev/vsock exists.
+if [ ! -e /dev/vsock ]; then
+	sudo modprobe vhost_vsock
+	echo vhost_vsock | sudo tee /etc/modules-load.d/vhost_vsock.conf >/dev/null
+fi
+# Beyond the module, the vm worker drives guests over vsock (`systemctl --host
 # root@vsock/<cid>`), which needs the AF_VSOCK socket family the default podman
 # seccomp profile blocks. Derive a least-privilege profile from the host's own
 # default by flipping only the one rule that denies `socket(AF_VSOCK)`; every
