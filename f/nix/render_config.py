@@ -26,7 +26,7 @@ import os
 import re
 from pathlib import Path
 
-from f.common.devshell import vendor_dir
+from f.common.devshell import system_dir, vendor_dir
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
 _PROFILES = {"build-tools", "controller", "devel", "monitoring"}
@@ -151,7 +151,7 @@ def main(
 
 def _managed_pubkey(workers: Path) -> str | None:
     """The kdevops-managed VM public key, baked into every guest's authorizedKeys."""
-    pub = workers / "system/ssh/id_ed25519.pub"
+    pub = system_dir() / "ssh/id_ed25519.pub"
     return pub.read_text().strip() if pub.is_file() else None
 
 

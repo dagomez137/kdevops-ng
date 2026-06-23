@@ -2,7 +2,7 @@
 """Lay down this worker's warm `main` QEMU worktree, detached at the requested ref.
 
 Thin wrapper over `f.common.worktree.prepare` (the shared slot/worktree logic). The
-worktree is cut from the durable Bare at `workers/system/bare/qemu-project/qemu.git`,
+worktree is cut from the durable Bare at `$SYSTEM_DIR/bare/qemu-project/qemu.git`,
 which borrows the local mirror's objects, so checkouts are cheap. Runs `git` on the
 host (NOT in the devShell).
 

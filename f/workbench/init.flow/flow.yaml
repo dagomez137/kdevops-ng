@@ -1,19 +1,19 @@
 summary: "Workbench Init"
 description: |
   One-time (idempotent) bootstrap, run from the UI after Windmill is up. Provisions the
-  durable Bares (default `workers/system/bare/kernel/linux.git` and
-  `workers/system/bare/qemu-project/qemu.git`) that every worker cuts cheap detached
+  durable Bares (default `$SYSTEM_DIR/bare/kernel/linux.git` and
+  `$SYSTEM_DIR/bare/qemu-project/qemu.git`) that every worker cuts cheap detached
   worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
-  but borrows objects from the local mirror (`workers/system/mirror`), and keeps `refs/heads/*` for developer
+  but borrows objects from the local mirror (`$SYSTEM_DIR/mirror`), and keeps `refs/heads/*` for developer
   pushes. Thin flow over `f/workbench/fetch` — override or extend the source list there;
   re-run it any time to refresh.
 
   Also provisions the kdevops-managed VM SSH key (`f/workbench/ssh_key`): one
-  keypair under `workers/system/ssh/` that every guest trusts, so after a one-time
+  keypair under `$SYSTEM_DIR/ssh/` that every guest trusts, so after a one-time
   `Include` line in `~/.ssh/config` a plain `ssh <vm>` works. Returns that line.
 
   Finally provisions the mirror refresh timers (`f/workbench/mirror`): a
-  `git-mirror@<repo>.{service,timer}` per mirror under `workers/system/mirror`,
+  `git-mirror@<repo>.{service,timer}` per mirror under `$SYSTEM_DIR/mirror`,
   force-refreshing each from upstream on a self-pacing loop.
 value:
   modules:
@@ -139,7 +139,7 @@ schema:
     setup_mirrors:
       title: Setup Mirrors
       type: boolean
-      description: Install + enable the `git-mirror@<repo>` refresh timers for the mirrors under `workers/system/mirror` (default on). Off = skip; existing timers untouched.
+      description: Install + enable the `git-mirror@<repo>` refresh timers for the mirrors under `$SYSTEM_DIR/mirror` (default on). Off = skip; existing timers untouched.
       default: true
     mirror_on_boot:
       title: Mirror On Boot

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Provision the System workbench's merged git mirrors and their refresh timers.
 
-Each project is ONE bare mirror under `WORKERS_DIR/system/mirror/<name>.git` holding
+Each project is ONE bare mirror under `SYSTEM_DIR/mirror/<name>.git` holding
 several upstream git trees as remotes that share its single object store (the kernel
 mirror carries Linus's tree, -next, -stable, -modules and Axboe's block/io_uring/nvme
 tree; QEMU is its own). This step does two things:
@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.common.devshell import Git, Systemd, _resolve_git
+from f.common.devshell import Git, Systemd, _resolve_git, system_dir
 from f.workbench.fetch import DEFAULT_KERNEL_TREES, build_mirrors, remote_url
 
 _SERVICE = """\
@@ -104,7 +104,7 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
          extra_trees: list[str] | None = None, mirrors: list[dict] | None = None,
          on_boot: str = "10m", on_inactive: str = "10m", mirror_dir: str = "") -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
-    mdir = Path(mirror_dir) if mirror_dir else workers / "system/mirror"
+    mdir = Path(mirror_dir) if mirror_dir else system_dir() / "mirror"
     mirrors = mirrors or build_mirrors(
         DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
         protocol, extra_trees or [], mdir)

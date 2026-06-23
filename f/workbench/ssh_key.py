@@ -1,27 +1,27 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Provision the kdevops-managed VM SSH key and the host ssh-config include.
 
-One ed25519 keypair under `WORKERS_DIR/system/ssh/` is the access credential for
+One ed25519 keypair under `SYSTEM_DIR/ssh/` is the access credential for
 every imageless guest: `f/nix/render_config` bakes the public key into each
 closure's `authorizedKeys` (root + the unprivileged user) and `f/qsu/boot` drops a
 per-VM `config.d/<vm>.conf`, so `ssh <vm>` reaches the guest over vsock with this
 key. The operator never creates or manages a key — they add one line near the top
 of `~/.ssh/config`:
 
-    Include <WORKERS_DIR>/system/ssh/config
+    Include <SYSTEM_DIR>/ssh/config
 
-`system/ssh/config` carries the `Host vsock/*` defaults (this key, `User root`) and
+`$SYSTEM_DIR/ssh/config` carries the `Host vsock/*` defaults (this key, `User root`) and
 an ABSOLUTE `Include` of `config.d/*.conf` — absolute because ssh resolves a
 relative `Include` against `~/.ssh`, not the including file's directory.
 
 Idempotent: an existing key is kept (pass `regenerate` to force a new one, which
 invalidates the authorized key baked into every already-built closure); the
-`config` header is rewritten so the absolute paths track WORKERS_DIR. Generated
+`config` header is rewritten so the absolute paths track SYSTEM_DIR. Generated
 with `cryptography` because `ssh-keygen` is not on the worker PATH; the key is
 written in OpenSSH format with the private key mode 0600.
 
 Equivalent: ssh-keygen -t ed25519 -N "" -C kdevops-vm \\
-    -f $WORKERS_DIR/system/ssh/id_ed25519
+    -f $SYSTEM_DIR/ssh/id_ed25519
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ import os
 import tempfile
 from pathlib import Path
 
+from f.common.devshell import system_dir
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -50,8 +51,7 @@ def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
 
 
 def main(regenerate: bool = False) -> dict:
-    workers = Path(os.environ["WORKERS_DIR"])
-    ssh_dir = workers / "system/ssh"
+    ssh_dir = system_dir() / "ssh"
     (ssh_dir / "config.d").mkdir(parents=True, exist_ok=True)
     priv = ssh_dir / "id_ed25519"
     pub = ssh_dir / "id_ed25519.pub"

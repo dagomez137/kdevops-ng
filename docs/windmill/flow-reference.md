@@ -210,7 +210,7 @@ wmill flow run f/kernel/build --data '{"config_method":"make","defconfig":["tiny
   in `/nix/store`, which every worker mounts — no shared tree needed.
 - **worktree isolation:** each worker builds in its own warm `main` worktree
   `workers/<WORKER_INDEX>/<namespace>/main/<canonical>`, cut from the durable Bare
-  (`workers/system/bare/<namespace>/<canonical>.git`) and synced to the requested ref
+  (`$SYSTEM_DIR/bare/<namespace>/<canonical>.git`) and synced to the requested ref
   every build — parallel across workers, incremental across runs. See
   [`CONTEXT.md`](../../CONTEXT.md) and
   [ADR-0001](../adr/0001-bare-is-the-working-repo.md).

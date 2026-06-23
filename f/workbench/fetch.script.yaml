@@ -1,7 +1,7 @@
 summary: "Workbench fetch: provision the durable Bare repos from local mirrors"
 description: |
   Provision the durable **Bare** main repos every build worktree is cut from. Each
-  Bare at `WORKERS_DIR/system/bare/<namespace>/<canonical>.git` is a `git init --bare`
+  Bare at `SYSTEM_DIR/bare/<namespace>/<canonical>.git` is a `git init --bare`
   repo that **borrows** the local bare **mirror**'s objects via its alternates file (no
   objects copied, no upstream network). A `mirror` remote fetches the mirror's heads
   into `refs/remotes/mirror/*`; `refs/heads/*` is left empty, reserved for developer
@@ -56,7 +56,7 @@ schema:
         type: string
     peers:
       type: array
-      description: "ssh-host aliases of other workbench hosts. Each becomes a <peer> remote on every Bare (ssh://<peer>/<WORKERS_DIR>/system/bare/<ns>/<canonical>.git, same layout), so a developer can `git push <peer> <branch>` a dev branch cross-host for that host's worker to build. List peer hosts, not self; empty = single-host."
+      description: "ssh-host aliases of other workbench hosts. Each becomes a <peer> remote on every Bare (ssh://<peer>/<SYSTEM_DIR>/bare/<ns>/<canonical>.git, same layout), so a developer can `git push <peer> <branch>` a dev branch cross-host for that host's worker to build. List peer hosts, not self; empty = single-host."
       default: []
       items:
         type: string

@@ -6,6 +6,14 @@
 # specifiers (XDG-first): %S state, %C cache; /nix is bind-mounted for building.
 set -o errexit -o nounset -o pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../.." && pwd)"
+# Build-area layout (ADR-0008). WORKBENCH_DIR is the whole relocatable build area;
+# the System workbench (SYSTEM_DIR: bare/ mirror/ ssh/ store/) and the per-worker
+# sandbox root (WORKERS_DIR) default under it but each relocates on its own. Set any
+# of them to override.
+WORKBENCH_DIR="${WORKBENCH_DIR:-$REPO/workbench}"
+SYSTEM_DIR="${SYSTEM_DIR:-$WORKBENCH_DIR/system}"
+WORKERS_DIR="${WORKERS_DIR:-$WORKBENCH_DIR/workers}"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/windmill"
 UNITS="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
@@ -17,9 +25,9 @@ WORKERS="${WORKERS:-2}"
 # their count is the concurrent-test-run cap.
 VM_WORKERS="${VM_WORKERS:-4}"
 VM_RUN_WORKERS="${VM_RUN_WORKERS:-3}"
-# Vendored projects (ADR-0006) live in the top-level vendor/, a sibling of
-# WORKERS_DIR; every worker bind-mounts it read-only at the same absolute path.
-VENDOR_DIR="${VENDOR_DIR:-$(dirname "$WORKERS_DIR")/vendor}"
+# Vendored projects (ADR-0006) live in the top-level vendor/, a sibling of the
+# Workbench; every worker bind-mounts it read-only at the same absolute path.
+VENDOR_DIR="${VENDOR_DIR:-$(dirname "$WORKBENCH_DIR")/vendor}"
 
 # The per-worker identity of the i-th vm control worker: the first stays `vm` (its
 # sandbox dir, WORKER_INDEX and container name are unchanged), the rest are
@@ -29,7 +37,9 @@ _vmself() { [ "$1" = 1 ] && echo vm || echo "vm$1"; }
 # Render one vm-group worker unit: $1 = WORKER_TAGS, $2 = per-worker identity.
 _render_vm_worker() {
 	mkdir --parents "$WORKERS_DIR/$2"
-	sed --expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
+	sed --expression "s|@WORKBENCH_DIR@|$WORKBENCH_DIR|g" \
+			--expression "s|@SYSTEM_DIR@|$SYSTEM_DIR|g" \
+			--expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
 			--expression "s|@VENDOR_DIR@|$VENDOR_DIR|g" \
 			--expression "s|@SECCOMP_PROFILE@|$SECCOMP|g" \
 			--expression "s|@VMTAG@|$1|g" \
@@ -44,19 +54,22 @@ install --mode=644 "$HERE/Caddyfile" "$STATE/Caddyfile"
 install --mode=644 "$HERE"/systemd/*.network "$HERE"/systemd/*.container "$UNITS"/
 
 # Render WORKERS worker replicas (idempotent: clear stale ones first). Each
-# worker gets a numbered sandbox dir workers/w<NNNN> (0-based, zero-padded). The
-# shared/ tree holds runtime caches (ccache, source mirrors of the test suites);
-# the repo-tracked vendored deps (nixos-flake, qemu-system-units,
-# linux-config-fragments) live in the top-level vendor/ (ADR-0006); the system/
-# tree holds the durable Bare every build worktree hangs off; the f/workbench
-# setup flow provisions the runtime bits (the Bare, SSH key) once Windmill is up.
-mkdir --parents "$WORKERS_DIR/shared" "$WORKERS_DIR/system"
+# worker gets a numbered sandbox dir workers/w<NNNN> (0-based, zero-padded) under
+# the worker-sandbox root. The shared/ tree holds runtime caches (ccache, source
+# mirrors of the test suites); the repo-tracked vendored deps (nixos-flake,
+# qemu-system-units, linux-config-fragments) live in the top-level vendor/
+# (ADR-0006); the System workbench (SYSTEM_DIR) holds the durable Bare every build
+# worktree hangs off; the f/workbench setup flow provisions the runtime bits (the
+# Bare, SSH key) once Windmill is up.
+mkdir --parents "$WORKERS_DIR/shared" "$SYSTEM_DIR"
 rm --force "$UNITS"/windmill-worker-*.container
 for i in $(seq 1 "$WORKERS"); do
 		self=$(printf 'w%04d' "$((i - 1))")
 		mkdir --parents "$WORKERS_DIR/$self"
 		sed --expression "s|@INDEX@|$i|g" \
 				--expression "s|@SELFDIR@|$self|g" \
+				--expression "s|@WORKBENCH_DIR@|$WORKBENCH_DIR|g" \
+				--expression "s|@SYSTEM_DIR@|$SYSTEM_DIR|g" \
 				--expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
 				--expression "s|@VENDOR_DIR@|$VENDOR_DIR|g" \
 				"$HERE/windmill-worker.container.tmpl" >"$UNITS/windmill-worker-$i.container"
@@ -107,22 +120,24 @@ PY
 # Peer workbench hosts the vm workers sweep for cross-host VM discovery
 # (f.qsu.common.vm_options lists `qemu-system@*` over ssh). PEERS is a
 # space-separated list of ssh-config host aliases of OTHER workbench hosts (never
-# self). The worker has no ~/.ssh, so the sweep runs `ssh -F system/ssh/config`:
+# self). The worker has no ~/.ssh, so the sweep runs `ssh -F $SYSTEM_DIR/ssh/config`:
 # resolve each alias from the operator's ssh config here (host-side) into a Host
 # block that points at one dedicated, least-privilege peer key, and record the
-# alias in system/peers (the registry vm_options reads). The peer key's public
-# half must be authorized on each peer's authorized_keys out of band.
-PEERS="${PEERS:-}"
-SSH_DIR="$WORKERS_DIR/system/ssh"
+# alias in $SYSTEM_DIR/peers (the registry vm_options reads). The peer key's public
+# half must be authorized on each peer's authorized_keys out of band. A re-run with
+# PEERS unset preserves the existing registry, so the rewrite never silently drops
+# a peer (set PEERS explicitly to change the set).
+PEERS="${PEERS:-$(cat "$SYSTEM_DIR/peers" 2>/dev/null || true)}"
+SSH_DIR="$SYSTEM_DIR/ssh"
 PEER_KEY="$SSH_DIR/peer_ed25519"
 mkdir --parents "$SSH_DIR/config.d"
 [ -f "$PEER_KEY" ] || ssh-keygen -t ed25519 -N "" -C kdevops-workbench-peer -f "$PEER_KEY"
-# f/workbench/ssh_key rewrites system/ssh/config later; seed the Include so a sweep
-# resolves config.d/peers.conf even before the first workbench init.
+# f/workbench/ssh_key rewrites $SYSTEM_DIR/ssh/config later; seed the Include so a
+# sweep resolves config.d/peers.conf even before the first workbench init.
 grep -qs 'config.d/\*.conf' "$SSH_DIR/config" 2>/dev/null \
 		|| printf 'Include %s/config.d/*.conf\n' "$SSH_DIR" >"$SSH_DIR/config"
 : >"$SSH_DIR/config.d/peers.conf"
-: >"$WORKERS_DIR/system/peers"
+: >"$SYSTEM_DIR/peers"
 for peer in $PEERS; do
 		g=$(ssh -G "$peer")
 		ph=$(printf '%s\n' "$g" | awk '/^hostname /{print $2; exit}')
@@ -138,7 +153,7 @@ Host $peer
     StrictHostKeyChecking accept-new
     UserKnownHostsFile $SSH_DIR/known_hosts
 EOF
-		printf '%s\n' "$peer" >>"$WORKERS_DIR/system/peers"
+		printf '%s\n' "$peer" >>"$SYSTEM_DIR/peers"
 		ssh-keyscan -p "$pp" "$ph" >>"$SSH_DIR/known_hosts" 2>/dev/null || true
 		echo "peer $peer -> $pu@$ph:$pp (authorize $PEER_KEY.pub on $peer)"
 done

@@ -2,7 +2,7 @@ summary: "QEMU: prepare a build worktree"
 description: |
   Lay down this worker's warm `main` QEMU worktree
   (`workers/<WORKER_INDEX>/qemu-project/main/qemu`) detached at `qemu_ref`, cut from
-  the durable Bare at `workers/system/bare/qemu-project/qemu.git` and refreshed from
+  the durable Bare at `$SYSTEM_DIR/bare/qemu-project/qemu.git` and refreshed from
   the mirror first so newly-mirrored refs/tags are usable. Thin wrapper over
   `f/common/worktree`. The same tree is reused for every ref and across runs
   (parallel across workers); `recreate_worktree` lays a fresh checkout. `build`

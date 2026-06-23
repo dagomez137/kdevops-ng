@@ -4,7 +4,7 @@
 Imported with:  from f.common.worktree import prepare
 
 `prepare()` lays down one warm, detached `main` worktree per (worker, namespace)
-off the durable Bare at `workers/system/bare/<namespace>/<canonical>.git` (see
+off the durable Bare at `$SYSTEM_DIR/bare/<namespace>/<canonical>.git` (see
 `f/workbench/fetch.py`). The Bare borrows the local mirror's objects, so cutting a
 worktree is cheap and every worker sees the same trees. Its `git` comes from the
 flake (`nixos-flake#git`, resolved once), so the worker needs only `nix` on PATH;
@@ -43,7 +43,7 @@ import re
 import shutil
 from pathlib import Path
 
-from f.common.devshell import DevShell, Git, vendor_dir
+from f.common.devshell import DevShell, Git, system_dir, vendor_dir
 
 
 def main():
@@ -72,7 +72,7 @@ def prepare(
 
     workers = Path(os.environ["WORKERS_DIR"])
     worker_index = os.environ["WORKER_INDEX"]
-    bare = workers / "system" / "bare" / namespace / f"{canonical}.git"
+    bare = system_dir() / "bare" / namespace / f"{canonical}.git"
     slot = workers / worker_index / namespace / "main"
     worktree = slot / canonical
     build_dir = worktree / "build"

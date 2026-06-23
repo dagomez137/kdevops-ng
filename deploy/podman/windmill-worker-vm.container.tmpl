@@ -14,10 +14,11 @@
 # already shared by every worker) and the host user's systemd unit + VM-state
 # directories bind-mounted at IDENTICAL paths, so a unit written here lands in
 # the host manager's search path and the qcow2 backing files it reads are the
-# same inodes. /nix and WORKERS_DIR are shared the same way the build workers
-# share them, so the host-forked qemu/virtiofsd (store paths) and the qsu
-# templates (workers/shared) are reachable. The system bus is deliberately NOT
-# mounted (no hostnamectl/timedatectl; keep the host attack surface narrow).
+# same inodes. /nix, the System workbench and the worker-sandbox root are shared
+# the same way the build workers share them, so the host-forked qemu/virtiofsd
+# (store paths) and the qsu templates (the shared/ tree) are reachable. The system
+# bus is deliberately NOT mounted (no hostnamectl/timedatectl; keep the host
+# attack surface narrow).
 [Unit]
 Description=Windmill vm worker (group vm; QEMU-in-systemd VM orchestration)
 Requires=windmill-db.service
@@ -44,8 +45,10 @@ Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
 Environment=HOME=%h
 Environment=XDG_CONFIG_HOME=%h/.config
 Environment=XDG_STATE_HOME=%h/.local/state
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKERS_DIR,VENDOR_DIR
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
 Environment=WORKER_INDEX=@VMSELF@
+Environment=WORKBENCH_DIR=@WORKBENCH_DIR@
+Environment=SYSTEM_DIR=@SYSTEM_DIR@
 Environment=WORKERS_DIR=@WORKERS_DIR@
 Environment=VENDOR_DIR=@VENDOR_DIR@
 Volume=%t/bus:%t/bus
@@ -66,15 +69,16 @@ Volume=%h/.local/state/qemu-system:%h/.local/state/qemu-system:rw
 # worker on a loopback-only instance; the build workers keep the default.
 AddDevice=/dev/vsock
 SeccompProfile=@SECCOMP_PROFILE@
-# /nix store; the git mirror rides the system/ mount below (workers/system/mirror).
+# /nix store; the git mirror rides the System workbench mount below (@SYSTEM_DIR@/mirror).
 Volume=/nix:/nix
 Volume=%C/windmill/cache:/tmp/windmill/cache
 Volume=%C/windmill/logs:/tmp/windmill/logs
-# Build workbench at IDENTICAL host paths: the system workbench (the durable Bare
-# and the Store catalog a vm worker resolves boot artifacts through), the shared
-# runtime caches, the pinned vendored deps + flake + qsu templates (read-only,
-# ADR-0006), and this worker's own sandbox.
-Volume=@WORKERS_DIR@/system:@WORKERS_DIR@/system:rw
+# Build area at IDENTICAL host paths: the System workbench (the durable Bare and
+# the Store catalog a vm worker resolves boot artifacts through; relocatable on
+# its own), the shared runtime caches under the worker-sandbox root, the pinned
+# vendored deps + flake + qsu templates (read-only, ADR-0006), and this worker's
+# own sandbox.
+Volume=@SYSTEM_DIR@:@SYSTEM_DIR@:rw
 Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
 Volume=@VENDOR_DIR@:@VENDOR_DIR@:ro
 Volume=@WORKERS_DIR@/@VMSELF@:@WORKERS_DIR@/@VMSELF@:rw

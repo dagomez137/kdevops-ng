@@ -16,25 +16,27 @@ Environment=DATABASE_URL=postgres://postgres:changeme@windmill-db:5432/windmill?
 Environment=XDG_RUNTIME_DIR=%t
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
 Environment=HOME=%h
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,WORKER_INDEX,WORKERS_DIR,VENDOR_DIR
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
 Environment=WORKER_INDEX=@SELFDIR@
+Environment=WORKBENCH_DIR=@WORKBENCH_DIR@
+Environment=SYSTEM_DIR=@SYSTEM_DIR@
 Environment=WORKERS_DIR=@WORKERS_DIR@
 Environment=VENDOR_DIR=@VENDOR_DIR@
 Volume=%t/bus:%t/bus
 # /nix store, bind-mounted for building. The git mirror the worktrees borrow
-# objects from now lives under the system/ mount below (workers/system/mirror),
-# so no separate /mirror mount is needed.
+# objects from lives in the System workbench (@SYSTEM_DIR@/mirror, mounted
+# below), so no separate /mirror mount is needed.
 Volume=/nix:/nix
 Volume=%C/windmill/cache:/tmp/windmill/cache
 # Shared logs volume (see windmill.container): workers write large job logs here
 # so the server can serve them for download.
 Volume=%C/windmill/logs:/tmp/windmill/logs
-# Build workbench mounted at IDENTICAL host paths so git worktree links resolve:
-# the system workbench (the durable Bare every worktree hangs off, writable for
-# the per-build mirror fetch and developer pushes), the shared runtime caches,
-# the pinned vendored deps (read-only, ADR-0006), and this worker's own numbered
-# sandbox.
-Volume=@WORKERS_DIR@/system:@WORKERS_DIR@/system:rw
+# Build area mounted at IDENTICAL host paths so git worktree links resolve: the
+# System workbench (the durable Bare every worktree hangs off, writable for the
+# per-build mirror fetch and developer pushes; relocatable on its own), the shared
+# runtime caches under the worker-sandbox root, the pinned vendored deps
+# (read-only, ADR-0006), and this worker's own numbered sandbox.
+Volume=@SYSTEM_DIR@:@SYSTEM_DIR@:rw
 Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
 Volume=@VENDOR_DIR@:@VENDOR_DIR@:ro
 Volume=@WORKERS_DIR@/@SELFDIR@:@WORKERS_DIR@/@SELFDIR@:rw

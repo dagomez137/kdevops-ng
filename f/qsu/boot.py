@@ -39,7 +39,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from f.common.devshell import Systemd
+from f.common.devshell import Systemd, system_dir
 from f.qsu.common import state_dir
 
 
@@ -72,12 +72,12 @@ def _write_ssh_alias(workers: Path, vm_name: str, vsock_cid: int | None) -> str 
 
     Needs the kdevops-managed key (f/workbench/ssh_key) and a vsock cid; the block
     routes `<vm>` over vsock with that key, picked up by the operator's one-time
-    `Include <workers>/system/ssh/config` in ~/.ssh/config.
+    `Include $SYSTEM_DIR/ssh/config` in ~/.ssh/config.
     """
-    priv = workers / "system/ssh/id_ed25519"
+    priv = system_dir() / "ssh/id_ed25519"
     if not vsock_cid or not priv.is_file():
         return None
-    conf = workers / "system/ssh/config.d" / f"{vm_name}.conf"
+    conf = system_dir() / "ssh/config.d" / f"{vm_name}.conf"
     _atomic_write(conf, "\n".join([
         f"Host {vm_name}",
         f"    HostName vsock/{vsock_cid}",

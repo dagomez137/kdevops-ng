@@ -2,7 +2,7 @@ summary: "Workbench mirror: provision git-mirror@ refresh timers"
 description: |
   Install the `git-mirror@.{service,timer}` template pair into the host
   `systemd --user` manager and enable one instance per mirror repo, so each local
-  `WORKERS_DIR/system/mirror/<repo>.git` is force-refreshed from its upstream
+  `SYSTEM_DIR/mirror/<repo>.git` is force-refreshed from its upstream
   `origin` (`git remote update --prune`) on a self-pacing loop — `OnBootSec` after
   boot, then `OnUnitInactiveSec` after each run finishes. Per-repo instances pace
   and fail independently (a slow `linux` fetch never delays `qemu`).
@@ -60,7 +60,7 @@ schema:
     mirror_dir:
       title: Mirror Dir
       type: string
-      description: Directory holding the `<repo>.git` mirrors. Empty = `WORKERS_DIR/system/mirror`.
+      description: Directory holding the `<repo>.git` mirrors. Empty = `SYSTEM_DIR/mirror`.
       default: ""
     mirrors:
       title: Advanced — full mirror config

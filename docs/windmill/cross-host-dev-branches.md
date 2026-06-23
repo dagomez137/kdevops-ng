@@ -22,15 +22,15 @@ wmill flow run f/workbench/init --data '{"peers": ["hetzie"]}'
 ```
 
 Each alias becomes a `<peer>` remote on every Bare, its URL the peer's Bare under the
-**same `WORKERS_DIR` layout**:
+**same `SYSTEM_DIR` layout**:
 
 ```
-ssh://<peer>/<WORKERS_DIR>/system/bare/<namespace>/<canonical>.git
+ssh://<peer>/<SYSTEM_DIR>/bare/<namespace>/<canonical>.git
 ```
 
 with a `+refs/heads/*:refs/remotes/<peer>/*` refspec. The derivation assumes peers
-share this host's `WORKERS_DIR` path (true when the hosts share a home, e.g. one
-NFS/`/home`); provisioning only wires the remote — it does not fetch, since push is the
+share this host's `SYSTEM_DIR` path (true when the hosts share a home, e.g. one
+NFS/`/home`); provisioning only wires the remote, it does not fetch, since push is the
 workflow and a peer may be empty or unreachable. List peer hosts, not self.
 
 > ssh prerequisite: the same passwordless ssh the Store uses (the `transfer` devShell's

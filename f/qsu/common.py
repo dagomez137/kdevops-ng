@@ -17,7 +17,7 @@ from pathlib import Path
 import jinja2
 import yaml
 
-from f.common.devshell import DevShell, Systemd, vendor_dir
+from f.common.devshell import DevShell, Systemd, system_dir, vendor_dir
 
 from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
@@ -117,7 +117,7 @@ def _running_vms(out: str) -> set[str]:
 def _peer_hosts(workers: Path) -> list[str]:
     """Registered peer ssh-host aliases (one per line in `system/peers`, written by
     f/workbench/fetch). Missing/empty file means no peers, so discovery stays local."""
-    f = workers / "system/peers"
+    f = system_dir() / "peers"
     if not f.is_file():
         return []
     return [h.strip() for h in f.read_text().splitlines() if h.strip()]
@@ -150,7 +150,7 @@ def vm_options(filter_text: str = "") -> list[dict]:
         # dropdown intact. The glob is single-quoted so the peer's shell passes it to
         # systemctl unexpanded.
         remote = DevShell(workers, "systemd").capture(
-            "ssh", "-F", str(workers / "system/ssh/config"),
+            "ssh", "-F", str(system_dir() / "ssh/config"),
             "-o", "ConnectTimeout=3", "-o", "BatchMode=yes", peer,
             f"systemctl --user list-units --type=service --no-legend "
             f"'{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}'", check=False) or ""

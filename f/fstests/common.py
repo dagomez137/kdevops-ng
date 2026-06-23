@@ -22,7 +22,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from f.common.devshell import DevShell, Nix
+from f.common.devshell import DevShell, Nix, system_dir
 
 # Guest-side constants (the xfstests@.service WorkingDirectory + share mount).
 GUEST_STATE_DIR = "/var/lib/xfstests"
@@ -813,26 +813,26 @@ class RemoteSystemd:
     def __init__(self, workers: Path, vm_name: str, cid: int | None = None) -> None:
         self._vm = vm_name
         self._shell = DevShell(workers, shell="systemd")
-        self._key = workers / "system/ssh/id_ed25519"
+        self._key = system_dir() / "ssh/id_ed25519"
         # Read OUR managed ssh config instead of the worker container's /etc/ssh/
         # ssh_config (which carries a GSSAPIAuthentication option the devShell's ssh
         # build rejects, warning on every call). -F makes the system config ignored;
         # our explicit -o below still take precedence. Fall back to /dev/null if the
         # managed config is absent (workbench not initialised).
-        config = workers / "system/ssh/config"
+        config = system_dir() / "ssh/config"
         self._config = str(config) if config.is_file() else "/dev/null"
         self._cid = cid if cid is not None else self._resolve_cid(workers, vm_name)
         if self._cid is None:
             raise ValueError(
                 f"no vsock cid for {vm_name!r}: pass cid= or boot the VM so "
-                f"{workers}/system/ssh/config.d/{vm_name}.conf carries HostName vsock/<cid>"
+                f"$SYSTEM_DIR/ssh/config.d/{vm_name}.conf carries HostName vsock/<cid>"
             )
         self._proxy = self._resolve_proxy()
 
     @staticmethod
     def _resolve_cid(workers: Path, vm_name: str) -> int | None:
         """Parse the vsock cid from `f/qsu/boot`'s `system/ssh/config.d/<vm>.conf`."""
-        conf = workers / "system/ssh/config.d" / f"{vm_name}.conf"
+        conf = system_dir() / "ssh/config.d" / f"{vm_name}.conf"
         if not conf.is_file():
             return None
         for line in conf.read_text().splitlines():

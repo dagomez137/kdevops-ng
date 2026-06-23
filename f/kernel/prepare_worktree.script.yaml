@@ -2,7 +2,7 @@ summary: "Kernel: prepare a build worktree"
 description: |
   Lay down this worker's warm `main` kernel worktree
   (`workers/<WORKER_INDEX>/kernel/main/linux`) detached at `git_ref`, cut from the
-  durable Bare at `workers/system/bare/kernel/linux.git` and refreshed from the
+  durable Bare at `$SYSTEM_DIR/bare/kernel/linux.git` and refreshed from the
   mirror first so newly-mirrored refs/tags are usable. Thin wrapper over
   `f/common/worktree`. The same tree is reused for every ref and across runs
   (parallel across workers); `recreate_worktree` lays a fresh checkout. `build` and

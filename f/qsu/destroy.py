@@ -47,7 +47,7 @@ import os
 import shutil
 from pathlib import Path
 
-from f.common.devshell import Systemd
+from f.common.devshell import Systemd, system_dir
 from f.qsu.common import state_dir, systemd_config, vm_options
 
 
@@ -99,7 +99,7 @@ def main(vm_name: str) -> dict:
         user / f"qemu-system@{vm_name}.service.d",
         state_dir(vm_name),
         workers / "shared/vm" / f"{vm_name}.vars.json",
-        workers / "system/ssh/config.d" / f"{vm_name}.conf",
+        system_dir() / "ssh/config.d" / f"{vm_name}.conf",
         *user.glob(f"virtiofsd@{vm_name}-*.service.d"),
         *(cfg / "virtiofsd").glob(f"{vm_name}-*.env"),
     ]

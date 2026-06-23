@@ -2,7 +2,7 @@
 """Provision the durable Bare main repos every build worktree is cut from.
 
 Runnable step. For each entry it ensures the Bare at
-`WORKERS_DIR/system/bare/<namespace>/<canonical>.git` exists as a bare repo
+`SYSTEM_DIR/bare/<namespace>/<canonical>.git` exists as a bare repo
 (`git init --bare`) that borrows the ONE merged mirror's objects via its alternates
 file (no objects copied, no upstream network). A single `mirror` remote points at the
 local merged mirror with per-tree refspecs: the mirror's primary heads land in
@@ -19,8 +19,8 @@ shared source of truth for both. The entry's primary remote (the canonical tree,
 `torvalds/linux`) supplies the Bare's `origin` URL.
 
 `peers` is a list of ssh-host aliases of other workbench hosts. Each becomes a
-`<peer>` remote on every Bare, its URL the peer's Bare under the same WORKERS_DIR
-layout (`ssh://<peer>/<WORKERS_DIR>/system/bare/<namespace>/<canonical>.git`), with a
+`<peer>` remote on every Bare, its URL the peer's Bare under the same SYSTEM_DIR
+layout (`ssh://<peer>/<SYSTEM_DIR>/bare/<namespace>/<canonical>.git`), with a
 `+refs/heads/*:refs/remotes/<peer>/*` refspec. A developer publishes a branch
 cross-host with `git -C <worktree> push <peer> <branch>`, and the peer's worker builds
 it as a local `refs/heads/*` ref (ADR-0001's per-host ref channel). Not fetched here.
@@ -32,7 +32,7 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     mkdir --parents "$(dirname "$bare")"
     git init --bare "$bare"
     # borrow the ONE merged mirror's objects (every tree shares it) instead of copying:
-    printf '%s\n' "$WORKERS_DIR"/system/mirror/linux.git/objects >> "$bare/objects/info/alternates"
+    printf '%s\n' "$SYSTEM_DIR"/mirror/linux.git/objects >> "$bare/objects/info/alternates"
     # origin = the primary tree's upstream, only for an explicit human `git fetch origin`:
     git -C "$bare" remote add origin git://git.kernel.org/.../torvalds/linux.git
     # one mirror remote, per-tree refspecs: primary heads -> refs/remotes/mirror/*,
@@ -41,17 +41,16 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     git -C "$bare" config --replace-all remote.mirror.fetch '+refs/heads/*:refs/remotes/mirror/*'
     git -C "$bare" config --add     remote.mirror.fetch '+refs/remotes/axboe/*:refs/remotes/axboe/*'
     git -C "$bare" fetch --tags --force --prune mirror
-    # a peer host's Bare at the same WORKERS_DIR layout, for cross-host dev branches:
-    git -C "$bare" remote add hetzie "ssh://hetzie$WORKERS_DIR/system/bare/kernel/linux.git"
+    # a peer host's Bare at the same SYSTEM_DIR layout, for cross-host dev branches:
+    git -C "$bare" remote add hetzie "ssh://hetzie$SYSTEM_DIR/bare/kernel/linux.git"
     git -C "$bare" config remote.hetzie.fetch '+refs/heads/*:refs/remotes/hetzie/*'
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-from f.common.devshell import Git
+from f.common.devshell import Git, system_dir
 
 # A git tree at git.kernel.org by protocol. The `path` is the FULL path after the
 # host (so fs/ trees sit beside kernel/git/ ones). git is fastest but often
@@ -139,10 +138,10 @@ def build_mirrors(kernel_trees: list[str], protocol: str, extra_trees: list[str]
 def main(kernel_trees: list[str] | None = None, protocol: str = "https",
          extra_trees: list[str] | None = None, mirrors: list[dict] | None = None,
          peers: list[str] | None = None, refresh: bool = True) -> dict:
-    workers = Path(os.environ["WORKERS_DIR"])
+    system = system_dir()
     mirrors = mirrors or build_mirrors(
         DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
-        protocol, extra_trees or [], workers / "system/mirror")
+        protocol, extra_trees or [], system / "mirror")
     peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
     git = Git()
@@ -156,10 +155,10 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
         # Non-primary trees the merged mirror carries (refs/remotes/<tree>/*); the Bare
         # copies each through verbatim so a build can resolve e.g. `axboe/for-next`.
         trees = [r["name"] for r in entry["remotes"] if not r.get("primary")]
-        bare = workers / "system" / "bare" / namespace / f"{canonical}.git"
+        bare = system / "bare" / namespace / f"{canonical}.git"
         origin = remote_url(_primary(entry))
         action = _ensure(git, mirror, bare, origin, trees, refresh)
-        peer_results = _ensure_peers(git, bare, peers, workers, namespace, canonical)
+        peer_results = _ensure_peers(git, bare, peers, system, namespace, canonical)
         head = git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip() or None
         print(f"{name}: {_progress(action, refresh)} (origin {origin})", flush=True)
         results.append({
@@ -175,12 +174,12 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
 
     # Persist the peer registry where any worker can read it without touching git:
     # the qsu VM discovery (f.qsu.common.vm_options) sweeps these hosts over ssh.
-    peers_file = workers / "system/peers"
+    peers_file = system / "peers"
     peers_file.parent.mkdir(parents=True, exist_ok=True)
     peers_file.write_text("".join(f"{p}\n" for p in peers))
     print(f"wrote {peers_file} ({len(peers)} peer(s))", flush=True)
 
-    return {"workers_dir": str(workers), "mirrors": results, "peers": peers}
+    return {"system_dir": str(system), "mirrors": results, "peers": peers}
 
 
 def _validate(entry: dict) -> tuple[str, str, str, str]:
@@ -246,17 +245,17 @@ def _ensure(git: Git, mirror: str, bare: Path, origin: str, trees: list[str],
     return "created" if fresh else ("refreshed" if refresh else "present")
 
 
-def _ensure_peers(git: Git, bare: Path, peers: list[str], workers: Path,
+def _ensure_peers(git: Git, bare: Path, peers: list[str], system: Path,
                   namespace: str, canonical: str) -> list[dict]:
     """Wire a `<peer>` remote per ssh-host alias -> that peer's Bare, deriving the URL
-    from the shared WORKERS_DIR layout. Adds the remote and its
+    from the shared SYSTEM_DIR layout. Adds the remote and its
     `+refs/heads/*:refs/remotes/<peer>/*` refspec; does not fetch (push is the workflow,
     the peer may be empty or unreachable). List peer hosts, not self.
     """
     results = []
     for peer in peers:
         _validate_peer(peer)
-        url = f"ssh://{peer}{workers}/system/bare/{namespace}/{canonical}.git"
+        url = f"ssh://{peer}{system}/bare/{namespace}/{canonical}.git"
         if git.ok("-C", str(bare), "remote", "get-url", peer):
             git.ok("-C", str(bare), "remote", "set-url", peer, url)
             action = "present"

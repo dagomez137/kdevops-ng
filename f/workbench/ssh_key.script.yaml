@@ -1,6 +1,6 @@
 summary: "Workbench: provision the VM SSH key + host ssh-config"
 description: |
-  Provision the kdevops-managed VM SSH key under `WORKERS_DIR/system/ssh/` and the
+  Provision the kdevops-managed VM SSH key under `SYSTEM_DIR/ssh/` and the
   `~/.ssh`-includable `config`. One ed25519 keypair is the access credential for
   every imageless guest: `f/nix/render_config` bakes the public key into each
   closure's `authorizedKeys` and `f/qsu/boot` writes a per-VM `config.d/<vm>.conf`,
