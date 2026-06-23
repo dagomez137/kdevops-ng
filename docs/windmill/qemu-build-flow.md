@@ -78,9 +78,10 @@ QEMU copies this verbatim, substituting the namespace (`qemu-project`) and canon
 name (`qemu`).
 
 > Migration: a host provisioned under the old `workers/shared/<ns>/<canonical>` clone
-> layout re-provisions fresh — `f/workspace/init` builds the new Bare under `system/`
-> and the old `shared/<ns>/...` clones and `shared/ws/*` trees become unused. Remove
-> them with `rm --recursive --force` once no build references them.
+> layout re-provisions fresh — `f/workspace/init` builds the new Bare under `system/`,
+> and the old `shared/<ns>/...` clones, `shared/ws/*` trees, and the numeric
+> `workers/<NNNN>` sandbox dirs (now `w<NNNN>`) become unused. Remove them with
+> `rm --recursive --force` once no build references them.
 
 ## The `f/qemu/build` flow
 

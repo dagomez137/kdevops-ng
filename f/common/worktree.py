@@ -12,8 +12,9 @@ worktree is cheap and every worker sees the same trees. It runs `git` on the hos
 
 The slot is `workers/<WORKER_INDEX>/<namespace>/main`; the worktree is
 `<slot>/<canonical>`, reused for every ref and across runs. `build` and `destdir`
-are children of the worktree. `recreate_worktree=True` rm's the worktree and lays a
-fresh detached checkout.
+are children of the worktree, so `recreate_worktree=True` — which rm's the worktree
+and lays a fresh detached checkout — discards them both (the durable run layer lives
+in the Store, not `destdir`).
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 

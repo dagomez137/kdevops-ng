@@ -35,7 +35,7 @@ schema:
     recreate_worktree:
       title: Recreate Worktree
       type: boolean
-      description: Lay a fresh detached checkout (rm the warm tree first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+      description: Lay a fresh detached checkout (rm the warm tree — its build dir and destdir too — first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
       default: false
     wipe_build:
       type: boolean
