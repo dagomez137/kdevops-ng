@@ -9,7 +9,8 @@ description: |
   (out-of-tree) and `destdir` (`--prefix`) are children of the source checkout.
 
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `version`, `namespace`,
-  `canonical`, `qemu_ref`.
+  `canonical`, `qemu_ref`, and `b4_branch` (the `b4/<slug>` branch published to the
+  Bare when `b4_series` is set, else null).
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

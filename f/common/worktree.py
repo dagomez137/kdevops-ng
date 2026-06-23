@@ -31,12 +31,14 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
     git -C "$WT" config user.name kdevops                  # b4 shazam's git am needs a committer
     git -C "$WT" config user.email kdevops@kdevops
     b4 shazam "$b4_series"                                 # optional, in the devShell, cwd=$WT
+    git -C "$WT" branch --force "b4/$slug" HEAD            # publish the series to the Bare
     git -C "$WT" rev-parse HEAD
 """
 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -100,11 +102,17 @@ def prepare(
         shutil.rmtree(worktree, ignore_errors=True)
         git.run("-C", str(bare), "worktree", "add", "--force", "--detach",
                 str(worktree), target)
+    b4_branch = None
     if b4_series:
         # b4 shazam's `git am` needs a committer identity the worker container lacks.
         git.run("-C", str(worktree), "config", "user.name", "kdevops")
         git.run("-C", str(worktree), "config", "user.email", "kdevops@kdevops")
         DevShell(workers).run("b4", "shazam", b4_series, cwd=str(worktree))
+        # Publish the applied series to the Bare so a developer can check it out and
+        # iterate (same host shares the Bare; the branch also keeps the commits alive
+        # once `main` advances to the next ref).
+        b4_branch = f"b4/{_b4_slug(b4_series)}"
+        git.run("-C", str(worktree), "branch", "--force", b4_branch, "HEAD")
 
     for d in extra_dirs:
         target_dir = worktree / d
@@ -125,6 +133,7 @@ def prepare(
         "slot": str(slot),
         "worktree": str(worktree),
         "b4_series": b4_series or None,
+        "b4_branch": b4_branch,
     }
     if "build" in extra_dirs:
         result["build_dir"] = str(build_dir)
@@ -166,6 +175,16 @@ def _exclude_dirs(bare: Path, extra_dirs: tuple) -> None:
     info.mkdir(parents=True, exist_ok=True)
     with exclude.open("a") as handle:
         handle.write("".join(line + "\n" for line in missing))
+
+
+def _b4_slug(b4_series: str) -> str:
+    """Reduce a b4 message-id/URL to a filesystem-safe branch leaf (<=48 chars)."""
+    value = b4_series.strip().strip("/")
+    if "/" in value:
+        value = value.rsplit("/", 1)[-1]
+    value = value.split("@", 1)[0]
+    value = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-._").lower()
+    return value[:48] or "series"
 
 
 def _read_version(worktree: Path, version_file: str) -> str | None:

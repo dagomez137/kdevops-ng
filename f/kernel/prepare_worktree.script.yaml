@@ -9,7 +9,8 @@ description: |
   `destdir` are children of the source checkout.
 
   Returns `worktree`, `build_dir`, `slot`, `destdir`, `commit`, `worker`,
-  `namespace`, `canonical`, `git_ref`.
+  `namespace`, `canonical`, `git_ref`, and `b4_branch` (the `b4/<slug>` branch
+  published to the Bare when `b4_series` is set, else null).
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
