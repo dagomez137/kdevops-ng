@@ -5,7 +5,9 @@ Terminology
 ===========
 
 The ubiquitous language for how build sources, artifacts and collaborators
-are organized and shared between people and the Windmill engine.
+are organized and shared between people and the `Windmill`_ engine.
+
+.. _Windmill: https://www.windmill.dev/
 
 .. note::
 
