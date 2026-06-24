@@ -109,6 +109,7 @@ Knobs (environment variables):
 | Variable | Default | Meaning |
 |---|---|---|
 | `CADDY_PORT` | `8000` | loopback port caddy fronts the stack on |
+| `CADDY_TLS` | `internal` | `off` (HTTP), `internal` (caddy CA), or `file` (`CADDY_CERT`+`CADDY_KEY`) |
 | `WORKERS` | `2` | build-pool worker count |
 | `VM_WORKERS` / `VM_RUN_WORKERS` | `0` | vm and vm-run pools (need the workbench; see below) |
 | `WORKBENCH_DIR` / `SYSTEM_DIR` / `WORKERS_DIR` / `VENDOR_DIR` | under the repo | build-area paths |
@@ -128,6 +129,27 @@ Two operational notes:
 - `systemctl --user` from a shell without a login session needs
   `XDG_RUNTIME_DIR=/run/user/$(id -u)` and a matching
   `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus`.
+
+## TLS
+
+`CADDY_TLS` defaults to `internal`: caddy serves HTTPS with its own CA, so the
+instance is `https://localhost:8000` out of the box (HTTP/2 and HTTP/3, wss for
+the LSP). The system trust store is left untouched, so a browser warns once on
+the internal CA; run `<state>/sw/caddy/bin/caddy trust` to install the root and
+remove the warning, or set `CADDY_TLS=off` for plain HTTP, or `CADDY_TLS=file`
+with `CADDY_CERT`/`CADDY_KEY` for an org or mkcert certificate.
+
+The one rule that makes TLS correct: the `Secure` flag on Windmill's session
+cookie is set from the server `BASE_URL` (it flips `IS_SECURE` on a base_url
+that starts with `https://`), not from a forwarded-proto header. `install.sh`
+sets `BASE_URL` from the same `CADDY_TLS` choice, so the cookie and the scheme
+can never disagree. Serving HTTPS with an `http://` base_url would leave the
+cookie non-Secure; the reverse would drop the cookie and break login.
+
+The `wmill` CLI authenticates with a bearer token, not the cookie, so it is
+unaffected by the Secure flag, but its remote must use a reachable URL. With
+TLS on, point it at the loopback server directly (`http://localhost:8002`, no
+cert to trust) or at `https://localhost:8000` once the CA is trusted.
 
 ## Bumping the fork
 

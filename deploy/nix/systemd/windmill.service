@@ -15,6 +15,11 @@ After=windmill-db.service
 [Service]
 Environment=MODE=server
 Environment=PORT=8002
+# BASE_URL drives the Secure flag on the session cookie (the server sets
+# IS_SECURE from base_url starting with https://), so install.sh keeps it in
+# lockstep with caddy's scheme. The instance has no base_url DB setting, so
+# this env is authoritative; setting Base URL in the UI would override it.
+Environment=BASE_URL=@BASE_URL@
 EnvironmentFile=%S/windmill-nix/env/database.env
 ExecStart=@SW@/windmill/bin/windmill
 Restart=always

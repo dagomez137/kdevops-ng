@@ -1,17 +1,15 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Windmill reverse proxy (caddy), run from nix under systemd --user. Fronts the
 # server and the LSP gateway on one loopback origin, matching
-# deploy/podman/systemd/windmill-caddy.container. The public listen address is
-# WMNIX_CADDY_ADDR, which install.sh fills in (@CADDY_ADDR@); the Caddyfile and
-# the @SW@ out-link are likewise install-rendered. The Caddyfile binds the
-# listener to loopback; WMNIX_CADDY_PORT only chooses the port.
+# deploy/podman/systemd/windmill-caddy.container. install.sh renders the
+# Caddyfile (the listen address, TLS mode, routes) and the @SW@ out-link; the
+# Caddyfile binds the listener to loopback.
 [Unit]
 Description=Windmill reverse proxy (caddy, loopback only) (nix)
 Requires=windmill.service
 After=windmill.service
 
 [Service]
-Environment=WMNIX_CADDY_PORT=@CADDY_PORT@
 ExecStart=@SW@/caddy/bin/caddy run --adapter caddyfile --config %S/windmill-nix/Caddyfile
 Restart=always
 

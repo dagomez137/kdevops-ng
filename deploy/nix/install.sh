@@ -27,6 +27,54 @@ VM_RUN_WORKERS="${VM_RUN_WORKERS:-0}"
 # nix proxy up alongside it.
 CADDY_PORT="${CADDY_PORT:-8000}"
 
+# TLS mode. Default on: internal (caddy's own CA, system trust untouched, so a
+# one-time browser warning). off = plain HTTP; file = an operator-provided cert
+# and key (CADDY_CERT + CADDY_KEY). For a public domain (ACME), set the site
+# address in the Caddyfile to the domain and drop the loopback bind; that is not
+# a loopback deployment, so it is left to the operator. The server BASE_URL is
+# kept in lockstep with the scheme below: Windmill derives the Secure-cookie
+# flag (IS_SECURE) from base_url starting with https://, so a mismatch between
+# what caddy serves and base_url would either drop the cookie (login breaks) or
+# leave it non-Secure (a gap). One knob drives both.
+CADDY_TLS="${CADDY_TLS:-internal}"
+PUBLIC_HOST="${WMNIX_PUBLIC_HOST:-localhost}"
+caddy_autohttps="off"
+caddy_skiptrust=""
+caddy_scheme="http"
+caddy_tls=""
+caddy_hsts=""
+case "$CADDY_TLS" in
+    off)
+        # Any Host on the port; the listener still binds loopback below.
+        caddy_site="http://:$CADDY_PORT"
+        BASE_URL="http://$PUBLIC_HOST:$CADDY_PORT"
+        ;;
+    internal)
+        # tls internal needs hostnames to issue certs for; cover both names a
+        # loopback client uses so either resolves.
+        caddy_autohttps="disable_redirects"
+        caddy_skiptrust="skip_install_trust"
+        caddy_scheme="https"
+        caddy_tls="tls internal"
+        caddy_site="https://$PUBLIC_HOST:$CADDY_PORT https://127.0.0.1:$CADDY_PORT"
+        BASE_URL="https://$PUBLIC_HOST:$CADDY_PORT"
+        ;;
+    file)
+        : "${CADDY_CERT:?CADDY_TLS=file needs CADDY_CERT}" "${CADDY_KEY:?CADDY_TLS=file needs CADDY_KEY}"
+        caddy_autohttps="disable_redirects"
+        caddy_scheme="https"
+        caddy_tls="tls $CADDY_CERT $CADDY_KEY"
+        caddy_hsts='header Strict-Transport-Security "max-age=31536000; includeSubDomains"'
+        # The provided cert dictates the name; PUBLIC_HOST must match it.
+        caddy_site="https://$PUBLIC_HOST:$CADDY_PORT"
+        BASE_URL="https://$PUBLIC_HOST:$CADDY_PORT"
+        ;;
+    *)
+        echo "unknown CADDY_TLS=$CADDY_TLS (expected off|internal|file)" >&2
+        exit 2
+        ;;
+esac
+
 # Build area (ADR-0008), defaulting under the repo like the podman backend.
 # These are plain host paths now (no bind-mounts), passed to the build and vm
 # workers through workbench.env.
@@ -56,12 +104,22 @@ loginctl enable-linger "$USER" >/dev/null 2>&1 || true
     printf 'WORKERS_DIR=%s\n' "$WORKERS_DIR"
     printf 'VENDOR_DIR=%s\n' "$VENDOR_DIR"
 } >"$STATE/env/workbench.env"
-install --mode=644 "$HERE/Caddyfile" "$STATE/Caddyfile"
+# Render the Caddyfile for the chosen TLS mode, then validate it so a bad config
+# fails here rather than in a flapping caddy.service.
+sed -e "s|@WMNIX_AUTOHTTPS@|$caddy_autohttps|g" \
+    -e "s|@WMNIX_SKIPTRUST@|$caddy_skiptrust|g" \
+    -e "s|@WMNIX_SITE@|$caddy_site|g" \
+    -e "s|@WMNIX_TLS@|$caddy_tls|g" \
+    -e "s|@WMNIX_HSTS@|$caddy_hsts|g" \
+    "$HERE/Caddyfile" >"$STATE/Caddyfile"
+# Tidy the blank lines left where mode placeholders rendered empty.
+"$SW/caddy/bin/caddy" fmt --overwrite "$STATE/Caddyfile"
+"$SW/caddy/bin/caddy" validate --adapter caddyfile --config "$STATE/Caddyfile" >/dev/null
 
 echo "== render units into $UNITS =="
 mkdir --parents "$UNITS"
 for u in "$HERE"/systemd/*.service; do
-    sed -e "s|@SW@|$SW|g" -e "s|@CADDY_PORT@|$CADDY_PORT|g" "$u" >"$UNITS/$(basename "$u")"
+    sed -e "s|@SW@|$SW|g" -e "s|@BASE_URL@|$BASE_URL|g" "$u" >"$UNITS/$(basename "$u")"
     echo "  $(basename "$u")"
 done
 
@@ -92,6 +150,7 @@ start_pool windmill-worker "$WORKERS" 0
 start_pool windmill-worker-vm "$VM_WORKERS" 1
 start_pool windmill-worker-vmrun "$VM_RUN_WORKERS" 1
 
-echo "up -> caddy http://127.0.0.1:$CADDY_PORT  (server :8002 behind it)"
+echo "up -> caddy $caddy_scheme://$PUBLIC_HOST:$CADDY_PORT  (TLS: $CADDY_TLS; server :8002 behind it)"
+[ "$CADDY_TLS" = internal ] && echo "      internal CA: browsers warn once; run '$SW/caddy/bin/caddy trust' to remove it"
+echo "      base_url=$BASE_URL (Secure cookies $([ "$caddy_scheme" = https ] && echo on || echo off))"
 echo "      workers: 1 native + $WORKERS build + $VM_WORKERS vm + $VM_RUN_WORKERS vm-run"
-echo "      systemctl --user status windmill windmill-caddy windmill-native 'windmill-worker@*'"

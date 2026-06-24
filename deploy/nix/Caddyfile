@@ -1,22 +1,26 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-# One origin in front of the two backends, matching deploy/podman/Caddyfile.
-# The websocket paths go to the windmill-extra LSP gateway; everything else to
-# the server. The listen address comes from the unit (WMNIX_CADDY_ADDR), default
-# loopback :8000; reach the UI with ssh -L 8000:localhost:8000.
+# One origin in front of the two backends, matching deploy/podman/Caddyfile. The
+# websocket paths go to the windmill-extra LSP gateway; everything else to the
+# server. install.sh renders the @WMNIX_*@ placeholders from CADDY_TLS:
 #
-# auto_https off and the explicit http:// scheme keep caddy a plain HTTP proxy:
-# no TLS automation, no :80 redirect vhost, no local CA installed into the system
-# trust store. This is a loopback proxy behind an SSH forward, never a public
-# origin, so it terminates no TLS.
+#   off       plain HTTP (loopback behind an SSH forward terminates no TLS).
+#   internal  HTTPS with caddy's internal CA, trust store untouched (one-time
+#             browser warning; run `caddy trust` to remove it).
+#   file      HTTPS with an operator-provided cert and key (org CA, mkcert).
+#   acme      HTTPS with a real cert for a public domain.
+#
+# The Secure flag on Windmill's session cookie follows the server's BASE_URL
+# (it sets IS_SECURE from base_url starting with https://), which install.sh
+# keeps in lockstep with this scheme, so the two never drift.
 {
-	auto_https off
+	auto_https @WMNIX_AUTOHTTPS@
+	@WMNIX_SKIPTRUST@
 	admin off
 }
-# Match any Host on the port (so localhost and 127.0.0.1 both work over the SSH
-# forward), but bind the listener to loopback only, mirroring the podman
-# backend's 127.0.0.1:8000 publish.
-http://:{$WMNIX_CADDY_PORT:8000} {
+@WMNIX_SITE@ {
 	bind 127.0.0.1
+	@WMNIX_TLS@
+	@WMNIX_HSTS@
 	# A named matcher: reverse_proxy takes only one inline matcher, so listing
 	# several path tokens would be parsed as upstreams (a round-robin pool),
 	# not routes. The websocket paths go to the LSP gateway, the rest to the
