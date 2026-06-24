@@ -65,7 +65,7 @@ schema:
     mirrors:
       title: Advanced — full mirror config
       type: array
-      description: "Power-user override of the whole mirror layout — `[{name, mirror, namespace, canonical, remotes:[{name, path|url, protocol, primary}]}]` — for per-tree protocols, a custom QEMU URL, extra projects, etc. When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
+      description: "Power-user override of the whole mirror layout (`[{name, mirror, project, remotes:[{name, path|url, protocol, primary}]}]`) for per-tree protocols, a custom QEMU URL, extra projects, etc. When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
       default: []
       items:
         type: object

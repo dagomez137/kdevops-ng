@@ -2,7 +2,7 @@
 """Provision the durable Bare main repos every build worktree is cut from.
 
 Runnable step. For each entry it ensures the Bare at
-`SYSTEM_DIR/bare/<namespace>/<canonical>.git` exists as a bare repo
+`SYSTEM_DIR/bare/<project>.git` exists as a bare repo
 (`git init --bare`) that borrows the ONE merged mirror's objects via its alternates
 file (no objects copied, no upstream network). A single `mirror` remote points at the
 local merged mirror with per-tree refspecs: the mirror's primary heads land in
@@ -20,7 +20,7 @@ shared source of truth for both. The entry's primary remote (the canonical tree,
 
 `peers` is a list of ssh-host aliases of other workbench hosts. Each becomes a
 `<peer>` remote on every Bare, its URL the peer's Bare under the same SYSTEM_DIR
-layout (`ssh://<peer>/<SYSTEM_DIR>/bare/<namespace>/<canonical>.git`), with a
+layout (`ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git`), with a
 `+refs/heads/*:refs/remotes/<peer>/*` refspec. A developer publishes a branch
 cross-host with `git -C <worktree> push <peer> <branch>`, and the peer's worker builds
 it as a local `refs/heads/*` ref (ADR-0001's per-host ref channel). Not fetched here.
@@ -42,7 +42,7 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     git -C "$bare" config --add     remote.mirror.fetch '+refs/remotes/axboe/*:refs/remotes/axboe/*'
     git -C "$bare" fetch --tags --force --prune mirror
     # a peer host's Bare at the same SYSTEM_DIR layout, for cross-host dev branches:
-    git -C "$bare" remote add hetzie "ssh://hetzie$SYSTEM_DIR/bare/kernel/linux.git"
+    git -C "$bare" remote add hetzie "ssh://hetzie$SYSTEM_DIR/bare/linux.git"
     git -C "$bare" config remote.hetzie.fetch '+refs/heads/*:refs/remotes/hetzie/*'
 """
 
@@ -127,9 +127,9 @@ def build_mirrors(kernel_trees: list[str], protocol: str, extra_trees: list[str]
     for path in extra_trees:
         remotes.append({"name": _extra_name(path), "path": path, "protocol": protocol})
     return [
-        {"name": "linux", "namespace": "kernel", "canonical": "linux",
+        {"name": "linux", "project": "linux",
          "mirror": str(mirror_dir / "linux.git"), "remotes": remotes},
-        {"name": "qemu", "namespace": "qemu-project", "canonical": "qemu",
+        {"name": "qemu", "project": "qemu",
          "mirror": str(mirror_dir / "qemu.git"),
          "remotes": [{"name": "origin", "url": qemu_url, "primary": True}]},
     ]
@@ -151,14 +151,14 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
 
     results = []
     for entry in mirrors:
-        name, mirror, namespace, canonical = _validate(entry)
+        name, mirror, project = _validate(entry)
         # Non-primary trees the merged mirror carries (refs/remotes/<tree>/*); the Bare
         # copies each through verbatim so a build can resolve e.g. `axboe/for-next`.
         trees = [r["name"] for r in entry["remotes"] if not r.get("primary")]
-        bare = system / "bare" / namespace / f"{canonical}.git"
+        bare = system / "bare" / f"{project}.git"
         origin = remote_url(_primary(entry))
         action = _ensure(git, mirror, bare, origin, trees, refresh)
-        peer_results = _ensure_peers(git, bare, peers, system, namespace, canonical)
+        peer_results = _ensure_peers(git, bare, peers, system, project)
         head = git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip() or None
         print(f"{name}: {_progress(action, refresh)} (origin {origin})", flush=True)
         results.append({
@@ -182,24 +182,21 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
     return {"system_dir": str(system), "mirrors": results, "peers": peers}
 
 
-def _validate(entry: dict) -> tuple[str, str, str, str]:
-    """Validate one mirror entry and return its (name, mirror, namespace, canonical)."""
+def _validate(entry: dict) -> tuple[str, str, str]:
+    """Validate one mirror entry and return its (name, mirror, project)."""
     name = entry.get("name")
     mirror = entry.get("mirror")
-    namespace = entry.get("namespace")
-    canonical = entry.get("canonical")
-    for key, value in (("name", name), ("mirror", mirror),
-                       ("namespace", namespace), ("canonical", canonical)):
+    project = entry.get("project")
+    for key, value in (("name", name), ("mirror", mirror), ("project", project)):
         if not isinstance(value, str) or not value:
             raise ValueError(f"mirror entry {entry!r}: {key} must be a non-empty string")
     if not entry.get("remotes"):
         raise ValueError(f"mirror {name!r}: needs at least one remote")
     if mirror.startswith("-"):
         raise ValueError(f"invalid mirror: {mirror}")
-    for key, value in (("namespace", namespace), ("canonical", canonical)):
-        if ".." in value or value.startswith("-") or Path(value).is_absolute():
-            raise ValueError(f"invalid {key}: {value}")
-    return name, mirror, namespace, canonical
+    if ".." in project or project.startswith("-") or Path(project).is_absolute():
+        raise ValueError(f"invalid project: {project}")
+    return name, mirror, project
 
 
 def _primary(entry: dict) -> dict:
@@ -246,7 +243,7 @@ def _ensure(git: Git, mirror: str, bare: Path, origin: str, trees: list[str],
 
 
 def _ensure_peers(git: Git, bare: Path, peers: list[str], system: Path,
-                  namespace: str, canonical: str) -> list[dict]:
+                  project: str) -> list[dict]:
     """Wire a `<peer>` remote per ssh-host alias -> that peer's Bare, deriving the URL
     from the shared SYSTEM_DIR layout. Adds the remote and its
     `+refs/heads/*:refs/remotes/<peer>/*` refspec; does not fetch (push is the workflow,
@@ -255,7 +252,7 @@ def _ensure_peers(git: Git, bare: Path, peers: list[str], system: Path,
     results = []
     for peer in peers:
         _validate_peer(peer)
-        url = f"ssh://{peer}{system}/bare/{namespace}/{canonical}.git"
+        url = f"ssh://{peer}{system}/bare/{project}.git"
         if git.ok("-C", str(bare), "remote", "get-url", peer):
             git.ok("-C", str(bare), "remote", "set-url", peer, url)
             action = "present"
@@ -264,7 +261,7 @@ def _ensure_peers(git: Git, bare: Path, peers: list[str], system: Path,
             action = "added"
         git.ok("-C", str(bare), "config", f"remote.{peer}.fetch",
                f"+refs/heads/*:refs/remotes/{peer}/*")
-        print(f"{namespace}/{peer}: {action} ({url})", flush=True)
+        print(f"{project}/{peer}: {action} ({url})", flush=True)
         results.append({"name": peer, "url": url})
     return results
 

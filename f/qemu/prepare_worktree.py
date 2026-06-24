@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Lay down this worker's warm `main` QEMU worktree, detached at the requested ref.
 
-Thin wrapper over `f.common.worktree.prepare` (the shared slot/worktree logic). The
-worktree is cut from the durable Bare at `$SYSTEM_DIR/bare/qemu-project/qemu.git`,
+Thin wrapper over `f.common.worktree.prepare` (the shared worktree logic). The
+worktree is cut from the durable Bare at `$SYSTEM_DIR/bare/qemu.git`,
 which borrows the local mirror's objects, so checkouts are cheap. Runs `git` on the
 host (NOT in the devShell).
 
-The worktree is this worker's `workers/<WORKER_INDEX>/qemu-project/main/qemu`, reused
+The worktree is this worker's `workers/<WORKER_INDEX>/qemu/main`, reused
 for every ref and across runs (parallel across workers); apply b4 series over and over.
 `recreate_worktree` lays a fresh checkout.
 
@@ -34,13 +34,15 @@ from __future__ import annotations
 from f.common.worktree import prepare
 
 
-def main(qemu_ref: str = "v11.0.0", b4_series: str = "", recreate_worktree: bool = False,
-         wipe_build: bool = False, clean_destdir: bool = False) -> dict:
+def main(qemu_ref: str = "v11.0.0", worktree_group: str = "vanilla", b4_series: str = "",
+         recreate_worktree: bool = False, wipe_build: bool = False,
+         clean_destdir: bool = False) -> dict:
     qemu_ref = qemu_ref or "v11.0.0"
     wipe_dirs = (("build",) if wipe_build else ()) + (("destdir",) if clean_destdir else ())
     result = prepare(
-        namespace="qemu-project",
-        canonical="qemu",
+        project="qemu",
+        worktree_group=worktree_group,
+        developer=False,
         ref=qemu_ref,
         b4_series=b4_series,
         recreate_worktree=recreate_worktree,

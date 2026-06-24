@@ -1,8 +1,8 @@
 summary: "Workbench Init"
 description: |
   One-time (idempotent) bootstrap, run from the UI after Windmill is up. Provisions the
-  durable Bares (default `$SYSTEM_DIR/bare/kernel/linux.git` and
-  `$SYSTEM_DIR/bare/qemu-project/qemu.git`) that every worker cuts cheap detached
+  durable Bares (default `$SYSTEM_DIR/bare/linux.git` and
+  `$SYSTEM_DIR/bare/qemu.git`) that every worker cuts cheap detached
   worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
   but borrows objects from the local mirror (`$SYSTEM_DIR/mirror`), and keeps `refs/heads/*` for developer
   pushes. Thin flow over `f/workbench/fetch` — override or extend the source list there;

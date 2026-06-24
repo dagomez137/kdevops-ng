@@ -19,7 +19,7 @@ description: |
   6. `collect` — merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
-  (`workers/<worker>/qemu-project/main/qemu`), synced to `qemu_ref` every run so
+  (`workers/<worker>/qemu/main`), synced to `qemu_ref` every run so
   rebuilds stay incremental and isolated builds on different workers run in parallel.
   `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean build.
 
@@ -38,6 +38,9 @@ value:
           qemu_ref:
             type: javascript
             expr: flow_input.worktree?.qemu_ref
+          worktree_group:
+            type: javascript
+            expr: flow_input.worktree?.worktree_group
           b4_series:
             type: javascript
             expr: flow_input.worktree?.b4_series
@@ -314,6 +317,7 @@ schema:
       default: {}
       order:
         - qemu_ref
+        - worktree_group
         - b4_series
         - recreate_worktree
         - wipe_build
@@ -323,6 +327,11 @@ schema:
           type: string
           description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
           default: v11.0.0
+        worktree_group:
+          title: Worktree group
+          type: string
+          description: Worktree-group this build belongs to (default vanilla; system/workers are reserved).
+          default: vanilla
         b4_series:
           title: b4 Series
           type: string

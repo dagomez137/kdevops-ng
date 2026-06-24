@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Lay down this worker's warm `main` kernel worktree, detached at the requested ref.
 
-Thin wrapper over `f.common.worktree.prepare` (the shared slot/worktree logic). The
-worktree is cut from the durable Bare at `$SYSTEM_DIR/bare/kernel/linux.git`,
+Thin wrapper over `f.common.worktree.prepare` (the shared worktree logic). The
+worktree is cut from the durable Bare at `$SYSTEM_DIR/bare/linux.git`,
 which borrows the local mirror's objects, so checkouts are cheap. Runs `git` on the
 host (NOT in the devShell).
 
-The worktree is this worker's `workers/<WORKER_INDEX>/kernel/main/linux`, reused for
+The worktree is this worker's `workers/<WORKER_INDEX>/linux/main`, reused for
 every ref and across runs (parallel across workers); apply b4 series over and over.
 `recreate_worktree` lays a fresh checkout.
 
@@ -34,13 +34,15 @@ from __future__ import annotations
 from f.common.worktree import prepare
 
 
-def main(git_ref: str = "v7.1-rc7", b4_series: str = "", recreate_worktree: bool = False,
-         wipe_build: bool = False, clean_destdir: bool = False) -> dict:
+def main(git_ref: str = "v7.1-rc7", worktree_group: str = "vanilla", b4_series: str = "",
+         recreate_worktree: bool = False, wipe_build: bool = False,
+         clean_destdir: bool = False) -> dict:
     git_ref = git_ref or "v7.1-rc7"
     wipe_dirs = (("build",) if wipe_build else ()) + (("destdir",) if clean_destdir else ())
     result = prepare(
-        namespace="kernel",
-        canonical="linux",
+        project="linux",
+        worktree_group=worktree_group,
+        developer=False,
         ref=git_ref,
         b4_series=b4_series,
         recreate_worktree=recreate_worktree,

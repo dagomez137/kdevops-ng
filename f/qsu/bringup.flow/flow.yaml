@@ -178,6 +178,7 @@ schema:
       default: {}
       order:
       - git_ref
+      - worktree_group
       - b4_series
       - recreate_worktree
       - wipe_build
@@ -186,6 +187,11 @@ schema:
           type: string
           description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
           default: v7.1-rc7
+        worktree_group:
+          title: Worktree group
+          type: string
+          description: Worktree-group this build belongs to (default vanilla; system/workers are reserved).
+          default: vanilla
         b4_series:
           title: b4 Series
           type: string
@@ -675,6 +681,7 @@ schema:
       default: {}
       order:
       - qemu_ref
+      - worktree_group
       - b4_series
       - recreate_worktree
       - wipe_build
@@ -684,6 +691,11 @@ schema:
           type: string
           description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
           default: v11.0.0
+        worktree_group:
+          title: Worktree group
+          type: string
+          description: Worktree-group this build belongs to (default vanilla; system/workers are reserved).
+          default: vanilla
         b4_series:
           title: b4 Series
           type: string

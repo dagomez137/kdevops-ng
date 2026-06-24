@@ -3,18 +3,21 @@
 
 Imported with:  from f.common.worktree import prepare
 
-`prepare()` lays down one warm, detached `main` worktree per (worker, namespace)
-off the durable Bare at `$SYSTEM_DIR/bare/<namespace>/<canonical>.git` (see
-`f/workbench/fetch.py`). The Bare borrows the local mirror's objects, so cutting a
-worktree is cheap and every worker sees the same trees. Its `git` comes from the
-flake (`nixos-flake#git`, resolved once), so the worker needs only `nix` on PATH;
-the optional `b4 shazam` step runs in the `nixos-flake#build` devShell.
+`prepare()` lays down one detached worktree of a project off the durable Bare at
+`$SYSTEM_DIR/bare/<project>.git` (see `f/workbench/fetch.py`). The Bare borrows the
+local mirror's objects, so cutting a worktree is cheap and every worker sees the
+same trees. Its `git` comes from the flake (`nixos-flake#git`, resolved once), so
+the worker needs only `nix` on PATH; the optional `b4 shazam` step runs in the
+`nixos-flake#build` devShell.
 
-The slot is `workers/<WORKER_INDEX>/<namespace>/main`; the worktree is
-`<slot>/<canonical>`, reused for every ref and across runs. `build` and `destdir`
-are children of the worktree, so `recreate_worktree=True` — which rm's the worktree
-and lays a fresh detached checkout — discards them both (the durable run layer lives
-in the Store, not `destdir`).
+A worker build resolves its own warm `main` worktree under its sandbox at
+`workers/<WORKER_INDEX>/<project>/main`; a developer worktree (`developer=True`)
+resolves under `<workbench>/<worktree-group>/<project>` (default group `vanilla`;
+`system` and `workers` are reserved). The worktree is reused for every ref and
+across runs. `build` and `destdir` are children of the worktree, so
+`recreate_worktree=True` (which rm's the worktree and lays a fresh detached
+checkout) discards them both; the durable run layer lives in the Store, not
+`destdir`.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 
@@ -43,7 +46,11 @@ import re
 import shutil
 from pathlib import Path
 
-from f.common.devshell import DevShell, Git, system_dir, vendor_dir
+from f.common.devshell import DevShell, Git, system_dir, vendor_dir, workbench_dir
+
+# Worktree-groups are directories directly under the Workbench; these names are
+# reserved for the build-area infrastructure siblings and may not be a group.
+_RESERVED_GROUPS = ("system", "workers")
 
 
 def main():
@@ -51,11 +58,27 @@ def main():
     return "f/common/worktree: shared worktree-prepare helper"
 
 
+def _validate_group(worktree_group: str) -> None:
+    """Reject a worktree-group that collides with a reserved sibling or carries
+    path/flag characters (it becomes a single directory name directly under the
+    Workbench). It must be one plain path component: no `.`/`..`, no separators,
+    no whitespace, no leading dash."""
+    if (not worktree_group or worktree_group in (".", "..")
+            or worktree_group.startswith("-")
+            or any(c.isspace() for c in worktree_group)
+            or Path(worktree_group).parts != (worktree_group,)):
+        raise ValueError(f"invalid worktree-group: {worktree_group!r}")
+    if worktree_group in _RESERVED_GROUPS:
+        raise ValueError(f"worktree-group {worktree_group!r} is reserved "
+                         f"(reserved: {', '.join(_RESERVED_GROUPS)})")
+
+
 def prepare(
     *,
-    namespace: str,
-    canonical: str,
+    project: str,
     ref: str,
+    worktree_group: str = "vanilla",
+    developer: bool = False,
     b4_series: str = "",
     recreate_worktree: bool = False,
     extra_dirs: tuple = (),
@@ -64,6 +87,7 @@ def prepare(
 ) -> dict:
     if ref.startswith("-"):
         raise ValueError(f"invalid ref: {ref}")
+    _validate_group(worktree_group)
 
     git = Git()
     existing = git.capture("config", "--global", "--get-all", "safe.directory", check=False)
@@ -71,25 +95,32 @@ def prepare(
         git.run("config", "--global", "--add", "safe.directory", "*")
 
     workers = Path(os.environ["WORKERS_DIR"])
-    worker_index = os.environ["WORKER_INDEX"]
-    bare = system_dir() / "bare" / namespace / f"{canonical}.git"
-    slot = workers / worker_index / namespace / "main"
-    worktree = slot / canonical
+    bare = system_dir() / "bare" / f"{project}.git"
+    if developer:
+        # A developer-owned checkout, one per project within a worktree-group.
+        location = worktree_group
+        worktree = workbench_dir() / worktree_group / project
+    else:
+        # A worker builds in its own sandbox: one warm detached `main` per project.
+        location = os.environ["WORKER_INDEX"]
+        worktree = workers / location / project / "main"
     build_dir = worktree / "build"
 
     if not (bare / "objects").is_dir():
-        raise FileNotFoundError(f"Bare {bare} missing — run f/workbench/init first")
+        raise FileNotFoundError(f"Bare {bare} missing; run f/workbench/init first")
     if not (vendor_dir(workers) / "nixos-flake/flake.nix").exists():
         raise FileNotFoundError(
-            f"nixos-flake devShell missing at {vendor_dir(workers) / 'nixos-flake'} "
-            "— provision it first")
+            f"nixos-flake devShell missing at {vendor_dir(workers) / 'nixos-flake'}; "
+            "provision it first")
 
-    print(f"worker={worker_index} ref={ref} worktree={worktree}", flush=True)
+    who = "developer" if developer else f"worker={location}"
+    print(f"{who} group={worktree_group} project={project} "
+          f"ref={ref} worktree={worktree}", flush=True)
 
-    slot.mkdir(parents=True, exist_ok=True)
+    worktree.parent.mkdir(parents=True, exist_ok=True)
 
     # Only upstream refs need a fetch; developer branches are already in the Bare's
-    # refs/heads/* on the same host. A failed fetch is non-fatal — fall back to local refs.
+    # refs/heads/* on the same host. A failed fetch is non-fatal: fall back to local refs.
     if not git.ok("-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"):
         print(f"note: fetch of {bare} from mirror failed; using local refs", flush=True)
     target = _resolve_ref(git, bare, ref)
@@ -113,7 +144,7 @@ def prepare(
         # iterate (same host shares the Bare; the branch also keeps the commits alive
         # once `main` advances to the next ref). update-ref, not `branch --force`,
         # which refuses a branch another worktree has checked out; a failure is
-        # non-fatal — the build already succeeded.
+        # non-fatal, the build already succeeded.
         b4_branch = f"b4/{_b4_slug(b4_series)}"
         if not git.ok("-C", str(worktree), "update-ref", f"refs/heads/{b4_branch}", "HEAD"):
             print(f"note: could not publish {b4_branch} to the Bare", flush=True)
@@ -130,16 +161,17 @@ def prepare(
     _list_dir(worktree)
 
     result = {
-        "worker": worker_index,
-        "namespace": namespace,
-        "canonical": canonical,
+        "project": project,
+        "worktree_group": worktree_group,
+        "developer": developer,
         "ref": ref,
         "commit": commit,
-        "slot": str(slot),
         "worktree": str(worktree),
         "b4_series": b4_series or None,
         "b4_branch": b4_branch,
     }
+    if not developer:
+        result["worker"] = location
     if "build" in extra_dirs:
         result["build_dir"] = str(build_dir)
     if "destdir" in extra_dirs:
