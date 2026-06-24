@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-.PHONY: style generated maintainers docs serve
+.PHONY: style generated reflow maintainers docs serve
 
 DOCS_PORT ?= 8001
 
@@ -11,6 +11,11 @@ style: generated
 # Fail if a committed generated file no longer matches its generator output.
 generated:
 	@bash scripts/check-generated.sh
+
+# Rewrap wmill description fields so wmill keeps them as clean literal blocks.
+# Run after editing descriptions (then `wmill sync push` to store the rewrap).
+reflow:
+	@python3 scripts/reflow-descriptions.py --write
 
 # Who to Cc for a change: make maintainers FILE=f/fstests/report.py
 maintainers:
