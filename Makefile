@@ -4,8 +4,9 @@
 DOCS_PORT ?= 8001
 
 # Run before every commit (rule 5). Checks whitespace, EOF newlines, the HEAD
-# commit-message trailers (Generated-by/Signed-off-by), and generated-file drift.
-style: generated
+# commit-message trailers (Generated-by/Signed-off-by), generated-file drift, and
+# Python lint and formatting (make lint).
+style: generated lint
 	@bash scripts/check-style.sh
 
 # Fail if a committed generated file no longer matches its generator output.
