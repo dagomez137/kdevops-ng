@@ -1,13 +1,8 @@
 summary: "QEMU/systemd: discover a VM's reuse artifacts"
-description: >
+description: |-
   Read `WORKERS_DIR/shared/vm/<vm_name>.vars.json` (written by the render step)
-  to
-
-  recover the kernel + closure manifests and the QEMU binary a deployed VM
-  booted
-
-  with, so a reconfigure can reuse them instead of rebuilding. Returns
-
+  to recover the kernel + closure manifests and the QEMU binary a deployed VM
+  booted with, so a reconfigure can reuse them instead of rebuilding. Returns
   `{kernel, closure, qemu_binary, qemu_source}`; a missing sidecar yields
   empties.
 lock: '!inline f/qsu/discover.script.lock'
@@ -20,7 +15,8 @@ schema:
   properties:
     vm_name:
       type: string
-      description: Deployed VM whose render sidecar
+      description: |-
+        Deployed VM whose render sidecar
         (`WORKERS_DIR/shared/vm/<vm>.vars.json`) to read.
       title: VM Name
   required:

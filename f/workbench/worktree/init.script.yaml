@@ -1,35 +1,19 @@
 summary: 'Workbench: initialize a developer worktree-group'
-description: >
+description: |-
   Stand up a developer worktree-group in one call: for each project in
-  `projects`
-
-  (a `project` plus a `git_ref` and an optional `b4_series`), cut a developer
-
-  worktree under `<workbench>/<worktree_group>/<project>` off that project's
-  durable
-
-  Bare, via `f/common/worktree` with `developer=True`. A developer uses this to
-  let
-
-  Windmill stand up a whole topic group at once (e.g. `largeio` with `linux`,
-
-  `qemu` and `xfsprogs-dev` each at their own ref). `system` and `workers` are
-
-  reserved group names. Per project it is idempotent: an existing worktree is
-  reused
-
-  unless `recreate_worktree`. The worker bind-mounts the whole Workbench, so the
-
-  group lands host-visibly where the developer edits it.
-
+  `projects` (a `project` plus a `git_ref` and an optional `b4_series`), cut a
+  developer worktree under `<workbench>/<worktree_group>/<project>` off that
+  project's durable Bare, via `f/common/worktree` with `developer=True`. A
+  developer uses this to let Windmill stand up a whole topic group at once (e.g.
+  `largeio` with `linux`, `qemu` and `xfsprogs-dev` each at their own ref).
+  `system` and `workers` are reserved group names. Per project it is idempotent:
+  an existing worktree is reused unless `recreate_worktree`. The worker
+  bind-mounts the whole Workbench, so the group lands host-visibly where the
+  developer edits it.
 
   Returns `worktree_group` and `worktrees`: one entry per project with
-  `project`,
-
-  `ref`, `commit`, `worktree`, and `b4_branch` (the `b4/<slug>` branch published
-  to
-
-  the Bare when a `b4_series` was given, else null).
+  `project`, `ref`, `commit`, `worktree`, and `b4_branch` (the `b4/<slug>`
+  branch published to the Bare when a `b4_series` was given, else null).
 lock: '!inline f/workbench/worktree/init.script.lock'
 kind: script
 schema:
@@ -42,8 +26,9 @@ schema:
   properties:
     projects:
       type: array
-      description: 'One entry per project to lay down (e.g. {project: linux, git_ref:
-        v6.12, b4_series: <url>}).'
+      description: |-
+        One entry per project to lay down (e.g. {project: linux, git_ref: v6.12,
+        b4_series: <url>}).
       default: []
       items:
         type: object
@@ -54,28 +39,33 @@ schema:
         properties:
           b4_series:
             type: string
-            description: Optional lore series (message-id/URL) to apply on top via `b4
+            description: |-
+              Optional lore series (message-id/URL) to apply on top via `b4
               shazam`.
             default: ''
           git_ref:
             type: string
-            description: A tag, an upstream ref via the mirror, or a developer branch.
+            description: |-
+              A tag, an upstream ref via the mirror, or a developer branch.
           project:
             type: string
-            description: Project name / Bare to check out (e.g. linux, qemu, xfsprogs-dev).
+            description: |-
+              Project name / Bare to check out (e.g. linux, qemu, xfsprogs-dev).
         required:
           - project
           - git_ref
       title: Projects
     recreate_worktree:
       type: boolean
-      description: Lay a fresh detached checkout per project (rm the existing worktree
+      description: |-
+        Lay a fresh detached checkout per project (rm the existing worktree
         first) instead of reusing it. Default off keeps existing trees.
       default: false
       title: Recreate Worktree
     worktree_group:
       type: string
-      description: Name of the worktree-group to initialize (a sibling of vanilla;
+      description: |-
+        Name of the worktree-group to initialize (a sibling of vanilla;
         system/workers are reserved).
       title: Worktree group
   required:

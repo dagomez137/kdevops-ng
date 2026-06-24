@@ -1,15 +1,10 @@
 summary: 'QEMU/systemd: render the cloud-init seed (DEFERRED)'
-description: >
+description: |-
   **Deferred scaffold.** Will render the cloud-init templates (`user-data.j2`,
-
   `meta-data.j2`, and the `files/network-config` seed) into a NoCloud seed image
-  that
-
-  `vm.env.j2` attaches as the `seed` drive, for image-backed guests that
-  provision over
-
-  cloud-init instead of the imageless closure. Currently returns `{"deferred":
-  true}`.
+  that `vm.env.j2` attaches as the `seed` drive, for image-backed guests that
+  provision over cloud-init instead of the imageless closure. Currently returns
+  `{"deferred": true}`.
 lock: '!inline f/qsu/cloud-init/render.script.lock'
 kind: script
 schema:

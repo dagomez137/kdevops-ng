@@ -1,30 +1,16 @@
 summary: 'Kernel: install modules into a destdir'
-description: >
+description: |-
   `modules_install` the built kernel modules into a separate `destdir`, inside
-  the
-
-  `nixos-flake#build` devShell: `make INSTALL_MOD_PATH=<destdir>
-  modules_install`
-
-  populates `<destdir>/lib/modules/<release>`. INSTALL_MOD_PATH is a build-root
-  prefix
-
-  (Documentation/kbuild/kbuild.rst), distinct from the `O=` build dir, so
-  `destdir`
-
-  defaults to a sibling of the build dir (`<slot>/destdir`). Never touches the
-  host
-
-  `/lib/modules`.
-
+  the `nixos-flake#build` devShell: `make INSTALL_MOD_PATH=<destdir>
+  modules_install` populates `<destdir>/lib/modules/<release>`. INSTALL_MOD_PATH
+  is a build-root prefix (Documentation/kbuild/kbuild.rst), distinct from the
+  `O=` build dir, so `destdir` defaults to a sibling of the build dir
+  (`<slot>/destdir`). Never touches the host `/lib/modules`.
 
   Skip for an all-built-in kernel (CONFIG_MODULES=n): nothing to install.
-  Modules
-
-  were already built by the default `make`, so this does not rebuild them. Reads
-
-  `worktree`/`build_dir` from `prepare_worktree`; returns `destdir` and
-  `modules`.
+  Modules were already built by the default `make`, so this does not rebuild
+  them. Reads `worktree`/`build_dir` from `prepare_worktree`; returns `destdir`
+  and `modules`.
 lock: '!inline f/kernel/install_modules.script.lock'
 kind: script
 schema:
@@ -39,19 +25,23 @@ schema:
   properties:
     build_dir:
       type: string
-      description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+      description: |-
+        Out-of-tree build directory, passed as make O= (from prepare_worktree).
     destdir:
       type: string
-      description: Install root (`INSTALL_MOD_PATH=<destdir>`). Empty = `<slot>/destdir`.
+      description: |-
+        Install root (`INSTALL_MOD_PATH=<destdir>`). Empty = `<slot>/destdir`.
       default: ''
     make_flags:
       type: string
-      description: Extra make variables/flags, space-separated, appended verbatim.
+      description: |-
+        Extra make variables/flags, space-separated, appended verbatim.
       default: ''
     source_symlink:
       type: boolean
-      description: Add the canonical /lib/modules/<release>/source symlink (->
-        worktree) after modules_install.
+      description: |-
+        Add the canonical /lib/modules/<release>/source symlink (-> worktree)
+        after modules_install.
       default: true
     worktree:
       type: string

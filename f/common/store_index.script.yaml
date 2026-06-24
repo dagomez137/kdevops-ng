@@ -1,24 +1,13 @@
 summary: 'Store: inspect and prune the build identity catalog'
-description: >
+description: |-
   Read and maintain the build Store's catalog: the
-  `WORKERS_DIR/shared/store-index/`
-
-  symlinks (`kernel-<release>`, `kernel-devel-<release>`, `qemu-<identity>`)
-  that point
-
-  at each published identity's Nix store path and double as its GC root. `list`
-  shows the
-
-  local catalog (and a peer's when `remote`/`remote_index` are set) with sizes
-  and
-
+  `WORKERS_DIR/shared/store-index/` symlinks (`kernel-<release>`,
+  `kernel-devel-<release>`, `qemu-<identity>`) that point at each published
+  identity's Nix store path and double as its GC root. `list` shows the local
+  catalog (and a peer's when `remote`/`remote_index` are set) with sizes and
   validity; `inspect` reports one identity; `forget` drops one entry's GC root
-  so
-
-  `nix store gc` can reclaim it (needs `confirm`); `prune` drops every entry
-  whose
-
-  store path was already collected.
+  so `nix store gc` can reclaim it (needs `confirm`); `prune` drops every entry
+  whose store path was already collected.
 lock: '!inline f/common/store_index.script.lock'
 kind: script
 schema:
@@ -42,8 +31,9 @@ schema:
         - prune
     name:
       type: string
-      description: The catalog entry to act on (required for `inspect` and `forget`),
-        e.g. `kernel-7.1.0-rc7-<hash>`.
+      description: |-
+        The catalog entry to act on (required for `inspect` and `forget`), e.g.
+        `kernel-7.1.0-rc7-<hash>`.
       default: ''
     confirm:
       type: boolean
@@ -51,11 +41,13 @@ schema:
       default: false
     remote:
       type: string
-      description: SSH host of a peer whose catalog to also list / inspect against.
-        Empty stays local.
+      description: |-
+        SSH host of a peer whose catalog to also list / inspect against. Empty
+        stays local.
       default: ''
     remote_index:
       type: string
-      description: The peer's `store-index` directory, read over ssh. Empty stays local.
+      description: |-
+        The peer's `store-index` directory, read over ssh. Empty stays local.
       default: ''
   required: []

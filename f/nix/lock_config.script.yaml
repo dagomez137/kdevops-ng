@@ -1,21 +1,13 @@
 summary: 'Nix: lock a per-VM imageless config (flake.lock)'
-description: >
+description: |-
   Materialise `flake.lock` for a per-VM imageless config so the closure builds
-
   reproducibly: `nix flake lock path:<config_dir>` pins the vendored
-  `nixos-flake`
+  `nixos-flake` path input (nixpkgs follows it). The `path:` flakeref copies the
+  whole config dir into the store, so the files do not need to be git-tracked.
 
-  path input (nixpkgs follows it). The `path:` flakeref copies the whole config
-  dir
-
-  into the store, so the files do not need to be git-tracked.
-
-
-  Set `update` to re-pin the vendored nixos-flake after it has changed
-
-  (`nix flake update --flake path:<config_dir> nixos-flake`). Reads `config_dir`
-
-  from a prior `render_config` step.
+  Set `update` to re-pin the vendored nixos-flake after it has changed (`nix
+  flake update --flake path:<config_dir> nixos-flake`). Reads `config_dir` from
+  a prior `render_config` step.
 lock: '!inline f/nix/lock_config.script.lock'
 kind: script
 schema:
@@ -30,8 +22,9 @@ schema:
       description: Per-VM config directory (from render_config).
     update:
       type: boolean
-      description: Refresh the nixos-flake input pin instead of only filling missing
-        lock entries.
+      description: |-
+        Refresh the nixos-flake input pin instead of only filling missing lock
+        entries.
       default: false
   required:
     - config_dir

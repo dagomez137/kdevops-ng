@@ -1,37 +1,18 @@
 summary: "xfstests: collect one section's results from the share (xunit)"
-description: >
+description: |-
   Read one xfstests section's `-R xunit` report back from the `fstests` virtiofs
-  share.
-
-  The guest's `./check -s <section>` writes
-
+  share. The guest's `./check -s <section>` writes
   `$WORKERS_DIR/shared/fstests/<vm>/<kver>/results/<section>/result.xml`
-
   (RESULT_BASE follows the unit's `WorkingDirectory=.../%v`, so results are
-  keyed by the
-
-  guest's kernel release). Returns a scalar overview `{section, fstype, status,
-
-  report_present, tests, passed, failed, notrun, iterations}` (so the check
-  flow's
-
-  per-section forloop renders a tidy one-row-per-section table) plus a `detail`
-  object
-
-  carrying the per-test rows, failing test names with their messages, the
-  notruns, the
-
-  configured filesystem `geometry` (FSTYP, mkfs/mount options, block/sector size
-  from the
-
-  rendered `<section>.config`), and the paths of any `.out.bad` diffs and the
-  section
-
-  `check.log` (consumed by `f/fstests/report`). A missing or partial report
-  degrades to
-
-  zeros with `report_present` false. Read-only; the host never contacts the
-  guest.
+  keyed by the guest's kernel release). Returns a scalar overview `{section,
+  fstype, status, report_present, tests, passed, failed, notrun, iterations}`
+  (so the check flow's per-section forloop renders a tidy one-row-per-section
+  table) plus a `detail` object carrying the per-test rows, failing test names
+  with their messages, the notruns, the configured filesystem `geometry` (FSTYP,
+  mkfs/mount options, block/sector size from the rendered `<section>.config`),
+  and the paths of any `.out.bad` diffs and the section `check.log` (consumed by
+  `f/fstests/report`). A missing or partial report degrades to zeros with
+  `report_present` false. Read-only; the host never contacts the guest.
 lock: '!inline f/fstests/collect.script.lock'
 kind: script
 schema:
@@ -44,12 +25,14 @@ schema:
   properties:
     kernel_version:
       type: string
-      description: The guest's kernel release (`uname -r`, from `discover`); selects
-        which `<kver>` subtree of the common results share to read.
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); selects which
+        `<kver>` subtree of the common results share to read.
       title: Kernel Version
     section:
       type: string
-      description: xfstests config-section name (the `[section]` header) whose
+      description: |-
+        xfstests config-section name (the `[section]` header) whose
         `results/<section>/result.xml` to parse.
     target:
       type: object
@@ -60,7 +43,8 @@ schema:
       properties:
         vm_name:
           type: object
-          description: VM whose `fstests` share
+          description: |-
+            VM whose `fstests` share
             (`$WORKERS_DIR/shared/fstests/<vm>/results`) to read.
           format: dynselect-list_vms
           title: VM Name

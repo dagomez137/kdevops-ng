@@ -1,26 +1,16 @@
 summary: 'QEMU: prepare a build worktree'
-description: >
+description: |-
   Lay down this worker's warm `main` QEMU worktree
-
-  (`workers/<WORKER_INDEX>/qemu/main`) detached at `qemu_ref`, cut from
-
-  the durable Bare at `$SYSTEM_DIR/bare/qemu.git` and refreshed from
-
-  the mirror first so newly-mirrored refs/tags are usable. Thin wrapper over
-
+  (`workers/<WORKER_INDEX>/qemu/main`) detached at `qemu_ref`, cut from the
+  durable Bare at `$SYSTEM_DIR/bare/qemu.git` and refreshed from the mirror
+  first so newly-mirrored refs/tags are usable. Thin wrapper over
   `f/common/worktree`. The same tree is reused for every ref and across runs
-
   (parallel across workers); `recreate_worktree` lays a fresh checkout. `build`
-
   (out-of-tree) and `destdir` (`--prefix`) are children of the source checkout.
 
-
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `version`, `project`,
-
   `worktree_group`, `qemu_ref`, and `b4_branch` (the `b4/<slug>` branch
-  published
-
-  to the Bare when `b4_series` is set, else null).
+  published to the Bare when `b4_series` is set, else null).
 lock: '!inline f/qemu/prepare_worktree.script.lock'
 kind: script
 schema:
@@ -36,35 +26,41 @@ schema:
   properties:
     b4_series:
       type: string
-      description: Optional lore series (message-id/URL) to apply on top via `b4 shazam`.
+      description: |-
+        Optional lore series (message-id/URL) to apply on top via `b4 shazam`.
       default: ''
       title: b4 Series
     clean_destdir:
       type: boolean
-      description: Wipe the install `destdir` first (default off). Leave off so an
-        install never wipes binaries a running QEMU/systemd VM uses.
+      description: |-
+        Wipe the install `destdir` first (default off). Leave off so an install
+        never wipes binaries a running QEMU/systemd VM uses.
       default: false
     qemu_ref:
       type: string
-      description: Branch, tag or commit in the Bare to check out (a tag, an upstream
-        ref via the mirror, or a developer branch).
+      description: |-
+        Branch, tag or commit in the Bare to check out (a tag, an upstream ref
+        via the mirror, or a developer branch).
       default: v11.0.0
       title: QEMU Ref
     recreate_worktree:
       type: boolean
-      description: Lay a fresh detached checkout (rm the warm tree, its build dir and
+      description: |-
+        Lay a fresh detached checkout (rm the warm tree, its build dir and
         destdir too, first) instead of reusing it. Default off keeps the warm
         tree for incremental rebuilds.
       default: false
       title: Recreate Worktree
     wipe_build:
       type: boolean
-      description: Wipe the build dir before building (default off = incremental reuse).
+      description: |-
+        Wipe the build dir before building (default off = incremental reuse).
       default: false
     worktree_group:
       type: string
-      description: Worktree-group this build belongs to (default vanilla;
-        system/workers are reserved).
+      description: |-
+        Worktree-group this build belongs to (default vanilla; system/workers
+        are reserved).
       default: vanilla
       title: Worktree group
   required: []

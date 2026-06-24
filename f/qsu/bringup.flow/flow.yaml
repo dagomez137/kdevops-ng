@@ -184,25 +184,37 @@ schema:
       properties:
         b4_series:
           type: string
-          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
+          description: 'Optional lore series (message-id/URL) to apply on top of the
+
+            checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.'
           default: ''
           title: b4 Series
         git_ref:
           type: string
-          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
+          description: 'Branch, tag or commit in the Bare to build (a tag, an upstream ref
+
+            via the mirror, or a developer branch).'
           default: v7.1-rc7
         recreate_worktree:
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree, its build dir and destdir too, first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+          description: 'Lay a fresh detached checkout (rm the warm tree, its build dir and
+
+            destdir too, first) instead of reusing it. Default off keeps the
+
+            warm tree for incremental rebuilds.'
           default: false
           title: Recreate Worktree
         wipe_build:
           type: boolean
-          description: Wipe the build dir before building (default off = incremental reuse).
+          description: 'Wipe the build dir before building (default off = incremental
+
+            reuse).'
           default: false
         worktree_group:
           type: string
-          description: Worktree-group this build belongs to (default vanilla; system/workers are reserved).
+          description: 'Worktree-group this build belongs to (default vanilla;
+
+            system/workers are reserved).'
           default: vanilla
           title: Worktree group
       title: 'Kernel: Worktree'
@@ -221,16 +233,28 @@ schema:
       properties:
         allnoconfig_base:
           type: boolean
-          description: '[method=fragments] Default unset symbols to n (allnoconfig base) for a minimal, explicit config.'
+          description: '[method=fragments] Default unset symbols to n (allnoconfig base) for
+
+            a minimal, explicit config.'
           default: true
           showExpr: fields.config_method === 'fragments'
         build_identity:
           type: boolean
-          description: Bake a hash of the build inputs (config, toolchain, make flags, source commit) into kernelrelease, so the image and modules install under a unique release and an identical build can be fetched or reused instead of rebuilt.
+          description: 'Bake a hash of the build inputs (config, toolchain, make flags,
+
+            source commit) into kernelrelease, so the image and modules install
+
+            under a unique release and an identical build can be fetched or
+
+            reused instead of rebuilt.'
           default: true
         config_method:
           type: string
-          description: 'How to generate .config: preset (a predefined whole-kernel config), make (config goals), fragments (curated multiselect), or skip (reuse the .config already in the build dir).'
+          description: 'How to generate .config: preset (a predefined whole-kernel config),
+
+            make (config goals), fragments (curated multiselect), or skip (reuse
+
+            the .config already in the build dir).'
           default: preset
           enum:
           - preset
@@ -239,7 +263,11 @@ schema:
           - skip
         defconfig:
           type: array
-          description: '[method=make] Config make goals, applied in order (defconfig, x86_64_defconfig, tinyconfig, ...). *.config fragments merge onto the base.'
+          description: '[method=make] Config make goals, applied in order (defconfig,
+
+            x86_64_defconfig, tinyconfig, ...). *.config fragments merge onto
+
+            the base.'
           default:
           - defconfig
           items:
@@ -263,7 +291,9 @@ schema:
           showExpr: fields.config_method === 'make'
         fragments:
           type: array
-          description: '[method=fragments] Curated fragments to merge (canonical order applied; builtin/* go last).'
+          description: '[method=fragments] Curated fragments to merge (canonical order
+
+            applied; builtin/* go last).'
           default:
           - core/64bit.config
           - core/modules.config
@@ -433,7 +463,9 @@ schema:
           showExpr: fields.config_method === 'fragments'
         preset:
           type: string
-          description: '[method=preset] Predefined whole-kernel config from the library (applied via KCONFIG_ALLCONFIG).'
+          description: '[method=preset] Predefined whole-kernel config from the library
+
+            (applied via KCONFIG_ALLCONFIG).'
           default: imageless_defconfig
           enum:
           - imageless_defconfig
@@ -464,26 +496,36 @@ schema:
           showExpr: fields.ccache !== false
         compiler:
           type: string
-          description: 'Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the devShell''s unwrapped clang).'
+          description: 'Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the
+
+            devShell''s unwrapped clang).'
           default: gcc
           enum:
           - gcc
           - clang
         make_flags:
           type: string
-          description: Extra make variables/flags, space-separated, appended verbatim (e.g. "W=1 KCFLAGS=-O2").
+          description: 'Extra make variables/flags, space-separated, appended verbatim (e.g.
+
+            "W=1 KCFLAGS=-O2").'
           default: ''
         reproducible:
           type: boolean
-          description: Reproducible build (fixed `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`, `LOCALVERSION=`).
+          description: 'Reproducible build (fixed `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`,
+
+            `LOCALVERSION=`).'
           default: true
         targets:
           type: string
-          description: 'Space-separated make targets. Empty (default) builds the default goal: vmlinux, the boot image, and modules.'
+          description: 'Space-separated make targets. Empty (default) builds the default
+
+            goal: vmlinux, the boot image, and modules.'
           default: ''
         timestamp_from_commit:
           type: boolean
-          description: Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the fixed default.
+          description: 'Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the
+
+            fixed default.'
           default: false
       title: 'Kernel: Build'
       showExpr: fields.kernel_source === "build"
@@ -498,7 +540,9 @@ schema:
       properties:
         compile_commands:
           type: boolean
-          description: Generate `compile_commands.json` (clangd/IDE C index) in the source tree.
+          description: 'Generate `compile_commands.json` (clangd/IDE C index) in the source
+
+            tree.'
           default: true
         rust_analyzer:
           type: boolean
@@ -506,7 +550,9 @@ schema:
           default: true
         scripts_gdb:
           type: boolean
-          description: Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build dir.
+          description: 'Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build
+
+            dir.'
           default: true
           title: Scripts GDB
       title: 'Kernel: Developer tools'
@@ -524,29 +570,49 @@ schema:
       properties:
         clean_destdir:
           type: boolean
-          description: Wipe the install `destdir` (`<worktree>/destdir`) first (default off). Leave off so an install never wipes modules a running QEMU/systemd VM has mounted over virtiofs.
+          description: 'Wipe the install `destdir` (`<worktree>/destdir`) first (default
+
+            off). Leave off so an install never wipes modules a running
+
+            QEMU/systemd VM has mounted over virtiofs.'
           default: false
         install:
           type: boolean
-          description: Install the built kernel image into the slot `destdir` (`make install`).
+          description: 'Install the built kernel image into the slot `destdir` (`make
+
+            install`).'
           default: true
         modules_install:
           type: boolean
-          description: Install kernel modules into the slot `destdir` (make modules_install). Skip for an all-built-in kernel.
+          description: 'Install kernel modules into the slot `destdir` (make
+
+            modules_install). Skip for an all-built-in kernel.'
           default: true
         reuse:
           type: boolean
-          description: Skip compile/install when this build identity is already in the destdir (reuse the prior build). Off forces a rebuild without wiping the destdir.
+          description: 'Skip compile/install when this build identity is already in the
+
+            destdir (reuse the prior build). Off forces a rebuild without wiping
+
+            the destdir.'
           default: true
         source_symlink:
           type: boolean
-          description: Add the canonical /lib/modules/<release>/source symlink after modules_install.
+          description: 'Add the canonical /lib/modules/<release>/source symlink after
+
+            modules_install.'
           default: true
       title: 'Kernel: Install'
       showExpr: fields.kernel_source === "build"
     kernel_prebuilt:
       type: object
-      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already published this build identity to the Nix store, its run layer (image + modules) is fetched into the destdir so the build is reused instead of repeated.
+      description: 'Cross-host build host to pull a prebuilt identity from before building.
+
+        When a peer already published this build identity to the Nix store, its
+
+        run layer (image + modules) is fetched into the destdir so the build is
+
+        reused instead of repeated.'
       default: {}
       order:
       - remote
@@ -554,16 +620,23 @@ schema:
       properties:
         remote:
           type: string
-          description: SSH host of the peer builder to fetch this build identity's run layer from. Empty (default) builds locally with no fetch.
+          description: 'SSH host of the peer builder to fetch this build identity''s run
+
+            layer from. Empty (default) builds locally with no fetch.'
           default: ''
         remote_index:
           type: string
-          description: The peer builder's `store-index` directory (its `WORKERS_DIR/shared/store-index`), read over ssh to learn the run layer's Nix store path. Empty (default) builds locally with no fetch.
+          description: 'The peer builder''s `store-index` directory (its
+
+            `WORKERS_DIR/shared/store-index`), read over ssh to learn the run
+
+            layer''s Nix store path. Empty (default) builds locally with no
+
+            fetch.'
           default: ''
       title: 'Kernel: Prebuilt'
       showExpr: fields.kernel_source === "build"
     nix_guest:
-      title: 'NixOS: Guest'
       type: object
       description: Guest identity, access, and virtiofs mounts.
       default: {}
@@ -574,41 +647,59 @@ schema:
       - shares
       - home
       - home_dir
-      required:
-      - vm_name
       properties:
-        vm_name:
-          title: VM Name
+        home:
+          type: boolean
+          description: 'Land in your home: mount the operator''s host home at `/home/<you>`
+
+            AND make it root''s home, so `ssh <vm>` drops you straight into your
+
+            files (writable: root maps to your host uid via virtiofsd). One
+
+            toggle wires the closure mount, root''s home, and the host serving.'
+          default: true
+        home_dir:
           type: string
-          description: Guest hostname and per-VM config directory name.
-          default: nixos
-        user_name:
-          type: string
-          description: Unprivileged account name in the guest (nixos-flake.user.name).
-          default: kdevops
+          description: 'Advanced: override the guest mount point + root''s home (else
+
+            `/home/<host operator>`, auto-discovered). The served *content* is
+
+            always the operator''s host home; an override only relocates where it
+
+            appears in the guest.'
+          default: ''
+          title: Home Dir
+        shares:
+          type: object
+          description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home":
+
+            {"tag": "home", "options": ["ro"]}}. The `fstests` mount is
+
+            auto-added when Test Suites include `fstests`; `home` adds the
+
+            operator''s home. Both coexist.'
+          default: {}
         ssh_keys:
-          title: SSH Keys
           type: array
           description: Authorized SSH keys for the root and unprivileged accounts.
           default: []
           items:
             type: string
-        shares:
-          type: object
-          description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount is auto-added when Test Suites include `fstests`; `home` adds the operator''s home. Both coexist.'
-          default: {}
-        home:
-          type: boolean
-          description: 'Land in your home: mount the operator''s host home at `/home/<you>` AND make it root''s home, so `ssh <vm>` drops you straight into your files (writable: root maps to your host uid via virtiofsd). One toggle wires the closure mount, root''s home, and the host serving.'
-          default: true
-        home_dir:
-          title: Home Dir
+          title: SSH Keys
+        user_name:
           type: string
-          description: 'Advanced: override the guest mount point + root''s home (else `/home/<host operator>`, auto-discovered). The served *content* is always the operator''s host home; an override only relocates where it appears in the guest.'
-          default: ''
+          description: Unprivileged account name in the guest (nixos-flake.user.name).
+          default: kdevops
+        vm_name:
+          type: string
+          description: Guest hostname and per-VM config directory name.
+          default: nixos
+          title: VM Name
+      required:
+      - vm_name
+      title: 'NixOS: Guest'
       showExpr: fields.closure_source === "build"
     nix_closure:
-      title: 'NixOS: Closure'
       type: object
       description: What nix builds into the toplevel closure.
       default: {}
@@ -617,9 +708,21 @@ schema:
       - test_suites
       - overrides
       properties:
+        overrides:
+          type: array
+          description: 'Per-package source overrides, e.g. [{"pkg": "fio", "src":
+
+            "/path/to/fio"}].'
+          default: []
+          items:
+            type: object
         profiles:
           type: array
-          description: nixos-flake profile modules to import (fully featured by default; pare back for a lighter closure). controller is a host role and off by default.
+          description: 'nixos-flake profile modules to import (fully featured by default;
+
+            pare back for a lighter closure). controller is a host role and off
+
+            by default.'
           default:
           - devel
           - build-tools
@@ -633,7 +736,9 @@ schema:
             - monitoring
         test_suites:
           type: array
-          description: nixos-flake testSuite modules to import (all by default; pare back for a lighter closure).
+          description: 'nixos-flake testSuite modules to import (all by default; pare back
+
+            for a lighter closure).'
           default:
           - blktests
           - fstests
@@ -654,15 +759,9 @@ schema:
             - pynfs
             - selftests
             - sysbench
-        overrides:
-          type: array
-          description: 'Per-package source overrides, e.g. [{"pkg": "fio", "src": "/path/to/fio"}].'
-          default: []
-          items:
-            type: object
+      title: 'NixOS: Closure'
       showExpr: fields.closure_source === "build"
     nix_lock:
-      title: 'NixOS: Lock'
       type: object
       description: flake.lock pinning behaviour.
       default: {}
@@ -671,8 +770,11 @@ schema:
       properties:
         update_lock:
           type: boolean
-          description: Re-pin the vendored nixos-flake input instead of only filling missing lock entries.
+          description: 'Re-pin the vendored nixos-flake input instead of only filling
+
+            missing lock entries.'
           default: false
+      title: 'NixOS: Lock'
       showExpr: fields.closure_source === "build"
     qemu_worktree:
       type: object
@@ -687,26 +789,38 @@ schema:
       properties:
         b4_series:
           type: string
-          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
+          description: 'Optional lore series (message-id/URL) to apply on top of the
+
+            checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.'
           default: ''
           title: b4 Series
         qemu_ref:
           type: string
-          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
+          description: 'Branch, tag or commit in the Bare to build (a tag, an upstream ref
+
+            via the mirror, or a developer branch).'
           default: v11.0.0
           title: QEMU Ref
         recreate_worktree:
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree, its build dir and destdir too, first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+          description: 'Lay a fresh detached checkout (rm the warm tree, its build dir and
+
+            destdir too, first) instead of reusing it. Default off keeps the
+
+            warm tree for incremental rebuilds.'
           default: false
           title: Recreate Worktree
         wipe_build:
           type: boolean
-          description: Wipe the build dir before building (default off = incremental reuse).
+          description: 'Wipe the build dir before building (default off = incremental
+
+            reuse).'
           default: false
         worktree_group:
           type: string
-          description: Worktree-group this build belongs to (default vanilla; system/workers are reserved).
+          description: 'Worktree-group this build belongs to (default vanilla;
+
+            system/workers are reserved).'
           default: vanilla
           title: Worktree group
       title: 'QEMU build: Worktree'
@@ -722,15 +836,21 @@ schema:
       properties:
         configure_args:
           type: string
-          description: Extra configure flags appended verbatim. Older QEMU may need `--disable-werror` against the bleeding-edge nixpkgs toolchain.
+          description: 'Extra configure flags appended verbatim. Older QEMU may need
+
+            `--disable-werror` against the bleeding-edge nixpkgs toolchain.'
           default: ''
         skip_configure:
           type: boolean
-          description: 'Skip configure and recompile the existing build dir (incremental rebuild: the build dir is already configured).'
+          description: 'Skip configure and recompile the existing build dir (incremental
+
+            rebuild: the build dir is already configured).'
           default: false
         target_list:
           type: array
-          description: QEMU emulator targets to build (`--target-list`). *-softmmu = system emulation (VMs); *-linux-user/*-bsd-user = user-mode.
+          description: 'QEMU emulator targets to build (`--target-list`). *-softmmu = system
+
+            emulation (VMs); *-linux-user/*-bsd-user = user-mode.'
           default:
           - x86_64-softmmu
           items:
@@ -825,14 +945,22 @@ schema:
           showExpr: fields.ccache !== false
         compiler:
           type: string
-          description: Toolchain to build QEMU with (pinned via configure `--cc/--cxx`, which beats the devShell's `CC`). GCC is clean; clang adds `-Qunused-arguments`.
+          description: 'Toolchain to build QEMU with (pinned via configure `--cc/--cxx`,
+
+            which beats the devShell''s `CC`). GCC is clean; clang adds
+
+            `-Qunused-arguments`.'
           default: gcc
           enum:
           - gcc
           - clang
         reproducible:
           type: boolean
-          description: 'Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` so the host build path stops leaking into the binary.'
+          description: 'Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to
+
+            `--extra-cflags`/`--extra-cxxflags` so the host build path stops
+
+            leaking into the binary.'
           default: true
       title: 'QEMU build: Build'
       showExpr: fields.qemu_source === "build"
@@ -845,7 +973,9 @@ schema:
       properties:
         compile_commands:
           type: boolean
-          description: Copy meson's `compile_commands.json` into the source root (clangd/IDE index).
+          description: 'Copy meson''s `compile_commands.json` into the source root
+
+            (clangd/IDE index).'
           default: true
       title: 'QEMU build: Developer tools'
       showExpr: fields.qemu_source === "build"
@@ -860,21 +990,35 @@ schema:
       properties:
         clean_destdir:
           type: boolean
-          description: Wipe the install `destdir` first (default off). Leave off so an install never wipes binaries a running QEMU/systemd VM uses.
+          description: 'Wipe the install `destdir` first (default off). Leave off so an
+
+            install never wipes binaries a running QEMU/systemd VM uses.'
           default: false
         install:
           type: boolean
-          description: Install the built emulator into destdir (make install). Off = build only (e.g. a dev worktree).
+          description: 'Install the built emulator into destdir (make install). Off = build
+
+            only (e.g. a dev worktree).'
           default: true
         reuse:
           type: boolean
-          description: Skip configure/compile/install when this build identity is already installed under its prefix (reuse the prior build). Off forces a rebuild without wiping the destdir.
+          description: 'Skip configure/compile/install when this build identity is already
+
+            installed under its prefix (reuse the prior build). Off forces a
+
+            rebuild without wiping the destdir.'
           default: true
       title: 'QEMU build: Install'
       showExpr: fields.qemu_source === "build"
     qemu_prebuilt:
       type: object
-      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already published this build identity to the Nix store, its whole install tree is fetched into the per-identity prefix so the build is reused instead of repeated.
+      description: 'Cross-host build host to pull a prebuilt identity from before building.
+
+        When a peer already published this build identity to the Nix store, its
+
+        whole install tree is fetched into the per-identity prefix so the build
+
+        is reused instead of repeated.'
       default: {}
       order:
       - remote
@@ -882,40 +1026,53 @@ schema:
       properties:
         remote:
           type: string
-          description: SSH host of the peer QEMU builder to fetch this build identity's install tree from. Empty (default) builds locally with no fetch.
+          description: 'SSH host of the peer QEMU builder to fetch this build identity''s
+
+            install tree from. Empty (default) builds locally with no fetch.'
           default: ''
         remote_index:
           type: string
-          description: The peer builder's `store-index` directory (its `WORKERS_DIR/shared/store-index`), read over ssh to learn the install tree's Nix store path. Empty (default) builds locally with no fetch.
+          description: 'The peer builder''s `store-index` directory (its
+
+            `WORKERS_DIR/shared/store-index`), read over ssh to learn the
+
+            install tree''s Nix store path. Empty (default) builds locally with
+
+            no fetch.'
           default: ''
       title: 'QEMU build: Prebuilt'
       showExpr: fields.qemu_source === "build"
     boot_vm:
-      title: VM
       type: object
       description: Guest name and how it is assigned.
       default: {}
       order:
       - vm_name
       - auto_vm_name
-      required:
-      - vm_name
       properties:
+        auto_vm_name:
+          type: boolean
+          description: 'Derive the VM name from the flow job id (`vm-<job-id>`) so each run
+
+            is unique and collision-free. Off = use `vm_name`.'
+          default: true
+          title: Auto VM Name
         vm_name:
-          title: VM Name
           type: string
-          description: 'Guest name: the systemd instance (`qemu-system@<vm_name>`) and machined machine name. Used when `auto_vm_name` is off.'
+          description: 'Guest name: the systemd instance (`qemu-system@<vm_name>`) and
+
+            machined machine name. Used when `auto_vm_name` is off.'
           default: nixos
           showExpr: fields.auto_vm_name === false
-        auto_vm_name:
-          title: Auto VM Name
-          type: boolean
-          description: Derive the VM name from the flow job id (`vm-<job-id>`) so each run is unique and collision-free. Off = use `vm_name`.
-          default: true
+          title: VM Name
+      required:
+      - vm_name
+      title: VM
     boot_qemu:
-      title: QEMU
       type: object
-      description: 'Emulator source and machine model: `-cpu`/`-accel`/`-m`/`-smp`/`-machine`.'
+      description: 'Emulator source and machine model:
+
+        `-cpu`/`-accel`/`-m`/`-smp`/`-machine`.'
       default: {}
       order:
       - cpu
@@ -925,10 +1082,21 @@ schema:
       - machine_type
       - iommu
       properties:
-        cpu:
-          title: CPU
+        accel:
           type: string
-          description: Select CPU model (`-cpu`; `-cpu help` for the list and additional feature selection). Enum reflects the default reproducible QEMU.
+          description: 'Enable an accelerator (`-accel`). Depending on the target, `kvm`,
+
+            `mshv` or `tcg` can be available; by default `tcg` is used.'
+          default: kvm
+          enum:
+          - tcg
+          - mshv
+          - kvm
+        cpu:
+          type: string
+          description: 'Select CPU model (`-cpu`; `-cpu help` for the list and additional
+
+            feature selection). Enum reflects the default reproducible QEMU.'
           default: host
           enum:
           - '486'
@@ -1095,27 +1263,29 @@ schema:
           - base
           - host
           - max
-        accel:
-          type: string
-          description: Enable an accelerator (`-accel`). Depending on the target, `kvm`, `mshv` or `tcg` can be available; by default `tcg` is used.
-          default: kvm
-          enum:
-          - tcg
-          - mshv
-          - kvm
-        ram:
-          title: RAM
-          type: integer
-          description: Sets guest startup RAM size to `megs` megabytes (`-m`). Default is 128 MiB.
-          default: 4096
+          title: CPU
         cpus:
-          title: CPUs
           type: integer
-          description: Simulate an SMP system with `n` CPUs initially present on the machine type board (`-smp`).
+          description: 'Simulate an SMP system with `n` CPUs initially present on the
+
+            machine type board (`-smp`).'
           default: 4
+          title: CPUs
+        iommu:
+          type: object
+          description: 'vIOMMU device, queried from the chosen qemu''s `-device help` and
+
+            narrowed to what the template renders (`intel-iommu`, `amd-iommu`,
+
+            `virtio-iommu-pci`, `arm-smmuv3`). `none` = no vIOMMU.'
+          default: ''
+          format: dynselect-list_iommu
+          title: IOMMU
         machine_type:
           type: string
-          description: Select the emulated machine by name (`-machine type=`; `-machine help` lists available machines).
+          description: 'Select the emulated machine by name (`-machine type=`; `-machine
+
+            help` lists available machines).'
           default: q35
           enum:
           - microvm
@@ -1161,16 +1331,21 @@ schema:
           - isapc
           - none
           - x-remote
-        iommu:
-          title: IOMMU
-          type: object
-          description: vIOMMU device, queried from the chosen qemu's `-device help` and narrowed to what the template renders (`intel-iommu`, `amd-iommu`, `virtio-iommu-pci`, `arm-smmuv3`). `none` = no vIOMMU.
-          format: dynselect-list_iommu
-          default: ''
+        ram:
+          type: integer
+          description: 'Sets guest startup RAM size to `megs` megabytes (`-m`). Default is
+
+            128 MiB.'
+          default: 4096
+          title: RAM
+      title: QEMU
     boot_networking:
-      title: Networking
       type: object
-      description: Host vsock/SSH forwarding; the base + a per-VM offset (`vm_index`, or a hash of the VM name when `vm_index` is 0) pick the CID/port unless an explicit override is enabled.
+      description: 'Host vsock/SSH forwarding; the base + a per-VM offset (`vm_index`, or a
+
+        hash of the VM name when `vm_index` is 0) pick the CID/port unless an
+
+        explicit override is enabled.'
       default: {}
       order:
       - vsock_cid_base
@@ -1181,43 +1356,49 @@ schema:
       - ssh_port
       - vm_index
       properties:
-        vsock_cid_base:
-          title: VSOCK CID Base
-          type: integer
-          description: Base vsock cid; guest N uses `vsock_cid_base + vm_index`.
-          default: 100
-        custom_vsock_cid:
-          title: Custom VSOCK CID
-          type: boolean
-          description: Set an explicit vsock CID instead of `vsock_cid_base + vm_index`.
-          default: false
-        vsock_cid:
-          title: VSOCK CID
-          type: integer
-          description: vsock context id for `-device vhost-vsock`.
-          showExpr: fields.custom_vsock_cid === true
-        ssh_port_base:
-          title: SSH Port Base
-          type: integer
-          description: Base host port; guest N forwards `ssh_port_base + vm_index`.
-          default: 10022
         custom_ssh_port:
-          title: Custom SSH Port
           type: boolean
           description: Set an explicit host port instead of `ssh_port_base + vm_index`.
           default: false
+          title: Custom SSH Port
+        custom_vsock_cid:
+          type: boolean
+          description: Set an explicit vsock CID instead of `vsock_cid_base + vm_index`.
+          default: false
+          title: Custom VSOCK CID
         ssh_port:
-          title: SSH Port
           type: integer
           description: Host port forwarded to guest `:22` (`-nic user,hostfwd=`).
           showExpr: fields.custom_ssh_port === true
-        vm_index:
-          title: VM Index
+          title: SSH Port
+        ssh_port_base:
           type: integer
-          description: Offset added to `vsock_cid_base`/`ssh_port_base`. `0` (default) derives a stable offset from the VM name so concurrent auto-named VMs don't collide on the host port/CID; set a non-zero value for deterministic manual allocation.
+          description: Base host port; guest N forwards `ssh_port_base + vm_index`.
+          default: 10022
+          title: SSH Port Base
+        vm_index:
+          type: integer
+          description: 'Offset added to `vsock_cid_base`/`ssh_port_base`. `0` (default)
+
+            derives a stable offset from the VM name so concurrent auto-named
+
+            VMs don''t collide on the host port/CID; set a non-zero value for
+
+            deterministic manual allocation.'
           default: 0
+          title: VM Index
+        vsock_cid:
+          type: integer
+          description: vsock context id for `-device vhost-vsock`.
+          showExpr: fields.custom_vsock_cid === true
+          title: VSOCK CID
+        vsock_cid_base:
+          type: integer
+          description: Base vsock cid; guest N uses `vsock_cid_base + vm_index`.
+          default: 100
+          title: VSOCK CID Base
+      title: Networking
     boot_sharing:
-      title: File sharing
       type: object
       description: virtiofs shares (modules, controller) and the virtiofsd binary.
       default: {}
@@ -1232,37 +1413,12 @@ schema:
       - controller_share_guest_mount
       - controller_share_readwrite
       properties:
-        custom_virtiofsd:
-          title: Custom virtiofsd
-          type: boolean
-          description: Use a custom `virtiofsd` instead of the reproducible `nixos-flake` one.
-          default: false
-        home_share:
-          title: Home Share
-          type: boolean
-          description: 'Predefined `home` share (host serving): serve the operator''s host `$HOME` into the guest at the same absolute path (tag `home`). Pair with `NixOS: Guest → home` so the guest mounts it.'
-          default: false
-        home_share_readwrite:
-          title: Home Share Readwrite
-          type: boolean
-          description: Mount the home share read-write (default read-only).
-          default: false
-          showExpr: fields.home_share === true
-        virtiofsd_binary:
-          title: virtiofsd Binary
-          type: string
-          description: Path to a custom `virtiofsd` (e.g. a nix derivation output or your own build).
-          default: ''
-          showExpr: fields.custom_virtiofsd === true
         controller_share:
           type: boolean
-          description: Append one operator-defined virtiofs share exposing a controller directory to the guest.
+          description: 'Append one operator-defined virtiofs share exposing a controller
+
+            directory to the guest.'
           default: false
-        controller_share_tag:
-          type: string
-          description: virtiofs tag for the controller share.
-          default: controller-share
-          showExpr: fields.controller_share === true
         controller_share_dir:
           type: string
           description: Absolute controller path to share. Empty = `$HOME`.
@@ -1270,7 +1426,9 @@ schema:
           showExpr: fields.controller_share === true
         controller_share_guest_mount:
           type: string
-          description: Guest mount point for the controller share. Empty = same as the controller path.
+          description: 'Guest mount point for the controller share. Empty = same as the
+
+            controller path.'
           default: ''
           showExpr: fields.controller_share === true
         controller_share_readwrite:
@@ -1278,10 +1436,49 @@ schema:
           description: Mount the controller share read-write (default read-only).
           default: false
           showExpr: fields.controller_share === true
+        controller_share_tag:
+          type: string
+          description: virtiofs tag for the controller share.
+          default: controller-share
+          showExpr: fields.controller_share === true
+        custom_virtiofsd:
+          type: boolean
+          description: 'Use a custom `virtiofsd` instead of the reproducible `nixos-flake`
+
+            one.'
+          default: false
+          title: Custom virtiofsd
+        home_share:
+          type: boolean
+          description: 'Predefined `home` share (host serving): serve the operator''s host
+
+            `$HOME` into the guest at the same absolute path (tag `home`). Pair
+
+            with `NixOS: Guest → home` so the guest mounts it.'
+          default: false
+          title: Home Share
+        home_share_readwrite:
+          type: boolean
+          description: Mount the home share read-write (default read-only).
+          default: false
+          showExpr: fields.home_share === true
+          title: Home Share Readwrite
+        virtiofsd_binary:
+          type: string
+          description: 'Path to a custom `virtiofsd` (e.g. a nix derivation output or your
+
+            own build).'
+          default: ''
+          showExpr: fields.custom_virtiofsd === true
+          title: virtiofsd Binary
+      title: File sharing
     boot_nvme:
-      title: NVMe
       type: object
-      description: Emulated NVMe drives (`-device nvme`/`nvme-ns` + a qcow2 per drive). The per-drive knobs are the QEMU device properties verbatim; see `qemu-system-x86_64 -device nvme,help` and `-device nvme-ns,help`.
+      description: 'Emulated NVMe drives (`-device nvme`/`nvme-ns` + a qcow2 per drive). The
+
+        per-drive knobs are the QEMU device properties verbatim; see
+
+        `qemu-system-x86_64 -device nvme,help` and `-device nvme-ns,help`.'
       default: {}
       order:
       - nvme_drive_count
@@ -1308,143 +1505,231 @@ schema:
       - atomic_nabspf
       - atomic_nabo
       properties:
+        atomic_awun:
+          type: string
+          description: 'Atomic Write Unit Normal (AWUN), 0-based, in logical blocks:
+
+            `-device nvme,atomic.awun=`. Empty = QEMU default. Single value or
+
+            per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Atomic Write Unit Normal (AWUN)
+        atomic_awupf:
+          type: string
+          description: 'Atomic Write Unit Power Fail (AWUPF), 0-based: `-device
+
+            nvme,atomic.awupf=`. Empty = QEMU default. Single value or per-drive
+
+            comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Atomic Write Unit Power Fail (AWUPF)
+        atomic_dn:
+          type: boolean
+          description: 'Disable Normal (DN): `-device nvme,atomic.dn=`. Set = AWUN/NAWUN
+
+            disabled, so AWUPF/NAWUPF govern atomicity for all writes. Off =
+
+            QEMU default.'
+          default: false
+          showExpr: fields.customize_drives === true
+          title: Disable Normal (DN)
+        atomic_nabo:
+          type: string
+          description: 'Namespace Atomic Boundary Offset (NABO): `-device
+
+            nvme-ns,atomic.nabo=`. Forces explicit-namespace mode. Empty = QEMU
+
+            default. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Namespace Atomic Boundary Offset (NABO)
+        atomic_nabsn:
+          type: string
+          description: 'Namespace Atomic Boundary Size Normal (NABSN): `-device
+
+            nvme-ns,atomic.nabsn=`. Forces explicit-namespace mode. Empty = QEMU
+
+            default. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Namespace Atomic Boundary Size Normal (NABSN)
+        atomic_nabspf:
+          type: string
+          description: 'Namespace Atomic Boundary Size Power Fail (NABSPF): `-device
+
+            nvme-ns,atomic.nabspf=`. Forces explicit-namespace mode. Empty =
+
+            QEMU default. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Namespace Atomic Boundary Size Power Fail (NABSPF)
+        atomic_nawun:
+          type: string
+          description: 'Namespace Atomic Write Unit Normal (NAWUN), 0-based: `-device
+
+            nvme-ns,atomic.nawun=`. Setting any per-namespace atomic switches
+
+            the drive to explicit `-device nvme` + `-device nvme-ns`. Empty =
+
+            QEMU default. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Namespace Atomic Write Unit Normal (NAWUN)
+        atomic_nawupf:
+          type: string
+          description: 'Namespace Atomic Write Unit Power Fail (NAWUPF), 0-based: `-device
+
+            nvme-ns,atomic.nawupf=`. Forces explicit-namespace mode. Empty =
+
+            QEMU default. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Namespace Atomic Write Unit Power Fail (NAWUPF)
+        cmb_size_mb:
+          type: string
+          description: 'Controller Memory Buffer size in MiB: `-device nvme,cmb_size_mb=`
+
+            (host RAM on PCI BAR 2; coexists with PMR on BAR 4/5). Empty = no
+
+            CMB. Single value or per-drive comma-list (`64,0` = drive 0 only).'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: CMB Size (MiB)
+        customize_drives:
+          type: boolean
+          description: 'Expose the per-drive NVMe device knobs below. Off = 4Kn drives
+
+            (4096-byte blocks) with QEMU defaults for everything else. Each knob
+
+            takes a single value applied to every drive, or a comma-list
+
+            assigned by drive index (`4096,512` → drive 0 = 4096, drive 1 =
+
+            512).'
+          default: false
+          title: Customize Drives
+        discard_granularity:
+          type: string
+          description: 'Discard granularity in bytes: `-device nvme-ns,discard_granularity=`
+
+            (BlockConf). Single value or per-drive comma-list.'
+          default: '4096'
+          showExpr: fields.customize_drives === true
+          title: Discard Granularity
+        legacy_cmb:
+          type: boolean
+          description: 'Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled):
+
+            `-device nvme,legacy-cmb=on`. Off = the 1.4 scheme. Applies to every
+
+            CMB-enabled drive; no effect without `cmb_size_mb`.'
+          default: false
+          showExpr: fields.customize_drives === true
+          title: Legacy CMB (v1.3)
+        logical_block_size:
+          type: string
+          description: 'Logical block (LBA) size in bytes: `-device
+
+            nvme-ns,logical_block_size=` (BlockConf). `4096` = 4Kn, `512` =
+
+            512-byte sectors. Single value or per-drive comma-list.'
+          default: '4096'
+          showExpr: fields.customize_drives === true
+          title: Logical Block Size
+        mdts:
+          type: string
+          description: 'Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units:
+
+            `-device nvme,mdts=`. Empty = QEMU default. Single value or
+
+            per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Maximum Data Transfer Size (MDTS)
+        min_io_size:
+          type: string
+          description: 'Minimum I/O size hint in bytes: `-device nvme-ns,min_io_size=`
+
+            (BlockConf). Single value or per-drive comma-list.'
+          default: '4096'
+          showExpr: fields.customize_drives === true
+          title: Minimum I/O Size
         nvme_drive_count:
-          title: Drive Count
           type: integer
           description: Number of NVMe drives (`-device nvme` + a qcow2 file each).
           default: 4
+          title: Drive Count
         nvme_drive_size_gb:
-          title: Drive Size (GiB)
           type: integer
           description: Virtual size in GiB for each qcow2 NVMe backing file.
           default: 20
-        customize_drives:
-          title: Customize Drives
-          type: boolean
-          description: Expose the per-drive NVMe device knobs below. Off = 4Kn drives (4096-byte blocks) with QEMU defaults for everything else. Each knob takes a single value applied to every drive, or a comma-list assigned by drive index (`4096,512` → drive 0 = 4096, drive 1 = 512).
-          default: false
-        logical_block_size:
-          title: Logical Block Size
-          type: string
-          description: 'Logical block (LBA) size in bytes: `-device nvme-ns,logical_block_size=` (BlockConf). `4096` = 4Kn, `512` = 512-byte sectors. Single value or per-drive comma-list.'
-          default: '4096'
-          showExpr: fields.customize_drives === true
-        physical_block_size:
-          title: Physical Block Size
-          type: string
-          description: 'Physical block size in bytes: `-device nvme-ns,physical_block_size=` (BlockConf). Single value or per-drive comma-list.'
-          default: '4096'
-          showExpr: fields.customize_drives === true
-        min_io_size:
-          title: Minimum I/O Size
-          type: string
-          description: 'Minimum I/O size hint in bytes: `-device nvme-ns,min_io_size=` (BlockConf). Single value or per-drive comma-list.'
-          default: '4096'
-          showExpr: fields.customize_drives === true
+          title: Drive Size (GiB)
         opt_io_size:
+          type: string
+          description: 'Optimal I/O size hint in bytes: `-device nvme-ns,opt_io_size=`
+
+            (BlockConf). Single value or per-drive comma-list.'
+          default: '4096'
+          showExpr: fields.customize_drives === true
           title: Optimal I/O Size
+        physical_block_size:
           type: string
-          description: 'Optimal I/O size hint in bytes: `-device nvme-ns,opt_io_size=` (BlockConf). Single value or per-drive comma-list.'
+          description: 'Physical block size in bytes: `-device nvme-ns,physical_block_size=`
+
+            (BlockConf). Single value or per-drive comma-list.'
           default: '4096'
           showExpr: fields.customize_drives === true
-        discard_granularity:
-          title: Discard Granularity
-          type: string
-          description: 'Discard granularity in bytes: `-device nvme-ns,discard_granularity=` (BlockConf). Single value or per-drive comma-list.'
-          default: '4096'
-          showExpr: fields.customize_drives === true
-        write_cache:
-          title: Write Cache (VWC)
-          type: string
-          description: 'Volatile Write Cache (VWC): `-device nvme-ns,write-cache=` (BlockConf): `on`, `off` or `auto`. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
-        mdts:
-          title: Maximum Data Transfer Size (MDTS)
-          type: string
-          description: 'Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units: `-device nvme,mdts=`. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
-        cmb_size_mb:
-          title: CMB Size (MiB)
-          type: string
-          description: 'Controller Memory Buffer size in MiB: `-device nvme,cmb_size_mb=` (host RAM on PCI BAR 2; coexists with PMR on BAR 4/5). Empty = no CMB. Single value or per-drive comma-list (`64,0` = drive 0 only).'
-          default: ''
-          showExpr: fields.customize_drives === true
-        legacy_cmb:
-          title: Legacy CMB (v1.3)
+          title: Physical Block Size
+        pmr_pmem:
           type: boolean
-          description: 'Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled): `-device nvme,legacy-cmb=on`. Off = the 1.4 scheme. Applies to every CMB-enabled drive; no effect without `cmb_size_mb`.'
+          description: 'Real persistent-memory flush semantics for the PMR backing file
+
+            (`-object memory-backend-file,pmem=on`). Off = QEMU default. Applies
+
+            to every PMR-enabled drive.'
           default: false
           showExpr: fields.customize_drives === true
-        pmr_size:
-          title: PMR Size (bytes)
-          type: string
-          description: 'Persistent Memory Region size in bytes: `-object memory-backend-file,size=` linked from `-device nvme,pmrdev=` (BAR 4/5; coexists with CMB). Must be a power of 2 and at least 16. Empty = no PMR. Single value or per-drive comma-list (`16777216,0` = drive 0 only).'
-          default: ''
-          showExpr: fields.customize_drives === true
+          title: PMR pmem
         pmr_share:
-          title: PMR Persistent (share=on)
           type: boolean
-          description: Write guest PMR contents through to the backing file (`-object memory-backend-file,share=on`) so they survive a restart, stored in the per-VM state dir. Off = volatile (`share=off`). Applies to every PMR-enabled drive.
+          description: 'Write guest PMR contents through to the backing file (`-object
+
+            memory-backend-file,share=on`) so they survive a restart, stored in
+
+            the per-VM state dir. Off = volatile (`share=off`). Applies to every
+
+            PMR-enabled drive.'
           default: true
           showExpr: fields.customize_drives === true
-        pmr_pmem:
-          title: PMR pmem
-          type: boolean
-          description: Real persistent-memory flush semantics for the PMR backing file (`-object memory-backend-file,pmem=on`). Off = QEMU default. Applies to every PMR-enabled drive.
-          default: false
-          showExpr: fields.customize_drives === true
-        atomic_dn:
-          title: Disable Normal (DN)
-          type: boolean
-          description: 'Disable Normal (DN): `-device nvme,atomic.dn=`. Set = AWUN/NAWUN disabled, so AWUPF/NAWUPF govern atomicity for all writes. Off = QEMU default.'
-          default: false
-          showExpr: fields.customize_drives === true
-        atomic_awun:
-          title: Atomic Write Unit Normal (AWUN)
+          title: PMR Persistent (share=on)
+        pmr_size:
           type: string
-          description: 'Atomic Write Unit Normal (AWUN), 0-based, in logical blocks: `-device nvme,atomic.awun=`. Empty = QEMU default. Single value or per-drive comma-list.'
+          description: 'Persistent Memory Region size in bytes: `-object
+
+            memory-backend-file,size=` linked from `-device nvme,pmrdev=` (BAR
+
+            4/5; coexists with CMB). Must be a power of 2 and at least 16. Empty
+
+            = no PMR. Single value or per-drive comma-list (`16777216,0` = drive
+
+            0 only).'
           default: ''
           showExpr: fields.customize_drives === true
-        atomic_awupf:
-          title: Atomic Write Unit Power Fail (AWUPF)
+          title: PMR Size (bytes)
+        write_cache:
           type: string
-          description: 'Atomic Write Unit Power Fail (AWUPF), 0-based: `-device nvme,atomic.awupf=`. Empty = QEMU default. Single value or per-drive comma-list.'
+          description: 'Volatile Write Cache (VWC): `-device nvme-ns,write-cache=`
+
+            (BlockConf): `on`, `off` or `auto`. Empty = QEMU default. Single
+
+            value or per-drive comma-list.'
           default: ''
           showExpr: fields.customize_drives === true
-        atomic_nawun:
-          title: Namespace Atomic Write Unit Normal (NAWUN)
-          type: string
-          description: 'Namespace Atomic Write Unit Normal (NAWUN), 0-based: `-device nvme-ns,atomic.nawun=`. Setting any per-namespace atomic switches the drive to explicit `-device nvme` + `-device nvme-ns`. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
-        atomic_nawupf:
-          title: Namespace Atomic Write Unit Power Fail (NAWUPF)
-          type: string
-          description: 'Namespace Atomic Write Unit Power Fail (NAWUPF), 0-based: `-device nvme-ns,atomic.nawupf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
-        atomic_nabsn:
-          title: Namespace Atomic Boundary Size Normal (NABSN)
-          type: string
-          description: 'Namespace Atomic Boundary Size Normal (NABSN): `-device nvme-ns,atomic.nabsn=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
-        atomic_nabspf:
-          title: Namespace Atomic Boundary Size Power Fail (NABSPF)
-          type: string
-          description: 'Namespace Atomic Boundary Size Power Fail (NABSPF): `-device nvme-ns,atomic.nabspf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
-        atomic_nabo:
-          title: Namespace Atomic Boundary Offset (NABO)
-          type: string
-          description: 'Namespace Atomic Boundary Offset (NABO): `-device nvme-ns,atomic.nabo=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list.'
-          default: ''
-          showExpr: fields.customize_drives === true
+          title: Write Cache (VWC)
+      title: NVMe
     boot_orchestration:
-      title: Orchestration
       type: object
       description: Flow-level boot wait and debug snapshot.
       default: {}
@@ -1452,15 +1737,16 @@ schema:
       - wait_timeout
       - emit_vars_yaml_snapshot
       properties:
+        emit_vars_yaml_snapshot:
+          type: boolean
+          description: Also write the debug `<vm>.yaml` vars snapshot.
+          default: false
+          title: Emit Vars YAML Snapshot
         wait_timeout:
           type: integer
           description: Seconds to poll `127.0.0.1:<ssh_port>` for the guest sshd banner.
           default: 300
-        emit_vars_yaml_snapshot:
-          title: Emit Vars YAML Snapshot
-          type: boolean
-          description: Also write the debug `<vm>.yaml` vars snapshot.
-          default: false
+      title: Orchestration
     reuse:
       title: Reuse
       type: object
@@ -1483,10 +1769,14 @@ schema:
           default: ''
         kernel_append:
           type: string
-          description: Override the kernel cmdline (`-append`; else `root=tmpfs ... init=<closure.init>`).
+          description: 'Override the kernel cmdline (`-append`; else `root=tmpfs ...
+
+            init=<closure.init>`).'
           default: ''
         modules_dir:
           type: string
-          description: Override the host modules tree shared at `/lib/modules` (else from `kernel`).
+          description: 'Override the host modules tree shared at `/lib/modules` (else from
+
+            `kernel`).'
           default: ''
   required: []

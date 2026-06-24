@@ -1,47 +1,27 @@
 summary: 'Kernel: configure via curated fragments'
-description: >
+description: |-
   Configure method **fragments**: generate a `.config` by selecting from the
-
   curated `linux-config-fragments` library and merging the picks with the kernel
-
   tree's `scripts/kconfig/merge_config.sh`. You pick **which** fragments; the
-  step
-
-  imposes a **canonical order** (core structural first, then by category,
-  builtin
-
-  `=y` overrides last) so the result is deterministic regardless of selection
-
-  order.
-
+  step imposes a **canonical order** (core structural first, then by category,
+  builtin `=y` overrides last) so the result is deterministic regardless of
+  selection order.
 
   Fragments default tristate symbols to `=m`; pick a matching `builtin/...`
-  entry
-
-  to force that feature built-in (`=y`) instead; it always merges last so
-
+  entry to force that feature built-in (`=y`) instead; it always merges last so
   last-wins applies. With `allnoconfig_base` (default) unset symbols default to
-
   `n` for a minimal, explicit config. The library is provisioned at
-
   `vendor/linux-config-fragments` by `f/workbench/init`.
 
-
   One of the interchangeable configure steps (see also `configure_make` and
-
   `configure_preset`). This is the guided multiselect over the curated library.
-
   Returns `kernelrelease`, the `.config` path, `method`, and the `fragments`
   used.
 
-
-  > The fragment list below is a static snapshot of the library (117 entries).
-
-  > Regenerate it when the library changes, as paths relative to
-  `kernel/configs/`,
-
-  > sorted: `cd vendor/linux-config-fragments/kernel/configs && find . -name
-  '*.config' | sed 's|^\./||' | sort`.
+  > The fragment list below is a static snapshot of the library (117 entries). >
+  Regenerate it when the library changes, as paths relative to
+  `kernel/configs/`, > sorted: `cd vendor/linux-config-fragments/kernel/configs
+  && find . -name '*.config' | sed 's|^\./||' | sort`.
 lock: '!inline f/kernel/configure_fragments.script.lock'
 kind: script
 schema:
@@ -57,22 +37,26 @@ schema:
   properties:
     allnoconfig_base:
       type: boolean
-      description: Default unset symbols to n (allnoconfig base) for a minimal,
-        explicit config. Off = alldefconfig base.
+      description: |-
+        Default unset symbols to n (allnoconfig base) for a minimal, explicit
+        config. Off = alldefconfig base.
       default: true
     build_dir:
       type: string
-      description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+      description: |-
+        Out-of-tree build directory, passed as make O= (from prepare_worktree).
     build_identity:
       type: boolean
-      description: Bake a hash of the build inputs into kernelrelease (unique per
+      description: |-
+        Bake a hash of the build inputs into kernelrelease (unique per
         config/toolchain/flags) so identical builds can be fetched or reused
         instead of rebuilt.
       default: true
     fragments:
       type: array
-      description: Curated config fragments to merge (canonical order is applied;
-        builtin/* go last). Pick builtin/<x> to force feature <x> built-in.
+      description: |-
+        Curated config fragments to merge (canonical order is applied; builtin/*
+        go last). Pick builtin/<x> to force feature <x> built-in.
       default:
         - core/64bit.config
         - core/modules.config
@@ -241,8 +225,9 @@ schema:
           - virt/vsock.config
     make_flags:
       type: string
-      description: Toolchain make flags from `build_flags` (`LLVM=1` for clang);
-        applied to config detection.
+      description: |-
+        Toolchain make flags from `build_flags` (`LLVM=1` for clang); applied to
+        config detection.
       default: ''
     worktree:
       type: string

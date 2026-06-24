@@ -1,54 +1,26 @@
 summary: 'Workbench fetch: provision the durable Bare repos from local mirrors'
-description: >
+description: |-
   Provision the durable **Bare** main repos every build worktree is cut from.
-  Each
-
-  Bare at `SYSTEM_DIR/bare/<project>.git` is a `git init --bare`
-
-  repo that **borrows** the local bare **mirror**'s objects via its alternates
-  file (no
-
+  Each Bare at `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that
+  **borrows** the local bare **mirror**'s objects via its alternates file (no
   objects copied, no upstream network). A `mirror` remote fetches the mirror's
-  heads
-
-  into `refs/remotes/mirror/*`; `refs/heads/*` is left empty, reserved for
-  developer
-
-  pushes. `origin`'s URL is set to the **preferred upstream** for an explicit
-
-  `git fetch origin` (ADR-0001: the Bare is the working repo).
-
+  heads into `refs/remotes/mirror/*`; `refs/heads/*` is left empty, reserved for
+  developer pushes. `origin`'s URL is set to the **preferred upstream** for an
+  explicit `git fetch origin` (ADR-0001: the Bare is the working repo).
 
   `upstreams` is a **list** of candidate clone URLs (git / https / googlesource
-  /
-
-  github); the first is preferred. Many servers block `git://`, so for a
-  kernel.org
-
-  mirror the list auto-derives `https://git.kernel.org/…` then
-
+  / github); the first is preferred. Many servers block `git://`, so for a
+  kernel.org mirror the list auto-derives `https://git.kernel.org/…` then
   `https://kernel.googlesource.com/…` then the raw `git://…`; set `upstreams`
-  (or the
-
-  single `upstream`) explicitly to add e.g. a github URL. Idempotent.
-
+  (or the single `upstream`) explicitly to add e.g. a github URL. Idempotent.
 
   An entry may carry extra `remotes`: each its own upstream, borrowing objects
-  from
-
-  its own local mirror and fetched into `refs/remotes/<name>/*` (the default
-  kernel
-
-  Bare carries `linux-next`, `linux-stable`, `linux-modules`); works on
-  preexisting
-
-  Bares too (alternates are reconciled).
-
+  from its own local mirror and fetched into `refs/remotes/<name>/*` (the
+  default kernel Bare carries `linux-next`, `linux-stable`, `linux-modules`);
+  works on preexisting Bares too (alternates are reconciled).
 
   Returns a manifest of each Bare (`bare`, `upstreams`, `origin`, `action`,
-  `head`,
-
-  `remotes`).
+  `head`, `remotes`).
 lock: '!inline f/workbench/fetch.script.lock'
 kind: script
 schema:
@@ -64,7 +36,8 @@ schema:
   properties:
     extra_trees:
       type: array
-      description: Additional git.kernel.org tree paths not in the curated list (e.g.
+      description: |-
+        Additional git.kernel.org tree paths not in the curated list (e.g.
         pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The
         remote name derives from the path.
       default: []
@@ -73,8 +46,9 @@ schema:
       title: Extra trees
     kernel_trees:
       type: array
-      description: Linux trees to mirror as remotes on the merged linux.git (Mainline
-        is always the base). torvalds=Mainline · linux-next · linux-stable ·
+      description: |-
+        Linux trees to mirror as remotes on the merged linux.git (Mainline is
+        always the base). torvalds=Mainline · linux-next · linux-stable ·
         linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis ·
         axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever
         (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add anything
@@ -104,18 +78,20 @@ schema:
       title: Kernel trees
     mirrors:
       type: array
-      description: 'Power-user override of the whole mirror layout: `[{name, mirror,
+      description: |-
+        Power-user override of the whole mirror layout: `[{name, mirror,
         project, remotes:[{name, path|url, protocol, primary}]}]`, for per-tree
         protocols, a custom QEMU URL, extra projects, etc. When non-empty it
-        REPLACES the trees/protocol fields above. Empty = use the form.'
+        REPLACES the trees/protocol fields above. Empty = use the form.
       default: []
       items:
         type: object
       title: 'Advanced: full mirror config'
     peers:
       type: array
-      description: ssh-host aliases of other workbench hosts. Each becomes a <peer>
-        remote on every Bare (ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git, same
+      description: |-
+        ssh-host aliases of other workbench hosts. Each becomes a <peer> remote
+        on every Bare (ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git, same
         layout), so a developer can `git push <peer> <branch>` a dev branch
         cross-host for that host's worker to build. List peer hosts, not self;
         empty = single-host.
@@ -124,9 +100,10 @@ schema:
         type: string
     protocol:
       type: string
-      description: 'How to reach git.kernel.org: https (default), git (faster, often
+      description: |-
+        How to reach git.kernel.org: https (default), git (faster, often
         firewalled), or https-googlesource (the Google mirror when kernel.org is
-        down). Per-tree overrides live in the advanced mirrors config.'
+        down). Per-tree overrides live in the advanced mirrors config.
       default: https
       enum:
         - https
@@ -135,7 +112,8 @@ schema:
       title: Protocol
     refresh:
       type: boolean
-      description: Fetch new refs/tags on already-present Bares (default on). Off =
+      description: |-
+        Fetch new refs/tags on already-present Bares (default on). Off =
         create-if-absent only.
       default: true
   required: []

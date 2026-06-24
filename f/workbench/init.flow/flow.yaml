@@ -1,12 +1,12 @@
-summary: "Workbench Init"
-description: |
-  One-time (idempotent) bootstrap, run from the UI after Windmill is up. Provisions the
-  durable Bares (default `$SYSTEM_DIR/bare/linux.git` and
-  `$SYSTEM_DIR/bare/qemu.git`) that every worker cuts cheap detached
-  worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
-  but borrows objects from the local mirror (`$SYSTEM_DIR/mirror`), and keeps `refs/heads/*` for developer
-  pushes. Thin flow over `f/workbench/fetch`: override or extend the source list there;
-  re-run it any time to refresh.
+summary: Workbench Init
+description: |-
+  One-time (idempotent) bootstrap, run from the UI after Windmill is up.
+  Provisions the durable Bares (default `$SYSTEM_DIR/bare/linux.git` and
+  `$SYSTEM_DIR/bare/qemu.git`) that every worker cuts cheap detached worktrees
+  off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream but
+  borrows objects from the local mirror (`$SYSTEM_DIR/mirror`), and keeps
+  `refs/heads/*` for developer pushes. Thin flow over `f/workbench/fetch`:
+  override or extend the source list there; re-run it any time to refresh.
 
   Also provisions the kdevops-managed VM SSH key (`f/workbench/ssh_key`): one
   keypair under `$SYSTEM_DIR/ssh/` that every guest trusts, so after a one-time
@@ -21,55 +21,48 @@ value:
       summary: Clone/refresh the shared sources
       value:
         type: script
-        path: f/workbench/fetch
         input_transforms:
-          kernel_trees:
-            type: javascript
-            expr: flow_input.kernel_trees
-          protocol:
-            type: javascript
-            expr: flow_input.protocol
           extra_trees:
             type: javascript
             expr: flow_input.extra_trees
+          kernel_trees:
+            type: javascript
+            expr: flow_input.kernel_trees
           mirrors:
             type: javascript
             expr: flow_input.mirrors
           peers:
             type: javascript
             expr: flow_input.peers
+          protocol:
+            type: javascript
+            expr: flow_input.protocol
           refresh:
             type: javascript
             expr: flow_input.refresh
+        path: f/workbench/fetch
     - id: ssh_key
       summary: Provision the VM SSH key + host ssh-config
-      skip_if:
-        expr: flow_input.setup_ssh === false
       value:
         type: script
-        path: f/workbench/ssh_key
         input_transforms:
           regenerate:
             type: javascript
             expr: flow_input.regenerate_ssh_key
+        path: f/workbench/ssh_key
+      skip_if:
+        expr: flow_input.setup_ssh === false
     - id: mirror
       summary: Provision the git-mirror refresh timers
-      skip_if:
-        expr: flow_input.setup_mirrors === false
       value:
         type: script
-        path: f/workbench/mirror
-        tag_override: vm
         input_transforms:
-          kernel_trees:
-            type: javascript
-            expr: flow_input.kernel_trees
-          protocol:
-            type: javascript
-            expr: flow_input.protocol
           extra_trees:
             type: javascript
             expr: flow_input.extra_trees
+          kernel_trees:
+            type: javascript
+            expr: flow_input.kernel_trees
           mirrors:
             type: javascript
             expr: flow_input.mirrors
@@ -79,6 +72,13 @@ value:
           on_inactive:
             type: javascript
             expr: flow_input.mirror_on_inactive
+          protocol:
+            type: javascript
+            expr: flow_input.protocol
+        path: f/workbench/mirror
+        tag_override: vm
+      skip_if:
+        expr: flow_input.setup_mirrors === false
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -95,67 +95,116 @@ schema:
     - mirror_on_inactive
     - mirrors
   properties:
-    kernel_trees:
-      title: Kernel trees
-      type: array
-      description: "Linux trees to mirror as remotes on the merged linux.git (Mainline always the base). torvalds=Mainline · linux-next · linux-stable · linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis · axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under Extra trees."
-      default: [torvalds, linux-next, linux-stable, modules, axboe]
-      items:
-        type: string
-        enum: [torvalds, linux-next, linux-stable, linux-stable-rc, modules, mcgrof, mcgrof-next, axboe, vfs, cel, jlayton, cxl, xfs]
-    protocol:
-      title: Protocol
-      type: string
-      enum: [https, git, https-googlesource]
-      default: https
-      description: "How to reach git.kernel.org: https (default), git (faster, often firewalled), or https-googlesource (the Google mirror). Per-tree overrides live in the advanced mirrors config."
     extra_trees:
-      title: Extra trees
       type: array
-      description: "Additional git.kernel.org tree paths not in the curated list (e.g. pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The remote name derives from the path."
+      description: |-
+        Additional git.kernel.org tree paths not in the curated list (e.g.
+        pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The
+        remote name derives from the path.
       default: []
       items:
         type: string
+      title: Extra trees
+    kernel_trees:
+      type: array
+      description: |-
+        Linux trees to mirror as remotes on the merged linux.git (Mainline
+        always the base). torvalds=Mainline · linux-next · linux-stable ·
+        linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis ·
+        axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever
+        (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under
+        Extra trees.
+      default:
+        - torvalds
+        - linux-next
+        - linux-stable
+        - modules
+        - axboe
+      items:
+        type: string
+        enum:
+          - torvalds
+          - linux-next
+          - linux-stable
+          - linux-stable-rc
+          - modules
+          - mcgrof
+          - mcgrof-next
+          - axboe
+          - vfs
+          - cel
+          - jlayton
+          - cxl
+          - xfs
+      title: Kernel trees
+    mirror_on_boot:
+      type: string
+      description: |-
+        First mirror refresh this long after boot (systemd `OnBootSec`).
+      default: 10m
+      title: Mirror On Boot
+    mirror_on_inactive:
+      type: string
+      description: |-
+        Next mirror refresh this long after the previous one finishes (systemd
+        `OnUnitInactiveSec`).
+      default: 10m
+      title: Mirror On Inactive
+    mirrors:
+      type: array
+      description: |-
+        Power-user override of the whole mirror layout (per-tree protocols,
+        custom QEMU URL, extra projects). When non-empty it REPLACES the
+        trees/protocol fields above. Empty = use the form.
+      default: []
+      items:
+        type: object
+      title: 'Advanced: full mirror config'
     peers:
       type: array
-      description: "ssh-host aliases of other workbench hosts to add as <peer> remotes on each Bare, for cross-host dev branches (`git push <peer> <branch>`). List peer hosts, not self; empty = single-host."
+      description: |-
+        ssh-host aliases of other workbench hosts to add as <peer> remotes on
+        each Bare, for cross-host dev branches (`git push <peer> <branch>`).
+        List peer hosts, not self; empty = single-host.
       default: []
       items:
         type: string
+    protocol:
+      type: string
+      description: |-
+        How to reach git.kernel.org: https (default), git (faster, often
+        firewalled), or https-googlesource (the Google mirror). Per-tree
+        overrides live in the advanced mirrors config.
+      default: https
+      enum:
+        - https
+        - git
+        - https-googlesource
+      title: Protocol
     refresh:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on).
       default: true
-    setup_ssh:
-      title: Setup SSH
-      type: boolean
-      description: Provision the kdevops-managed VM SSH key + `~/.ssh`-includable config (default on). Off = skip; existing key untouched.
-      default: true
     regenerate_ssh_key:
-      title: Regenerate SSH Key
       type: boolean
-      description: Force a fresh VM keypair even if one exists. Invalidates the authorized key already baked into every built closure; rebuild closures after.
+      description: |-
+        Force a fresh VM keypair even if one exists. Invalidates the authorized
+        key already baked into every built closure; rebuild closures after.
       default: false
+      title: Regenerate SSH Key
     setup_mirrors:
-      title: Setup Mirrors
       type: boolean
-      description: Install + enable the `git-mirror@<repo>` refresh timers for the mirrors under `$SYSTEM_DIR/mirror` (default on). Off = skip; existing timers untouched.
+      description: |-
+        Install + enable the `git-mirror@<repo>` refresh timers for the mirrors
+        under `$SYSTEM_DIR/mirror` (default on). Off = skip; existing timers
+        untouched.
       default: true
-    mirror_on_boot:
-      title: Mirror On Boot
-      type: string
-      description: First mirror refresh this long after boot (systemd `OnBootSec`).
-      default: 10m
-    mirror_on_inactive:
-      title: Mirror On Inactive
-      type: string
-      description: Next mirror refresh this long after the previous one finishes (systemd `OnUnitInactiveSec`).
-      default: 10m
-    mirrors:
-      title: "Advanced: full mirror config"
-      type: array
-      description: "Power-user override of the whole mirror layout (per-tree protocols, custom QEMU URL, extra projects). When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
-      default: []
-      items:
-        type: object
+      title: Setup Mirrors
+    setup_ssh:
+      type: boolean
+      description: |-
+        Provision the kdevops-managed VM SSH key + `~/.ssh`-includable config
+        (default on). Off = skip; existing key untouched.
+      default: true
+      title: Setup SSH
   required: []

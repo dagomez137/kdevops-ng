@@ -1,17 +1,10 @@
 summary: 'Shared helpers: nixos-flake devShell + flake git + raw nix runners'
-description: >
-  Library module imported by the build/provisioning steps
-
-  (`from f.common.devshell import DevShell, Git, Nix`). Not a runnable step on
-  its
-
-  own. `DevShell` runs commands in the `nixos-flake#build` devShell; `Git` runs
-  host
-
+description: |-
+  Library module imported by the build/provisioning steps (`from
+  f.common.devshell import DevShell, Git, Nix`). Not a runnable step on its own.
+  `DevShell` runs commands in the `nixos-flake#build` devShell; `Git` runs host
   git; `Nix` runs the raw `nix` CLI (build, flake lock). All print the exact
-  argv
-
-  before running it.
+  argv before running it.
 lock: '!inline f/common/devshell.script.lock'
 kind: script
 schema:

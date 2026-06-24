@@ -1,13 +1,13 @@
 summary: "xfstests: stop a section's systemd unit on a booted guest"
-description: |
+description: |-
   Stop `xfstests@<section>.service` on the guest over vsock-SSH (plus
   `reset-failed` to clear any latched state). Wired as the `check.flow`
   `failure_module` so cancelling a run from the Windmill UI, or any step
-  erroring out mid-section, tears the running unit down on the guest. Stops
-  are idempotent; a guest unreachable from the worker is logged and skipped
-  so the failure handler never itself fails. Force-stopping a Windmill job
-  bypasses `failure_module`; the manual fallback is
-  `systemctl --host <vm> stop xfstests@<section>.service`.
+  erroring out mid-section, tears the running unit down on the guest. Stops are
+  idempotent; a guest unreachable from the worker is logged and skipped so the
+  failure handler never itself fails. Force-stopping a Windmill job bypasses
+  `failure_module`; the manual fallback is `systemctl --host <vm> stop
+  xfstests@<section>.service`.
 
   Returns `{vm_name, stopped, skipped_no_transport}`.
 lock: '!inline f/fstests/stop.script.lock'
@@ -21,7 +21,8 @@ schema:
   properties:
     sections:
       type: array
-      description: xfstests config-section names whose `xfstests@<section>.service` to
+      description: |-
+        xfstests config-section names whose `xfstests@<section>.service` to
         stop. Empty = no-op.
       default: []
       items:

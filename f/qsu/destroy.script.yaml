@@ -1,24 +1,17 @@
 summary: 'QEMU/systemd: destroy a VM (stop + remove per-VM artefacts)'
-description: >
+description: |-
   Stop `qemu-system@<vm>`, then remove every per-VM artefact:
 
-
-  - `~/.config/systemd/qemu-system/<vm>.env`;
-
-  - `~/.config/systemd/user/qemu-system@<vm>.service.d/`;
-
-  - `~/.config/systemd/user/virtiofsd@<vm>-*.service.d/` and
-    `~/.config/systemd/virtiofsd/<vm>-*.env`;
-  - the systemd `StateDirectory` `~/.local/state/qemu-system/<vm>/` (the NVMe
-  qcow2
-    backing files + runtime sockets).
+  - `~/.config/systemd/qemu-system/<vm>.env`; -
+  `~/.config/systemd/user/qemu-system@<vm>.service.d/`; -
+  `~/.config/systemd/user/virtiofsd@<vm>-*.service.d/` and
+  `~/.config/systemd/virtiofsd/<vm>-*.env`; - the systemd `StateDirectory`
+  `~/.local/state/qemu-system/<vm>/` (the NVMe qcow2 backing files + runtime
+  sockets).
 
   machined unregisters automatically on stop. The host-wide template units
-
   (`qemu-system@.service`, `virtiofsd@.service`/`.socket`) are shared across VMs
-  and
-
-  left in place. A final `daemon-reload` drops the removed drop-ins.
+  and left in place. A final `daemon-reload` drops the removed drop-ins.
 lock: '!inline f/qsu/destroy.script.lock'
 kind: script
 schema:
@@ -29,10 +22,11 @@ schema:
   properties:
     vm_name:
       type: object
-      description: "VM to stop and tear down. The dropdown lists every destroyable VM:
-        the running VMs (`systemctl --user list-units 'qemu-system@*'`, across
-        the local host and registered peers) plus any with a rendered `<vm>.env`
-        still on disk."
+      description: |-
+        VM to stop and tear down. The dropdown lists every destroyable VM: the
+        running VMs (`systemctl --user list-units 'qemu-system@*'`, across the
+        local host and registered peers) plus any with a rendered `<vm>.env`
+        still on disk.
       format: dynselect-list_vms
       title: VM Name
   required:

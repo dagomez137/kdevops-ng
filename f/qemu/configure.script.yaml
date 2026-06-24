@@ -1,5 +1,5 @@
 summary: 'QEMU: configure (out-of-tree)'
-description: |
+description: |-
   Configure an out-of-tree QEMU build inside the `nixos-flake#build` devShell.
   First `meson subprojects download` (run in the source) fetches QEMU's vendored
   subprojects, then `{worktree}/configure --target-list --prefix=<destdir>
@@ -29,11 +29,13 @@ schema:
       description: Out-of-tree build directory (from prepare_worktree).
     ccache:
       type: boolean
-      description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
+      description: |-
+        Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
       default: true
     ccache_max_size:
       type: integer
-      description: ccache max cache size in GiB (written to ccache.conf max_size).
+      description: |-
+        ccache max cache size in GiB (written to ccache.conf max_size).
       default: 10
       showExpr: fields.ccache !== false
     compiler:
@@ -49,17 +51,20 @@ schema:
       default: ''
     destdir:
       type: string
-      description: Install prefix the build configures for (from prepare_worktree).
+      description: |-
+        Install prefix the build configures for (from prepare_worktree).
     reproducible:
       type: boolean
-      description: Add one `-ffile-prefix-map=<prefix>=/qemu` to
+      description: |-
+        Add one `-ffile-prefix-map=<prefix>=/qemu` to
         `--extra-cflags`/`--extra-cxxflags` (common parent of
         `worktree`/`build_dir`) so the build path stops leaking into the binary.
       default: true
     target_list:
       type: array
-      description: QEMU emulator targets (`--target-list`), comma-joined. The build
-        flow offers the selectable list.
+      description: |-
+        QEMU emulator targets (`--target-list`), comma-joined. The build flow
+        offers the selectable list.
       default:
         - x86_64-softmmu
       items:

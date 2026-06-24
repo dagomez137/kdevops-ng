@@ -1,31 +1,22 @@
 summary: 'Kernel: configure from a predefined preset'
-description: >
+description: |-
   Configure method **preset**: generate a `.config` from a complete, predefined
-
   config that kdevops-ng ships in the `linux-config-fragments` library
-
   (`defconfigs/`), applied with the kernel's own `KCONFIG_ALLCONFIG` mechanism:
-
   `make KCONFIG_ALLCONFIG=<preset> alldefconfig` forces the preset's symbols on
-  top
-
-  of the defaults and resolves the rest. Nothing is copied into the kernel tree.
-
+  top of the defaults and resolves the rest. Nothing is copied into the kernel
+  tree.
 
   Presets are whole-kernel configs for a known scenario, unlike `configure_make`
-
   (config make goals) or the fragment methods (compose from pieces). Shipped
   now:
 
-
   - `imageless_defconfig`: the imageless VM kernel (tmpfs root, virtiofs `/nix`
-  and
-    `/lib/modules`, direct `-kernel` boot, Rust enabled); a savedefconfig-minimized
-    form of kdevops's `config-imageless`. `CONFIG_RUST=y` sticks because the build
-    devShell exports `RUST_LIB_SRC`.
+  and `/lib/modules`, direct `-kernel` boot, Rust enabled); a
+  savedefconfig-minimized form of kdevops's `config-imageless`. `CONFIG_RUST=y`
+  sticks because the build devShell exports `RUST_LIB_SRC`.
 
   Reads `worktree`/`build_dir` from a prior `prepare_worktree` step. Returns
-
   `kernelrelease`, the `.config` path, `method`, and the `preset` applied.
 lock: '!inline f/kernel/configure_preset.script.lock'
 kind: script
@@ -41,21 +32,25 @@ schema:
   properties:
     build_dir:
       type: string
-      description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+      description: |-
+        Out-of-tree build directory, passed as make O= (from prepare_worktree).
     build_identity:
       type: boolean
-      description: Bake a hash of the build inputs into kernelrelease (unique per
+      description: |-
+        Bake a hash of the build inputs into kernelrelease (unique per
         config/toolchain/flags) so identical builds can be fetched or reused
         instead of rebuilt.
       default: true
     make_flags:
       type: string
-      description: Toolchain make flags from `build_flags` (`LLVM=1` for clang);
-        applied to config detection.
+      description: |-
+        Toolchain make flags from `build_flags` (`LLVM=1` for clang); applied to
+        config detection.
       default: ''
     preset:
       type: string
-      description: Predefined config to apply (from the config-fragments defconfigs/
+      description: |-
+        Predefined config to apply (from the config-fragments defconfigs/
         library).
       default: imageless_defconfig
       enum:

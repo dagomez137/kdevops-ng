@@ -1,19 +1,12 @@
 summary: 'Nix: build the imageless toplevel closure + read bootspec'
-description: >
-  Build the imageless NixOS system closure
-
-  (`nix build path:<config_dir>#toplevel --out-link <config_dir>/result`) and
-  read
-
-  its standard NixOS bootspec (RFC-0125) from `<toplevel>/boot.json`.
-
+description: |-
+  Build the imageless NixOS system closure (`nix build
+  path:<config_dir>#toplevel --out-link <config_dir>/result`) and read its
+  standard NixOS bootspec (RFC-0125) from `<toplevel>/boot.json`.
 
   Returns the `toplevel` store path plus `init` and `initrd` (from
-
   `org.nixos.bootspec.v1`): the boot artefacts a VM needs. Reads `config_dir`
-  from a
-
-  prior `render_config`/`lock_config` step.
+  from a prior `render_config`/`lock_config` step.
 lock: '!inline f/nix/build_closure.script.lock'
 kind: script
 schema:

@@ -1,27 +1,19 @@
 summary: 'QEMU/systemd: render the virtiofsd units + per-share env/drop-in'
-description: >
+description: |-
   Render the **virtiofsd** component of the QEMU-in-systemd unit set into the
-  host
-
-  user manager's search path (`$HOME/.config/systemd`):
-
+  host user manager's search path (`$HOME/.config/systemd`):
 
   - the host-wide, socket-activated `virtiofsd@.service` and `virtiofsd@.socket`
-    templates (written once; `ExecStart=` execs the `/nix/store` `virtiofsd`);
-  - per (VM, share) a `virtiofsd@<vm>-<tag>.env` (`virtiofsd.env.j2`, pointing
-    `VIRTIOFSD_SHARED_DIR` at the host directory) and a
-    `virtiofsd@<vm>-<tag>.service.d/override.conf` drop-in that adds
-    `Before=qemu-system@<vm>.service` so virtiofsd outlives the guest's powerdown.
+  templates (written once; `ExecStart=` execs the `/nix/store` `virtiofsd`); -
+  per (VM, share) a `virtiofsd@<vm>-<tag>.env` (`virtiofsd.env.j2`, pointing
+  `VIRTIOFSD_SHARED_DIR` at the host directory) and a
+  `virtiofsd@<vm>-<tag>.service.d/override.conf` drop-in that adds
+  `Before=qemu-system@<vm>.service` so virtiofsd outlives the guest's powerdown.
 
   `shares` is rendered verbatim when supplied (the boot flow wires it from the
-
   qemu-system render step so both components agree on the share set); otherwise
-  it is
-
-  recomposed from `modules_dir` + the controller-share knobs. Returns the unit
-  paths
-
-  and the per-share artefact list.
+  it is recomposed from `modules_dir` + the controller-share knobs. Returns the
+  unit paths and the per-share artefact list.
 lock: '!inline f/qsu/virtiofsd/render.script.lock'
 kind: script
 schema:
@@ -56,7 +48,8 @@ schema:
       default: ''
     controller_share_guest_mount:
       type: string
-      description: Guest mount point for the controller share. Empty = same as the
+      description: |-
+        Guest mount point for the controller share. Empty = same as the
         controller path.
       default: ''
     controller_share_readwrite:
@@ -69,41 +62,48 @@ schema:
       default: controller-share
     custom_virtiofsd:
       type: boolean
-      description: Use a custom `virtiofsd` instead of the reproducible `nixos-flake` one.
+      description: |-
+        Use a custom `virtiofsd` instead of the reproducible `nixos-flake` one.
       default: false
       title: Custom virtiofsd
     kernel:
       type: object
-      description: The `f/kernel/build` result manifest (`modules_dir`), used when
-        `shares` is recomposed.
+      description: |-
+        The `f/kernel/build` result manifest (`modules_dir`), used when `shares`
+        is recomposed.
       default: {}
     machine_type:
       type: string
-      description: Machine type (`-machine type=`); selects the vhost-user-fs device
+      description: |-
+        Machine type (`-machine type=`); selects the vhost-user-fs device
         variant.
       default: q35
     modules_dir:
       type: string
-      description: Host modules tree shared at `/lib/modules` when `shares` is
-        recomposed. Empty = `kernel.modules_dir`.
+      description: |-
+        Host modules tree shared at `/lib/modules` when `shares` is recomposed.
+        Empty = `kernel.modules_dir`.
       default: ''
     shares:
       type: array
-      description: Composed virtiofs shares (`{tag,dir,mount,options}`) to render; the
-        boot flow passes the qemu-system render step's `shares`.
+      description: |-
+        Composed virtiofs shares (`{tag,dir,mount,options}`) to render; the boot
+        flow passes the qemu-system render step's `shares`.
       default: []
       items:
         type: object
     virtiofsd_binary:
       type: string
-      description: Path to a custom `virtiofsd` (e.g. a nix derivation output or your
-        own build).
+      description: |-
+        Path to a custom `virtiofsd` (e.g. a nix derivation output or your own
+        build).
       default: ''
       showExpr: fields.custom_virtiofsd === true
       title: virtiofsd Binary
     vm_name:
       type: string
-      description: systemd instance the shares belong to (`virtiofsd@<vm_name>-<tag>`).
+      description: |-
+        systemd instance the shares belong to (`virtiofsd@<vm_name>-<tag>`).
       title: VM Name
   required:
     - vm_name

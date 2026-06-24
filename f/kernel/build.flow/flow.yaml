@@ -1,68 +1,44 @@
 summary: Linux Kernel Build
-description: >
+description: |-
   First-class kernel build, composed from reusable step-scripts so each unit is
-
   independently runnable and testable. Builds inside the `nixos-flake#build`
-
   devShell over this worker's warm `main` worktree cut from the durable Bare,
-  with
-
-  `make --jobs=$(nproc)` so the container cgroup governs CPU and N concurrent
-
-  builds self-balance across the workers.
-
+  with `make --jobs=$(nproc)` so the container cgroup governs CPU and N
+  concurrent builds self-balance across the workers.
 
   Steps (pinned to one worker via `same_worker`, so each sees the previous
-
   step's files):
 
-
-  1. `prepare_worktree`: resolve the slot and check out `git_ref`.
-
-  2. `configure`: generate `.config` by the selected `config_method`:
-     - `preset` (default) → `f/kernel/configure_preset`: a predefined whole-kernel
-       config (e.g. `imageless_defconfig`) applied via `KCONFIG_ALLCONFIG`.
-     - `make` → `f/kernel/configure_make`: a list of make config goals
-       (`defconfig`, `tinyconfig`, `["defconfig","kvm_guest.config"]`, ...).
-     - `fragments` → `f/kernel/configure_fragments`: pick from the curated
-       `linux-config-fragments` library (canonical order applied).
-  3. `compile`: `make` (default goal: vmlinux + boot image + modules).
-
-  4. `devtools`: generate dev-tooling artifacts (compile_commands.json, GDB
-  helpers,
-     rust-project.json); each optional, on by default.
-  5. `install`: install the kernel image into a destdir; only when `install` is
-  set.
-
-  6. `install_modules`: modules_install into the destdir (plus the canonical
-  source
-     symlink); only when `modules_install` is set (skip for an all-built-in kernel).
-  7. `publish`: add this identity's run layer to the Nix store so a peer can
-  fetch
-     it; only after a real install (skipped on reuse).
-  8. `publish_devel`: add this identity's devel layer (the build dir's `.cmd`
-     files, headers and scripts, minus binaries) to the Nix store so `fetch_devel`
-     can index a worktree from it; only after a real build (skipped on reuse).
-  9. `collect`: merge the step results into one manifest.
-
+  1. `prepare_worktree`: resolve the slot and check out `git_ref`. 2.
+  `configure`: generate `.config` by the selected `config_method`: - `preset`
+  (default) → `f/kernel/configure_preset`: a predefined whole-kernel config
+  (e.g. `imageless_defconfig`) applied via `KCONFIG_ALLCONFIG`. - `make` →
+  `f/kernel/configure_make`: a list of make config goals (`defconfig`,
+  `tinyconfig`, `["defconfig","kvm_guest.config"]`, ...). - `fragments` →
+  `f/kernel/configure_fragments`: pick from the curated `linux-config-fragments`
+  library (canonical order applied). 3. `compile`: `make` (default goal: vmlinux
+  + boot image + modules). 4. `devtools`: generate dev-tooling artifacts
+  (compile_commands.json, GDB helpers, rust-project.json); each optional, on by
+  default. 5. `install`: install the kernel image into a destdir; only when
+  `install` is set. 6. `install_modules`: modules_install into the destdir (plus
+  the canonical source symlink); only when `modules_install` is set (skip for an
+  all-built-in kernel). 7. `publish`: add this identity's run layer to the Nix
+  store so a peer can fetch it; only after a real install (skipped on reuse). 8.
+  `publish_devel`: add this identity's devel layer (the build dir's `.cmd`
+  files, headers and scripts, minus binaries) to the Nix store so `fetch_devel`
+  can index a worktree from it; only after a real build (skipped on reuse). 9.
+  `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
-
   (`workers/<worker>/linux/main`), synced to `git_ref` every run so rebuilds
-
   stay incremental and isolated builds on different workers run in parallel.
-
   `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean
   build.
 
-
   Returns a manifest (`commit`, `uts_release`, `bzImage`, `build_dir`, `config`,
-
   `config_method`, `destdir`, the build provenance
   `linux_compiler`/`uts_version`/
-
   `uts_machine`/`linux_compile_by`/`linux_compile_host`, …) so downstream flows
-
   (e.g. VM boot) can consume it.
 value:
   modules:
@@ -483,39 +459,46 @@ schema:
       properties:
         ccache:
           type: boolean
-          description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
+          description: |-
+            Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
           default: true
         ccache_max_size:
           type: integer
-          description: ccache max cache size in GiB (written to ccache.conf max_size).
+          description: |-
+            ccache max cache size in GiB (written to ccache.conf max_size).
           default: 10
           showExpr: fields.ccache !== false
         compiler:
           type: string
-          description: "Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the
-            devShell's unwrapped clang)."
+          description: |-
+            Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the
+            devShell's unwrapped clang).
           default: gcc
           enum:
             - gcc
             - clang
         make_flags:
           type: string
-          description: Extra make variables/flags, space-separated, appended verbatim
-            (e.g. "W=1 KCFLAGS=-O2").
+          description: |-
+            Extra make variables/flags, space-separated, appended verbatim (e.g.
+            "W=1 KCFLAGS=-O2").
           default: ''
         reproducible:
           type: boolean
-          description: Reproducible build (fixed `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`,
+          description: |-
+            Reproducible build (fixed `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`,
             `LOCALVERSION=`).
           default: true
         targets:
           type: string
-          description: 'Space-separated make targets. Empty (default) builds the default
-            goal: vmlinux, the boot image, and modules.'
+          description: |-
+            Space-separated make targets. Empty (default) builds the default
+            goal: vmlinux, the boot image, and modules.
           default: ''
         timestamp_from_commit:
           type: boolean
-          description: Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the
+          description: |-
+            Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the
             fixed default.
           default: false
       title: Build
@@ -533,22 +516,25 @@ schema:
       properties:
         allnoconfig_base:
           type: boolean
-          description: '[method=fragments] Default unset symbols to n (allnoconfig base)
-            for a minimal, explicit config.'
+          description: |-
+            [method=fragments] Default unset symbols to n (allnoconfig base) for
+            a minimal, explicit config.
           default: true
           showExpr: fields.config_method === 'fragments'
         build_identity:
           type: boolean
-          description: Bake a hash of the build inputs (config, toolchain, make flags,
+          description: |-
+            Bake a hash of the build inputs (config, toolchain, make flags,
             source commit) into kernelrelease, so the image and modules install
             under a unique release and an identical build can be fetched or
             reused instead of rebuilt.
           default: true
         config_method:
           type: string
-          description: 'How to generate .config: preset (a predefined whole-kernel
-            config), make (config goals), fragments (curated multiselect), or
-            skip (reuse the .config already in the build dir).'
+          description: |-
+            How to generate .config: preset (a predefined whole-kernel config),
+            make (config goals), fragments (curated multiselect), or skip (reuse
+            the .config already in the build dir).
           default: preset
           enum:
             - preset
@@ -557,9 +543,10 @@ schema:
             - skip
         defconfig:
           type: array
-          description: '[method=make] Config make goals, applied in order (defconfig,
+          description: |-
+            [method=make] Config make goals, applied in order (defconfig,
             x86_64_defconfig, tinyconfig, ...). *.config fragments merge onto
-            the base.'
+            the base.
           default:
             - defconfig
           items:
@@ -583,8 +570,9 @@ schema:
           showExpr: fields.config_method === 'make'
         fragments:
           type: array
-          description: '[method=fragments] Curated fragments to merge (canonical order
-            applied; builtin/* go last).'
+          description: |-
+            [method=fragments] Curated fragments to merge (canonical order
+            applied; builtin/* go last).
           default:
             - core/64bit.config
             - core/modules.config
@@ -754,8 +742,9 @@ schema:
           showExpr: fields.config_method === 'fragments'
         preset:
           type: string
-          description: '[method=preset] Predefined whole-kernel config from the library
-            (applied via KCONFIG_ALLCONFIG).'
+          description: |-
+            [method=preset] Predefined whole-kernel config from the library
+            (applied via KCONFIG_ALLCONFIG).
           default: imageless_defconfig
           enum:
             - imageless_defconfig
@@ -772,16 +761,19 @@ schema:
       properties:
         compile_commands:
           type: boolean
-          description: Generate `compile_commands.json` (clangd/IDE C index) in the source
+          description: |-
+            Generate `compile_commands.json` (clangd/IDE C index) in the source
             tree.
           default: true
         rust_analyzer:
           type: boolean
-          description: Generate `rust-project.json` (rust-analyzer) when `CONFIG_RUST=y`.
+          description: |-
+            Generate `rust-project.json` (rust-analyzer) when `CONFIG_RUST=y`.
           default: true
         scripts_gdb:
           type: boolean
-          description: Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build
+          description: |-
+            Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build
             dir.
           default: true
           title: Scripts GDB
@@ -799,38 +791,44 @@ schema:
       properties:
         clean_destdir:
           type: boolean
-          description: Wipe the install `destdir` (`<worktree>/destdir`) first (default
+          description: |-
+            Wipe the install `destdir` (`<worktree>/destdir`) first (default
             off). Leave off so an install never wipes modules a running
             QEMU/systemd VM has mounted over virtiofs.
           default: false
         install:
           type: boolean
-          description: Install the built kernel image into the slot `destdir` (`make
+          description: |-
+            Install the built kernel image into the slot `destdir` (`make
             install`).
           default: true
         modules_install:
           type: boolean
-          description: Install kernel modules into the slot `destdir` (make
+          description: |-
+            Install kernel modules into the slot `destdir` (make
             modules_install). Skip for an all-built-in kernel.
           default: true
         reuse:
           type: boolean
-          description: Skip compile/install when this build identity is already in the
+          description: |-
+            Skip compile/install when this build identity is already in the
             destdir (reuse the prior build). Off forces a rebuild without wiping
             the destdir.
           default: true
         source_symlink:
           type: boolean
-          description: Add the canonical /lib/modules/<release>/source symlink after
+          description: |-
+            Add the canonical /lib/modules/<release>/source symlink after
             modules_install.
           default: true
       title: Install
     prebuilt:
       type: object
-      description: Cross-host build host to pull a prebuilt identity from before
-        building. When a peer already published this build identity to the Nix
-        store, its run layer (image + modules) is fetched into the destdir so
-        the build is reused instead of repeated.
+      description: |-
+        Cross-host build host to pull a prebuilt identity from before building.
+        When a peer already published this build identity to the Nix store, its
+        run layer (image + modules) is fetched into the destdir so the build is
+        reused instead of repeated.
       default: {}
       order:
         - remote
@@ -838,12 +836,14 @@ schema:
       properties:
         remote:
           type: string
-          description: SSH host of the peer builder to fetch this build identity's run
+          description: |-
+            SSH host of the peer builder to fetch this build identity's run
             layer from. Empty (default) builds locally with no fetch.
           default: ''
         remote_index:
           type: string
-          description: The peer builder's `store-index` directory (its
+          description: |-
+            The peer builder's `store-index` directory (its
             `WORKERS_DIR/shared/store-index`), read over ssh to learn the run
             layer's Nix store path. Empty (default) builds locally with no
             fetch.
@@ -862,29 +862,35 @@ schema:
       properties:
         b4_series:
           type: string
-          description: Optional lore series (message-id/URL) to apply on top of the
+          description: |-
+            Optional lore series (message-id/URL) to apply on top of the
             checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
           default: ''
           title: b4 Series
         git_ref:
           type: string
-          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref
+          description: |-
+            Branch, tag or commit in the Bare to build (a tag, an upstream ref
             via the mirror, or a developer branch).
           default: v7.1-rc7
         recreate_worktree:
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree, its build dir and
+          description: |-
+            Lay a fresh detached checkout (rm the warm tree, its build dir and
             destdir too, first) instead of reusing it. Default off keeps the
             warm tree for incremental rebuilds.
           default: false
           title: Recreate Worktree
         wipe_build:
           type: boolean
-          description: Wipe the build dir before building (default off = incremental reuse).
+          description: |-
+            Wipe the build dir before building (default off = incremental
+            reuse).
           default: false
         worktree_group:
           type: string
-          description: Worktree-group this build belongs to (default vanilla;
+          description: |-
+            Worktree-group this build belongs to (default vanilla;
             system/workers are reserved).
           default: vanilla
           title: Worktree group

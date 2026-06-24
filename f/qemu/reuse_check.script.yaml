@@ -1,23 +1,12 @@
 summary: 'QEMU: reuse if the build identity is already installed'
-description: >
+description: |-
   Probe for an installed QEMU (`bin/qemu-system-*`), first in the per-identity
-  prefix
-
-  (`destdir/<identity>`), then in the Nix store via the `store-index` entry
-  (where
-
-  `fetch_identity` leaves a peer's build). When present the build flow skips
-
-  configure/compile/install and the manifest points at it, reusing the prior
-  build.
-
-  Filesystem only: no devShell, robust if neither the prefix nor a store entry
-  exists.
-
-  Returns `present` plus the resolved `prefix`/`qemu_binary` (under the prefix
-  or the
-
-  store path).
+  prefix (`destdir/<identity>`), then in the Nix store via the `store-index`
+  entry (where `fetch_identity` leaves a peer's build). When present the build
+  flow skips configure/compile/install and the manifest points at it, reusing
+  the prior build. Filesystem only: no devShell, robust if neither the prefix
+  nor a store entry exists. Returns `present` plus the resolved
+  `prefix`/`qemu_binary` (under the prefix or the store path).
 lock: '!inline f/qemu/reuse_check.script.lock'
 kind: script
 schema:

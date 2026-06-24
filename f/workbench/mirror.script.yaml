@@ -1,34 +1,19 @@
 summary: 'Workbench mirror: provision git-mirror@ refresh timers'
-description: >
-  Install the `git-mirror@.{service,timer}` template pair into the host
-
-  `systemd --user` manager and enable one instance per mirror repo, so each
-  local
-
-  `SYSTEM_DIR/mirror/<repo>.git` is force-refreshed from its upstream
-
-  `origin` (`git remote update --prune`) on a self-pacing loop: `OnBootSec`
-  after
-
-  boot, then `OnUnitInactiveSec` after each run finishes. Per-repo instances
-  pace
-
-  and fail independently (a slow `linux` fetch never delays `qemu`).
-
+description: |-
+  Install the `git-mirror@.{service,timer}` template pair into the host `systemd
+  --user` manager and enable one instance per mirror repo, so each local
+  `SYSTEM_DIR/mirror/<repo>.git` is force-refreshed from its upstream `origin`
+  (`git remote update --prune`) on a self-pacing loop: `OnBootSec` after boot,
+  then `OnUnitInactiveSec` after each run finishes. Per-repo instances pace and
+  fail independently (a slow `linux` fetch never delays `qemu`).
 
   `git` is the flake's own (a stable gc-rooted path), so the host unit needs
-  nothing
-
-  on PATH. A repo with no mirror on disk is skipped, not enabled. Runs on a `vm`
-
-  worker (it drives the host user manager over the user bus, like the qsu
-  steps).
-
+  nothing on PATH. A repo with no mirror on disk is skipped, not enabled. Runs
+  on a `vm` worker (it drives the host user manager over the user bus, like the
+  qsu steps).
 
   Returns the enabled/skipped repos and the resolved git + mirror dir. Check
-  with
-
-  `systemctl --user list-timers 'git-mirror@*'`.
+  with `systemctl --user list-timers 'git-mirror@*'`.
 lock: '!inline f/workbench/mirror.script.lock'
 kind: script
 schema:
@@ -45,7 +30,8 @@ schema:
   properties:
     extra_trees:
       type: array
-      description: Additional git.kernel.org tree paths not in the curated list (e.g.
+      description: |-
+        Additional git.kernel.org tree paths not in the curated list (e.g.
         pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The
         remote name derives from the path.
       default: []
@@ -54,7 +40,8 @@ schema:
       title: Extra trees
     kernel_trees:
       type: array
-      description: Linux trees to mirror as remotes on the merged linux.git (Mainline
+      description: |-
+        Linux trees to mirror as remotes on the merged linux.git (Mainline
         always the base). torvalds=Mainline · linux-next · linux-stable ·
         linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis ·
         axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever
@@ -85,12 +72,14 @@ schema:
       title: Kernel trees
     mirror_dir:
       type: string
-      description: Directory holding the `<repo>.git` mirrors. Empty = `SYSTEM_DIR/mirror`.
+      description: |-
+        Directory holding the `<repo>.git` mirrors. Empty = `SYSTEM_DIR/mirror`.
       default: ''
       title: Mirror Dir
     mirrors:
       type: array
-      description: Power-user override of the whole mirror layout (`[{name, mirror,
+      description: |-
+        Power-user override of the whole mirror layout (`[{name, mirror,
         project, remotes:[{name, path|url, protocol, primary}]}]`) for per-tree
         protocols, a custom QEMU URL, extra projects, etc. When non-empty it
         REPLACES the trees/protocol fields above. Empty = use the form.
@@ -100,21 +89,24 @@ schema:
       title: 'Advanced: full mirror config'
     on_boot:
       type: string
-      description: First refresh this long after boot (systemd `OnBootSec`, e.g.
-        `10m`, `1h`).
+      description: |-
+        First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+        `1h`).
       default: 10m
       title: On Boot
     on_inactive:
       type: string
-      description: Next refresh this long after the previous one finishes (systemd
+      description: |-
+        Next refresh this long after the previous one finishes (systemd
         `OnUnitInactiveSec`).
       default: 10m
       title: On Inactive
     protocol:
       type: string
-      description: 'How to reach git.kernel.org: https (default), git (faster, often
+      description: |-
+        How to reach git.kernel.org: https (default), git (faster, often
         firewalled), or https-googlesource (the Google mirror when kernel.org is
-        down). Per-tree overrides live in the advanced mirrors config.'
+        down). Per-tree overrides live in the advanced mirrors config.
       default: https
       enum:
         - https

@@ -1,5 +1,5 @@
 summary: 'xfstests: cold power-cycle a guest and wait for it to come back'
-description: |
+description: |-
   Run-global startup step: cold power-cycle a guest by restarting its host
   `qemu-system@<vm>.service` unit, then block until a fresh boot reaches
   `running`/`degraded`: clears leaked kernel state, stuck D-state tasks, and
@@ -24,20 +24,23 @@ schema:
   properties:
     poll_interval:
       type: integer
-      description: Seconds between is-system-running polls while waiting for the guest
-        to come back.
+      description: |-
+        Seconds between is-system-running polls while waiting for the guest to
+        come back.
       default: 5
       title: Poll Interval
     reboot_guest:
       type: boolean
-      description: Power-cycle the guest and wait for it to come back. Off = no-op
-        (returns `rebooted=false`).
+      description: |-
+        Power-cycle the guest and wait for it to come back. Off = no-op (returns
+        `rebooted=false`).
       default: false
       title: Reboot Guest
     reboot_timeout:
       type: integer
-      description: Seconds to wait for the guest to come back after the power-cycle
-        before failing.
+      description: |-
+        Seconds to wait for the guest to come back after the power-cycle before
+        failing.
       default: 300
       title: Reboot Timeout
     vm_name:

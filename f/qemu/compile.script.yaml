@@ -1,5 +1,5 @@
 summary: 'QEMU: compile'
-description: |
+description: |-
   Build an already-configured QEMU inside the `nixos-flake#build` devShell with
   `make --directory=<build_dir> --jobs=$(nproc)`, which drives ninja, so the
   container cgroup governs CPU and concurrent builds self-balance.
@@ -16,7 +16,8 @@ schema:
   properties:
     build_dir:
       type: string
-      description: Out-of-tree build directory (from prepare_worktree, configured by
+      description: |-
+        Out-of-tree build directory (from prepare_worktree, configured by
         configure).
   required:
     - build_dir

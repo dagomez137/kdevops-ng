@@ -1,28 +1,20 @@
 summary: 'Kernel: resolve make flags (toolchain / reproducible / ccache)'
-description: >
+description: |-
   Resolve the toolchain, reproducible-build and ccache knobs into one make-flags
-
   string that every later make step consumes, so the toolchain stays consistent
-
   (the kernel requires the same `LLVM=` on configure and compile).
 
-
   - `compiler` GCC (default) or clang → `LLVM=1` plus the unwrapped `CC` and its
-    resource `-I` the build-kernel devShell exports.
-  - `reproducible` (default on) → `KBUILD_BUILD_TIMESTAMP` (a real fixed date,
-  or the
-    commit date when `timestamp_from_commit` is set), `KBUILD_BUILD_USER`/`HOST`,
-    `LOCALVERSION=`, plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS`/`KAFLAGS`
-    (the common parent of `worktree` and `build_dir`) so the build path stops leaking
-    into DWARF.
-  - `ccache` (default on) → `CC="ccache <cc>"`; the devShell points `CCACHE_DIR`
-  at a
-    shared cache.
+  resource `-I` the build-kernel devShell exports. - `reproducible` (default on)
+  → `KBUILD_BUILD_TIMESTAMP` (a real fixed date, or the commit date when
+  `timestamp_from_commit` is set), `KBUILD_BUILD_USER`/`HOST`, `LOCALVERSION=`,
+  plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS`/`KAFLAGS` (the common
+  parent of `worktree` and `build_dir`) so the build path stops leaking into
+  DWARF. - `ccache` (default on) → `CC="ccache <cc>"`; the devShell points
+  `CCACHE_DIR` at a shared cache.
 
   Appends any raw `make_flags` (merging the prefix map into a user `KCFLAGS=`/
-
   `KAFLAGS=` rather than emitting a second, fighting assignment). Reads
-
   `worktree`/`build_dir`/`commit` from `prepare_worktree`. Returns `make_flags`.
 lock: '!inline f/kernel/build_flags.script.lock'
 kind: script
@@ -42,48 +34,56 @@ schema:
   properties:
     build_dir:
       type: string
-      description: Out-of-tree build dir (from prepare_worktree); paired with
-        `worktree` for the reproducible `-fdebug-prefix-map` common-parent
-        prefix.
+      description: |-
+        Out-of-tree build dir (from prepare_worktree); paired with `worktree`
+        for the reproducible `-fdebug-prefix-map` common-parent prefix.
       default: ''
     ccache:
       type: boolean
-      description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
+      description: |-
+        Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
       default: true
     ccache_max_size:
       type: integer
-      description: ccache max cache size in GiB (written to ccache.conf max_size).
+      description: |-
+        ccache max cache size in GiB (written to ccache.conf max_size).
       default: 10
     commit:
       type: string
-      description: Commit to date (from prepare_worktree); only used for
+      description: |-
+        Commit to date (from prepare_worktree); only used for
         timestamp_from_commit.
       default: ''
     compiler:
       type: string
-      description: "Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the
-        devShell's unwrapped clang)."
+      description: |-
+        Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the devShell's
+        unwrapped clang).
       default: gcc
       enum:
         - gcc
         - clang
     make_flags:
       type: string
-      description: Extra make variables/flags, space-separated, appended verbatim.
+      description: |-
+        Extra make variables/flags, space-separated, appended verbatim.
       default: ''
     reproducible:
       type: boolean
-      description: Set `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST` and `LOCALVERSION` for a
+      description: |-
+        Set `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST` and `LOCALVERSION` for a
         reproducible build.
       default: true
     timestamp_from_commit:
       type: boolean
-      description: Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the
+      description: |-
+        Derive `KBUILD_BUILD_TIMESTAMP` from the commit date instead of the
         fixed default.
       default: false
     worktree:
       type: string
-      description: Kernel source worktree (from prepare_worktree); used for
+      description: |-
+        Kernel source worktree (from prepare_worktree); used for
         `timestamp_from_commit` and the reproducible `-fdebug-prefix-map`.
       default: ''
   required: []

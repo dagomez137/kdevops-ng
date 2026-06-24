@@ -1,55 +1,38 @@
-summary: "NixOS Build"
-description: |
+summary: NixOS Build
+description: |-
   Build a NixOS system with Nix: the `build` flow for the nix side, the way
-  `f/kernel/build` builds a kernel and `f/qemu/build` builds an emulator. Today it
-  builds the **imageless** product: a `toplevel` system whose *closure* (every store
-  path it references) a VM boots over virtiofs (tmpfs root, `/nix/store` and
-  `/lib/modules` shared from the host). Other products (e.g. a disk-image `libvirt`
-  system) could be added under this same flow later. This is the Windmill
-  reimplementation of kdevops's `nixosfi` role; booting the closure is the qsu half
-  (parked: see docs/windmill/qsu-execution-model.md).
+  `f/kernel/build` builds a kernel and `f/qemu/build` builds an emulator. Today
+  it builds the **imageless** product: a `toplevel` system whose *closure*
+  (every store path it references) a VM boots over virtiofs (tmpfs root,
+  `/nix/store` and `/lib/modules` shared from the host). Other products (e.g. a
+  disk-image `libvirt` system) could be added under this same flow later. This
+  is the Windmill reimplementation of kdevops's `nixosfi` role; booting the
+  closure is the qsu half (parked: see docs/windmill/qsu-execution-model.md).
 
-  Steps (pinned to one worker via `same_worker`, so each sees the previous step's
-  per-VM config directory under `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`):
+  Steps (pinned to one worker via `same_worker`, so each sees the previous
+  step's per-VM config directory under
+  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`):
 
   1. `render_config`: write `flake.nix` (from the vendored imageless template) +
-     `default.nix` (composed from the typed inputs: profiles, testSuites, shares,
-     SSH keys, source overrides).
-  2. `lock_config`: `nix flake lock` the per-VM config for reproducibility.
-  3. `build_closure`: `nix build .#toplevel` and read the bootspec
-     (`init`/`initrd`) from `boot.json`.
+  `default.nix` (composed from the typed inputs: profiles, testSuites, shares,
+  SSH keys, source overrides). 2. `lock_config`: `nix flake lock` the per-VM
+  config for reproducibility. 3. `build_closure`: `nix build .#toplevel` and
+  read the bootspec (`init`/`initrd`) from `boot.json`.
 
   By default the system is fully featured: every guest profile (devel,
-  build-tools, monitoring) and all eight test suites. `controller` is a host role
-  (it pulls in libvirtd) and is off by default. Pare `profiles`/`test_suites` back
-  for a lighter, faster build.
+  build-tools, monitoring) and all eight test suites. `controller` is a host
+  role (it pulls in libvirtd) and is off by default. Pare
+  `profiles`/`test_suites` back for a lighter, faster build.
 
   Returns `{toplevel, init, initrd, config_dir}`. This flow is self-contained;
   pairing the closure with a kernel is a qsu concern, not an input here.
 value:
-  same_worker: true
   modules:
     - id: render_config
       summary: Render flake.nix + default.nix
       value:
         type: script
-        path: f/nix/render_config
         input_transforms:
-          vm_name:
-            type: javascript
-            expr: flow_input.guest?.vm_name
-          profiles:
-            type: javascript
-            expr: flow_input.closure?.profiles
-          test_suites:
-            type: javascript
-            expr: flow_input.closure?.test_suites
-          ssh_keys:
-            type: javascript
-            expr: flow_input.guest?.ssh_keys
-          shares:
-            type: javascript
-            expr: flow_input.guest?.shares
           home:
             type: javascript
             expr: flow_input.guest?.home
@@ -59,9 +42,25 @@ value:
           overrides:
             type: javascript
             expr: flow_input.closure?.overrides
+          profiles:
+            type: javascript
+            expr: flow_input.closure?.profiles
+          shares:
+            type: javascript
+            expr: flow_input.guest?.shares
+          ssh_keys:
+            type: javascript
+            expr: flow_input.guest?.ssh_keys
+          test_suites:
+            type: javascript
+            expr: flow_input.closure?.test_suites
           user_name:
             type: javascript
             expr: flow_input.guest?.user_name
+          vm_name:
+            type: javascript
+            expr: flow_input.guest?.vm_name
+        path: f/nix/render_config
       timeout:
         type: static
         value: 120
@@ -69,7 +68,6 @@ value:
       summary: nix flake lock
       value:
         type: script
-        path: f/nix/lock_config
         input_transforms:
           config_dir:
             type: javascript
@@ -77,6 +75,7 @@ value:
           update:
             type: javascript
             expr: flow_input.lock?.update_lock
+        path: f/nix/lock_config
       retry:
         constant:
           attempts: 2
@@ -88,11 +87,11 @@ value:
       summary: nix build .#toplevel + read bootspec
       value:
         type: script
-        path: f/nix/build_closure
         input_transforms:
           config_dir:
             type: javascript
             expr: results.render_config.config_dir
+        path: f/nix/build_closure
       retry:
         constant:
           attempts: 2
@@ -100,6 +99,7 @@ value:
       timeout:
         type: static
         value: 3600
+  same_worker: true
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -108,52 +108,21 @@ schema:
     - closure
     - lock
   properties:
-    guest:
-      title: Guest
+    lock:
       type: object
-      description: Guest identity, access, and virtiofs mounts.
+      description: flake.lock pinning behaviour.
       default: {}
       order:
-        - vm_name
-        - user_name
-        - ssh_keys
-        - shares
-        - home
-        - home_dir
-      required:
-        - vm_name
+        - update_lock
       properties:
-        vm_name:
-          title: VM Name
-          type: string
-          description: Guest hostname and per-VM config directory name.
-          default: nixos
-        user_name:
-          type: string
-          description: Unprivileged account name in the guest (nixos-flake.user.name).
-          default: kdevops
-        ssh_keys:
-          title: SSH Keys
-          type: array
-          description: Authorized SSH keys for the root and unprivileged accounts.
-          default: []
-          items:
-            type: string
-        shares:
-          type: object
-          description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount is auto-added when Test Suites include `fstests`; `home` adds the operator''s home. Both coexist.'
-          default: {}
-        home:
+        update_lock:
           type: boolean
-          description: "Land in your home: mount the operator's host home at `/home/<you>` AND make it root's home, so `ssh <vm>` drops you straight into your files (writable: root maps to your host uid via virtiofsd). One toggle wires the closure mount, root's home, and the host serving."
-          default: true
-        home_dir:
-          title: Home Dir
-          type: string
-          description: "Advanced: override the guest mount point + root's home (else `/home/<host operator>`, auto-discovered). The served *content* is always the operator's host home; an override only relocates where it appears in the guest."
-          default: ""
+          description: |-
+            Re-pin the vendored nixos-flake input instead of only filling
+            missing lock entries.
+          default: false
+      title: Lock
     closure:
-      title: Closure
       type: object
       description: What nix builds into the toplevel closure.
       default: {}
@@ -162,9 +131,20 @@ schema:
         - test_suites
         - overrides
       properties:
+        overrides:
+          type: array
+          description: |-
+            Per-package source overrides, e.g. [{"pkg": "fio", "src":
+            "/path/to/fio"}].
+          default: []
+          items:
+            type: object
         profiles:
           type: array
-          description: nixos-flake profile modules to import (fully featured by default; pare back for a lighter closure). controller is a host role and off by default.
+          description: |-
+            nixos-flake profile modules to import (fully featured by default;
+            pare back for a lighter closure). controller is a host role and off
+            by default.
           default:
             - devel
             - build-tools
@@ -178,7 +158,9 @@ schema:
               - monitoring
         test_suites:
           type: array
-          description: nixos-flake testSuite modules to import (all by default; pare back for a lighter closure).
+          description: |-
+            nixos-flake testSuite modules to import (all by default; pare back
+            for a lighter closure).
           default:
             - blktests
             - fstests
@@ -199,22 +181,63 @@ schema:
               - pynfs
               - selftests
               - sysbench
-        overrides:
-          type: array
-          description: 'Per-package source overrides, e.g. [{"pkg": "fio", "src": "/path/to/fio"}].'
-          default: []
-          items:
-            type: object
-    lock:
-      title: Lock
+      title: Closure
+    guest:
       type: object
-      description: flake.lock pinning behaviour.
+      description: Guest identity, access, and virtiofs mounts.
       default: {}
       order:
-        - update_lock
+        - vm_name
+        - user_name
+        - ssh_keys
+        - shares
+        - home
+        - home_dir
       properties:
-        update_lock:
+        home:
           type: boolean
-          description: Re-pin the vendored nixos-flake input instead of only filling missing lock entries.
-          default: false
+          description: |-
+            Land in your home: mount the operator's host home at `/home/<you>`
+            AND make it root's home, so `ssh <vm>` drops you straight into your
+            files (writable: root maps to your host uid via virtiofsd). One
+            toggle wires the closure mount, root's home, and the host serving.
+          default: true
+        home_dir:
+          type: string
+          description: |-
+            Advanced: override the guest mount point + root's home (else
+            `/home/<host operator>`, auto-discovered). The served *content* is
+            always the operator's host home; an override only relocates where it
+            appears in the guest.
+          default: ''
+          title: Home Dir
+        shares:
+          type: object
+          description: |-
+            virtiofs shares keyed by guest mount point, e.g. {"/mnt/home":
+            {"tag": "home", "options": ["ro"]}}. The `fstests` mount is
+            auto-added when Test Suites include `fstests`; `home` adds the
+            operator's home. Both coexist.
+          default: {}
+        ssh_keys:
+          type: array
+          description: |-
+            Authorized SSH keys for the root and unprivileged accounts.
+          default: []
+          items:
+            type: string
+          title: SSH Keys
+        user_name:
+          type: string
+          description: |-
+            Unprivileged account name in the guest (nixos-flake.user.name).
+          default: kdevops
+        vm_name:
+          type: string
+          description: Guest hostname and per-VM config directory name.
+          default: nixos
+          title: VM Name
+      required:
+        - vm_name
+      title: Guest
   required: []

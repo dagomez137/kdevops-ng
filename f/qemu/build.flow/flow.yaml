@@ -1,52 +1,31 @@
 summary: QEMU Build
-description: >
+description: |-
   Build a custom QEMU from source, reproducibly, inside the `nixos-flake#build`
-
   devShell over this worker's warm `main` worktree cut from the durable Bare.
-  Mirrors
-
-  `f/kernel/build`; the distro `install-deps` the kdevops QEMU role performs is
-
-  gone, because the devShell already carries QEMU's build toolchain
-
+  Mirrors `f/kernel/build`; the distro `install-deps` the kdevops QEMU role
+  performs is gone, because the devShell already carries QEMU's build toolchain
   (`inputsFrom = [ pkgs.qemu ]`: meson, ninja, GCC, pkg-config, glib, pixman).
 
-
   Steps (pinned to one worker via `same_worker`, so each sees the previous
-
   step's files):
 
-
-  1. `prepare_worktree`: resolve the slot and check out `qemu_ref`.
-
-  2. `configure`: out-of-tree `meson subprojects download`, then
-     `configure --target-list --prefix=<worktree>/destdir --disable-download`.
-  3. `compile`: `make --jobs=$(nproc)` (drives ninja).
-
-  4. `install`: `make install` into `<worktree>/destdir`.
-
-  5. `publish`: add this identity's install tree to the Nix store so a peer can
-     fetch it; only after a real install (skipped on reuse).
-  6. `collect`: merge the step results into one manifest.
-
+  1. `prepare_worktree`: resolve the slot and check out `qemu_ref`. 2.
+  `configure`: out-of-tree `meson subprojects download`, then `configure
+  --target-list --prefix=<worktree>/destdir --disable-download`. 3. `compile`:
+  `make --jobs=$(nproc)` (drives ninja). 4. `install`: `make install` into
+  `<worktree>/destdir`. 5. `publish`: add this identity's install tree to the
+  Nix store so a peer can fetch it; only after a real install (skipped on
+  reuse). 6. `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
-
-  (`workers/<worker>/qemu/main`), synced to `qemu_ref` every run so
-
-  rebuilds stay incremental and isolated builds on different workers run in
-  parallel.
-
+  (`workers/<worker>/qemu/main`), synced to `qemu_ref` every run so rebuilds
+  stay incremental and isolated builds on different workers run in parallel.
   `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean
   build.
 
-
   Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
-
   `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the
-  same way it
-
-  consumes `f/kernel/build`. See `docs/windmill/qemu-build-flow.md`.
+  same way it consumes `f/kernel/build`. See `docs/windmill/qemu-build-flow.md`.
 value:
   modules:
     - id: prepare_worktree
@@ -311,16 +290,19 @@ schema:
       properties:
         ccache:
           type: boolean
-          description: Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).
+          description: |-
+            Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).
           default: true
         ccache_max_size:
           type: integer
-          description: ccache max cache size in GiB (written to ccache.conf max_size).
+          description: |-
+            ccache max cache size in GiB (written to ccache.conf max_size).
           default: 10
           showExpr: fields.ccache !== false
         compiler:
           type: string
-          description: Toolchain to build QEMU with (pinned via configure `--cc/--cxx`,
+          description: |-
+            Toolchain to build QEMU with (pinned via configure `--cc/--cxx`,
             which beats the devShell's `CC`). GCC is clean; clang adds
             `-Qunused-arguments`.
           default: gcc
@@ -329,14 +311,16 @@ schema:
             - clang
         reproducible:
           type: boolean
-          description: 'Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to
+          description: |-
+            Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to
             `--extra-cflags`/`--extra-cxxflags` so the host build path stops
-            leaking into the binary.'
+            leaking into the binary.
           default: true
       title: Build
     configuration:
       type: object
-      description: 'What QEMU is configured to build: targets and configure flags.'
+      description: |-
+        What QEMU is configured to build: targets and configure flags.
       default: {}
       order:
         - target_list
@@ -345,18 +329,21 @@ schema:
       properties:
         configure_args:
           type: string
-          description: Extra configure flags appended verbatim. Older QEMU may need
+          description: |-
+            Extra configure flags appended verbatim. Older QEMU may need
             `--disable-werror` against the bleeding-edge nixpkgs toolchain.
           default: ''
         skip_configure:
           type: boolean
-          description: 'Skip configure and recompile the existing build dir (incremental
-            rebuild: the build dir is already configured).'
+          description: |-
+            Skip configure and recompile the existing build dir (incremental
+            rebuild: the build dir is already configured).
           default: false
         target_list:
           type: array
-          description: QEMU emulator targets to build (`--target-list`). *-softmmu =
-            system emulation (VMs); *-linux-user/*-bsd-user = user-mode.
+          description: |-
+            QEMU emulator targets to build (`--target-list`). *-softmmu = system
+            emulation (VMs); *-linux-user/*-bsd-user = user-mode.
           default:
             - x86_64-softmmu
           items:
@@ -438,7 +425,8 @@ schema:
       properties:
         compile_commands:
           type: boolean
-          description: Copy meson's `compile_commands.json` into the source root
+          description: |-
+            Copy meson's `compile_commands.json` into the source root
             (clangd/IDE index).
           default: true
       title: Developer tools
@@ -453,27 +441,31 @@ schema:
       properties:
         clean_destdir:
           type: boolean
-          description: Wipe the install `destdir` first (default off). Leave off so an
+          description: |-
+            Wipe the install `destdir` first (default off). Leave off so an
             install never wipes binaries a running QEMU/systemd VM uses.
           default: false
         install:
           type: boolean
-          description: Install the built emulator into destdir (make install). Off = build
+          description: |-
+            Install the built emulator into destdir (make install). Off = build
             only (e.g. a dev worktree).
           default: true
         reuse:
           type: boolean
-          description: Skip configure/compile/install when this build identity is already
+          description: |-
+            Skip configure/compile/install when this build identity is already
             installed under its prefix (reuse the prior build). Off forces a
             rebuild without wiping the destdir.
           default: true
       title: Install
     prebuilt:
       type: object
-      description: Cross-host build host to pull a prebuilt identity from before
-        building. When a peer already published this build identity to the Nix
-        store, its whole install tree is fetched into the per-identity prefix so
-        the build is reused instead of repeated.
+      description: |-
+        Cross-host build host to pull a prebuilt identity from before building.
+        When a peer already published this build identity to the Nix store, its
+        whole install tree is fetched into the per-identity prefix so the build
+        is reused instead of repeated.
       default: {}
       order:
         - remote
@@ -481,12 +473,14 @@ schema:
       properties:
         remote:
           type: string
-          description: SSH host of the peer QEMU builder to fetch this build identity's
+          description: |-
+            SSH host of the peer QEMU builder to fetch this build identity's
             install tree from. Empty (default) builds locally with no fetch.
           default: ''
         remote_index:
           type: string
-          description: The peer builder's `store-index` directory (its
+          description: |-
+            The peer builder's `store-index` directory (its
             `WORKERS_DIR/shared/store-index`), read over ssh to learn the
             install tree's Nix store path. Empty (default) builds locally with
             no fetch.
@@ -505,30 +499,36 @@ schema:
       properties:
         b4_series:
           type: string
-          description: Optional lore series (message-id/URL) to apply on top of the
+          description: |-
+            Optional lore series (message-id/URL) to apply on top of the
             checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
           default: ''
           title: b4 Series
         qemu_ref:
           type: string
-          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref
+          description: |-
+            Branch, tag or commit in the Bare to build (a tag, an upstream ref
             via the mirror, or a developer branch).
           default: v11.0.0
           title: QEMU Ref
         recreate_worktree:
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree, its build dir and
+          description: |-
+            Lay a fresh detached checkout (rm the warm tree, its build dir and
             destdir too, first) instead of reusing it. Default off keeps the
             warm tree for incremental rebuilds.
           default: false
           title: Recreate Worktree
         wipe_build:
           type: boolean
-          description: Wipe the build dir before building (default off = incremental reuse).
+          description: |-
+            Wipe the build dir before building (default off = incremental
+            reuse).
           default: false
         worktree_group:
           type: string
-          description: Worktree-group this build belongs to (default vanilla;
+          description: |-
+            Worktree-group this build belongs to (default vanilla;
             system/workers are reserved).
           default: vanilla
           title: Worktree group
