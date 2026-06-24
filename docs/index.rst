@@ -10,27 +10,9 @@ build and guest environments.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Introduction
 
-   overview
-   wmill
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Reference
-
-   terms
-   flows
-   wmill-yaml
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Deployment
-
-   nix-backend
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Contributing
-
-   doc-guide
+   getting-started/index
+   concepts/index
+   reference/index
+   deployment/index
+   contributing/index

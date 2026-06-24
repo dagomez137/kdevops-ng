@@ -33,8 +33,8 @@ Bidirectional (recommended)
 ---------------------------
 
 Edit in the Windmill UI or on disk, then reconcile through git. Because the
-files are kept in the canonical form described in :doc:`wmill-yaml`, the
-round-trip has no diff:
+files are kept in the canonical form described in
+:doc:`/reference/wmill-yaml`, the round-trip has no diff:
 
 .. code-block:: console
 

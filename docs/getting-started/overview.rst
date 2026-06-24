@@ -28,7 +28,7 @@ Repository layout
 The big pieces:
 
 - ``f/`` holds the workspace content, grouped into subsystems and named by a
-  small convention; see :doc:`flows` and :doc:`wmill-yaml`.
+  small convention; see :doc:`/concepts/flows` and :doc:`/reference/wmill-yaml`.
 - ``deploy/`` brings up the Windmill instance; the ``podman`` backend works
   today, with ``distro`` and ``nix`` backends planned.
 - ``vendor/`` carries pinned upstream projects the flows build against.
@@ -36,4 +36,4 @@ The big pieces:
   under ``docs/adr/``.
 
 The on-disk area where kernels and QEMU are actually built is the *workbench*,
-which is runtime and not tracked in git; see :doc:`terms`.
+which is runtime and not tracked in git; see :doc:`/concepts/terms`.
