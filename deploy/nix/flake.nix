@@ -27,6 +27,15 @@
           config.allowUnfreePredicate =
             pkg: builtins.elem (nixpkgs.lib.getName pkg) [ "oracle-instantclient" ];
         };
+      # The windmill-extra autocomplete env pulls ecdsa, which nixpkgs marks
+      # insecure. It is an editor intellisense environment that does no real
+      # crypto, so permit just that package.
+      extraPkgs =
+        system:
+        import nixpkgs {
+          inherit system;
+          config.permittedInsecurePackages = [ "python3.12-ecdsa-0.19.2" ];
+        };
     in
     {
       overlays.default = final: prev: {
@@ -65,6 +74,11 @@
           # podman backend's caddy-l4 image name notwithstanding), so plain
           # caddy serves it.
           caddy = pkgs.caddy;
+
+          # The LSP gateway (editor intellisense), built from the fork's lsp/.
+          windmill-extra = (extraPkgs system).callPackage ./windmill-extra/package.nix {
+            inherit windmill;
+          };
           # The frontend FOD on its own: lets `nix build .#windmill-frontend`
           # resolve npmDepsHash and iterate on UI changes without the Rust build.
           windmill-frontend = windmill.web-ui;

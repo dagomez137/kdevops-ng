@@ -35,7 +35,7 @@ SYSTEM_DIR="${SYSTEM_DIR:-$WORKBENCH_DIR/system}"
 WORKERS_DIR="${WORKERS_DIR:-$WORKBENCH_DIR/workers}"
 VENDOR_DIR="${VENDOR_DIR:-$(dirname "$WORKBENCH_DIR")/vendor}"
 
-COMPONENTS=(windmill postgresql db-setup caddy)
+COMPONENTS=(windmill postgresql db-setup caddy windmill-extra)
 
 echo "== build components to GC-rooted out-links under $SW =="
 mkdir --parents "$SW"
@@ -71,6 +71,7 @@ systemctl --user daemon-reload
 # has written the DATABASE_URL env file the rest read.
 systemctl --user restart windmill-db.service
 systemctl --user restart windmill.service
+systemctl --user restart windmill-extra.service
 systemctl --user restart windmill-native.service
 systemctl --user restart windmill-caddy.service
 
