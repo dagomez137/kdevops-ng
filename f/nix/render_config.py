@@ -32,6 +32,14 @@ from f.common.devshell import system_dir, vendor_dir
 _PROFILES = {"build-tools", "controller", "devel", "monitoring"}
 _TEST_SUITES = ["blktests", "fstests", "gitr", "ltp", "mmtests", "pynfs", "selftests", "sysbench"]
 
+# Packages whose nixos-flake recipe a src override composes with, scoped to the
+# fstests focus. fio and xfstests are build-verified from a git checkout (overlays);
+# libbpf-tools is recipe-backed (custom pkg, src from iovisor/bcc). xfsprogs is held
+# until its recipe is fixed (a git src builds but its install trips on the soname
+# version files); packages for other suites (spdk, xnvme, nfstest, pynfs, ...) join
+# as verified. The advanced `extra_overrides` takes any other nixpkgs package.
+_OVERRIDABLE_PKGS = ["fio", "xfstests", "libbpf-tools"]
+
 # Profiles whose effect is behind an enable gate: importing alone is inert, so we
 # turn them on when selected. devel and build-tools are active on import. controller
 # is a host role (it pulls in libvirtd), so it is excluded from the featured default.
@@ -60,6 +68,7 @@ def main(
     test_suites: list[str] | None = None,
     shares: dict | None = None,
     overrides: list[dict] | None = None,
+    extra_overrides: list[dict] | None = None,
     ssh_keys: list[str] | None = None,
     user_name: str = "kdevops",
     home: bool = False,
@@ -72,7 +81,12 @@ def main(
     # string, an empty {} override) so an untouched optional field is a no-op.
     profiles = [p for p in (profiles if profiles is not None else _FEATURED_PROFILES) if p]
     test_suites = [t for t in (test_suites if test_suites is not None else _FEATURED_TEST_SUITES) if t]
+    # Curated overrides name a package from the form's dropdown (_OVERRIDABLE_PKGS);
+    # extra_overrides takes any other nixpkgs package. Both are validated below.
     overrides = [ov for ov in (overrides or []) if ov]
+    _reject_unknown("override package", [ov.get("pkg", "") for ov in overrides],
+                    set(_OVERRIDABLE_PKGS))
+    overrides = overrides + [ov for ov in (extra_overrides or []) if ov]
     ssh_keys = [k for k in (ssh_keys or []) if k and k.strip()]
     shares = {m: s for m, s in (shares or {}).items() if m and isinstance(s, dict) and s.get("tag")}
     # Predefined shares the operator should not have to declare by hand (they coexist
