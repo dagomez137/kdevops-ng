@@ -88,15 +88,42 @@ The knobs:
   default ``https://localhost:8000``) live on ``windmill.service``.
 * The public port (``WINDMILL_CADDY_PORT``, default ``8000``) lives on
   ``windmill-caddy.service``; the Caddyfile reads it.
-* Every worker is one ``windmill-worker@`` instance, and its ``WORKER_GROUP``
-  and ``WORKER_TAGS`` select which jobs it pulls. The default is the build pool
-  (group ``default``), so the build-pool size is just the number of instances
-  you enable. For a specialised worker, override those two on the instance, for
-  example ``WORKER_GROUP=vm`` with ``WORKER_TAGS=vm`` for the QEMU VM lifecycle
-  ops or ``WORKER_TAGS=vm-run`` for the long fstests poll (the unit header
-  explains the split and its workbench and ``vhost_vsock`` requirements).
+* Workers are ``windmill-worker@`` instances; ``WORKER_GROUP`` and
+  ``WORKER_TAGS`` select the jobs each pulls. See `Workers`_ for the build pool
+  and the vm workers the kdevops workspace needs.
 * The build-area paths (``WORKBENCH_DIR`` and friends) live on the worker units;
   see `The workbench`_ below.
+
+Workers
+-------
+
+Workers are ``windmill-worker@`` instances differentiated only by worker group
+and tags, the canonical Windmill mechanism. The default group ``default`` is the
+build pool, so enabling more instances widens build concurrency.
+
+The kdevops workspace also drives QEMU virtual machines through systemd (the
+``f/qsu`` steps), which a default worker does not serve. Those jobs use the
+``vm`` group, split across two tags so a long job never starves a quick one: the
+``vm`` tag is the quick lifecycle and control ops (boot, stop, destroy,
+status), the ``vm-run`` tag is only the long-lived fstests wait poll. The
+``vm-run`` instance count is the concurrent-test-run cap.
+
+Give an instance the vm role with a per-instance drop-in (``systemctl edit``
+opens your editor, set above):
+
+.. code-block:: shell
+
+   systemctl --user edit windmill-worker@2
+
+.. code-block:: ini
+
+   [Service]
+   Environment=WORKER_GROUP=vm
+   Environment=WORKER_TAGS=vm
+
+Use ``WORKER_TAGS=vm-run`` on the instances that run the poll, then enable each
+with ``systemctl --user enable --now windmill-worker@2``. The vm group needs the
+:term:`System workbench` provisioned and the host ``vhost_vsock`` module loaded.
 
 TLS and the base URL
 --------------------
@@ -113,19 +140,27 @@ as its header comment describes and set ``BASE_URL`` to match.
 The workbench
 -------------
 
-The workbench is the build area the workers use: the System workbench
-(``SYSTEM_DIR``) holds the durable git mirrors and the ssh key for reaching
-guests, and each worker gets a sandbox under ``WORKERS_DIR``. The worker units
-default ``WORKBENCH_DIR`` to ``%S/windmill/workbench`` (under the state
-directory).
+The worker build-area paths point at a :term:`Workbench`, the
+:term:`Developer`'s build area that holds the :term:`Worktree-groups
+<Worktree-group>`. It is not a Windmill workspace, and not where a worker
+builds. Two infrastructure siblings sit beside the groups: the :term:`System
+workbench` (``system/``, ``SYSTEM_DIR``), the host-local singleton holding the
+mirrors, bares, ssh key and store, and the :term:`Worker sandboxes <Worker
+sandbox>` (``workers/<id>/``, ``WORKERS_DIR``), where the workers actually
+build.
 
-Put it wherever suits you, a directory in ``$HOME`` such as ``~/workbench`` or
-one nested in the repository such as ``kdevops-ng/workbench``, and point
-``WORKBENCH_DIR`` (and ``SYSTEM_DIR`` or ``WORKERS_DIR`` if you relocate them
-out of it) there with a drop-in or the ``windmill-worker.env`` file. Create the
-directory, then run the ``f/workbench`` init flow from Windmill to provision the
-durable bits, the System bare mirrors and the ssh key; the workers fill the
-sandboxes as jobs run.
+The units default ``WORKBENCH_DIR`` to ``%S/windmill/workbench``, under the
+systemd state directory (``%S`` is ``$XDG_STATE_HOME``), the recommended place
+for persistent service state. Each piece relocates on its own: ``WORKBENCH_DIR``
+moves the whole area, the worktree-groups included, so set it to put the groups
+where you want them, a directory in ``$HOME`` such as ``$HOME/src`` or one
+nested in the repository such as ``kdevops-ng/workbench``; ``SYSTEM_DIR`` and
+``WORKERS_DIR`` default inside it but move out independently. Override any of
+them with a drop-in or the ``windmill-worker.env`` file.
+
+Run the ``f/workbench`` init flow from Windmill to provision the System
+workbench (the bare mirrors and the ssh key); the workers fill their sandboxes
+as jobs run.
 
 Tear down
 =========
