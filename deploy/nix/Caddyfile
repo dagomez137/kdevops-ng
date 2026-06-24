@@ -17,6 +17,11 @@
 # backend's 127.0.0.1:8000 publish.
 http://:{$WMNIX_CADDY_PORT:8000} {
 	bind 127.0.0.1
-	reverse_proxy /ws/* /ws_mp/* /ws_debug/* 127.0.0.1:3001
-	reverse_proxy /* 127.0.0.1:8002
+	# A named matcher: reverse_proxy takes only one inline matcher, so listing
+	# several path tokens would be parsed as upstreams (a round-robin pool),
+	# not routes. The websocket paths go to the LSP gateway, the rest to the
+	# server.
+	@ws path /ws/* /ws_mp/* /ws_debug/*
+	reverse_proxy @ws 127.0.0.1:3001
+	reverse_proxy 127.0.0.1:8002
 }
