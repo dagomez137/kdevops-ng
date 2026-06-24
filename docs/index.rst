@@ -14,6 +14,7 @@ build and guest environments.
 
    terms
    flows
+   wmill-yaml
 
 .. toctree::
    :maxdepth: 1
