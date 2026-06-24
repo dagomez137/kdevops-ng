@@ -12,6 +12,7 @@ final: prev:
 prev.lib.composeManyExtensions [
   (import ./fio.nix)
   (import ./xfstests.nix)
+  (import ./xfsprogs.nix)
   (import ./spdk.nix)
   (overlayFinal: _: import ../pkgs overlayFinal)
 ] final prev
