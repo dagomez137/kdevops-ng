@@ -9,26 +9,32 @@
 # ~/.config/systemd + ~/.local/state/qemu-system search paths are already this
 # user's, so the bind-mounts, AddDevice and the AF_VSOCK seccomp profile all
 # drop. The job still needs the bus address and the XDG dirs passed through to
-# the steps (WHITELIST_ENVS) and the build area from workbench.env.
+# the steps (WHITELIST_ENVS) and the build area below.
 #
-# Needs the workbench provisioned (the System bare, the peer ssh key) and the
-# vhost_vsock module loaded; install.sh starts these only when VM_WORKERS > 0.
+# Not enabled by default: it needs the workbench provisioned (the System bare,
+# the peer ssh key) and the vhost_vsock module loaded. Point the build-area at a
+# real workbench (`systemctl --user edit` or %E/windmill-nix/windmill-worker-vm.env)
+# and `systemctl --user enable --now windmill-worker-vm@1`.
 [Unit]
 Description=Windmill vm worker %i (group vm; QEMU/systemd VM orchestration) (nix)
 Requires=windmill-db.service
 After=windmill-db.service
 
 [Service]
-EnvironmentFile=%S/windmill-nix/env/database.env
-EnvironmentFile=%S/windmill-nix/env/workbench.env
 Environment=MODE=worker
 Environment=NUM_WORKERS=1
 Environment=WORKER_GROUP=vm
 Environment=WORKER_TAGS=vm
 Environment=WORKER_INDEX=vm%i
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=WORKBENCH_DIR=%S/windmill-nix/workbench
+Environment=SYSTEM_DIR=%S/windmill-nix/workbench/system
+Environment=WORKERS_DIR=%S/windmill-nix/workbench/workers
+Environment=VENDOR_DIR=%S/windmill-nix/vendor
 Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
-ExecStart=@SW@/windmill/bin/windmill
+EnvironmentFile=%S/windmill-nix/env/database.env
+EnvironmentFile=-%E/windmill-nix/windmill-worker-vm.env
+ExecStart=%S/windmill-nix/sw/windmill/bin/windmill
 Restart=always
 
 [Install]

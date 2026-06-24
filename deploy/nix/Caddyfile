@@ -1,30 +1,35 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # One origin in front of the two backends, matching deploy/podman/Caddyfile. The
-# websocket paths go to the windmill-extra LSP gateway; everything else to the
-# server. install.sh renders the @WMNIX_*@ placeholders from CADDY_TLS:
+# websocket paths go to the windmill-extra LSP gateway, everything else to the
+# server. Copy this to %S/windmill-nix/Caddyfile (where windmill-caddy.service
+# reads it).
 #
-#   off       plain HTTP (loopback behind an SSH forward terminates no TLS).
-#   internal  HTTPS with caddy's internal CA, trust store untouched (one-time
-#             browser warning; run `caddy trust` to remove it).
-#   file      HTTPS with an operator-provided cert and key (org CA, mkcert).
-#   acme      HTTPS with a real cert for a public domain.
+# Default mode is internal TLS: caddy serves HTTPS with its own CA, the system
+# trust store untouched (one-time browser warning; `caddy trust` removes it).
+# The port comes from the caddy unit (WMNIX_CADDY_PORT, default 8000). Keep the
+# server BASE_URL in step with this scheme and port; the default pairs with
+# https://localhost:8000.
 #
-# The Secure flag on Windmill's session cookie follows the server's BASE_URL
-# (it sets IS_SECURE from base_url starting with https://), which install.sh
-# keeps in lockstep with this scheme, so the two never drift.
+# To serve plain HTTP instead, replace the site line with
+#   http://:{$WMNIX_CADDY_PORT:8000}
+# and drop `tls internal` (and set the server BASE_URL to http://...). For an
+# operator certificate, replace `tls internal` with `tls /path/cert /path/key`.
+#
+# The Secure flag on Windmill's session cookie follows the server BASE_URL (it
+# sets IS_SECURE from a base_url starting with https://), not a forwarded-proto
+# header, so the scheme here and BASE_URL must agree.
 {
-	auto_https @WMNIX_AUTOHTTPS@
-	@WMNIX_SKIPTRUST@
+	auto_https disable_redirects
+	skip_install_trust
 	admin off
 }
-@WMNIX_SITE@ {
+# tls internal needs hostnames to issue certs for; cover both names a loopback
+# client uses. The listener still binds loopback below.
+https://localhost:{$WMNIX_CADDY_PORT:8000} https://127.0.0.1:{$WMNIX_CADDY_PORT:8000} {
 	bind 127.0.0.1
-	@WMNIX_TLS@
-	@WMNIX_HSTS@
+	tls internal
 	# A named matcher: reverse_proxy takes only one inline matcher, so listing
-	# several path tokens would be parsed as upstreams (a round-robin pool),
-	# not routes. The websocket paths go to the LSP gateway, the rest to the
-	# server.
+	# several path tokens would be parsed as upstreams (a round-robin pool).
 	@ws path /ws/* /ws_mp/* /ws_debug/*
 	reverse_proxy @ws 127.0.0.1:3001
 	reverse_proxy 127.0.0.1:8002

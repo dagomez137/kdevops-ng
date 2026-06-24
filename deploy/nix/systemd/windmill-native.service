@@ -1,19 +1,21 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Windmill native worker (group native), run from nix under systemd --user.
 # Mirrors deploy/podman/systemd/windmill-native.container. Native-mode jobs are
-# lightweight and need no build area. install.sh fills in the @SW@ out-link.
+# lightweight and need no build area. The binary is the same out-link the
+# server uses (nix build .#windmill --out-link %S/windmill-nix/sw/windmill).
 [Unit]
 Description=Windmill native worker (group native) (nix)
 Requires=windmill-db.service
 After=windmill-db.service
 
 [Service]
-EnvironmentFile=%S/windmill-nix/env/database.env
 Environment=MODE=worker
 Environment=NATIVE_MODE=true
 Environment=WORKER_GROUP=native
 Environment=SLEEP_QUEUE=200
-ExecStart=@SW@/windmill/bin/windmill
+EnvironmentFile=%S/windmill-nix/env/database.env
+EnvironmentFile=-%E/windmill-nix/windmill-native.env
+ExecStart=%S/windmill-nix/sw/windmill/bin/windmill
 Restart=always
 
 [Install]

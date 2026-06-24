@@ -17,6 +17,12 @@ build and guest environments.
    wmill-yaml
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Deployment
+
+   nix-backend
+
+.. toctree::
    :maxdepth: 1
    :caption: Contributing
 

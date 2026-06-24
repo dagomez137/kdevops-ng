@@ -1,16 +1,25 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Windmill reverse proxy (caddy), run from nix under systemd --user. Fronts the
 # server and the LSP gateway on one loopback origin, matching
-# deploy/podman/systemd/windmill-caddy.container. install.sh renders the
-# Caddyfile (the listen address, TLS mode, routes) and the @SW@ out-link; the
-# Caddyfile binds the listener to loopback.
+# deploy/podman/systemd/windmill-caddy.container. The Caddyfile binds the
+# listener to loopback and defaults to internal TLS (HTTPS on 8000).
+#
+# Binary out-link, and the Caddyfile the operator copies into place:
+#   nix build .#caddy --out-link %S/windmill-nix/sw/caddy
+#   cp deploy/nix/Caddyfile %S/windmill-nix/Caddyfile
+# Override the port with WMNIX_CADDY_PORT (the Caddyfile reads it), via
+# `systemctl --user edit` or %E/windmill-nix/windmill-caddy.env; keep the
+# server BASE_URL in step with the scheme and port. Switching TLS mode (off or
+# a provided cert) is an edit of the Caddyfile.
 [Unit]
 Description=Windmill reverse proxy (caddy, loopback only) (nix)
 Requires=windmill.service
 After=windmill.service
 
 [Service]
-ExecStart=@SW@/caddy/bin/caddy run --adapter caddyfile --config %S/windmill-nix/Caddyfile
+Environment=WMNIX_CADDY_PORT=8000
+EnvironmentFile=-%E/windmill-nix/windmill-caddy.env
+ExecStart=%S/windmill-nix/sw/caddy/bin/caddy run --adapter caddyfile --config %S/windmill-nix/Caddyfile
 Restart=always
 
 [Install]
