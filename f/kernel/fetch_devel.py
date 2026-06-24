@@ -2,9 +2,9 @@
 """Fetch the kernel devel layer onto a worktree and regenerate its clangd index.
 
 The consumer-side companion to `f/kernel/publish_devel`, and the devel-layer analog of
-`f/kernel/fetch_identity`. Resolve the `kernel-devel-<release>` store path — the build
+`f/kernel/fetch_identity`. Resolve the `kernel-devel-<release>` store path, the build
 dir's developer subset (the `.cmd` files, generated headers, `Module.symvers`, `scripts/`
-and the GDB helpers, binaries already excluded at publish) — and materialize it into this
+and the GDB helpers, binaries already excluded at publish), and materialize it into this
 worktree's build dir, then regenerate `compile_commands.json` locally so it indexes this
 worktree's own source.
 

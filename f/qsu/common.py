@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 #
 # Shared library for the f/qsu/* steps (QEMU-in-systemd VM orchestration).
-# Not a runnable step — imported by the render/boot steps as f.qsu.common.
+# Not a runnable step; imported by the render/boot steps as f.qsu.common.
 #
 # Two concerns:
 #   * build the qsu template vars dict from QEMU-keyword flow inputs + the
@@ -102,7 +102,7 @@ def _running_vms(out: str) -> set[str]:
     qsu boots each VM as a `qemu-system@<vm>.service` user unit, so the running set
     is those loaded units. `machinectl` is not usable here: it has no `--user` scope
     and the units register with the per-user machine registry over Varlink, not the
-    system `machined` the CLI talks to — so the user manager's own unit list is the
+    system `machined` the CLI talks to, so the user manager's own unit list is the
     reliable source. Scans every token so a leading status bullet never hides a unit.
     """
     vms = set()
@@ -163,7 +163,7 @@ def vm_options(filter_text: str = "") -> list[dict]:
 
 # --- vars composition (ports the qsu role's render-per-vm.yml glue) ------------
 def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
-    # An explicit `shares` list is a FULL replacement — it skips every predefined
+    # An explicit `shares` list is a FULL replacement; it skips every predefined
     # share below (store, modules, fstests, home). Callers that override must include
     # whatever they still need (e.g. the fstests guest would have to re-add the
     # /var/lib/xfstests share itself, or its xfstests@.service fails to start).
@@ -298,12 +298,12 @@ def _nvme_drives(fi: dict) -> list[dict]:
                 size = int(pmr_size)
             except ValueError:
                 raise ValueError(f"nvme drive {i} pmr size {pmr_size!r} is not an integer (bytes)")
-            # 0 (or an empty comma-list part) means no PMR on this drive — lets a comma-list
+            # 0 (or an empty comma-list part) means no PMR on this drive; lets a comma-list
             # enable PMR on a subset ("16777216,0" -> drive 0 only).
             if size:
                 # QEMU's NVMe code wants pow2 and >= 16 bytes, but the memory backend
                 # separately rejects a size below one host page, which is the binding floor
-                # in practice — a sub-page pow2 size fails at -object creation, deep in boot.
+                # in practice; a sub-page pow2 size fails at -object creation, deep in boot.
                 # Mirror the real floor (the worker shares the host kernel, so SC_PAGESIZE is
                 # the host page that governs the backing-file mmap).
                 page = os.sysconf("SC_PAGESIZE")
@@ -322,7 +322,7 @@ def _nvme_drives(fi: dict) -> list[dict]:
                 if fi.get("pmr_pmem"):
                     if not fi.get("pmr_share", True):
                         raise ValueError(
-                            f"nvme drive {i} pmr_pmem requires pmr_share — QEMU silently ignores "
+                            f"nvme drive {i} pmr_pmem requires pmr_share: QEMU silently ignores "
                             "pmem on a non-shared (MAP_PRIVATE) PMR backend"
                         )
                     pmr["pmem"] = True
@@ -368,7 +368,7 @@ def _port_offset(fi: dict) -> int:
     An explicit non-zero `vm_index` wins (deterministic manual multi-VM allocation).
     Otherwise derive a stable offset from the (unique) `vm_name` so concurrent auto-named
     VMs (`vm-<jobid>`, all `vm_index` 0) do not collide on the host port or the host-global
-    vsock CID. sha256 keeps it deterministic across runs — Python's built-in `hash()` is
+    vsock CID. sha256 keeps it deterministic across runs; Python's built-in `hash()` is
     salted per process and would not. Residual collisions are rare, not impossible: set an
     explicit `vm_index` or port/cid when you need a guaranteed-distinct value.
     """

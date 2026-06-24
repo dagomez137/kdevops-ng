@@ -1,6 +1,6 @@
 # Cross-host dev branches
 
-A developer on one host can hand a branch to a worker on another host to build —
+A developer on one host can hand a branch to a worker on another host to build:
 "develop on the thin box, build on the beefy one." Build *outputs* already cross hosts
 through [the build Store](store.md); this is the *input* (ref) side, the per-host ref
 channel of [ADR-0001](../adr/0001-bare-is-the-working-repo.md) and the cross-host
@@ -9,7 +9,7 @@ relationships in [`CONTEXT.md`](../../CONTEXT.md).
 Same-host, a developer and a worker share one **Bare**, so publishing a branch is just
 a commit and the worker builds it. Cross-host, the developer **pushes** the branch to
 the peer's Bare over ssh, and the peer's worker builds it from its own
-`refs/heads/*` — no build-flow change, because `prepare()` already resolves a literal
+`refs/heads/*`: no build-flow change, because `prepare()` already resolves a literal
 ref against the Bare.
 
 ## Provisioning the peer remotes
@@ -48,14 +48,14 @@ workflow and a peer may be empty or unreachable. List peer hosts, not self.
    ```
 
    The branch lands in B's Bare `refs/heads/<branch>`.
-3. **Build it on B**: run B's build flow with the branch as the ref —
+3. **Build it on B**: run B's build flow with the branch as the ref:
 
    ```sh
    wmill flow run f/kernel/build --data '{"worktree": {"git_ref": "<branch>"}}'
    ```
 
    B's `prepare()` resolves `<branch>` locally (it is now a `refs/heads/*` entry in B's
-   Bare — no fetch needed), lays its warm `main` worktree at `B`'s
+   Bare, no fetch needed), lays its warm `main` worktree at `B`'s
    `<NNNN>/linux/main`, and builds. The build's run layer can then come **back**
    to A through the Store (`prebuilt` `remote`/`remote_index`), closing the
    "build on B, boot on A" loop.
@@ -65,5 +65,5 @@ workflow and a peer may be empty or unreachable. List peer hosts, not self.
 The `refs/remotes/<peer>/*` refspec also lets a host **fetch** a peer's dev branches
 (`git -C <bare> fetch <peer>`), the symmetric read direction; the push above is the
 default developer flow. The peer remotes are independent of the `mirror`/upstream
-remotes and the Store catalog — refs (build inputs) cross by git, Store entries (build
+remotes and the Store catalog: refs (build inputs) cross by git, Store entries (build
 outputs) cross by `nix copy`.

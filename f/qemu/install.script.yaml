@@ -3,7 +3,7 @@ description: |
   Install the built QEMU inside the `nixos-flake#build` devShell with
   `make --directory=<build_dir> install`, honoring the `--prefix=<destdir>` set
   at configure time, so it populates `destdir/bin` (the `qemu-system-<arch>`
-  emulators) and `destdir/share/qemu` directly — no DESTDIR, no sudo.
+  emulators) and `destdir/share/qemu` directly: no DESTDIR, no sudo.
 
   Returns `qemu_binary` (the first `destdir/bin/qemu-system-*`) and the full
   `qemu_binaries` list.

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-"""Wipe the test/scratch NVMe devices of a booted guest — runs at the start of each
+"""Wipe the test/scratch NVMe devices of a booted guest: runs at the start of each
 section (before `f/fstests/prepare` creates the mount points), over vsock-SSH.
 
 `umount` then `wipefs --all` + `blkdiscard --force` every discovered data device.
@@ -7,7 +7,7 @@ section (before `f/fstests/prepare` creates the mount points), over vsock-SSH.
 without it a device left full by a prior section reports `No space left on device`
 even after the filesystem is recreated, and the backing inflates across sections.
 Running per section before `prepare` trims the devices so each section starts clean.
-Safe by default: TEST_DEV/SCRATCH_DEV data is disposable — `f/fstests/prepare`
+Safe by default: TEST_DEV/SCRATCH_DEV data is disposable; `f/fstests/prepare`
 re-mkfs's TEST_DEV and `./check` re-mkfs's SCRATCH per test.
 
 Equivalent command, per device, over vsock-SSH:
@@ -25,15 +25,15 @@ from f.fstests.common import RemoteSystemd, _device_names, list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 
 def _wipe(remote: RemoteSystemd, vm_name: str, devices: list[dict]) -> dict:
     """Unmount, clear signatures, and TRIM every data device, in one shell pass.
 
-    `blkdiscard` is the point of the wipe — it TRIMs the device so the qcow2 backing
-    deflates — so it must run even when the earlier steps fail. `wipefs` is therefore
+    `blkdiscard` is the point of the wipe (it TRIMs the device so the qcow2 backing
+    deflates), so it must run even when the earlier steps fail. `wipefs` is therefore
     best-effort (a re-run force-formats anyway), and no `set -e`: one device that is
     still busy (a mount `umount` could not clear) must not skip the wipe of the others.
     Each device's discard outcome is reported; the call fails only if *no* device could

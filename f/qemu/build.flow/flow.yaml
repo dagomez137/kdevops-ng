@@ -9,14 +9,14 @@ description: |
   Steps (pinned to one worker via `same_worker`, so each sees the previous
   step's files):
 
-  1. `prepare_worktree` — resolve the slot and check out `qemu_ref`.
-  2. `configure` — out-of-tree `meson subprojects download`, then
+  1. `prepare_worktree`: resolve the slot and check out `qemu_ref`.
+  2. `configure`: out-of-tree `meson subprojects download`, then
      `configure --target-list --prefix=<worktree>/destdir --disable-download`.
-  3. `compile` — `make --jobs=$(nproc)` (drives ninja).
-  4. `install` — `make install` into `<worktree>/destdir`.
-  5. `publish` — add this identity's install tree to the Nix store so a peer can
+  3. `compile`: `make --jobs=$(nproc)` (drives ninja).
+  4. `install`: `make install` into `<worktree>/destdir`.
+  5. `publish`: add this identity's install tree to the Nix store so a peer can
      fetch it; only after a real install (skipped on reuse).
-  6. `collect` — merge the step results into one manifest.
+  6. `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
   (`workers/<worker>/qemu/main`), synced to `qemu_ref` every run so
@@ -340,7 +340,7 @@ schema:
         recreate_worktree:
           title: Recreate Worktree
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree — its build dir and destdir too — first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+          description: Lay a fresh detached checkout (rm the warm tree, its build dir and destdir too, first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
           default: false
         wipe_build:
           type: boolean
@@ -349,7 +349,7 @@ schema:
     configuration:
       title: Configuration
       type: object
-      description: What QEMU is configured to build — targets and configure flags.
+      description: "What QEMU is configured to build: targets and configure flags."
       default: {}
       order:
         - target_list
@@ -436,12 +436,12 @@ schema:
           default: ""
         skip_configure:
           type: boolean
-          description: Skip configure and recompile the existing build dir (incremental rebuild — the build dir is already configured).
+          description: "Skip configure and recompile the existing build dir (incremental rebuild: the build dir is already configured)."
           default: false
     build:
       title: Build
       type: object
-      description: Compile knobs — toolchain, reproducibility and ccache.
+      description: "Compile knobs: toolchain, reproducibility and ccache."
       default: {}
       order:
         - compiler
@@ -458,7 +458,7 @@ schema:
             - clang
         reproducible:
           type: boolean
-          description: Reproducible build — add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` so the host build path stops leaking into the binary.
+          description: "Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` so the host build path stops leaking into the binary."
           default: true
         ccache:
           type: boolean

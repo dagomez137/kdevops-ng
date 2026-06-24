@@ -43,7 +43,7 @@ def store_out(attr: str, workers: Path | None = None) -> str:
 
 
 def qemu_bindir(qemu_binary: str) -> str:
-    """The bin/ dir holding the VM's qemu — qemu-img must come from here too."""
+    """The bin/ dir holding the VM's qemu; qemu-img must come from here too."""
     return str(Path(qemu_binary).parent)
 
 
@@ -57,7 +57,7 @@ def resolve_qemu_binary(fi: dict, workers: Path | None = None) -> str:
     if fi.get("qemu_source", "nixpkgs") == "qemu-build":
         if not fi.get("qemu_binary"):
             raise ValueError(
-                "qemu_source is qemu-build but no qemu_binary — reuse needs a Reuse from VM "
+                "qemu_source is qemu-build but no qemu_binary: reuse needs a Reuse from VM "
                 "whose sidecar has a built qemu; build supplies it from the build result"
             )
         return fi["qemu_binary"]
@@ -85,7 +85,7 @@ def iommu_options(fi: dict, filter_text: str = "") -> list[dict]:
 
     Queries the operator's qemu (`resolve_qemu_binary`) with `-device help` and keeps
     only the devices both that binary reports and the template renders
-    (`SUPPORTED_IOMMU`). A leading `none` (value "") is always offered. Never raises —
+    (`SUPPORTED_IOMMU`). A leading `none` (value "") is always offered. Never raises:
     an unresolvable qemu falls back to the full supported set so the form still works.
     """
     try:

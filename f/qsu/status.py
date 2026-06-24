@@ -21,7 +21,7 @@ from f.qsu.common import state_dir, vm_options
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.qsu.common.vm_options`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.qsu.common.vm_options`."""
     return vm_options(filterText)
 
 

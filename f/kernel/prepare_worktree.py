@@ -15,7 +15,7 @@ source checkout (`linux/build`, `linux/destdir`), so kbuild emits paths relative
 `build`.
 
 Knobs: `wipe_build` rm+recreates the `build` dir first; `clean_destdir` (default
-false) rm+recreates the `destdir` install dir first — leave it off so an install
+false) rm+recreates the `destdir` install dir first; leave it off so an install
 never wipes modules a running QEMU/systemd VM has mounted over virtiofs; `b4_series`
 applies a lore series on top of the checkout via `b4 shazam` in the devShell.
 

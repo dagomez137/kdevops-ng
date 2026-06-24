@@ -1,4 +1,4 @@
-# deploy — pick a backend
+# deploy: pick a backend
 
 Three interchangeable ways to run the same Windmill instance (localhost:8000,
 same DB, same `wmill.yaml`). Bring up one, then `wmill sync push`.

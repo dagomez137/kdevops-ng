@@ -4,7 +4,7 @@
 Runnable step, the QEMU analog of `f/kernel/publish` and the publish half of the Store
 transport (the `reuse_check`/`fetch_identity` family). Run only after a real install
 (the flow skips it on reuse). The per-identity prefix `destdir/<identity>` IS exactly
-one identity's tree, so the whole prefix is the run layer — it is added to the store
+one identity's tree, so the whole prefix is the run layer; it is added to the store
 as-is, with no staging. A peer can then fetch it with `nix copy`. The store path is
 identical on every host.
 

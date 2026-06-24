@@ -33,7 +33,7 @@ _FLAKES = ["--extra-experimental-features", "nix-command flakes"]
 
 
 def _nix_env() -> dict:
-    # NO_COLOR keeps the job log plain — nix (and other honouring tools) emit no ANSI
+    # NO_COLOR keeps the job log plain: nix (and other honouring tools) emit no ANSI
     # escapes, so the saved log is readable without a de-colouring filter.
     return {**os.environ, "PATH": f"{_NIX_BIN}{os.pathsep}{os.environ['PATH']}", "NO_COLOR": "1"}
 
@@ -110,7 +110,7 @@ def flags_to_env(make_flags: str) -> dict:
 
     For commands that run `make` indirectly and cannot take command-line make
     variables (e.g. scripts/kconfig/merge_config.sh), the same flags are passed
-    through the environment instead — `LLVM=1` is the one that matters for config.
+    through the environment instead; `LLVM=1` is the one that matters for config.
     """
     env: dict = {}
     for tok in shlex.split(make_flags):
@@ -191,7 +191,7 @@ class DevShell:
         # standalone flake, not a subdir of the enclosing kdevops-ng git repo.
         self._flake = f"path:{vendor_dir(workers)}/nixos-flake#{shell}"
         # Locate the managed ccache config (written by f/kernel/build_flags). All
-        # ccache settings, including cache_dir, live in that file — CCACHE_CONFIGPATH
+        # ccache settings, including cache_dir, live in that file; CCACHE_CONFIGPATH
         # only points at it. Harmless when a build does not set CC="ccache ...".
         self._env = {**_nix_env(), "CCACHE_CONFIGPATH": f"{workers}/shared/ccache/ccache.conf"}
 

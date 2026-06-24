@@ -5,7 +5,7 @@ description: |
   `$SYSTEM_DIR/bare/qemu.git`) that every worker cuts cheap detached
   worktrees off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream
   but borrows objects from the local mirror (`$SYSTEM_DIR/mirror`), and keeps `refs/heads/*` for developer
-  pushes. Thin flow over `f/workbench/fetch` — override or extend the source list there;
+  pushes. Thin flow over `f/workbench/fetch`: override or extend the source list there;
   re-run it any time to refresh.
 
   Also provisions the kdevops-managed VM SSH key (`f/workbench/ssh_key`): one
@@ -108,7 +108,7 @@ schema:
       type: string
       enum: [https, git, https-googlesource]
       default: https
-      description: How to reach git.kernel.org — https (default), git (faster, often firewalled), or https-googlesource (the Google mirror). Per-tree overrides live in the advanced mirrors config.
+      description: "How to reach git.kernel.org: https (default), git (faster, often firewalled), or https-googlesource (the Google mirror). Per-tree overrides live in the advanced mirrors config."
     extra_trees:
       title: Extra trees
       type: array
@@ -134,7 +134,7 @@ schema:
     regenerate_ssh_key:
       title: Regenerate SSH Key
       type: boolean
-      description: Force a fresh VM keypair even if one exists. Invalidates the authorized key already baked into every built closure — rebuild closures after.
+      description: Force a fresh VM keypair even if one exists. Invalidates the authorized key already baked into every built closure; rebuild closures after.
       default: false
     setup_mirrors:
       title: Setup Mirrors
@@ -152,7 +152,7 @@ schema:
       description: Next mirror refresh this long after the previous one finishes (systemd `OnUnitInactiveSec`).
       default: 10m
     mirrors:
-      title: Advanced — full mirror config
+      title: "Advanced: full mirror config"
       type: array
       description: "Power-user override of the whole mirror layout (per-tree protocols, custom QEMU URL, extra projects). When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
       default: []

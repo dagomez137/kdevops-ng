@@ -6,7 +6,7 @@ Cross-host build reproducibility was blocked by a Nix `pkgs.mkShell` behaviour:
 `NIX_LDFLAGS`, both of which reach the binary (DWARF producer, build-id, `.rodata`).
 We fix this **in the `nixos-flake` devShell** via a shared `reproducibleShellHook`
 that pins `-frandom-seed` and rewrites the `$out` paths, applied to both
-`build-kernel` and `build-qemu` (commits `5e948d0`, `45d0dce`) — rather than as
+`build-kernel` and `build-qemu` (commits `5e948d0`, `45d0dce`), rather than as
 per-build environment hacks in each flow step. The per-build path maps (kernel
 `-fdebug-prefix-map=<worktree>/=`, QEMU `-ffile-prefix-map=<source-root>=/qemu`)
 remain the consumer-side companion, because they depend on the per-build path.
@@ -20,7 +20,7 @@ accepted
 - The build *environment* is the unit of reproducibility; any flow that enters the
   devShell inherits the normalization, so individual steps need not re-pin seeds or
   store paths.
-- This was the *actual* cross-host blocker — the per-build path map alone (the
+- This was the *actual* cross-host blocker: the per-build path map alone (the
   original `T-fdebug-prefix-map`) is necessary but not sufficient.
 - Validated end to end on two real hosts (Debian/nix2.34 and NixOS/nix2.31):
   byte-identical kernel and QEMU, and a kernel/QEMU built on the beefy host booted

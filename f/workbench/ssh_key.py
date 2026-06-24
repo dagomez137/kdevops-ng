@@ -5,13 +5,13 @@ One ed25519 keypair under `SYSTEM_DIR/ssh/` is the access credential for
 every imageless guest: `f/nix/render_config` bakes the public key into each
 closure's `authorizedKeys` (root + the unprivileged user) and `f/qsu/boot` drops a
 per-VM `config.d/<vm>.conf`, so `ssh <vm>` reaches the guest over vsock with this
-key. The operator never creates or manages a key — they add one line near the top
+key. The operator never creates or manages a key; they add one line near the top
 of `~/.ssh/config`:
 
     Include <SYSTEM_DIR>/ssh/config
 
 `$SYSTEM_DIR/ssh/config` carries the `Host vsock/*` defaults (this key, `User root`) and
-an ABSOLUTE `Include` of `config.d/*.conf` — absolute because ssh resolves a
+an ABSOLUTE `Include` of `config.d/*.conf`: absolute because ssh resolves a
 relative `Include` against `~/.ssh`, not the including file's directory.
 
 Idempotent: an existing key is kept (pass `regenerate` to force a new one, which

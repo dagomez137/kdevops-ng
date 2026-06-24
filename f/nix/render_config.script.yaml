@@ -1,7 +1,7 @@
 summary: "Nix: render a per-VM imageless config (flake.nix + default.nix)"
 description: |
   Render a per-VM imageless NixOS configuration under
-  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/` — the Windmill equivalent of kdevops's
+  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`: the Windmill equivalent of kdevops's
   `nixosfi` generate-configs phase.
 
   - `flake.nix` is a near-verbatim copy of the vendored imageless **template**
@@ -82,7 +82,7 @@ schema:
         type: string
     shares:
       type: object
-      description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount (`/var/lib/xfstests`) is added automatically when `test_suites` includes `fstests`; `home` adds the operator''s home — both coexist with explicit entries here.'
+      description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount (`/var/lib/xfstests`) is added automatically when `test_suites` includes `fstests`; `home` adds the operator''s home. Both coexist with explicit entries here.'
       default: {}
     home:
       type: boolean

@@ -37,7 +37,7 @@ _JOURNAL_LINES = 200
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 
@@ -79,13 +79,13 @@ def main(
     while True:
         host_state = (host.systemctl("is-active", qemu_unit, capture=True, check=False) or "").strip()
         if host_state == "failed":
-            print(f"{vm_name}: {qemu_unit} is failed — guest crashed, stopping poll", flush=True)
+            print(f"{vm_name}: {qemu_unit} is failed: guest crashed, stopping poll", flush=True)
             crashed = True
             break
 
         # A long run's guest can be too busy under test load to answer the vsock-SSH
-        # poll within the connect timeout (ssh exits 255). That is not the run failing —
-        # the host qemu crash-check above is the authority on a dead guest — so a transient
+        # poll within the connect timeout (ssh exits 255). That is not the run failing
+        # (the host qemu crash-check above is the authority on a dead guest), so a transient
         # poll error just retries; only the deadline (or a real crash) ends the wait.
         try:
             state = remote.show(unit, *props)

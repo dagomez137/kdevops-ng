@@ -13,7 +13,7 @@ that just copies what make install hands it. make install still resolves the
 arch-correct image path (KBUILD_IMAGE); our hook only copies, so the result never
 depends on the container's distro tooling.
 
-    destdir/boot/   INSTALL_PATH — kernel image + System.map, each named by release
+    destdir/boot/   INSTALL_PATH: kernel image + System.map, each named by release
                     (distro-style: bzImage-<release>, System.map-<release>)
 
 Modules are a separate, independently-skippable step (f/kernel/install_modules); an

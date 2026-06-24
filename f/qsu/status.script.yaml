@@ -3,7 +3,7 @@ description: |
   Report one VM's status against the host `systemd --user` manager:
   `systemctl --user is-active qemu-system@<vm>` for liveness, a best-effort
   `machinectl --user status <vm>` for the machined registration view, and the
-  SSH / vsock / console access command lines. Read-only — probes the manager and
+  SSH / vsock / console access command lines. Read-only: probes the manager and
   mutates nothing.
 kind: script
 tag: vm

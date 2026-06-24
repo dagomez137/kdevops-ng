@@ -7,7 +7,7 @@ description: |
   defaults to a sibling of the build dir (`<slot>/destdir`). Never touches the host
   `/lib/modules`.
 
-  Skip for an all-built-in kernel (CONFIG_MODULES=n) — nothing to install. Modules
+  Skip for an all-built-in kernel (CONFIG_MODULES=n): nothing to install. Modules
   were already built by the default `make`, so this does not rebuild them. Reads
   `worktree`/`build_dir` from `prepare_worktree`; returns `destdir` and `modules`.
 kind: script

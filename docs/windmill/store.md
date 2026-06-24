@@ -16,7 +16,7 @@ of reinventing `rsync`.
 
 ## Build identity
 
-The identity is a short hash over the inputs that fix a build's bytes — the
+The identity is a short hash over the inputs that fix a build's bytes: the
 `.config` (minus its localversion), the `build-kernel`/`build-qemu` devShell
 derivation path (the toolchain), the make flags (host paths normalised), and the
 source commit. See [ADR 0002](../adr/0002-build-identity-in-kernelrelease.md).
@@ -52,7 +52,7 @@ qemu-<identity>                      -> /nix/store/<hash>-qemu-<identity>
 
 Each symlink is also a Nix **GC root** (created with `nix build --out-link`), so
 the store path survives `nix store gc` until the entry is
-removed. The catalog is the authoritative, host-local list — store-path *names*
+removed. The catalog is the authoritative, host-local list; store-path *names*
 alone are noisy (nixpkgs ships its own `-kernel-*` paths). A peer's catalog is the
 same directory read over ssh.
 
@@ -62,14 +62,14 @@ The kernel and QEMU build flows wire these steps (skipped on reuse, so they only
 run after a real build except where noted):
 
 - **`reuse_check`** runs before the compile and reports whether the identity is
-  already available — checking the local destdir/prefix first, then the store
+  already available: checking the local destdir/prefix first, then the store
   catalog (where a fetched build lives). When present, configure/compile/install
   are skipped and the manifest points at the existing artifacts. It is
   store-aware, so a fetched identity is consumed *in place* from `/nix/store` with
   no local copy.
 - **`fetch_identity`** runs before `reuse_check`; with a peer configured it reads
   the peer's catalog entry over ssh, pulls the store path with `nix copy`, and
-  indexes it locally — leaving the run layer in the store for `reuse_check` to
+  indexes it locally, leaving the run layer in the store for `reuse_check` to
   resolve.
 - **`publish`** / **`publish_devel`** run after a real install and add the run /
   devel layer to the store and the catalog.
@@ -82,8 +82,8 @@ run after a real build except where noted):
 
 The kernel and QEMU build flows expose a **Prebuilt** input group:
 
-- `remote` — the ssh host of a peer builder.
-- `remote_index` — that peer's `store-index` directory (its
+- `remote`: the ssh host of a peer builder.
+- `remote_index`: that peer's `store-index` directory (its
   `WORKERS_DIR/shared/store-index`).
 
 With both set, `fetch_identity` learns the peer's store path from
@@ -93,22 +93,22 @@ QEMU binary runs with zero missing dependencies. All cross-host I/O happens insi
 the `transfer` devShell (`nix` + OpenSSH); nothing uses `rsync`.
 
 This moves build *outputs* across hosts. Build *inputs* (a developer's branch) cross
-the other way, by git — see [cross-host dev branches](cross-host-dev-branches.md).
+the other way, by git: see [cross-host dev branches](cross-host-dev-branches.md).
 
 > ssh prerequisite: the `transfer` devShell's OpenSSH rejects a group-writable
 > `~/.ssh/config` ("Bad owner or permissions"); keep it `0600`.
 
-## Inspecting and pruning — `f/common/store_index`
+## Inspecting and pruning: `f/common/store_index`
 
 `store_index` reads and maintains the catalog:
 
-- `list` (default) — the local catalog with sizes and validity, plus a peer's when
+- `list` (default): the local catalog with sizes and validity, plus a peer's when
   `remote`/`remote_index` are set.
-- `inspect <name>` — one identity's store path, closure size and validity.
-- `forget <name>` (with `confirm`) — drop one entry's GC root so
+- `inspect <name>`: one identity's store path, closure size and validity.
+- `forget <name>` (with `confirm`): drop one entry's GC root so
   `nix store gc` can reclaim its store path. The build leaves the catalog
   but is rebuildable.
-- `prune` — drop every entry whose store path was already collected (dangling).
+- `prune`: drop every entry whose store path was already collected (dangling).
 
 By hand the same is:
 

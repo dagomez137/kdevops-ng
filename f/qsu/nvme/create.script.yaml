@@ -4,10 +4,10 @@ description: |
   (`qemu-img create --format qcow2 <state_dir>/nvme<i>.qcow2 <size>G`) under the VM's
   systemd `StateDirectory` (`~/.local/state/qemu-system/<vm>`), which is also the
   `qemu-system@<vm>.service` `WorkingDirectory=`, so the relative `file=` entries in
-  `<vm>.env` resolve at run time. Idempotent — an existing file is left untouched.
+  `<vm>.env` resolve at run time. Idempotent: an existing file is left untouched.
 
   **`qemu-img` is the reproducible `nixos-flake` `qemu`**, host-visible in `/nix/store`
-  from every worker — never a host/distro qemu-img, and never the VM's own emulator (a
+  from every worker; never a host/distro qemu-img, and never the VM's own emulator (a
   `qemu-build` binary lives in a per-worker tree this `vm`-tagged step cannot reach).
   qcow2 is format-stable, so the images open in whatever `qemu-system-*` boots the VM.
 

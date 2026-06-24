@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Boot one QEMU/systemd VM: daemon-reload, then `systemctl restart qemu-system@<vm>`.
 
-A single `restart` of the qemu-system unit is the whole lifecycle — the qsu units are
+A single `restart` of the qemu-system unit is the whole lifecycle; the qsu units are
 designed for first-class `systemctl start/stop/restart`, so we never touch the virtiofsd
 .socket/.service directly. The per-VM drop-in pins virtiofsd with
 `Requires=virtiofsd@%i-<tag>.service` (not `BindsTo=`) and the virtiofsd side carries a
@@ -10,12 +10,12 @@ designed for first-class `systemctl start/stop/restart`, so we never touch the v
 socket-activates a fresh virtiofsd that reads the re-rendered per-share env. Restarting
 the virtiofsd units by hand instead propagates a stop into qemu mid-graceful-shutdown
 and wedges the guest on its now-dead virtiofs mounts until `TimeoutStopSec` (2 min)
-SIGKILLs it — see qsu docs/usage.md "Updating a VM's unit definition".
+SIGKILLs it. See qsu docs/usage.md "Updating a VM's unit definition".
 
-`restart` (not `start`) so a re-render of an already-running VM takes effect — a
+`restart` (not `start`) so a re-render of an already-running VM takes effect: a
 reconfigure in place; on a stopped VM it just starts. Then poll `is-active` until the
 unit is `active` (Type=simple) or `failed`. A unit that does not reach `active` (the
-qemu process exited — a bad `-device`, an unbootable kernel, a missing share) raises
+qemu process exited: a bad `-device`, an unbootable kernel, a missing share) raises
 with the guest's own journal tail, so the flow fails at boot instead of reporting
 success on a VM that never came up. `ssh_ready` is a best-effort probe of the forwarded
 port; it only succeeds where the prober shares the host's network namespace, so from a
@@ -104,7 +104,7 @@ def main(
     systemd = Systemd(workers)
     # daemon-reload picks up the re-rendered unit + drop-in; then one restart of the
     # qemu-system unit is the whole lifecycle. systemd's own dependencies stop the old
-    # guest gracefully and socket-activate a fresh virtiofsd on start — we never restart
+    # guest gracefully and socket-activate a fresh virtiofsd on start; we never restart
     # the virtiofsd .socket/.service ourselves (doing so propagates a stop into qemu and
     # hangs it to TimeoutStopSec). restart, not start: `start` no-ops on a running unit
     # so a re-render would not take effect; restart applies it in place (a reconfigure),
@@ -124,7 +124,7 @@ def main(
     if not active:
         # A restart that returns 0 only means systemd started the unit; a Type=simple
         # qemu that exits right after (bad -device, unbootable kernel, missing share)
-        # lands in `failed` moments later. Fail the job — otherwise the flow reports
+        # lands in `failed` moments later. Fail the job; otherwise the flow reports
         # success on a VM that never booted. systemctl reaches the host manager over
         # D-Bus so the unit's exit status is available, but the qemu stderr that holds
         # the actual reason is in the host journal, which the worker cannot read; point

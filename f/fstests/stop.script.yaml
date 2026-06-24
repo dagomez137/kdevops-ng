@@ -6,7 +6,7 @@ description: |
   erroring out mid-section, tears the running unit down on the guest. Stops
   are idempotent; a guest unreachable from the worker is logged and skipped
   so the failure handler never itself fails. Force-stopping a Windmill job
-  bypasses `failure_module` — the manual fallback is
+  bypasses `failure_module`; the manual fallback is
   `systemctl --host <vm> stop xfstests@<section>.service`.
 
   Returns `{vm_name, stopped, skipped_no_transport}`.

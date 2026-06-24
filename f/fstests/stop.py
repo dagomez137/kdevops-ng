@@ -7,7 +7,7 @@ guest instead of leaving `./check -s <section>` burning CPU under
 `TimeoutStartSec=infinity`. Per-section units are independent, so the helper
 iterates each section the run was driving and stops them all; the stops are
 idempotent (an inactive unit is a no-op once `reset-failed` clears any latched
-state). A guest unreachable from the worker is logged and skipped — the
+state). A guest unreachable from the worker is logged and skipped; the
 failure handler must not itself fail.
 
 Force-stopping a Windmill job (SIGKILL of the worker process) bypasses
@@ -29,7 +29,7 @@ from f.fstests.common import RemoteSystemd, list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 

@@ -9,7 +9,7 @@ a source for it. The fetched install tree is left in the store; the following
 `reuse_check` resolves the index entry and the build is skipped, consuming the emulator
 from the store path with no copy.
 
-Same-host leaves `remote`/`remote_index` empty and does nothing — a local build installs
+Same-host leaves `remote`/`remote_index` empty and does nothing; a local build installs
 into the prefix directly. Cross-host sets `remote` to an ssh host and `remote_index` to
 that builder's `store-index` directory, read over ssh.
 

@@ -7,7 +7,7 @@ description: |
   `ExecMainStatus` (the `./check` exit code, 0 = all passed).
 
   Each poll also crash-checks the host: if `qemu-system@<vm>.service` (the host
-  `systemd --user` unit running QEMU) has gone `failed`, the guest panicked — polling
+  `systemd --user` unit running QEMU) has gone `failed`, the guest panicked; polling
   stops and `crashed` is set. On completion a bounded tail of the guest's unit
   journal is dumped to the job log.
 

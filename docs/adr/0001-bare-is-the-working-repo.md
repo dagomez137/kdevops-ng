@@ -18,11 +18,11 @@ accepted
 
 ## Considered Options
 
-- **Worktrees off the Mirror** — rejected: a dev branch that only lives in the
+- **Worktrees off the Mirror**. Rejected: a dev branch that only lives in the
   Bare can't be checked out, and the Mirror is force-pruned.
-- **A third `system/clone` aggregating both** — rejected: an extra repo to
+- **A third `system/clone` aggregating both**. Rejected: an extra repo to
   provision and keep in sync, for no capability the Bare-as-working-repo lacks.
-- **One repo unifying Mirror + Bare** — rejected (see ADR-adjacent reasoning):
+- **One repo unifying Mirror + Bare**. Rejected (see ADR-adjacent reasoning):
   a force-prune of upstream refs would delete developer branches unless held to
   permanent ref-namespace discipline; the physical Mirror/Bare split makes that
   a structural guarantee instead.
@@ -31,7 +31,7 @@ accepted
 
 - Same-host, a developer and a worker share one Bare, so a developer publishes
   work by committing (the branch is already in the Bare) and the worker builds it
-  by adding its own detached worktree at the tip — no push. Cross-host uses a
+  by adding its own detached worktree at the tip (no push). Cross-host uses a
   per-host `<hostname>/<project>` remote (`ssh://`) to the peer's Bare.
 - We give up git-level isolation between workbenches: all worktrees hang off one
   Bare, so `git worktree list` spans workbenches and `refs/heads/*` is one global

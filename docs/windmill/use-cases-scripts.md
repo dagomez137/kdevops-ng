@@ -1,4 +1,4 @@
-# Windmill — Scripts (use case)
+# Windmill: Scripts (use case)
 
 > Local backup of <https://www.windmill.dev/use-cases/scripts>, captured via
 > WebFetch on 2026-06-07. The fetcher condenses prose; for the authoritative
@@ -40,4 +40,4 @@ data pipelines (ETL with parallel execution) and tool-calling AI agents.
 ## Languages
 TypeScript (`bun`/`deno`/`nativets`), Python (`python3`), Go, Bash/PowerShell,
 SQL dialects (postgresql, mysql, bigquery, snowflake, mssql, oracledb, duckdb),
-GraphQL, PHP, Rust, Ansible, C#, Nu, Java, Ruby, R — "20+ languages".
+GraphQL, PHP, Rust, Ansible, C#, Nu, Java, Ruby, R: "20+ languages".

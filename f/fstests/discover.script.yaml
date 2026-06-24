@@ -7,8 +7,8 @@ description: |
   (`/dev/nvme*n1`) and the kernel's supported filesystems (`/proc/filesystems`).
 
   Returns `{vm, host, booted, fstests_ready, devices, fstyp_supported}`. Two NVMe
-  disks are the minimum (TEST + SCRATCH); a btrfs pool wants four — surfaced, not
-  hard-failed. Fails fast with a clear message if the guest is not xfstests-ready.
+  disks are the minimum (TEST + SCRATCH); a btrfs pool wants four (surfaced, not
+  hard-failed). Fails fast with a clear message if the guest is not xfstests-ready.
   Read-only; mutates nothing on the guest.
 kind: script
 tag: vm

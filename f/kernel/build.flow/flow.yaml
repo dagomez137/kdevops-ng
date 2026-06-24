@@ -9,26 +9,26 @@ description: |
   Steps (pinned to one worker via `same_worker`, so each sees the previous
   step's files):
 
-  1. `prepare_worktree` — resolve the slot and check out `git_ref`.
-  2. `configure` — generate `.config` by the selected `config_method`:
+  1. `prepare_worktree`: resolve the slot and check out `git_ref`.
+  2. `configure`: generate `.config` by the selected `config_method`:
      - `preset` (default) → `f/kernel/configure_preset`: a predefined whole-kernel
        config (e.g. `imageless_defconfig`) applied via `KCONFIG_ALLCONFIG`.
      - `make` → `f/kernel/configure_make`: a list of make config goals
        (`defconfig`, `tinyconfig`, `["defconfig","kvm_guest.config"]`, ...).
      - `fragments` → `f/kernel/configure_fragments`: pick from the curated
        `linux-config-fragments` library (canonical order applied).
-  3. `compile` — `make` (default goal: vmlinux + boot image + modules).
-  4. `devtools` — generate dev-tooling artifacts (compile_commands.json, GDB helpers,
+  3. `compile`: `make` (default goal: vmlinux + boot image + modules).
+  4. `devtools`: generate dev-tooling artifacts (compile_commands.json, GDB helpers,
      rust-project.json); each optional, on by default.
-  5. `install` — install the kernel image into a destdir; only when `install` is set.
-  6. `install_modules` — modules_install into the destdir (plus the canonical source
+  5. `install`: install the kernel image into a destdir; only when `install` is set.
+  6. `install_modules`: modules_install into the destdir (plus the canonical source
      symlink); only when `modules_install` is set (skip for an all-built-in kernel).
-  7. `publish` — add this identity's run layer to the Nix store so a peer can fetch
+  7. `publish`: add this identity's run layer to the Nix store so a peer can fetch
      it; only after a real install (skipped on reuse).
-  8. `publish_devel` — add this identity's devel layer (the build dir's `.cmd`
+  8. `publish_devel`: add this identity's devel layer (the build dir's `.cmd`
      files, headers and scripts, minus binaries) to the Nix store so `fetch_devel`
      can index a worktree from it; only after a real build (skipped on reuse).
-  9. `collect` — merge the step results into one manifest.
+  9. `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
   (`workers/<worker>/linux/main`), synced to `git_ref` every run so rebuilds
@@ -501,7 +501,7 @@ schema:
         recreate_worktree:
           title: Recreate Worktree
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree — its build dir and destdir too — first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
+          description: Lay a fresh detached checkout (rm the warm tree, its build dir and destdir too, first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
           default: false
         wipe_build:
           type: boolean
@@ -522,7 +522,7 @@ schema:
       properties:
         config_method:
           type: string
-          description: How to generate .config — preset (a predefined whole-kernel config), make (config goals), fragments (curated multiselect), or skip (reuse the .config already in the build dir).
+          description: "How to generate .config: preset (a predefined whole-kernel config), make (config goals), fragments (curated multiselect), or skip (reuse the .config already in the build dir)."
           default: preset
           enum:
             - preset
@@ -742,7 +742,7 @@ schema:
     build:
       title: Build
       type: object
-      description: Compile knobs — targets, toolchain, reproducibility, ccache.
+      description: "Compile knobs: targets, toolchain, reproducibility, ccache."
       default: {}
       order:
         - targets
@@ -755,7 +755,7 @@ schema:
       properties:
         targets:
           type: string
-          description: Space-separated make targets. Empty (default) builds the default goal — vmlinux, the boot image, and modules.
+          description: "Space-separated make targets. Empty (default) builds the default goal: vmlinux, the boot image, and modules."
           default: ""
         make_flags:
           type: string
@@ -763,7 +763,7 @@ schema:
           default: ""
         compiler:
           type: string
-          description: Toolchain to build with — GCC, or clang/LLVM (LLVM=1 with the devShell's unwrapped clang).
+          description: "Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the devShell's unwrapped clang)."
           default: gcc
           enum:
             - gcc

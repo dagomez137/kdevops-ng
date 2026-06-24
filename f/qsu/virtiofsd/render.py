@@ -11,7 +11,7 @@ after the guest powerdown).
 render result so both components agree); otherwise it is recomposed from the same
 QEMU-keyword inputs. Returns the host-wide unit paths and the per-share artefacts.
 
-Equivalent: write the rendered units into the host user-manager search path —
+Equivalent: write the rendered units into the host user-manager search path:
 
     ~/.config/systemd/user/virtiofsd@.service
     ~/.config/systemd/user/virtiofsd@.socket
@@ -68,7 +68,7 @@ def main(
     per_share = []
     for s in composed:
         tag = s["tag"]
-        # Create kdevops-managed share source dirs (under WORKERS_DIR — e.g. the per-VM
+        # Create kdevops-managed share source dirs (under WORKERS_DIR, e.g. the per-VM
         # fstests results dir) before virtiofsd starts: a missing source makes virtiofsd
         # exit, which fails qemu's vhost-user-fs backend and the guest never boots. System
         # sources (/nix/store, the operator's home) are left to pre-exist.

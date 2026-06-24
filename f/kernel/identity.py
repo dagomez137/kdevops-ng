@@ -3,9 +3,9 @@
 
 Imported with:  from f.kernel.identity import bake_identity
 
-A build's identity is a short hash over the inputs that fix its bytes — the `.config`,
+A build's identity is a short hash over the inputs that fix its bytes: the `.config`,
 the toolchain (the `build-kernel` devShell's derivation path), the make flags, and the
-source commit — appended to any existing CONFIG_LOCALVERSION so `make kernelrelease`
+source commit, appended to any existing CONFIG_LOCALVERSION so `make kernelrelease`
 (and the booted `uname -r`) self-report it: `7.1.0-rc7-<hash>`, or
 `7.1.0-rc7-series-<hash>` when the config already carries a localversion. Same identity
 then means same bytes, so the image and modules install under one release and a built
@@ -66,7 +66,7 @@ def _digest(config_text: str, worktree: str, make_flags: str) -> str:
 
 
 def _toolchain() -> str:
-    """The build-kernel devShell's derivation path — the toolchain store hash."""
+    """The build-kernel devShell's derivation path: the toolchain store hash."""
     flake = vendor_dir() / "nixos-flake"
     system = f"{os.uname().machine}-linux"
     return Nix().capture(

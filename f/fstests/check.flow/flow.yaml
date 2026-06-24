@@ -1,6 +1,6 @@
 summary: "xfstests check"
 description: |
-  Run xfstests `./check` against an already-booted, fstests-ready guest — the
+  Run xfstests `./check` against an already-booted, fstests-ready guest: the
   Windmill equivalent of an xfstests `./check` run. The guest is produced
   separately by `f/qsu/bringup` with `closure.test_suites=["fstests"]`, a writable
   `fstests` virtiofs share mounted at `/var/lib/xfstests`, and ≥2 NVMe drives
@@ -9,10 +9,10 @@ description: |
 
   Steps mirror xfstests/systemd vocabulary 1:1:
 
-  1. `discover` — gate the guest over vsock (`systemctl --host <vm>
+  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
      is-system-running`, the `xfstests@.service` template present, `./check`
      executable) and enumerate its `/dev/nvme*n1` devices and supported `FSTYP`.
-  2. `render_config` — write the `HOST_OPTIONS` config (`local.config`) and the
+  2. `render_config`: write the `HOST_OPTIONS` config (`local.config`) and the
      `check.env` `EnvironmentFile` onto the host side of the share; its `[section]`
      names drive the loop.
   3. for each `section`, sequentially (sections share `TEST_DEV`/`SCRATCH_DEV`):
@@ -20,7 +20,7 @@ description: |
      `wait` (poll `show --property=Result,ExecMainStatus,ActiveState` to terminal,
      crash-check the host `qemu-system@<vm>`) → `collect` (parse the `-R xunit`
      report from the share).
-  4. `report` — aggregate the per-section results into one summary.
+  4. `report`: aggregate the per-section results into one summary.
 
   Every step is `tag: vm` (the dedicated worker that reaches the guest over the
   vsock-SSH transport). Returns the `report` summary.
@@ -257,12 +257,12 @@ schema:
       title: VM Name
       type: object
       format: dynselect-list_vms
-      description: Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown lists all guests; it must be fstests-ready (`closure.test_suites=["fstests"]`, the `fstests` share at `/var/lib/xfstests`, ≥2 NVMe) — `discover` gates that.
+      description: 'Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown lists all guests; it must be fstests-ready (`closure.test_suites=["fstests"]`, the `fstests` share at `/var/lib/xfstests`, ≥2 NVMe); `discover` gates that.'
     sections:
       title: Sections
       type: object
       format: dynmultiselect-list_sections
-      description: "Which xfstests `[section]`s actually run — chosen from the `local.config` set (the full default matrix unless you've edited it in the Check group). **Empty = run ALL of them**; pick one or more to run ONLY those (resolved against the full matrix regardless of the Edit toggle)."
+      description: "Which xfstests `[section]`s actually run: chosen from the `local.config` set (the full default matrix unless you've edited it in the Check group). **Empty = run ALL of them**; pick one or more to run ONLY those (resolved against the full matrix regardless of the Edit toggle)."
       default: []
     mkfs_test_dev:
       title: Format TEST_DEV
@@ -272,7 +272,7 @@ schema:
     wipe_devices:
       title: Wipe Devices
       type: boolean
-      description: "`wipefs --all` + `blkdiscard --force` every test/scratch NVMe at the start of EACH section, before its mount points are created. The `blkdiscard` TRIM deflates the thin-provisioned qcow2 backing, so it doesn't inflate across sections and a device filled by a prior section stops reporting `No space left on device`. Safe by default — TEST_DEV/SCRATCH_DEV data is disposable."
+      description: "`wipefs --all` + `blkdiscard --force` every test/scratch NVMe at the start of EACH section, before its mount points are created. The `blkdiscard` TRIM deflates the thin-provisioned qcow2 backing, so it doesn't inflate across sections and a device filled by a prior section stops reporting `No space left on device`. Safe by default: TEST_DEV/SCRATCH_DEV data is disposable."
       default: true
     clean_results:
       title: Clean Results
@@ -282,12 +282,12 @@ schema:
     logwrites:
       title: Log-writes Device
       type: boolean
-      description: "Reserve the last NVMe as `LOGWRITES_DEV` (the dm-log-writes replay log) for every section, so the crash-consistency tests (generic/455,457,470,471,482,642…) run instead of `notrun (requires $LOGWRITES_DEV)`. Costs one device — the scratch pool shrinks by one; needs >=3 devices (>=4 for an external-device section), sections a drive short are skipped. On by default; turn off to put every device in the scratch pool."
+      description: "Reserve the last NVMe as `LOGWRITES_DEV` (the dm-log-writes replay log) for every section, so the crash-consistency tests (generic/455,457,470,471,482,642…) run instead of `notrun (requires $LOGWRITES_DEV)`. Costs one device: the scratch pool shrinks by one; needs >=3 devices (>=4 for an external-device section), sections a drive short are skipped. On by default; turn off to put every device in the scratch pool."
       default: true
     reboot_guest:
       title: Reboot Guest
       type: boolean
-      description: "Reboot the guest once before the run and wait for it to come back (clears leaked kernel state, stuck D-state tasks). Off by default. (The per-section device wipe is separate — see Wipe Devices.)"
+      description: "Reboot the guest once before the run and wait for it to come back (clears leaked kernel state, stuck D-state tasks). Off by default. (The per-section device wipe is separate: see Wipe Devices.)"
       default: false
     check:
       title: Check
@@ -311,7 +311,7 @@ schema:
         test_selection:
           title: Test selection
           type: string
-          description: "Choose what each section runs: by xfstests **groups** (`-g`, e.g. `auto`/`quick`) or by an explicit **tests** list (e.g. `generic/001`). The two are mutually exclusive in `./check`'s typical use (a `-g` group and a positional testlist UNION, swamping the list), so pick one mode — the other field hides."
+          description: "Choose what each section runs: by xfstests **groups** (`-g`, e.g. `auto`/`quick`) or by an explicit **tests** list (e.g. `generic/001`). The two are mutually exclusive in `./check`'s typical use (a `-g` group and a positional testlist UNION, swamping the list), so pick one mode; the other field hides."
           default: groups
           enum:
             - groups
@@ -340,18 +340,18 @@ schema:
           title: Exclude File (-X)
           type: string
           showExpr: "fields.test_selection === 'groups'"
-          description: "xfstests `./check -X exclude_file`: exclude individual tests — a guest path to an expunge/exclude list."
+          description: "xfstests `./check -X exclude_file`: exclude individual tests (a guest path to an expunge/exclude list)."
           default: ""
         edit_local_config:
           title: Edit local.config
           type: boolean
-          description: "Reveal the editable `local.config` below — hidden by default because it's the large full block/sector × feature matrix. Toggle on ONLY to edit/trim that config; leaving it off still uses the full matrix as the section set. Either way, **Sections** picks which sections actually run (empty = all)."
+          description: "Reveal the editable `local.config` below; hidden by default because it's the large full block/sector × feature matrix. Toggle on ONLY to edit/trim that config; leaving it off still uses the full matrix as the section set. Either way, **Sections** picks which sections actually run (empty = all)."
           default: false
         local_config:
           title: local.config
           type: string
           showExpr: "fields.edit_local_config === true"
-          description: "The xfstests `local.config` (README.config-sections), one `[section]` per profile — edit it to add/remove sections or tweak `MKFS_OPTIONS`/`MOUNT_OPTIONS`. Device-agnostic: `render_config` injects `TEST_DEV`/`SCRATCH_DEV`/mount points per section. The top-level Sections dropdown lists what this declares."
+          description: "The xfstests `local.config` (README.config-sections), one `[section]` per profile; edit it to add/remove sections or tweak `MKFS_OPTIONS`/`MOUNT_OPTIONS`. Device-agnostic: `render_config` injects `TEST_DEV`/`SCRATCH_DEV`/mount points per section. The top-level Sections dropdown lists what this declares."
           default: |
             [xfs_bs1k_ss512]
             FSTYP=xfs
@@ -3093,7 +3093,7 @@ schema:
         iterations:
           title: Iterations (-i/-I)
           type: integer
-          description: "xfstests `./check -i <n>` (or `-I <n>` when Stop on Failure is on): iterate the test list <n> times — interleaved across passes, NOT each test n times in a row, so the xunit gets one `<testcase>` per test per pass. For flaky/regression confirmation. 1 = once (default)."
+          description: "xfstests `./check -i <n>` (or `-I <n>` when Stop on Failure is on): iterate the test list <n> times (interleaved across passes, NOT each test n times in a row), so the xunit gets one `<testcase>` per test per pass. For flaky/regression confirmation. 1 = once (default)."
           default: 1
         stop_on_fail:
           title: Stop on Failure (-I)
@@ -3103,12 +3103,12 @@ schema:
         loop_on_fail:
           title: Loop on Fail (-L)
           type: integer
-          description: "xfstests `./check -L <n>`: loop tests <n> times following a failure, measuring aggregate pass/fail metrics — the % goes to the journal/check.log, not the xunit. 0 = off (default)."
+          description: "xfstests `./check -L <n>`: loop tests <n> times following a failure, measuring aggregate pass/fail metrics; the % goes to the journal/check.log, not the xunit. 0 = off (default)."
           default: 0
     service:
       title: Service
       type: object
-      description: "Timeouts for the run: `wait`'s section polling (`timeout`/`poll_interval`), the per-test watchdog (`test_timeout`/`test_timeouts` — the unit is `TimeoutStartSec=infinity`, so a hung test would otherwise block forever), and the `reboot` step's post-reboot wait (`reboot_timeout`)."
+      description: "Timeouts for the run: `wait`'s section polling (`timeout`/`poll_interval`), the per-test watchdog (`test_timeout`/`test_timeouts`; the unit is `TimeoutStartSec=infinity`, so a hung test would otherwise block forever), and the `reboot` step's post-reboot wait (`reboot_timeout`)."
       default: {}
       order:
         - timeout
@@ -3187,16 +3187,16 @@ schema:
 
     def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list:
         # The guest's xfstests group registry (doc/group-names.txt), resolved from the
-        # guest's closure in the local nix store — this dynselect runs on a DEFAULT
+        # guest's closure in the local nix store; this dynselect runs on a DEFAULT
         # worker (no vsock to the guest) but mounts /nix and the reuse sidecars.
         # `groups` is nested under `check`, yet vm_name (a top-level input) reaches this
         # helper because the run form spreads root args into nested dynselect helpers.
-        # Never raises — a missing vm_name/closure yields a small auto/quick fallback.
+        # Never raises; a missing vm_name/closure yields a small auto/quick fallback.
         try:
             from f.fstests.common import list_groups as _list_groups
             return _list_groups(vm_name, filterText)
         except Exception:
             return [
-                {"label": "auto — run automatically (~5 min cap)", "value": "auto"},
-                {"label": "quick — under 30s each", "value": "quick"},
+                {"label": "auto: run automatically (~5 min cap)", "value": "auto"},
+                {"label": "quick: under 30s each", "value": "quick"},
             ]

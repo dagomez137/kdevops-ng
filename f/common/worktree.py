@@ -186,7 +186,7 @@ def _resolve_ref(git: Git, bare: Path, ref: str) -> str:
     literal ref (a commit, or a developer branch in refs/heads/*).
 
     The worktree is always laid down detached, so a concrete commit is all the
-    checkout/worktree-add needs — and resolving the mirror's branches via
+    checkout/worktree-add needs, and resolving the mirror's branches via
     `refs/remotes/mirror/*` keeps them out of refs/heads/*, where developer pushes
     live (a tag like `v11.0.0` still wins outright).
     """

@@ -52,7 +52,7 @@ runs the stock Windmill image with no distro systemd dependency.
 Because units fork on the host, in the host mount namespace, as host uid 1000:
 
 1. **`ExecStart=` must resolve on the host.** Use a `/nix/store/...` path (resolves
-   identically on host and container because `/nix` is the same mount) — that is
+   identically on host and container because `/nix` is the same mount); that is
    also the reproducible choice. The host distro `/usr/bin/qemu-system-x86_64`
    exists but is not reproducible; do not depend on it.
 2. **Every path a unit touches must be host-valid.** Container-private paths
@@ -71,7 +71,7 @@ Because units fork on the host, in the host mount namespace, as host uid 1000:
 ## The established qsu pattern (from `~/src/linux-kdevops/refactor/kdevops`)
 
 "qsu" = qemu-system-units (`scripts/qemu-system-units/`): each guest is a
-`qemu-system@<vm>` systemd **user** service registered with systemd-machined —
+`qemu-system@<vm>` systemd **user** service registered with systemd-machined:
 "machinectl is to qsu what virsh is to libvirt". The live host already runs this
 (`qemu-system@nixos.service`, `virtiofsd@nixos-*.service`).
 
@@ -100,24 +100,24 @@ Because units fork on the host, in the host mount namespace, as host uid 1000:
 
 Goal: no distro-package / host-environment dependency. The only thing reused as-is
 is the host's running `systemd --user` *manager* (it forks the units); every
-*binary* — including the systemd client tools — comes from nix. Current distro
+*binary* (including the systemd client tools) comes from nix. Current distro
 couplings in the past pattern and the fix:
 
 | past dependency | reproducible replacement |
 |---|---|
-| QEMU = hand-built `kdevops/data/qemu-destdir/bin/qemu-system-x86_64` | **nix** — the flake already provides it (`pkgs.qemu`, `lib/toolchain.nix:qemu-utils`); render `ExecStart=` with the resolved `/nix/store/...` path |
-| virtiofsd = distro `/usr/libexec/virtiofsd` | **nix** — flake already has `pkgs.virtiofsd` (`lib/toolchain.nix:37`, controller profile `vhostUserPackages = [ pkgs.virtiofsd ]`); the unit's `virtiofsd_binary` var is configurable, point it at the store path |
+| QEMU = hand-built `kdevops/data/qemu-destdir/bin/qemu-system-x86_64` | **nix**: the flake already provides it (`pkgs.qemu`, `lib/toolchain.nix:qemu-utils`); render `ExecStart=` with the resolved `/nix/store/...` path |
+| virtiofsd = distro `/usr/libexec/virtiofsd` | **nix**: flake already has `pkgs.virtiofsd` (`lib/toolchain.nix:37`, controller profile `vhostUserPackages = [ pkgs.virtiofsd ]`); the unit's `virtiofsd_binary` var is configurable, point it at the store path |
 | `socat` (QMP power-down glue) | **nix** `pkgs.socat` store path, or replace with a tiny nix-built QMP client |
-| `systemctl`/`systemd-run`/`varlinkctl`/`busctl` = distro `apt install systemd` in a custom image | **nix** — `pkgs.systemd` via the `#systemd` devShell (version-matched to the host manager); worker runs the stock Windmill image |
-| `machinectl`, the user manager itself | **reused** — the host's running `systemd --user` forks the units; the client tools driving it are nix (above) |
+| `systemctl`/`systemd-run`/`varlinkctl`/`busctl` = distro `apt install systemd` in a custom image | **nix**: `pkgs.systemd` via the `#systemd` devShell (version-matched to the host manager); worker runs the stock Windmill image |
+| `machinectl`, the user manager itself | **reused**: the host's running `systemd --user` forks the units; the client tools driving it are nix (above) |
 
 The unit files themselves get rendered with store paths (e.g. by a
 `f/vm/render_units` step or a nix derivation that writes the units). Because `/nix`
 is shared at the same path, a store path chosen in the container is valid for the
-host manager that execs it — this is what makes nix-provided QEMU/virtiofsd work
+host manager that execs it; this is what makes nix-provided QEMU/virtiofsd work
 through host systemd at all.
 
-## Dedicated VM worker — recommended
+## Dedicated VM worker: recommended
 
 VM **visibility/tracking is already global**: every worker container talks to the
 same host user manager, so `systemctl --user list-units` / `machinectl` see the
@@ -127,20 +127,20 @@ required for tracking**.
 It is still **recommended**, as a single worker in its own group/`tag` (e.g.
 `vm`), for *operational* reasons:
 
-- **Serialization** — one job at a time per worker naturally serializes
+- **Serialization**: one job at a time per worker naturally serializes
   start/stop/destroy, avoiding races on shared unit names, `.env` files and state
   dirs (the qsu artifacts are keyed by VM name, not by worker).
-- **Routing** — `tag: vm` keeps VM steps off a worker mid-40-minute kernel build;
+- **Routing**: `tag: vm` keeps VM steps off a worker mid-40-minute kernel build;
   build steps stay CPU-heavy, VM steps stay light/IO.
-- **Ownership** — one place renders/installs the qsu units and owns teardown.
+- **Ownership**: one place renders/installs the qsu units and owns teardown.
 
 Mechanics: give the VM step a `tag` and run a worker in a matching group (the
 flow-reference §"same_worker / tags"). It does **not** need to be the worker that
 built the kernel (constraint #4 above), so build (group `default`) → boot (group
-`vm`) composes cleanly across workers with plain `results.*` host paths — no
+`vm`) composes cleanly across workers with plain `results.*` host paths; no
 `same_worker`.
 
-## hostname / hostnamectl / timedatectl — current status + the decision
+## hostname / hostnamectl / timedatectl: current status + the decision
 
 In kdevops these are **host controller provisioning**, run with `become: true`
 (root) in `playbooks/roles/devconfig`: write `/etc/hostname`, `timedatectl set-ntp
@@ -148,9 +148,9 @@ true`, `timedatectl status`. They are *not* guest config (guests set their own
 hostname/time against the guest's systemd, which works natively in the guest).
 
 From a worker container today:
-- `hostname` **works** but is container-scoped (UTS namespace) — returns the podman
+- `hostname` **works** but is container-scoped (UTS namespace): returns the podman
   id; setting it would only affect the container. Not useful for host/guest config.
-- `hostnamectl` / `timedatectl` **fail**: "Failed to connect to bus" — they need the
+- `hostnamectl` / `timedatectl` **fail**: "Failed to connect to bus"; they need the
   **system** bus (`org.freedesktop.hostname1` / `timedate1`), and the quadlet mounts
   only the user bus. The host socket exists and is world-writable
   (`srw-rw-rw- /run/dbus/system_bus_socket`), so it *is* mountable.
@@ -165,7 +165,7 @@ Caveats before doing this:
 - **GET works, SET needs privilege.** Reading status would work as uid 1000;
   `set-hostname` / `set-ntp` go through polkit and will be denied
   non-interactively unless a polkit rule allows uid 1000.
-- **It widens the host attack surface** — the system bus exposes *every* system
+- **It widens the host attack surface**: the system bus exposes *every* system
   service to the container, not just hostnamed/timedated. That fights the
   reproducibility/isolation posture.
 - **It mutates the host.** Setting the Windmill host's hostname/time from a flow is
@@ -179,14 +179,14 @@ needs no host-bus access.
 
 ## Open decisions for the qsu build phase
 
-1. Dedicated `vm`-tagged worker: recommended — confirm and wire the group in
+1. Dedicated `vm`-tagged worker: recommended; confirm and wire the group in
    `deploy/podman/install.sh`.
 2. System bus for hostnamectl/timedatectl: default **no**; revisit only if a flow
    must manage the *host's* hostname/time.
 3. Render qsu units with nix store paths for QEMU + virtiofsd (+ socat); keep
    varlinkctl/machinectl as the systemd exception.
 
-## Windmill implementation (`f/qsu`) — verified findings (2026-06-09)
+## Windmill implementation (`f/qsu`): verified findings (2026-06-09)
 
 The flow `f/qsu/boot` (`render_qemu_system → render_virtiofsd → create_nvme → boot`)
 plus `stop`/`destroy`/`status` is live; a `demo`-style VM was booted to
@@ -200,13 +200,13 @@ host revealed:
    0→1000. The mounted D-Bus bus *is* accepted (so `systemd-run`/`busctl`/`varlinkctl`
    work). Fix: run them with **`env --unset=XDG_RUNTIME_DIR`** so they fall back to
    `DBUS_SESSION_BUS_ADDRESS` (baked into `f.common.devshell.Systemd`). No
-   private-socket mount needed — the worker mounts only `%t/bus` + the host
+   private-socket mount needed; the worker mounts only `%t/bus` + the host
    `~/.config/systemd/{user,qemu-system,virtiofsd}` + `~/.local/state/qemu-system`.
 2. **Route per-step, not `same_worker`.** `same_worker: true` pins a flow to whatever
    worker runs it and bypasses per-step tags, landing the renders on a build worker
    without the host-config mounts. Drop `same_worker`; tag every step (and every
    standalone qsu script's `.script.yaml`) `vm`, and give the dedicated worker
-   `WORKER_TAGS=vm` (group alone does not select tags — `default` is otherwise a
+   `WORKER_TAGS=vm` (group alone does not select tags; `default` is otherwise a
    catch-all for unrouted tags).
 3. **Guest-readiness can't be probed from the worker.** The forwarded SSH port lives on
    the *host's* loopback; an in-container probe of `127.0.0.1:<ssh_port>` hits the
@@ -216,4 +216,4 @@ host revealed:
 4. **The host's `~/.config/systemd/user` is shared with the operator's kdevops VMs.**
    The vm worker writes into the same dir the kdevops ansible qsu role uses, so the
    shared `qemu-system@.service`/`virtiofsd@.service` templates and per-VM names must
-   not collide — use distinct vm names and keep the binaries matching.
+   not collide; use distinct vm names and keep the binaries matching.

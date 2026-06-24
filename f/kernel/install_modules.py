@@ -8,7 +8,7 @@ per-slot destdir and never touch the host /lib/modules:
 
     destdir/lib/modules/<release>/   INSTALL_MOD_PATH
 
-Skip this step for an all-built-in kernel (CONFIG_MODULES=n) — there is nothing to
+Skip this step for an all-built-in kernel (CONFIG_MODULES=n); there is nothing to
 install. The modules were already built by the default `make` (CONFIG_MODULES puts
 them in the `all` goal), so no separate `make modules` is needed.
 

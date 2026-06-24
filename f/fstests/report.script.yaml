@@ -26,7 +26,7 @@ schema:
     vm_name:
       title: VM Name
       type: string
-      description: Optional — when set, also write the rollup to `$WORKERS_DIR/shared/fstests/<vm>/report.json`.
+      description: "Optional: when set, also write the rollup to `$WORKERS_DIR/shared/fstests/<vm>/report.json`."
       default: ''
   required:
     - per_section

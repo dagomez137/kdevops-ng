@@ -8,7 +8,7 @@ description: |
   even after the filesystem is recreated, and the backing inflates across sections.
   Trimming per section before `prepare` keeps each section starting clean.
 
-  Safe by default — TEST_DEV/SCRATCH_DEV data is disposable (`prepare` re-mkfs's
+  Safe by default: TEST_DEV/SCRATCH_DEV data is disposable (`prepare` re-mkfs's
   TEST_DEV, `./check` re-mkfs's SCRATCH per test). `blkdiscard` runs even if `wipefs`
   fails; the step fails only if NO device could be discarded.
 

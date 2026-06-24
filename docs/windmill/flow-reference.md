@@ -3,14 +3,14 @@
 A working reference for authoring Windmill flows/scripts in this project. Derived
 from the real OpenFlow spec and worker source in the windmill repo, **not** the
 public docs page (`https://www.windmill.dev/docs/openflow` is simplified and
-out of date — it lists 6 module types and `deno`/`python3` only; the real model
+out of date: it lists 6 module types and `deno`/`python3` only; the real model
 below has 9 module types and 23 languages).
 
 Authoritative sources (in the windmill checkout):
-- `openflow.openapi.yaml` — the OpenFlow schema (object model below).
-- `backend/windmill-worker/src/worker_flow.rs` — flow execution.
-- `backend/windmill-worker/src/bash_executor.rs` — bash arg + result handling.
-- `backend/parsers/windmill-parser-bash/src/lib.rs` — bash arg inference.
+- `openflow.openapi.yaml`: the OpenFlow schema (object model below).
+- `backend/windmill-worker/src/worker_flow.rs`: flow execution.
+- `backend/windmill-worker/src/bash_executor.rs`: bash arg + result handling.
+- `backend/parsers/windmill-parser-bash/src/lib.rs`: bash arg inference.
 
 ## Object model
 
@@ -58,7 +58,7 @@ FlowModule
 
 | `type`         | Schema        | Use |
 |----------------|---------------|-----|
-| `rawscript`    | RawScript     | inline code (our default — the bash lives here) |
+| `rawscript`    | RawScript     | inline code (our default; the bash lives here) |
 | `script`       | PathScript    | call a saved script by `path` (+ optional `hash`, `tag_override`) |
 | `flow`         | PathFlow      | call another flow as a **subflow** by `path` |
 | `forloopflow`  | ForloopFlow   | iterate over an array; `parallel` + `parallelism` |
@@ -68,7 +68,7 @@ FlowModule
 | `identity`     | Identity      | pass-through (placeholder/debug) |
 | `aiagent`      | AiAgent       | tool-calling LLM step (provider, tools, output_schema, …) |
 
-### RawScript (inline) — the one we use
+### RawScript (inline): the one we use
 ```yaml
 value:
   type: rawscript
@@ -101,18 +101,18 @@ re-route worker group). `flow` runs a deployed flow as a subflow. Both take
   `default`. `branchall`: every branch runs (set `parallel`), `skip_failure`
   per branch.
 
-## input_transforms — wiring data between steps
+## input_transforms: wiring data between steps
 
 Each key in `input_transforms` is an **argument name** of the step's code; its
 value is one of:
-- `{type: static, value: <any>}` — constant (use `$res:path` for resources).
-- `{type: javascript, expr: <JS>}` — evaluated at runtime.
+- `{type: static, value: <any>}`: constant (use `$res:path` for resources).
+- `{type: javascript, expr: <JS>}`: evaluated at runtime.
 
 Variables available in `expr`:
-- `flow_input.<prop>` — the flow's inputs (from `schema.properties`).
-- `results.<step_id>` — a previous step's result.
-- `flow_input.iter.value` / `.index` — inside a forloop.
-- `error` / `result` — inside `retry_if` / `stop_after_if`.
+- `flow_input.<prop>`: the flow's inputs (from `schema.properties`).
+- `results.<step_id>`: a previous step's result.
+- `flow_input.iter.value` / `.index`: inside a forloop.
+- `error` / `result`: inside `retry_if` / `stop_after_if`.
 
 Example (our build step):
 ```yaml
@@ -128,7 +128,7 @@ top-of-file lines matching `name="$N"` or `name="${N:-default}"`, starting at
 `$1`. The parser stops at the first gap, so declare `$1..$N` with no holes.
 Later references like `$SANDBOX` or `${WM_ROOT_FLOW_JOB_ID:-…}` do **not** create
 phantom args (they aren't `"$<digit>"`). Omitted optional inputs can arrive as
-the literal string `null` — normalize them.
+the literal string `null`; normalize them.
 
 **Result capture** (`bash_executor.rs`), in priority order:
 1. a `result.json` file written in the cwd (the job dir) → returned as JSON.
@@ -139,7 +139,7 @@ the literal string `null` — normalize them.
 kernelrelease, commit…) that downstream steps consume.
 
 **Injected env** (a subset): `WM_JOB_ID` (this step's job), `WM_ROOT_FLOW_JOB_ID`
-(stable per whole flow run — the custom-worktree job-id fallback), `WM_FLOW_JOB_ID`,
+(stable per whole flow run, the custom-worktree job-id fallback), `WM_FLOW_JOB_ID`,
 `WM_FLOW_PATH`, `WM_WORKSPACE`, `WM_USERNAME`, `WM_PERMISSIONED_AS`. WHITELISTed
 host env (`WORKER_INDEX`, `WORKERS_DIR`, the D-Bus socket vars) is injected by our
 worker quadlet.
@@ -174,7 +174,7 @@ Resume/cancel via `/w/<ws>/jobs/resume/<job_id>` and `/jobs/cancel/<job_id>`.
 
 - `retry.constant {attempts, seconds}` or
   `retry.exponential {attempts, multiplier, seconds, random_factor}`.
-- `retry.retry_if.expr` — JS over `result`/`error` to decide whether to retry.
+- `retry.retry_if.expr`: JS over `result`/`error` to decide whether to retry.
 - `continue_on_error` on a step; `failure_module` (id `failure`) on the flow gets
   `{message, name, stack, step_id}`.
 
@@ -202,16 +202,16 @@ wmill flow run f/kernel/build --data '{"config_method":"make","defconfig":["tiny
   `script` (PathScript) and chain with subflows (`flow`) so build/boot/VM steps
   are independently testable.
 - **N concurrent kernels:** a `forloopflow` with `parallel: true,
-  parallelism: N` over a list of refs/defconfigs — each iteration is one build;
+  parallelism: N` over a list of refs/defconfigs: each iteration is one build;
   the container cgroups keep `make --jobs=$(nproc)` self-balancing.
 - **build → boot:** same worker group, `same_worker: true`; step 1 returns the
   manifest, step 2 reads `results.build.bzImage`. Across worker groups (e.g. bringup
   builds on `default`, boots on `vm`) the manifest points at the published run layer
-  in `/nix/store`, which every worker mounts — no shared tree needed.
+  in `/nix/store`, which every worker mounts; no shared tree needed.
 - **worktree isolation:** each worker builds in its own warm `main` worktree
   `workers/<WORKER_INDEX>/<project>/main`, cut from the durable Bare
   (`$SYSTEM_DIR/bare/<project>.git`) and synced to the requested ref
-  every build — parallel across workers, incremental across runs. See
+  every build: parallel across workers, incremental across runs. See
   [`CONTEXT.md`](../../CONTEXT.md) and
   [ADR-0001](../adr/0001-bare-is-the-working-repo.md).
 - **dedicated VM workers (future):** tag VM steps and run a worker group with

@@ -21,11 +21,11 @@ file (`get_log_file` in `backend/windmill-api/src/jobs.rs`).
 
 ## Community vs. enterprise
 
-- **Writing the file to disk works in `windmill:main`** — the published image
+- **Writing the file to disk works in `windmill:main`**: the published image
   carries the `private` build, whose `default_disk_log_storage` actually writes
   the file. (The pure-OSS `not(feature = "private")` stub is a no-op, but that is
   not what the image ships.)
-- **Distributed S3 log storage is enterprise only** — gated behind
+- **Distributed S3 log storage is enterprise only**: gated behind
   `cfg(all(feature = "enterprise", feature = "parquet"))`. Without it there is no
   object store to fall back to, so the file must be present on the local disk the
   API server reads.
@@ -41,5 +41,5 @@ log file to *its* `/tmp/windmill/logs`; the server looks in *its own* and 404s:
 The fix is the same one the upstream `docker-compose.yml` uses (its `worker_logs`
 named volume): mount one shared `/tmp/windmill/logs` across the server, the
 native worker and every general worker. The podman deploy does this with a host
-bind-mount `%C/windmill/logs:/tmp/windmill/logs` (also handy — the logs are then
+bind-mount `%C/windmill/logs:/tmp/windmill/logs` (also handy: the logs are then
 inspectable directly on the host under `~/.cache/windmill/logs`).

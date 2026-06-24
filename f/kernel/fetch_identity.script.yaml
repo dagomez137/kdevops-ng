@@ -4,9 +4,9 @@ description: |
   from a peer host into the Nix store, before the expensive compile, so the following
   `reuse_check` reports `present` and the build is skipped. Reads the peer's
   `store-index` entry over ssh to learn the run layer's Nix store path, pulls it with
-  `nix copy` over the `transfer` devShell, and indexes it locally. The run layer — the
+  `nix copy` over the `transfer` devShell, and indexes it locally. The run layer, the
   boot artifacts (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`)
-  and the `lib/modules/<release>/` tree — is consumed in place from the store, with no
+  and the `lib/modules/<release>/` tree, is consumed in place from the store, with no
   copy. Same-host (no remote) is a no-op. Returns `fetched` plus the resolved
   `uts_release`/`destdir`.
 kind: script

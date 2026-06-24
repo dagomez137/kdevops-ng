@@ -26,7 +26,7 @@ GUEST_CHECK = "/usr/lib/xfstests/check"
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 
@@ -35,8 +35,8 @@ def _devices(remote: RemoteSystemd) -> list[dict]:
 
     Lists whole disks (no partitions); keeps the `disk`-type `nvme*n1` namespaces,
     the ones a `local.config` maps to TEST/SCRATCH. `log_sec` is the device's
-    logical sector size in bytes (lsblk `LOG-SEC`) — the minimum filesystem block
-    size `mkfs.xfs` enforces — defaulting to 512 when lsblk omits a parseable value.
+    logical sector size in bytes (lsblk `LOG-SEC`; the minimum filesystem block
+    size `mkfs.xfs` enforces), defaulting to 512 when lsblk omits a parseable value.
     """
     out = remote.ssh(
         "lsblk", "--nodeps", "--noheadings", "--output", "NAME,SIZE,TYPE,LOG-SEC"
@@ -69,7 +69,7 @@ def _kernel_release(remote: RemoteSystemd) -> str:
     This is the same value the systemd `%v` specifier resolves to in the
     `xfstests@.service` unit, so the host keys results under the identical
     `<kver>` the guest writes to. Read at discover time, before the optional
-    `reboot` step — sound under the same-closure-same-kernel assumption (a plain
+    `reboot` step: sound under the same-closure-same-kernel assumption (a plain
     reboot boots the same default kernel); a reboot that switched the default
     kernel would desync the host's key from the guest's `%v`.
     """

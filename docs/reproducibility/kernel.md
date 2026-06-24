@@ -1,4 +1,4 @@
-# R0 — build reproducibility (tinyconfig+DWARF, v7.1-rc7, gcc 15.2.0 via nix build-kernel)
+# R0: build reproducibility (tinyconfig+DWARF, v7.1-rc7, gcc 15.2.0 via nix build-kernel)
 
 ## Verdict
 Run + debug layers are byte-identical across REAL hosts (beta1 PASSED: hz-debian
@@ -44,7 +44,7 @@ load-bearing for the run layer too (refines the handoff's "expect run layer iden
   NIX_LDFLAGS=-L$out/lib; that path lands in kernel .rodata. Same-host it is constant
   (hidden); cross-host it differs -> non-reproducible run layer. Pin or strip it.
 
-## beta1 defconfig+modules (REAL config) — FULL PASS cross-host
+## beta1 defconfig+modules (REAL config): FULL PASS cross-host
 hz-debian == hetzie, x86_64 defconfig + DWARF + modules, with the 3 neutralizations:
   run   : bzImage 5eb308bb.. + all 12 *.ko (manifest 98bf7939..) identical
   debug : vmlinux f875dbbc.., build-id a9018170.. identical
@@ -53,7 +53,7 @@ hz-debian == hetzie, x86_64 defconfig + DWARF + modules, with the 3 neutralizati
   release 7.1.0-rc7, System.map identical.
 MODULE_SIG is off in defconfig, so module signing (T-modsig) is untested here.
 
-## alpha1 (mode-alpha LSP on fetched devel layer) — PASS
+## alpha1 (mode-alpha LSP on fetched devel layer): PASS
 B built defconfig; A fetched ONLY the devel layer (no .o/.ko/vmlinux), regenerated
 compile_commands.json locally, and a recorded gcc command syntax-checked clean
 (rc=0) from A's build dir:

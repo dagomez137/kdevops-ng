@@ -7,21 +7,21 @@ toolchain**, and **what our nixos-flake `#build-kernel` shell provides**, so a "
 the kernel" or "bump the toolchain" task does not have to re-derive any of it.
 
 Status: **`#build-kernel` ships nixpkgs rustc (1.95 on nixos-26.05), which suits
-modern kernels (>= v7.1).** Older kernels (< ~v7.1) need an older pinned rustc — see
+modern kernels (>= v7.1).** Older kernels (< ~v7.1) need an older pinned rustc: see
 [Pinning an older toolchain](#pinning-an-older-toolchain).
 
 ## Where the requirements are stated (in priority order)
 
-Check these *for the exact kernel ref you intend to build* — they differ between
+Check these *for the exact kernel ref you intend to build*; they differ between
 versions. All paths are in the kernel source tree.
 
 | Source | What it gives | Authority |
 |---|---|---|
-| `scripts/min-tool-version.sh` | The enforced **minimum** `rustc`, `bindgen`, `llvm` (and gcc) versions — `echo`'d per tool | **Canonical / machine-readable.** This is what the build actually checks. |
+| `scripts/min-tool-version.sh` | The enforced **minimum** `rustc`, `bindgen`, `llvm` (and gcc) versions, `echo`'d per tool | **Canonical / machine-readable.** This is what the build actually checks. |
 | `scripts/rust_is_available.sh` | The gate: reads `min-tool-version.sh`, probes the toolchain, exits non-zero (`*** Rust compiler '…' is too old`) if below min, which makes Kconfig set `RUST_IS_AVAILABLE=n` | The enforcement mechanism behind `make rustavailable`. |
 | `Documentation/process/changes.rst` | Human "Minimal requirements" table (Rust, bindgen, GNU C, Clang/LLVM) | Human-readable mirror of the minimums. |
 | `Documentation/rust/quick-start.rst` | Install instructions + the recommended toolchain and `RUST_LIB_SRC` wiring | Setup guide. |
-| https://rust-for-linux.com/rust-version-policy | The **policy**: minimum tracks **Debian Stable's** rustc, advancing ~per Debian release; **no hard maximum** — new releases are CI-tested and have "worked with every version since the minimum" | The why behind the moving window. |
+| https://rust-for-linux.com/rust-version-policy | The **policy**: minimum tracks **Debian Stable's** rustc, advancing ~per Debian release; **no hard maximum**: new releases are CI-tested and have "worked with every version since the minimum" | The why behind the moving window. |
 
 `bindgen` is CI-tested with no separate written policy; `rustfmt` is **not** version-gated
 (it is optional formatting and effectively tracks the rustc version).
@@ -49,8 +49,8 @@ works.
 
 | Kernel | min rustc | min bindgen | core passes `-Zunstable-options`? | works with nixpkgs rustc 1.95? |
 |---|---|---|---|---|
-| v6.11 – v6.18 | 1.78.0 | 0.65.1 | **no** (relies on `RUSTC_BOOTSTRAP=1`) | **no** — 1.95 errors `custom targets are unstable` then `E0310` |
-| v7.1+ | 1.85.0 | 0.71.1 | **yes** — added by `0a9be83e57de` ("pass `-Zunstable-options` for Rust 1.95.0") | **yes** |
+| v6.11 - v6.18 | 1.78.0 | 0.65.1 | **no** (relies on `RUSTC_BOOTSTRAP=1`) | **no**: 1.95 errors `custom targets are unstable` then `E0310` |
+| v7.1+ | 1.85.0 | 0.71.1 | **yes**: added by `0a9be83e57de` ("pass `-Zunstable-options` for Rust 1.95.0") | **yes** |
 
 Consequences:
 - **No single rustc serves both ends.** v6.18 needs rustc in roughly **[1.78, 1.84]**
@@ -67,7 +67,7 @@ check `rust/Makefile` / `scripts/Makefile.build` `cmd_rustc_library` for
 ## Footgun: a too-old toolchain builds *without* Rust, silently
 
 If `rustc` is below the kernel's minimum, `rust_is_available.sh` fails, Kconfig sets
-`RUST_IS_AVAILABLE=n`, and any preset with `CONFIG_RUST=y` is **silently downgraded** —
+`RUST_IS_AVAILABLE=n`, and any preset with `CONFIG_RUST=y` is **silently downgraded**:
 `alldefconfig`/`olddefconfig` drop it and the build **succeeds without Rust**. Confirm
 Rust actually built by checking the resulting config:
 
@@ -83,7 +83,7 @@ future-tasks list, which surfaces this instead of letting it pass quietly.)
 The nixos-flake `#build-kernel` devShell (`lib/toolchain.nix` `matrixExtras`) ships
 **nixpkgs' own** `rustc`, `rust-bindgen`, `rustfmt`, plus `rustPlatform.rustLibSrc` as
 `RUST_LIB_SRC` (the kernel builds `core`/`alloc` from source). On nixos-26.05 that is
-**rustc 1.95.0 / bindgen 0.72.1** — within the v7.1+ window.
+**rustc 1.95.0 / bindgen 0.72.1**: within the v7.1+ window.
 
 ## Pinning an older toolchain
 

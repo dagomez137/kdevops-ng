@@ -3,13 +3,13 @@
 
 A run-global startup step: restart the host `qemu-system@<vm>.service` unit and block
 until a fresh guest boot reaches `running`/`degraded`, so a run starts from clean kernel
-state — no leaked state, stuck D-state tasks, or dirty page cache from a prior run. Off by
+state: no leaked state, stuck D-state tasks, or dirty page cache from a prior run. Off by
 default in the check flow. The device wipe is a SEPARATE step (`f/fstests/wipe`); run this
 before it so the wipe acts on a fresh boot.
 
 A HOST cold power-cycle, not a guest `systemctl reboot`: the host restart QMP-powerdowns
 the old guest then cold-starts a fresh QEMU process (SIGKILL on the unit's `TimeoutStopSec`),
-so it can NOT hang on a wedged guest — exactly the state this step exists to clear — and it
+so it can NOT hang on a wedged guest (exactly the state this step exists to clear), and it
 fully resets device/kernel state, where a warm in-guest reboot would not. The qcow2 disks,
 vsock CID, ssh alias, and virtiofsd all persist across the restart, so the guest is probed
 over vsock afterward by the same boot_id poll as before.
@@ -30,7 +30,7 @@ from f.fstests.common import RemoteSystemd, list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 
@@ -48,7 +48,7 @@ def _reboot(
 ) -> dict:
     """Host cold power-cycle the QEMU unit, then block until a *new* guest boot is up.
 
-    Records the boot id first — best-effort, it may be `""` if the guest is already
+    Records the boot id first (best-effort); it may be `""` if the guest is already
     wedged/down, which is fine: a host restart kills the old QEMU process and starts a
     fresh one unconditionally, so any non-empty new boot_id is a genuine fresh boot. The
     `systemctl restart` blocks until the unit's powerdown + cold start finishes (and on

@@ -4,14 +4,14 @@
 Runnable step, the QEMU analog of `f/kernel/reuse_check`. The identity step keys the
 install prefix `destdir/<identity>`; the install step populates `<prefix>/bin` with the
 `qemu-system-*` emulators. Run before the expensive compile: if that prefix already
-holds an installed QEMU — or a peer's build for this identity is in the Nix store, where
-`fetch_identity` leaves it — the build flow skips configure/compile/install and the
+holds an installed QEMU (or a peer's build for this identity is in the Nix store, where
+`fetch_identity` leaves it) the build flow skips configure/compile/install and the
 manifest points at it, the build is reused not repeated. Wipe the prefix (or set
 `reuse=false`) to force a rebuild.
 
 Returns `present` plus the resolved `prefix`/`qemu_binary` (the binary under the prefix
 for a local install, else under the store path) so the manifest can fall back to them
-when the build steps are skipped. Filesystem only — no devShell, robust if neither the
+when the build steps are skipped. Filesystem only: no devShell, robust if neither the
 prefix nor a store entry exists.
 """
 

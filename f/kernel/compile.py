@@ -3,8 +3,8 @@
 
 Builds inside the nixos-flake build devShell with `make --jobs=$(nproc)` so the
 container cgroup governs CPU and concurrent builds self-balance. `targets` is empty
-by default, so a plain `make` builds the default goal — `vmlinux`, the arch boot
-image (bzImage on x86), and, with CONFIG_MODULES, the modules — which is all the
+by default, so a plain `make` builds the default goal: `vmlinux`, the arch boot
+image (bzImage on x86), and, with CONFIG_MODULES, the modules, which is all the
 install step needs. Pass explicit targets only to narrow the build.
 
 Equivalent bash, run inside the nixos-flake build devShell:

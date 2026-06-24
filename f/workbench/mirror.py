@@ -13,7 +13,7 @@ tree; QEMU is its own). This step does two things:
    a stale remote not in the config (e.g. an old `--mirror` origin) is removed.
 2. **Install the refresh timers**: a `git-mirror@.{service,timer}` pair, one enabled
    instance per mirror, so `git-mirror@<name>` runs `git remote update --prune` (refresh
-   every remote) on a self-pacing loop — the first run fires `OnBootSec`/`OnActiveSec`
+   every remote) on a self-pacing loop: the first run fires `OnBootSec`/`OnActiveSec`
    after the timer activates, then `OnUnitInactiveSec` after each run finishes.
 
 git is the flake's own resolved path (so the host unit needs nothing on PATH); the units

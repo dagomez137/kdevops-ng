@@ -1,6 +1,6 @@
 summary: "Kernel: configure via curated fragments"
 description: |
-  Configure method **fragments** — generate a `.config` by selecting from the
+  Configure method **fragments**: generate a `.config` by selecting from the
   curated `linux-config-fragments` library and merging the picks with the kernel
   tree's `scripts/kconfig/merge_config.sh`. You pick **which** fragments; the step
   imposes a **canonical order** (core structural first, then by category, builtin
@@ -8,7 +8,7 @@ description: |
   order.
 
   Fragments default tristate symbols to `=m`; pick a matching `builtin/...` entry
-  to force that feature built-in (`=y`) instead — it always merges last so
+  to force that feature built-in (`=y`) instead; it always merges last so
   last-wins applies. With `allnoconfig_base` (default) unset symbols default to
   `n` for a minimal, explicit config. The library is provisioned at
   `vendor/linux-config-fragments` by `f/workbench/init`.

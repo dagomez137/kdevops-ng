@@ -1,15 +1,15 @@
-# Building the kernel with clang on nix — findings (clang gated, not yet supported)
+# Building the kernel with clang on nix: findings (clang gated, not yet supported)
 
 The `f/kernel/build` flow gained a `compiler` knob (gcc | clang). **GCC works;
 clang is gated out of the enum** because `LLVM=1` alone does not build the kernel
 with the nixpkgs clang toolchain. This doc records exactly why, the proven recipe,
 and what to implement to turn clang back on, so we can pick it up cold.
 
-Status: **GCC shipped and green. UPDATE 2026-06-22: clang now builds — recipe
+Status: **GCC shipped and green. UPDATE 2026-06-22: clang now builds: recipe
 proven on the current toolchain (clang/LLD 21.1.8); see the update below. The
 original failure analysis is kept because it explains why `LLVM=1` alone fails.**
 
-## Update 2026-06-22 — clang builds, with a smaller fix than feared
+## Update 2026-06-22: clang builds, with a smaller fix than feared
 
 A full `defconfig` builds clean in the current `build-kernel` devShell, and
 `make rustavailable` reports "Rust is available!" (rustc 1.95.0 + bindgen +
@@ -22,7 +22,7 @@ rust-src). The three blockers below are each resolved by one recipe:
 - `CFLAGS_KERNEL`/`CFLAGS_MODULE` = `-I$("$CC" -print-resource-dir)/include`.
   `-print-resource-dir` on the unwrapped clang already returns the **`-lib`**
   output (`clang-21.1.8-lib/lib/clang/21/include`, 240 headers incl.
-  `stdarg.h`), so the "the `out` resource dir is empty" problem does not arise —
+  `stdarg.h`), so the "the `out` resource dir is empty" problem does not arise;
   no need to compute `lib.getLib` paths by hand.
 - `LD` = raw `ld.lld` and `AR`/`NM`/`OBJCOPY`/… = `llvm-*` come free from
   `LLVM=1` because `tc.matrixExtras` already puts raw `lld` and `llvm` on PATH.
@@ -48,7 +48,7 @@ treats any clang diagnostic as fatal), so the build dies at `RUSTC`/bindgen.
 Silencing that one warning for bindgen fixes it. Evidence:
 `~/kernel/repro/rust-test.sh`, `rust-test.log`.
 
-QEMU clang is the easy case and already works — no recipe needed. QEMU is ordinary
+QEMU clang is the easy case and already works; no recipe needed. QEMU is ordinary
 userspace (no `-nostdinc`), so the **wrapped** clang is the correct choice (it
 redirects to nix's libc, which QEMU links against); none of the kernel's three
 blockers apply. `f/qemu/configure.py` already pins `--cc=clang --cxx=clang++` with
@@ -77,12 +77,12 @@ Original failure analysis (why `LLVM=1` alone fails) follows.
 
 `build_flags` resolves `compiler=clang` to `LLVM=1` (plus `CC="ccache clang"` and the
 reproducible `KBUILD_BUILD_*`). On the nixpkgs clang in the `#build` devShell that
-fails in three distinct, layered ways — each confirmed by direct devShell repro:
+fails in three distinct, layered ways: each confirmed by direct devShell repro:
 
 1. **Wrapped clang injects `-nostdlibinc`.** The nixpkgs cc-wrapper adds
    `-nostdlibinc` (to redirect to nix's libc headers). The kernel compiles with
    `-nostdinc` + `-Werror=unused-command-line-argument`, so the wrapper's
-   `-nostdlibinc` is "unused" and becomes a hard error — on the very first object
+   `-nostdlibinc` is "unused" and becomes a hard error, on the very first object
    (`scripts/mod/empty.o`). Hits **both** target (`CC`) and host (`HOSTCC`) compiles.
 
    ```
@@ -106,7 +106,7 @@ fails in three distinct, layered ways — each confirmed by direct devShell repr
    `-nostdinc` removes clang's resource dir and unwrapped clang doesn't re-add it.
 
 Demoting the warning (`KCFLAGS`/`HOSTCFLAGS=-Wno-unused-command-line-argument`) is
-whack-a-mole — silencing `-nostdlibinc` just surfaces the next unused arg
+whack-a-mole: silencing `-nostdlibinc` just surfaces the next unused arg
 (`-Wa,--compress-debug-sections`), and never reaches a clean build.
 
 ## The proven recipe (what nixpkgs does)
@@ -116,13 +116,13 @@ nixpkgs' own kernel build does **not** use `LLVM=1`. It sets each tool explicitl
 
 - `CC` = **unwrapped** clang (`stdenv.cc.cc`; comment: *"the clang-wrapper doesn't
   like -target"*).
-- `HOSTCC` / `HOSTCXX` = **wrapped** clang (`buildPackages.stdenv.cc`) — host tools
+- `HOSTCC` / `HOSTCXX` = **wrapped** clang (`buildPackages.stdenv.cc`): host tools
   need nix's libc to link.
 - `LD` = the **unwrapped** linker (the bintools *wrapper* for ld.lld breaks kernel
-  links — nixpkgs#321667). Our `pkgs.lld` already provides a raw `ld.lld`.
+  links, nixpkgs#321667). Our `pkgs.lld` already provides a raw `ld.lld`.
 - `AR`/`NM`/`STRIP`/`OBJCOPY`/`OBJDUMP`/`READELF`, and `HOSTAR`/`HOSTLD`.
 - For clang: `CFLAGS_KERNEL` and `CFLAGS_MODULE` = `-I${clangLib}/lib/clang/${major}/include`
-  where `clangLib = lib.getLib stdenv.cc.cc` (the clang-unwrapped **`lib`** output —
+  where `clangLib = lib.getLib stdenv.cc.cc` (the clang-unwrapped **`lib`** output,
   *not* its `out` path; the `out/lib/clang/<ver>/include` we first tried is empty)
   and `major = lib.versions.major clangLib.version`.
 
@@ -155,10 +155,10 @@ the nix toolchain), so most of the change is in the nixos-flake.
 
 `compiler=gcc` (default), plus `reproducible` (fixed `KBUILD_BUILD_TIMESTAMP` =
 `Sun Aug 25 20:57:08 UTC 1991`, `KBUILD_BUILD_USER/HOST=kdevops`, `LOCALVERSION=`) and
-`ccache` (hermetic nix ccache, `CC="ccache gcc"`, shared `CCACHE_DIR`) — all on by
+`ccache` (hermetic nix ccache, `CC="ccache gcc"`, shared `CCACHE_DIR`); all on by
 default and verified green. See `f/kernel/build_flags`.
 
 Note on the reproducible timestamp: kdevops sets `KBUILD_BUILD_TIMESTAMP=''`, which is
-**not** reproducible — the kernel does `build-timestamp = $(or $(KBUILD_BUILD_TIMESTAMP),
+**not** reproducible: the kernel does `build-timestamp = $(or $(KBUILD_BUILD_TIMESTAMP),
 $(shell date))` (`init/Makefile`), so an empty value falls back to live `date`. We use a
 real fixed constant; `timestamp_from_commit` switches it to the commit date.

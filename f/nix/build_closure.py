@@ -2,7 +2,7 @@
 """Build the imageless NixOS toplevel closure and read its bootspec.
 
 `nix build path:<dir>#toplevel` realises `nixosConfigurations.vm.config.system.build
-.toplevel` — the system closure a VM boots over virtiofs. The closure carries a
+.toplevel`: the system closure a VM boots over virtiofs. The closure carries a
 standard NixOS bootspec (RFC-0125) at `<toplevel>/boot.json`; `init` and `initrd`
 are read from `org.nixos.bootspec.v1`. The imageless closure has no `$out/initrd`
 symlink, so the bootspec is the source of truth for those paths.

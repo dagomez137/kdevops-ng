@@ -3,9 +3,9 @@
 
 Runnable step, the publish half of the Store transport (the `reuse_check`/`fetch_identity`
 family). Run only after a real install (the flow skips it on reuse): stage just this
-release's run layer — the boot image artifacts (`boot/<image>-<release>`,
+release's run layer, the boot image artifacts (`boot/<image>-<release>`,
 `System.map-<release>`, `config-<release>`) and the `lib/modules/<release>/` tree, not
-the whole multi-release destdir — and add it to the store. A peer can then fetch it by
+the whole multi-release destdir, and add it to the store. A peer can then fetch it by
 release with `nix copy`. The store path is identical on every host.
 
 Returns the index `name`, the resolved `store_path`, the `uts_release`, and the run

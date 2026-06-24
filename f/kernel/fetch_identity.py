@@ -5,13 +5,13 @@ The run-layer analog of `f/kernel/fetch_devel`, and the fetch half of the Store 
 (see `f/common/store` and `f/kernel/publish`). Run before the expensive compile: if a peer
 host already published this build identity (the baked kernelrelease), read its index entry
 over ssh to learn the store path and pull that path with `nix copy`, then index it locally
-so this host becomes a source for it. The fetched run layer — the boot image artifacts
+so this host becomes a source for it. The fetched run layer, the boot image artifacts
 (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`) and the
-`lib/modules/<release>/` tree — is left in the store; the following `reuse_check` resolves
+`lib/modules/<release>/` tree, is left in the store; the following `reuse_check` resolves
 the index entry and the build is skipped, consuming the run layer from the store path with
 no copy.
 
-Same-host leaves `remote`/`remote_index` empty and does nothing — a local build installs
+Same-host leaves `remote`/`remote_index` empty and does nothing; a local build installs
 into the destdir directly. Cross-host sets `remote` to an ssh host and `remote_index` to
 that builder's `store-index` directory, read over ssh.
 

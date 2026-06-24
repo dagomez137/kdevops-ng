@@ -4,8 +4,8 @@
 Runnable step. The configure step bakes a build identity into kernelrelease, and the
 install steps name artifacts by it (`boot/<image>-<release>`, `lib/modules/<release>`).
 Run before the expensive compile: if the image and modules for that release are already
-in the destdir — or a peer's build for this release is in the Nix store, where
-`fetch_identity` leaves it — the build flow skips compile/install/modules and the
+in the destdir (or a peer's build for this release is in the Nix store, where
+`fetch_identity` leaves it), the build flow skips compile/install/modules and the
 manifest points at them, the build is reused not repeated. Wipe the destdir (or set
 `reuse=false`) to force a rebuild.
 

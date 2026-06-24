@@ -4,7 +4,7 @@ description: |
   (`destdir/<identity>`), then in the Nix store via the `store-index` entry (where
   `fetch_identity` leaves a peer's build). When present the build flow skips
   configure/compile/install and the manifest points at it, reusing the prior build.
-  Filesystem only — no devShell, robust if neither the prefix nor a store entry exists.
+  Filesystem only: no devShell, robust if neither the prefix nor a store entry exists.
   Returns `present` plus the resolved `prefix`/`qemu_binary` (under the prefix or the
   store path).
 kind: script

@@ -6,7 +6,7 @@ kernel + closure manifests and the QEMU binary a VM booted with. This reads it b
 a reconfigure (`f/qsu/bringup` with a component's source set to `reuse`) feeds those
 artifacts to the boot step instead of rebuilding. The sidecar lives under
 `WORKERS_DIR/shared` (every worker reads it), so this runs on any worker. A missing
-sidecar returns empty manifests — the caller then falls back to explicit reuse paths.
+sidecar returns empty manifests; the caller then falls back to explicit reuse paths.
 
 Equivalent command:
 
@@ -32,7 +32,7 @@ def host_operator() -> str:
         name = os.path.basename(home)
     else:
         # getpass.getuser() raises when no username env var is set AND the (in-namespace)
-        # uid has no passwd entry — exactly the rootless-worker case. Degrade, don't crash.
+        # uid has no passwd entry: exactly the rootless-worker case. Degrade, don't crash.
         try:
             name = getpass.getuser()
         except Exception:

@@ -4,7 +4,7 @@
 Writes onto `/var/lib/xfstests` (the share mount) the files the guest's
 `xfstests@<section>.service` reads:
 
-  - one `<section>.config` per selected section — a one-section xfstests
+  - one `<section>.config` per selected section: a one-section xfstests
     `HOST_OPTIONS` config. `f/fstests/prepare` activates the running section's
     file as `local.config`; a one-section config is required because
     `./check -s <section>` on a multi-section file sets up TEST_DEV with the
@@ -16,7 +16,7 @@ Writes onto `/var/lib/xfstests` (the share mount) the files the guest's
     `devices` into each selected section. A section whose filesystem block size
     is smaller than the device's logical sector size is skipped (mkfs.xfs would
     refuse it), not run.
-  - `check.env` — the systemd `EnvironmentFile`: `HOST_OPTIONS=/var/lib/xfstests/
+  - `check.env`: the systemd `EnvironmentFile`: `HOST_OPTIONS=/var/lib/xfstests/
     local.config` (the GUEST path, since `./check` runs in the guest) and
     `XFSTESTS_CHECK_ARGS=<./check flags>` composed from the `check` inputs. The
     `xfstests-check` wrapper forces `RESULT_BASE=$PWD/results` with the unit's
@@ -63,12 +63,12 @@ from f.fstests.common import (
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 
 def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
-    """`dynmultiselect-list_groups` entrypoint for `groups` — see `f.fstests.common.list_groups`."""
+    """`dynmultiselect-list_groups` entrypoint for `groups`: see `f.fstests.common.list_groups`."""
     return _list_groups(vm_name, filterText)
 
 
@@ -195,7 +195,7 @@ def main(
     # device's logical sector size; skip any section below what mkfs.xfs would
     # enforce, rather than let it fail mid-run with `block size N cannot be smaller
     # than sector size M` (or the sector-size equivalent). A section with no explicit
-    # `-s` has no sector floor of its own — gate it on block size alone.
+    # `-s` has no sector floor of its own; gate it on block size alone.
     sector = device_sector(devices)
     skipped: list[dict] = []
     run_sections: list[str] = []

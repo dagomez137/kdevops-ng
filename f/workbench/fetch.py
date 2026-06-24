@@ -13,7 +13,7 @@ primary remote's upstream URL purely so a human `git fetch origin` works. `refs/
 is left empty, reserved for developer pushes. Idempotent (ADR-0001: the Bare is the
 working repo).
 
-The mirror's own remotes — which upstream trees it carries and over which protocol — are
+The mirror's own remotes (which upstream trees it carries and over which protocol) are
 provisioned by `f/workbench/mirror`; `default_mirrors()`/`remote_url()` here are the
 shared source of truth for both. The entry's primary remote (the canonical tree, e.g.
 `torvalds/linux`) supplies the Bare's `origin` URL.

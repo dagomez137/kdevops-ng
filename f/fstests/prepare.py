@@ -34,7 +34,7 @@ from f.fstests.common import (
 
 # Per-FSTYP `mkfs` overwrite flag, so a re-run does not refuse an already-formatted
 # TEST_DEV. xfs/btrfs/f2fs use `-f`; the ext family uses `-F` (mke2fs). An FSTYP not
-# listed here gets no force flag — mkfs decides.
+# listed here gets no force flag; mkfs decides.
 MKFS_FORCE_FLAG = {
     "xfs": "-f",
     "btrfs": "-f",
@@ -46,7 +46,7 @@ MKFS_FORCE_FLAG = {
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.fstests.common.list_vms`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
 
 

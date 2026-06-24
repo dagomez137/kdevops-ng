@@ -34,7 +34,7 @@ schema:
   properties:
     compiler:
       type: string
-      description: Toolchain to build with — GCC, or clang/LLVM (LLVM=1 with the devShell's unwrapped clang).
+      description: "Toolchain to build with: GCC, or clang/LLVM (LLVM=1 with the devShell's unwrapped clang)."
       default: gcc
       enum:
         - gcc

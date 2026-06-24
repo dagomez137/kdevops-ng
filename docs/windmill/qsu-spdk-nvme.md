@@ -16,14 +16,14 @@ SPDK is a **userspace NVMe driver**: `scripts/setup.sh` unbinds the controller f
 kernel `nvme` driver and rebinds it to `vfio-pci`, then SPDK drives it from userspace
 over VFIO. So the guest needs three things the imageless build now provides
 automatically: a **VFIO** stack, an active **vIOMMU**, and **hugepages**. The in-kernel
-nvme driver is the opposite — it keeps the device and uses the CMB itself — so the two
+nvme driver is the opposite (it keeps the device and uses the CMB itself), so the two
 methods are mutually exclusive on a given controller at a given time.
 
 | | SPDK (userspace) | kernel nvme driver |
 |---|---|---|
 | who owns the controller | `vfio-pci` (SPDK) | `nvme` |
 | CMB | `spdk_nvme_cmb_copy`, identify shows it | `/sys/class/nvme/nvmeN/cmb`, SQs in CMB |
-| PMR | `spdk_nvme_pmr_persistence` | not used by Linux — poke the BAR directly |
+| PMR | `spdk_nvme_pmr_persistence` | not used by Linux: poke the BAR directly |
 | needs | VFIO + vIOMMU + hugepages | nothing extra |
 
 ## What is wired (and where)
@@ -38,7 +38,7 @@ choosing the vIOMMU and the NVMe knobs.
 | `spdk` + the `cmb_copy`/`pmr_persistence` examples | `nixos-flake` `overlays/spdk.nix` + `profiles/devel` |
 | `vfio_iommu_type1 allow_unsafe_interrupts=1` | `nixos-flake` `profiles/devel` (`boot.extraModprobeConfig`) |
 
-**Use `iommu=intel-iommu`.** QEMU's emulated **amd-iommu does not support guest VFIO** —
+**Use `iommu=intel-iommu`.** QEMU's emulated **amd-iommu does not support guest VFIO**:
 even with `dma-remap=on`, DPDK fails `failed to select IOMMU type`. `intel-iommu` with
 `caching-mode=on` is the proven path, and the emulated vIOMMU is independent of the host
 CPU, so it works on an AMD host.
@@ -77,7 +77,7 @@ HUGEMEM=1024 "$SPDK"/scripts/setup.sh         # bind -> vfio-pci, reserve hugepa
 
 Pick a controller BDF from `status` (with `intel-iommu` they are `0000:00:04.0`..`07.0`).
 
-**Identify** — proves SPDK drives the device over VFIO and reports CMB/PMR:
+**Identify**: proves SPDK drives the device over VFIO and reports CMB/PMR:
 
 ```sh
 spdk_nvme_identify -r 'trtype:PCIe traddr:0000:00:04.0' | grep -iE 'Memory Buffer|Persistent Memory'
@@ -93,7 +93,7 @@ spdk_nvme_pmr_persistence -p 0000:00:04.0 -n 1 -r 0 -l 1 -w 0
 # PMR Data is Persistent across Controller Reset
 ```
 
-**CMB copy** — copy a namespace between controllers using one controller's CMB as the
+**CMB copy**: copy a namespace between controllers using one controller's CMB as the
 data buffer. Params are `<pci>-<ns>-<startLBA>-<nLBAs>`; `-c` is the controller whose CMB
 to use:
 
@@ -109,7 +109,7 @@ When done, return the controllers to the kernel: `"$SPDK"/scripts/setup.sh reset
 With the controllers on the in-kernel `nvme` driver (the default, or after
 `setup.sh reset`):
 
-**CMB** — the kernel registers it as P2P memory and places I/O submission queues in it
+**CMB**: the kernel registers it as P2P memory and places I/O submission queues in it
 (needs `CONFIG_PCI_P2PDMA=y`, which the imageless preset sets):
 
 ```sh
@@ -122,7 +122,7 @@ dd if=/dev/nvme0n1 of=/dev/null bs=1M count=8   # I/O exercises the CMB SQ path
 `PCI_P2PDMA` were off, `dmesg` would show `failed to register the CMB` and `p2pmem/`
 would be absent.
 
-**PMR** — the Linux nvme driver does not use the PMR, so drive it as a userspace driver:
+**PMR**: the Linux nvme driver does not use the PMR, so drive it as a userspace driver:
 unbind nvme, enable `PMRCTL.EN` in BAR0, then read/write the PMR data in BAR4. MMIO needs
 single aligned word accesses (`ctypes`, not `mmap`/`struct` bulk copy). The write reaches
 the `share=on` backing file in the per-VM `StateDirectory`, proving persistence:
@@ -147,14 +147,14 @@ smaller); `00:05.0` ↔ drive index 1 ↔ `nvme-pmr-1.img`.
 
 ## Pitfalls
 
-- **`failed to select IOMMU type`** — either the vIOMMU is `amd-iommu` (use `intel-iommu`),
+- **`failed to select IOMMU type`**: either the vIOMMU is `amd-iommu` (use `intel-iommu`),
   or `allow_unsafe_interrupts` is not set (the `devel` profile sets it; a non-`devel`
   closure needs `echo 1 > /sys/module/vfio_iommu_type1/parameters/allow_unsafe_interrupts`).
-- **No spdk after editing the vendored nixos-flake** — the closure pins it by narHash, so
+- **No spdk after editing the vendored nixos-flake**: the closure pins it by narHash, so
   rebuild with `nix_lock.update_lock=true`; and a **new** file (e.g. an overlay) must be
   `git add`ed in `vendor/nixos-flake` (a git flake sees only tracked files), not
   just copied.
-- **nixpkgs SPDK lags upstream** — the pinned channel ships an older SPDK than the latest
+- **nixpkgs SPDK lags upstream**: the pinned channel ships an older SPDK than the latest
   `vYY.MM` tag; the overlay only recovers the missing example binaries, it does not bump
   the version.
 

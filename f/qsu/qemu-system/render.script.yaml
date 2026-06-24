@@ -89,7 +89,7 @@ schema:
     cpu:
       title: CPU
       type: string
-      description: Guest CPU model (`-cpu`); `host` needs KVM, `max` enables all features the accelerator supports. List reflects the default reproducible QEMU — a different `qemu_source` may differ; QEMU validates the value at boot.
+      description: Guest CPU model (`-cpu`); `host` needs KVM, `max` enables all features the accelerator supports. List reflects the default reproducible QEMU. A different `qemu_source` may differ; QEMU validates the value at boot.
       default: "host"
       enum:
         - "486"
@@ -354,7 +354,7 @@ schema:
     qemu_source:
       title: QEMU Source
       type: string
-      description: Where the emulator comes from — `nixpkgs` (the `qemu` package from `nixpkgs`, provided by the vendored `nixos-flake`) or `qemu-build` (a binary from `f/qemu/build`).
+      description: "Where the emulator comes from: `nixpkgs` (the `qemu` package from `nixpkgs`, provided by the vendored `nixos-flake`) or `qemu-build` (a binary from `f/qemu/build`)."
       default: nixpkgs
       enum:
         - nixpkgs
@@ -440,52 +440,52 @@ schema:
     logical_block_size:
       title: Logical Block Size
       type: string
-      description: "Logical block (LBA) size in bytes — `-device nvme-ns,logical_block_size=` (BlockConf). `4096` = 4Kn, `512` = 512-byte sectors. Single value (all drives) or per-drive comma-list (`4096,512`)."
+      description: "Logical block (LBA) size in bytes: `-device nvme-ns,logical_block_size=` (BlockConf). `4096` = 4Kn, `512` = 512-byte sectors. Single value (all drives) or per-drive comma-list (`4096,512`)."
       default: "4096"
     physical_block_size:
       title: Physical Block Size
       type: string
-      description: "Physical block size in bytes — `-device nvme-ns,physical_block_size=` (BlockConf). Single value or per-drive comma-list."
+      description: "Physical block size in bytes: `-device nvme-ns,physical_block_size=` (BlockConf). Single value or per-drive comma-list."
       default: "4096"
     min_io_size:
       title: Minimum I/O Size
       type: string
-      description: "Minimum I/O size hint in bytes — `-device nvme-ns,min_io_size=` (BlockConf). Single value or per-drive comma-list."
+      description: "Minimum I/O size hint in bytes: `-device nvme-ns,min_io_size=` (BlockConf). Single value or per-drive comma-list."
       default: "4096"
     opt_io_size:
       title: Optimal I/O Size
       type: string
-      description: "Optimal I/O size hint in bytes — `-device nvme-ns,opt_io_size=` (BlockConf). Single value or per-drive comma-list."
+      description: "Optimal I/O size hint in bytes: `-device nvme-ns,opt_io_size=` (BlockConf). Single value or per-drive comma-list."
       default: "4096"
     discard_granularity:
       title: Discard Granularity
       type: string
-      description: "Discard granularity in bytes — `-device nvme-ns,discard_granularity=` (BlockConf). Single value or per-drive comma-list."
+      description: "Discard granularity in bytes: `-device nvme-ns,discard_granularity=` (BlockConf). Single value or per-drive comma-list."
       default: "4096"
     write_cache:
       title: Write Cache (VWC)
       type: string
-      description: "Volatile Write Cache (VWC) — `-device nvme-ns,write-cache=` (BlockConf): `on`, `off` or `auto`. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Volatile Write Cache (VWC): `-device nvme-ns,write-cache=` (BlockConf): `on`, `off` or `auto`. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     mdts:
       title: Maximum Data Transfer Size (MDTS)
       type: string
-      description: "Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units — `-device nvme,mdts=`. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units: `-device nvme,mdts=`. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     cmb_size_mb:
       title: CMB Size (MiB)
       type: string
-      description: "Controller Memory Buffer size in MiB — `-device nvme,cmb_size_mb=` (host RAM exposed on PCI BAR 2; coexists with PMR on BAR 4/5). Empty = no CMB. Single value or per-drive comma-list (`64,0` = drive 0 only)."
+      description: "Controller Memory Buffer size in MiB: `-device nvme,cmb_size_mb=` (host RAM exposed on PCI BAR 2; coexists with PMR on BAR 4/5). Empty = no CMB. Single value or per-drive comma-list (`64,0` = drive 0 only)."
       default: ""
     legacy_cmb:
       title: Legacy CMB (v1.3)
       type: boolean
-      description: "Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled) — `-device nvme,legacy-cmb=on`. Off = the 1.4 CMB scheme. Applies to every CMB-enabled drive; no effect without `cmb_size_mb`."
+      description: "Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled): `-device nvme,legacy-cmb=on`. Off = the 1.4 CMB scheme. Applies to every CMB-enabled drive; no effect without `cmb_size_mb`."
       default: false
     pmr_size:
       title: PMR Size (bytes)
       type: string
-      description: "Persistent Memory Region size in bytes — `-object memory-backend-file,size=` linked from `-device nvme,pmrdev=`. Must be a power of 2 and at least 16. Empty = no PMR. Single value or per-drive comma-list (`16777216,0` = drive 0 only)."
+      description: "Persistent Memory Region size in bytes: `-object memory-backend-file,size=` linked from `-device nvme,pmrdev=`. Must be a power of 2 and at least 16. Empty = no PMR. Single value or per-drive comma-list (`16777216,0` = drive 0 only)."
       default: ""
     pmr_share:
       title: PMR Persistent (share=on)
@@ -500,42 +500,42 @@ schema:
     atomic_dn:
       title: Disable Normal (DN)
       type: boolean
-      description: "Disable Normal (DN) — `-device nvme,atomic.dn=`. Set = AWUN/NAWUN disabled, so AWUPF/NAWUPF govern atomicity for all writes. Off = QEMU default."
+      description: "Disable Normal (DN): `-device nvme,atomic.dn=`. Set = AWUN/NAWUN disabled, so AWUPF/NAWUPF govern atomicity for all writes. Off = QEMU default."
       default: false
     atomic_awun:
       title: Atomic Write Unit Normal (AWUN)
       type: string
-      description: "Atomic Write Unit Normal (AWUN), 0-based, in logical blocks — `-device nvme,atomic.awun=`. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Atomic Write Unit Normal (AWUN), 0-based, in logical blocks: `-device nvme,atomic.awun=`. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     atomic_awupf:
       title: Atomic Write Unit Power Fail (AWUPF)
       type: string
-      description: "Atomic Write Unit Power Fail (AWUPF), 0-based — `-device nvme,atomic.awupf=`. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Atomic Write Unit Power Fail (AWUPF), 0-based: `-device nvme,atomic.awupf=`. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     atomic_nawun:
       title: Namespace Atomic Write Unit Normal (NAWUN)
       type: string
-      description: "Namespace Atomic Write Unit Normal (NAWUN), 0-based — `-device nvme-ns,atomic.nawun=`. Setting any per-namespace atomic switches the drive to explicit `-device nvme` + `-device nvme-ns`. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Namespace Atomic Write Unit Normal (NAWUN), 0-based: `-device nvme-ns,atomic.nawun=`. Setting any per-namespace atomic switches the drive to explicit `-device nvme` + `-device nvme-ns`. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     atomic_nawupf:
       title: Namespace Atomic Write Unit Power Fail (NAWUPF)
       type: string
-      description: "Namespace Atomic Write Unit Power Fail (NAWUPF), 0-based — `-device nvme-ns,atomic.nawupf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Namespace Atomic Write Unit Power Fail (NAWUPF), 0-based: `-device nvme-ns,atomic.nawupf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     atomic_nabsn:
       title: Namespace Atomic Boundary Size Normal (NABSN)
       type: string
-      description: "Namespace Atomic Boundary Size Normal (NABSN) — `-device nvme-ns,atomic.nabsn=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Namespace Atomic Boundary Size Normal (NABSN): `-device nvme-ns,atomic.nabsn=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     atomic_nabspf:
       title: Namespace Atomic Boundary Size Power Fail (NABSPF)
       type: string
-      description: "Namespace Atomic Boundary Size Power Fail (NABSPF) — `-device nvme-ns,atomic.nabspf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Namespace Atomic Boundary Size Power Fail (NABSPF): `-device nvme-ns,atomic.nabspf=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     atomic_nabo:
       title: Namespace Atomic Boundary Offset (NABO)
       type: string
-      description: "Namespace Atomic Boundary Offset (NABO) — `-device nvme-ns,atomic.nabo=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
+      description: "Namespace Atomic Boundary Offset (NABO): `-device nvme-ns,atomic.nabo=`. Forces explicit-namespace mode. Empty = QEMU default. Single value or per-drive comma-list."
       default: ""
     kernel:
       type: object

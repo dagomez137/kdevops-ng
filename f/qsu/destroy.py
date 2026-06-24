@@ -4,7 +4,7 @@
 Stop the instance, then remove every per-VM artefact: the `<vm>.env`, the
 `qemu-system@<vm>.service.d` drop-in dir, the `virtiofsd@<vm>-*.service.d` drop-in
 dirs and `virtiofsd@<vm>-*.env` files, the systemd `StateDirectory`
-(`~/.local/state/qemu-system/<vm>` — the NVMe qcow2 backing files + runtime sockets),
+(`~/.local/state/qemu-system/<vm>`: the NVMe qcow2 backing files + runtime sockets),
 the `shared/vm/<vm>.vars.json` reuse sidecar (so a destroyed VM stops appearing in the
 `f/qsu/bringup` Reuse-from-VM dropdown, which globs that registry), and the
 `$SYSTEM_DIR/ssh/config.d/<vm>.conf` alias `f/qsu/boot` wrote (so `ssh <vm>` stops resolving
@@ -83,7 +83,7 @@ def _teardown_shared(systemd: Systemd, cfg: Path) -> list[str]:
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name` — see `f.qsu.common.vm_options`."""
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.qsu.common.vm_options`."""
     return vm_options(filterText)
 
 

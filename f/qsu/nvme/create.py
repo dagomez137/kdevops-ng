@@ -7,7 +7,7 @@ sets `WorkingDirectory=` to, so vm.env's relative `file=nvme<i>.qcow2` paths res
 run time. Idempotent: an existing file is left untouched (matches ansible `creates:`).
 
 `qemu-img` comes from the reproducible nixos-flake `qemu`, host-visible in `/nix/store`
-from every worker — never a host/distro qemu-img, and never the VM's own `qemu-system`
+from every worker; never a host/distro qemu-img, and never the VM's own `qemu-system`
 (a `qemu-build` emulator lives in a per-worker tree this `vm`-tagged step cannot see).
 qcow2 is format-stable, so the images open in whatever `qemu-system` boots the VM.
 

@@ -5,14 +5,14 @@ description: |
   the container cgroup governs CPU and N concurrent builds self-balance.
 
   Reads `worktree`/`build_dir` from a prior `prepare_worktree` step and expects a
-  `.config` from `configure`. Returns `image` (the `arch/x86/boot/bzImage` path —
+  `.config` from `configure`. Returns `image` (the `arch/x86/boot/bzImage` path:
   x86 only, `null` for other targets/arches) plus the build provenance the kernel
   bakes into `include/generated/{utsrelease,compile,utsversion}.h` (written by the
   build, so they confirm what was actually used), each under the kernel's own macro
   name: `uts_release`, `linux_compiler`, `uts_machine`, `linux_compile_by`,
   `linux_compile_host`, and `uts_version` (the `uname -v` string).
 
-  **Reusable on its own** — the same script backs a future `build_matrix` flow
+  **Reusable on its own**: the same script backs a future `build_matrix` flow
   that fans out over many refs/defconfigs.
 kind: script
 schema:

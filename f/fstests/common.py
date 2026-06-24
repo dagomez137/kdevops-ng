@@ -67,7 +67,7 @@ def section_results_dir(vm_name: str, kernel_version: str, section: str,
                         workers: Path | None = None) -> Path:
     """A section's RESULT_BASE subdir on the VM's `fstests` share, keyed by the kernel.
 
-    `<share_dir>/<kver>/results/<section>` — the host view of the guest's
+    `<share_dir>/<kver>/results/<section>`: the host view of the guest's
     `/var/lib/xfstests/<kver>/results/<section>`. The unit's `WorkingDirectory=.../%v`
     keys by kernel release (so the same closure, booted into different kernels, never
     clobbers); `results` is the xfstests-check wrapper's single forced `$PWD/results`.
@@ -77,7 +77,7 @@ def section_results_dir(vm_name: str, kernel_version: str, section: str,
     # Anchor the traversal guard at <kver>/results, not the VM-share root: `section`
     # is not run through _safe_kver and `[header]` names admit `/` and `..`, so a
     # crafted section (e.g. `../../OTHER_KVER/results/x`) must not be able to reach a
-    # sibling kernel's tree — clean_results would otherwise rmtree it.
+    # sibling kernel's tree; clean_results would otherwise rmtree it.
     base = (share_dir(vm_name, workers) / kv / "results").resolve()
     path = (base / section).resolve()
     if path != base and base not in path.parents:
@@ -148,11 +148,11 @@ XFS_FEATURES: dict[str, dict] = {
     # Combined "modes" (verified against mkfs.xfs 7.0.1 + a live v7.1 mount): `full`
     # turns every compatible V5 feature on at once (metadir + the default-on reflink/
     # rmapbt/finobt/inobtcount/sparse/bigtime/nrext64) plus all three quota types
-    # (group⊕project exclusivity was lifted on recent kernels) — for feature-interaction
+    # (group⊕project exclusivity was lifted on recent kernels): for feature-interaction
     # coverage the isolated sections miss. `nofeat` is the inverse: a V5 fs with every
     # optional feature off. asciici is excluded from `full` (case-insensitive lookup
     # would spuriously fail case-sensitive tests); nocrc (V4) cannot join either (V5
-    # features need crc); realtime/logdev need external devices — all stay separate.
+    # features need crc); realtime/logdev need external devices; all stay separate.
     "full": {"mkfs": "-m metadir=1", "mount": "-o usrquota,grpquota,prjquota", "v4": False},
     "nofeat": {"mkfs": "-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0",
                "mount": "", "v4": False},
@@ -208,13 +208,13 @@ def xfs_profiles_matrix(feature: str | None = None, geometry: str = "matrix") ->
 
     `feature` narrows to one feature's matrix (`default` = the plain `""` feature,
     `all`/None = every feature); see `xfs_feature_names`. `geometry="default"` drops
-    the block/sector matrix entirely — one section per feature at mkfs's default
+    the block/sector matrix entirely: one section per feature at mkfs's default
     geometry (`xfs[_<feat>]`, no `-b`/`-s`), the short/auditable form; `geometry=
     "matrix"` (default) is the full cross-product. For the matrix: each `block` in
     `XFS_BLOCK_SIZES`, each `sector` in `XFS_SECTOR_SIZES` with `sector <= block`; a V5
     (non-`nocrc`) feature skips `block < XFS_MIN_CRC_BLOCKSIZE` (V5 needs block >= 1024);
     `nocrc` (V4) includes block 512 but is capped at `GUEST_PAGE_SIZE` (large block size
-    is V5-only — a V4 fs above the page size is unmountable); a `min_block` feature skips
+    is V5-only; a V4 fs above the page size is unmountable); a `min_block` feature skips
     `block < min_block` (rt-reflink needs >= 4096). Section name
     `xfs_[<feat>_]bs<block-tag>_ss<sector-tag>`.
     Value shape `{"mkfs", "mount"}`, plus `"needs"` (logdev/rtdev) for an external feature.
@@ -276,14 +276,14 @@ def xfs_catalog_text(feature: str | None = None, geometry: str = "matrix") -> st
 
     `feature` narrows to one feature's bs/ss matrix (`default`/`full`/`nofeat`/`quota`
     /...), keeping each generated `local.config` small; `all`/None is the whole
-    cross-product. `geometry="default"` drops the bs/ss matrix — one default-geometry
+    cross-product. `geometry="default"` drops the bs/ss matrix: one default-geometry
     section per feature (the shortest, most auditable form). One `[name]` block per
     profile in catalog order, each `FSTYP=xfs`
     plus the profile's `MKFS_OPTIONS`/`MOUNT_OPTIONS` when set, sections separated by a
     blank line. An external-device profile (value has `needs`) also emits
     `USE_EXTERNAL=yes` (the xfstests var) and `# external=<needs>` (the
     device-agnostic marker the injector reads; xfstests ignores `#` lines).
-    Device-agnostic by design — no `TEST_DEV`/`SCRATCH_DEV`, those are injected
+    Device-agnostic by design: no `TEST_DEV`/`SCRATCH_DEV`, those are injected
     per selected section at render time.
     """
     profiles = (XFS_PROFILES if feature in (None, "all") and geometry == "matrix"
@@ -324,7 +324,7 @@ def section_sector_size(block: str, section: str) -> int | None:
     """The sector size of one section's verbatim `block` text, in bytes, or `None`.
 
     Parses `-s size=<N>` from the block's `MKFS_OPTIONS` (via `section_vars`).
-    Unlike block size there is no safe default to assume — `None` means "no explicit
+    Unlike block size there is no safe default to assume; `None` means "no explicit
     sector size", which the caller treats as "unknown, don't gate on sector".
     """
     mkfs = section_vars(block, section).get("MKFS_OPTIONS", "")
@@ -334,7 +334,7 @@ def section_sector_size(block: str, section: str) -> int | None:
 
 def section_is_v4(block: str, section: str) -> bool:
     """True when the section's `MKFS_OPTIONS` selects the V4 (crc=0) layout, whose
-    block size must not exceed the page size to be mountable — see `GUEST_PAGE_SIZE`."""
+    block size must not exceed the page size to be mountable: see `GUEST_PAGE_SIZE`."""
     return "crc=0" in section_vars(block, section).get("MKFS_OPTIONS", "")
 
 
@@ -342,7 +342,7 @@ def section_config(vm_name: str, section: str, workers: Path | None = None) -> d
     """The filesystem-under-test geometry for `<section>`, from its rendered
     `<share>/<vm>/<section>.config` (FSTYP + mkfs/mount options + block/sector size).
     Host-side, read-only; `{}` when the config is absent (section never rendered).
-    This is the *configured* geometry — the realized `xfs_info` feature set needs a
+    This is the *configured* geometry; the realized `xfs_info` feature set needs a
     guest query, which this does not do.
     """
     cfg = share_dir(vm_name, workers) / f"{section}.config"
@@ -364,11 +364,11 @@ def parse_xfs_info(text: str) -> dict[str, str]:
     `rmapbt`, `bigtime`, `finobt`, `sparse`, `ascii-ci`, `lazy-count`, `bsize`, `sectsz`).
 
     The key class is `[\\w-]+`, not `\\w+`, so hyphenated keys (`ascii-ci`, `lazy-count`,
-    `meta-data`) parse whole — `xfs_report_geom()` (libfrog/fsgeom.c) emits both. The
+    `meta-data`) parse whole; `xfs_report_geom()` (libfrog/fsgeom.c) emits both. The
     output repeats some numeric keys across sections (`bsize`, `blocks`, `sunit`, `sectsz`,
-    `version`); a later one overwrites, so those numerics are NOT section-accurate here —
+    `version`); a later one overwrites, so those numerics are NOT section-accurate here;
     only the boolean feature flags (each key unique) are reliable, which is all the report
-    surfaces. Returns whatever tokens are present — `{}` for empty input."""
+    surfaces. Returns whatever tokens are present: `{}` for empty input."""
     out: dict[str, str] = {}
     for key, value in re.findall(r"([\w-]+)=([^\s,]+)", text or ""):
         out[key] = value
@@ -419,7 +419,7 @@ def inject_device_base(block: str, devices: list[dict] | list[str], logwrites: b
 
     Binds a device-agnostic section to a guest's discovered devices. With no
     `# external=` marker (the common path): `TEST_DEV` from the first, and the rest
-    as scratch — a single `SCRATCH_DEV` with exactly two devices, or a
+    as scratch: a single `SCRATCH_DEV` with exactly two devices, or a
     `SCRATCH_DEV_POOL` of all the extras with more. `SCRATCH_DEV` and
     `SCRATCH_DEV_POOL` are mutually exclusive (xfstests `common/config` errors if both
     are set); with a pool, `check` derives `SCRATCH_DEV` from its first element.
@@ -538,7 +538,7 @@ def section_vars(config_text: str, section: str) -> dict[str, str]:
     """The xfstests config vars for `<section>`, matching `./check`'s sourcing:
     with sections only that block, with none the whole file. `#` comments and
     blanks are skipped; one pair of surrounding quotes is stripped from each value.
-    Returns whatever keys are present — nothing is hardcoded or defaulted.
+    Returns whatever keys are present; nothing is hardcoded or defaulted.
     """
     has_sections = bool(parse_sections(config_text))
     out: dict[str, str] = {}
@@ -600,12 +600,12 @@ def build_check_args(
     """Compose the verbatim xfstests `./check` flag string (no `-s`).
 
     Maps the typed inputs to `./check`'s own short flags (xfstests has no long
-    forms — these short flags are the upstream vocabulary, kept as-is):
+    forms; these short flags are the upstream vocabulary, kept as-is):
     `-g <group>`, `-x <exclude_group>`, `-X <exclude_file>`, `-R <fmt>` (default
     `xunit`), `-r` (randomize). `iterations` > 1 emits `-i <n>` (or `-I <n>` when
     `stop_on_fail`, the default, to stop iterating at the first failure), which reruns
     the WHOLE test list n times (each test runs n times, interleaved across n passes
-    with fresh setup — not n in a row), so the xunit gets up to n testcases per test.
+    with fresh setup, not n in a row), so the xunit gets up to n testcases per test.
     `loop_on_fail` > 0 emits `-L <n>`, which reruns only a FAILED test up to n more
     times and prints its aggregate pass/fail % (the flaky-test quantifier; the % is
     in the log, not the xunit).
@@ -646,7 +646,7 @@ def render_check_env(host_options: str, check_args: str, test_timeout: int = 0,
                      test_timeouts: dict[str, int] | None = None) -> str:
     """The systemd `EnvironmentFile` text the `xfstests@<section>.service` reads:
     `HOST_OPTIONS=<absolute guest path>` and `XFSTESTS_CHECK_ARGS=<./check flags>`.
-    RESULT_BASE is omitted — the `xfstests-check` wrapper forces it.
+    RESULT_BASE is omitted; the `xfstests-check` wrapper forces it.
 
     The per-test watchdog vars the patched `check` reads are added when set:
     `TEST_TIMEOUT=<seconds>` (global, applied as each test's scope `RuntimeMaxSec`;
@@ -708,7 +708,7 @@ def parse_xunit(results_dir: Path, section: str | None = None) -> dict:
         return base
 
     # The `<testsuite>` header counters (tests/failures/skipped) describe only the
-    # FINAL pass — under `-i <n>` xfstests rewrites the header each pass but APPENDS a
+    # FINAL pass; under `-i <n>` xfstests rewrites the header each pass but APPENDS a
     # `<testcase>` per test per pass, so a header `failures="2"` hides a test that
     # failed in earlier passes yet passed the last. Derive the totals from the body
     # instead, one aggregated status per DISTINCT test across all passes: a test is
@@ -797,7 +797,7 @@ _CID_RE = re.compile(r"^\s*HostName\s+vsock/(\d+)\s*$")
 class RemoteSystemd:
     """Drive a booted guest's `systemd` over vsock-SSH, from the vm worker.
 
-    Every guest command is one explicit `ssh` argv — the options are passed on the
+    Every guest command is one explicit `ssh` argv: the options are passed on the
     command line (not hidden in a config file or a SYSTEMD_SSH wrapper), so the
     runner logs the exact, copy-pasteable invocation. `ssh` and `systemd-ssh-proxy`
     come from the `#systemd` devShell; the vsock cid is read from `f/qsu/boot`'s
@@ -857,7 +857,7 @@ class RemoteSystemd:
         argv lets the remote shell re-split on any metacharacter they contain (a
         journal cursor's `;`, a `bash -c` script's spaces). Instead we pre-join with
         `shlex.join` and pass the single quoted string: the remote shell parses it
-        back into exactly `args` — bare tokens (`+`, `_TRANSPORT=kernel`) stay bare,
+        back into exactly `args`: bare tokens (`+`, `_TRANSPORT=kernel`) stay bare,
         only metacharacter-bearing tokens get quoted.
         """
         return (
@@ -906,7 +906,7 @@ class RemoteSystemd:
         return result
 
     def is_system_running(self, quiet: bool = False) -> str:
-        """`systemctl is-system-running` — e.g. `running`, `degraded`. Never raises."""
+        """`systemctl is-system-running`: e.g. `running`, `degraded`. Never raises."""
         return (self.systemctl("is-system-running", capture=True, check=False, quiet=quiet) or "").strip()
 
     def journal_combined(self, unit: str, cursor: str | None = None) -> tuple[str | None, str]:
@@ -950,11 +950,11 @@ class RemoteSystemd:
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint — all guests, from their render sidecars.
+    """`dynselect-list_vms` entrypoint: all guests, from their render sidecars.
 
     Globs `WORKERS_DIR/shared/vm/*.vars.json` (one per rendered guest, removed on
     destroy), the same source `f/qsu/bringup` lists for reuse. Pure stdlib so the
-    dynselect runtime needs no extra deps — importing `f.qsu.common.vm_options`
+    dynselect runtime needs no extra deps; importing `f.qsu.common.vm_options`
     here would pull in jinja2, which the dynselect lock does not carry.
     """
     d = Path(os.environ["WORKERS_DIR"]) / "shared/vm"
@@ -968,8 +968,8 @@ XFSTESTS_DOC_RELPATH = "lib/xfstests/doc/group-names.txt"
 
 # Usable before any guest is up: a dropdown must never be empty/blocking.
 _GROUPS_FALLBACK = [
-    {"label": "auto — run automatically (~5 min cap)", "value": "auto"},
-    {"label": "quick — under 30s each", "value": "quick"},
+    {"label": "auto: run automatically (~5 min cap)", "value": "auto"},
+    {"label": "quick: under 30s each", "value": "quick"},
 ]
 
 
@@ -1006,7 +1006,7 @@ def _group_options(groups: list[dict], filterText: str = "") -> list[dict]:
     """Turn parsed `[{name, description}]` into sorted, filtered dynselect options.
 
     `auto`/`quick` are pinned first (the common picks), the rest alphabetical. The label
-    is `name — description` (description clipped to ~80 chars), the value the bare name.
+    is `name: description` (description clipped to ~80 chars), the value the bare name.
     `filterText` matches case-insensitively against name + description.
     """
     needle = (filterText or "").lower()
@@ -1018,7 +1018,7 @@ def _group_options(groups: list[dict], filterText: str = "") -> list[dict]:
             continue
         if desc:
             short = desc if len(desc) <= 80 else desc[:77].rstrip() + "..."
-            label = f"{name} — {short}"
+            label = f"{name}: {short}"
         else:
             label = name
         out.append({"label": label, "value": name})
@@ -1049,13 +1049,13 @@ def _guest_group_registry(vm_name: str) -> str | None:
 
 
 def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
-    """`dynmultiselect-list_groups` entrypoint — the xfstests group registry of a guest.
+    """`dynmultiselect-list_groups` entrypoint: the xfstests group registry of a guest.
 
     Resolves `doc/group-names.txt` from the selected guest's closure in the local nix
-    store (see `_guest_group_registry`) and parses it (`parse_group_names`) — NOT over
+    store (see `_guest_group_registry`) and parses it (`parse_group_names`); NOT over
     vsock-SSH, since a flow dynselect runs on a default worker that cannot reach the
     guest. Defensive by contract: a missing vm_name/sidecar/closure, or any nix/parse
-    failure, returns a small `auto`/`quick` fallback rather than raising — a dropdown
+    failure, returns a small `auto`/`quick` fallback rather than raising; a dropdown
     helper must never blow up the form (e.g. before a guest is booted).
     """
     try:

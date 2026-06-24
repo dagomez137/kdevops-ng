@@ -6,13 +6,13 @@ land in the build dir (or not at all) instead of the source tree where the tools
 look. Each artifact below is independently toggled and on by default, mirroring the
 kdevops direct-boot dev-tooling tasks:
 
-  - compile_commands.json — clangd/cscope/IDE C index. `gen_compile_commands.py`
+  - compile_commands.json: clangd/cscope/IDE C index. `gen_compile_commands.py`
     walks the build's .cmd files and writes the index to the source tree root, where
     the consumers expect it (a normal build leaves the .cmd files in the build dir).
-  - vmlinux-gdb.py + lx-* — kernel GDB helpers materialized in the build dir by
+  - vmlinux-gdb.py + lx-*: kernel GDB helpers materialized in the build dir by
     `make scripts_gdb`; a normal build does not produce them. Works against any
     config (the helpers are pure Python around vmlinux symbols).
-  - rust-project.json — rust-analyzer index, generated only when CONFIG_RUST=y.
+  - rust-project.json: rust-analyzer index, generated only when CONFIG_RUST=y.
     `make rust-analyzer` writes it to the build dir; copy it to the source tree where
     the LSP looks, the same way compile_commands.json indexes the C source.
 

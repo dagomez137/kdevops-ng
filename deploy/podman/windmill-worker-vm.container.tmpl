@@ -32,7 +32,7 @@ Environment=NUM_WORKERS=1
 Environment=WORKER_GROUP=vm
 # Pull only @VMTAG@-tagged jobs: `vm` for the lifecycle/control steps, `vm-run`
 # for the long-lived fstests poll, split so a multi-hour run never starves a quick
-# destroy/status. WORKER_GROUP alone does not select tags — without this the worker
+# destroy/status. WORKER_GROUP alone does not select tags; without this the worker
 # would pull the default language tags and the jobs would fall to a build worker
 # (which lacks the host config mounts).
 Environment=WORKER_TAGS=@VMTAG@

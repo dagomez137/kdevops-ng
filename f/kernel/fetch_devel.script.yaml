@@ -1,8 +1,8 @@
 summary: "Kernel: fetch a release's devel layer from the Nix store onto a worktree"
 description: |
   Index a worktree against a build identity's devel layer without rebuilding. Resolve
-  the `kernel-devel-<release>` store path — from the local index, or pulled with
-  `nix copy` from a peer's `store-index` over the `transfer` devShell — then copy the
+  the `kernel-devel-<release>` store path (from the local index, or pulled with
+  `nix copy` from a peer's `store-index` over the `transfer` devShell), then copy the
   developer subset (`.cmd` files, headers, `Module.symvers`, `scripts/`, GDB helpers)
   into the worktree's build dir and regenerate `compile_commands.json` locally so it
   indexes this worktree's own source. The companion to `f/kernel/publish_devel`. The

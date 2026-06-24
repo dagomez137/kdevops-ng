@@ -17,7 +17,7 @@ building via distinct commands (Documentation/kbuild/llvm.rst).
   - ccache         -> `CC="ccache <cc>"` on the command line (the Makefile assigns
     CC, so an env CC would not win); a managed ccache.conf is written here (cache_dir
     + a max_size of `ccache_max_size` GiB, the only non-default settings) and the
-    devShell points CCACHE_CONFIGPATH at it — no ccache settings live in env vars.
+    devShell points CCACHE_CONFIGPATH at it; no ccache settings live in env vars.
 
 The timestamp must be a real fixed value: the kernel uses
 `$(or $(KBUILD_BUILD_TIMESTAMP), $(shell date))` (init/Makefile), so an EMPTY value
@@ -41,7 +41,7 @@ from pathlib import Path
 
 from f.common.devshell import DevShell, Git, write_ccache_conf
 
-# 1991-08-25, Linus's "just a hobby, won't be big and professional" post — a fixed,
+# 1991-08-25, Linus's "just a hobby, won't be big and professional" post: a fixed,
 # memorable, genuinely reproducible default (unlike an empty timestamp).
 _FIXED_TIMESTAMP = "Sun Aug 25 20:57:08 UTC 1991"
 

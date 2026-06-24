@@ -1,4 +1,4 @@
-# Windmill — Workflows (use case)
+# Windmill: Workflows (use case)
 
 > Local backup of <https://www.windmill.dev/use-cases/workflows>, captured via
 > WebFetch on 2026-06-07. The fetcher condenses prose; for the authoritative
@@ -18,7 +18,7 @@ the box.
 ## Two types of workflows
 
 ### Low-code flows
-Visual DAG composition in the flow editor — drag and drop branches, loops,
+Visual DAG composition in the flow editor: drag and drop branches, loops,
 approval steps and error handlers. Each step can use a different language, with
 full inspection of inputs/outputs at every node and restart from any step.
 

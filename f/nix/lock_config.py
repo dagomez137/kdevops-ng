@@ -3,13 +3,13 @@
 
 Pins the per-VM flake's inputs (the vendored `nixos-flake` path input by narHash;
 nixpkgs follows it) so the closure builds identically until explicitly refreshed.
-The `path:` flakeref copies the whole config dir into the store, so — unlike a
-bare/`git+file` flakeref — the files do NOT need to be git-tracked.
+The `path:` flakeref copies the whole config dir into the store, so (unlike a
+bare/`git+file` flakeref) the files do NOT need to be git-tracked.
 
 The `<pkg>-src` inputs are different: they are local source-override checkouts
 (e.g. `xfstests-src`, `xfsprogs-src`) the operator iterates on, pinned to a branch.
 They are re-locked to the branch tip on EVERY build so a freshly committed patch in
-the checkout lands in the next closure without a manual lock bump — that is what
+the checkout lands in the next closure without a manual lock bump; that is what
 makes `f/qsu/bringup` (closure_source=build) leverage the checkout sources. The
 vendored `nixos-flake` is only re-locked when `update` is set.
 

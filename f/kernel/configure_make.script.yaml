@@ -1,9 +1,9 @@
 summary: "Kernel: configure via make goals"
 description: |
-  Configure method **make** — generate a `.config` by running one or more config
+  Configure method **make**: generate a `.config` by running one or more config
   make goals. Covers a single existing target (`defconfig`, `x86_64_defconfig`,
   `allmodconfig`, `tinyconfig`, a kdevops-provided `defconfig-*`, ...) and ordered
-  lists where `*.config` fragments merge onto a base — `["defconfig",
+  lists where `*.config` fragments merge onto a base; `["defconfig",
   "kvm_guest.config"]` is base + KVM guest. Runs inside the `nixos-flake#build`
   devShell; out-of-tree build (`make O=`), sources in `worktree`, artifacts in
   `build_dir`.

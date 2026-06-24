@@ -9,12 +9,12 @@ description: |
   `git fetch origin` (ADR-0001: the Bare is the working repo).
 
   `upstreams` is a **list** of candidate clone URLs (git / https / googlesource /
-  github) — the first is preferred. Many servers block `git://`, so for a kernel.org
+  github); the first is preferred. Many servers block `git://`, so for a kernel.org
   mirror the list auto-derives `https://git.kernel.org/…` then
   `https://kernel.googlesource.com/…` then the raw `git://…`; set `upstreams` (or the
   single `upstream`) explicitly to add e.g. a github URL. Idempotent.
 
-  An entry may carry extra `remotes` — each its own upstream, borrowing objects from
+  An entry may carry extra `remotes`: each its own upstream, borrowing objects from
   its own local mirror and fetched into `refs/remotes/<name>/*` (the default kernel
   Bare carries `linux-next`, `linux-stable`, `linux-modules`); works on preexisting
   Bares too (alternates are reconciled).
@@ -46,7 +46,7 @@ schema:
       type: string
       enum: [https, git, https-googlesource]
       default: https
-      description: How to reach git.kernel.org — https (default), git (faster, often firewalled), or https-googlesource (the Google mirror when kernel.org is down). Per-tree overrides live in the advanced mirrors config.
+      description: "How to reach git.kernel.org: https (default), git (faster, often firewalled), or https-googlesource (the Google mirror when kernel.org is down). Per-tree overrides live in the advanced mirrors config."
     extra_trees:
       title: Extra trees
       type: array
@@ -65,7 +65,7 @@ schema:
       description: Fetch new refs/tags on already-present Bares (default on). Off = create-if-absent only.
       default: true
     mirrors:
-      title: Advanced — full mirror config
+      title: "Advanced: full mirror config"
       type: array
       description: "Power-user override of the whole mirror layout: `[{name, mirror, project, remotes:[{name, path|url, protocol, primary}]}]`, for per-tree protocols, a custom QEMU URL, extra projects, etc. When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
       default: []

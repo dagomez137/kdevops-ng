@@ -3,9 +3,9 @@
 
 QEMU has no kernelrelease/LOCALVERSION to bake the identity into, so the build
 identity keys the install prefix instead: a 12-hex hash over the inputs that fix a
-QEMU build's bytes — the target list, the configure flags, the compiler, the
-toolchain (the `build-qemu` devShell's derivation path) and the source commit —
-names the per-identity install root `destdir/<identity>`. The configure and install
+QEMU build's bytes (the target list, the configure flags, the compiler, the
+toolchain, which is the `build-qemu` devShell's derivation path, and the source
+commit) names the per-identity install root `destdir/<identity>`. The configure and install
 steps then use that prefix as `--prefix`, so identical inputs install under one
 prefix and a built identity can be fetched or reused instead of rebuilt.
 
@@ -50,7 +50,7 @@ def main(
 
 
 def _toolchain() -> str:
-    """The build-qemu devShell's derivation path — the toolchain store hash."""
+    """The build-qemu devShell's derivation path: the toolchain store hash."""
     flake = vendor_dir() / "nixos-flake"
     system = f"{os.uname().machine}-linux"
     return Nix().capture(

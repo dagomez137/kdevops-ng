@@ -15,7 +15,7 @@ children of the source checkout (`qemu/build`, `qemu/destdir`), so meson emits p
 relative to `build`.
 
 Knobs: `wipe_build` rm+recreates the `build` dir first; `clean_destdir` (default
-false) rm+recreates `destdir` first — leave it off so an install never wipes binaries a
+false) rm+recreates `destdir` first; leave it off so an install never wipes binaries a
 running QEMU/systemd VM still uses. `b4_series` applies a lore series on top of the
 checkout via `b4 shazam` in the devShell.
 

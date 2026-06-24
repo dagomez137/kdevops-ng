@@ -3,7 +3,7 @@ description: |
   Boot one QEMU-in-systemd VM against the host `systemd --user` manager:
 
   1. `systemctl --user daemon-reload` so freshly rendered units/drop-ins are seen.
-  2. `systemctl --user restart qemu-system@<vm>` — one first-class unit restart. The qsu
+  2. `systemctl --user restart qemu-system@<vm>`: one first-class unit restart. The qsu
      dependencies (Requires=virtiofsd, the `Before=qemu` drop-in, socket activation) stop
      the old guest gracefully and bring a fresh virtiofsd up with the re-rendered env;
      the virtiofsd units are never restarted by hand (that propagates a stop into qemu

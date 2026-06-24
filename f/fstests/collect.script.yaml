@@ -5,8 +5,8 @@ description: |
   `$WORKERS_DIR/shared/fstests/<vm>/<kver>/results/<section>/result.xml`
   (RESULT_BASE follows the unit's `WorkingDirectory=.../%v`, so results are keyed by the
   guest's kernel release). Returns a scalar overview `{section, fstype, status,
-  report_present, tests, passed, failed, notrun, iterations}` — so the check flow's
-  per-section forloop renders a tidy one-row-per-section table — plus a `detail` object
+  report_present, tests, passed, failed, notrun, iterations}` (so the check flow's
+  per-section forloop renders a tidy one-row-per-section table) plus a `detail` object
   carrying the per-test rows, failing test names with their messages, the notruns, the
   configured filesystem `geometry` (FSTYP, mkfs/mount options, block/sector size from the
   rendered `<section>.config`), and the paths of any `.out.bad` diffs and the section

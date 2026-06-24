@@ -11,7 +11,7 @@ Inputs are upstream QEMU flag names; the kernel/closure build manifests supply
 `-kernel`/`-initrd`/`-append` and the `/lib/modules` share. Returns the written
 paths, the composed `shares` (boot restarts their sockets) and `ssh_port`/`vsock_cid`.
 
-Equivalent: write the rendered units into the host user-manager search path —
+Equivalent: write the rendered units into the host user-manager search path:
 
     ~/.config/systemd/user/qemu-system@.service
     ~/.config/systemd/qemu-system/<vm>.env
@@ -36,7 +36,7 @@ from f.qsu.common import (
 
 def list_iommu(filterText: str = "", qemu_source: str = "nixpkgs",
                qemu_binary: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_iommu` entrypoint for `iommu` — see `f.qsu.binaries.iommu_options`.
+    """`dynselect-list_iommu` entrypoint for `iommu`: see `f.qsu.binaries.iommu_options`.
 
     Queries the same qemu the render will use (`qemu_source`/`qemu_binary` sit beside
     `iommu` in this schema), so the dropdown reflects that exact binary's vIOMMUs.
@@ -149,13 +149,13 @@ def main(
     if bool(kernel_image) != bool(modules_dir):
         raise ValueError(
             "kernel_image and modules_dir must be set together (the kernel and its "
-            "/lib/modules are a unit) — supply both to override the kernel explicitly, or "
+            "/lib/modules are a unit): supply both to override the kernel explicitly, or "
             "neither to take both from the build/reuse manifest"
         )
     v = build_vars(fi, kernel=kernel, closure=closure, workers=workers)
     if "kernel" not in v:
         raise ValueError(
-            "no kernel image resolved — a `reuse` component needs a Reuse-from-VM with a "
+            "no kernel image resolved: a `reuse` component needs a Reuse-from-VM with a "
             "sidecar or an explicit kernel_image; a `build` needs the build result. "
             "Refusing to render a kernelless VM."
         )
@@ -195,7 +195,7 @@ def main(
         "qemu_source": qemu_source,
         # The host↔guest virtiofs-share contract (qsu side here mirrors the closure's
         # fstab). Recorded so a reuse reconfigure replays the SAME host shares the
-        # reused closure still mounts — else the guest drops to emergency mode on a
+        # reused closure still mounts; else the guest drops to emergency mode on a
         # `tag not found`. modules_dir is omitted: it tracks the kernel, not the closure.
         "sharing": {
             "fstests": fstests,

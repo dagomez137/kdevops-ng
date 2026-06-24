@@ -8,7 +8,7 @@ description: |
   touches the host `/boot`.
 
   Reproducible install: `make install` searches `$HOME/bin/installkernel` before the
-  distro `/sbin/installkernel`, so — exactly as nixpkgs' kernel build does — this
+  distro `/sbin/installkernel`, so (exactly as nixpkgs' kernel build does) this
   step provides its own tiny copy-only hook and points HOME at it. The result never
   depends on the container's debianutils.
 

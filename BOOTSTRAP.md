@@ -1,4 +1,4 @@
-# kdevops-ng — bootstrap
+# kdevops-ng: bootstrap
 
 Rootless-podman Windmill (localhost only) + workspace-as-code in git.
 
@@ -8,7 +8,7 @@ sudo apt install --yes podman crun uidmap passt dbus-user-session aardvark-dns n
 sudo npm install --global windmill-cli  # wmill CLI: no distro package
 ```
 
-## 2. Instance up (backend: podman — see deploy/README.md for distro/nix)
+## 2. Instance up (backend: podman; see deploy/README.md for distro/nix)
 ```bash
 ./deploy/podman/install.sh              # build + start; UI on 127.0.0.1:8000
 # WORKERS=4 ./deploy/podman/install.sh  # N general workers = N concurrent builds
@@ -22,7 +22,7 @@ curl --silent --request POST localhost:8000/api/workspaces/create \
   --header "Authorization: Bearer $TOKEN" --header 'content-type: application/json' \
   --data '{"id":"kdevops","name":"kdevops"}'
 wmill workspace add kdevops kdevops http://localhost:8000/ --token "$TOKEN"
-wmill init          # generate AI context (AGENTS.cli.md, skills, tsconfig) — git-ignored
+wmill init          # generate AI context (AGENTS.cli.md, skills, tsconfig), git-ignored
 ```
 
 ## 4. Daily loop

@@ -2,7 +2,7 @@
 """Copy meson's compile_commands.json into the QEMU source root (optional, default on).
 
 QEMU's build is meson-based, and meson already writes `compile_commands.json` into
-the build dir as a side effect of configuring — there is no generator to run (unlike
+the build dir as a side effect of configuring: there is no generator to run (unlike
 the kernel, which runs gen_compile_commands.py over the .cmd files). The only thing
 missing is its location: for an out-of-tree build, clangd indexes the source worktree
 and looks for the index there, not in the separate build dir. So this step copies the
@@ -31,7 +31,7 @@ def main(worktree: str, build_dir: str, compile_commands: bool = True) -> dict:
     # meson writes this when it configures the build dir; nothing to generate.
     source = Path(build_dir) / "compile_commands.json"
     if not source.is_file():
-        # The build still succeeded — this is just IDE tooling, so don't raise.
+        # The build still succeeded; this is just IDE tooling, so don't raise.
         print(f"no compile_commands.json in {build_dir}; skipping", flush=True)
         return {"compile_commands": None}
 

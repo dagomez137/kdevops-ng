@@ -2,7 +2,7 @@ summary: "QEMU: dev tooling (compile_commands.json)"
 description: |
   Copy meson's auto-generated `compile_commands.json` from the build dir into the
   source root, so clangd and IDEs find the index for the out-of-tree build. meson
-  writes it at configure time — there is no generator to run (unlike the kernel),
+  writes it at configure time: there is no generator to run (unlike the kernel),
   and a real copy (not a symlink into a transient build dir) is what clangd
   reliably picks up. Reads `worktree`/`build_dir` from a prior `prepare_worktree` step.
 kind: script

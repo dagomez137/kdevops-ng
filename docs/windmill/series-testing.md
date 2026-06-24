@@ -27,13 +27,13 @@ idea which series (if any) produced the kernel under test.
 
 - **Reporting is artifact-only.** The loop produces a review-ready reply
   (`In-Reply-To` the series, a `Tested-by:` trailer + the run summary) as an
-  `.mbx` artifact on the share. The flow never posts to a public list — sending
+  `.mbx` artifact on the share. The flow never posts to a public list. Sending
   stays a manual, operator-reviewed step. (b4 has no "report to lore" command;
   the kernel convention is a reply email that maintainers later collect with
   `b4 trailers -u`.) Gated opt-in sending is a possible later addition.
 - **MAINTAINERS is identify-and-flag, XFS only for now.** We resolve the touched
   subsystem(s), filesystem, and CC list, surface them, and flag when a series is
-  not XFS/`fs`-generic — but we keep running the XFS catalog. Auto-selecting
+  not XFS/`fs`-generic, but we keep running the XFS catalog. Auto-selecting
   ext4/btrfs/f2fs sections needs catalogs that do not exist yet; deferred.
 - **Build↔test bridge is a kernel-release-keyed sidecar, not flow threading.**
   `f/fstests/check` runs against a *booted guest* and is decoupled from the build
@@ -49,7 +49,7 @@ In `f/common/worktree.py`, record the worktree `HEAD` *before* `b4 shazam`, then
 after it derive a `series` object: `subject`, `version` (vN), `message_id`,
 `base_commit`, `patch_count`, and `changed_files`
 (`git diff --name-only <base>..HEAD`). Return it from `prepare_worktree`, fold it
-into the kernel build manifest, and — when a series was applied — write
+into the kernel build manifest, and (when a series was applied) write
 `<workers>/shared/kernel-series/<kernelrelease>.json` (the build knows its own
 `make kernelrelease`). The fstests `report` reads that sidecar by the guest's
 `kernel_version` and adds the series to the run-info table.
@@ -86,7 +86,7 @@ matches by diff. Map subsystem label / `F:` path → FSTYP for the test decision
 
 ## Risks
 
-- Posting to public lists is outward-facing — hence artifact-only by default.
+- Posting to public lists is outward-facing; hence artifact-only by default.
 - `kernelrelease` at build time must equal the guest's `uname -r`; true when the
   closure boots the built kernel. A localversion mismatch just means the report
   shows no series (graceful), never a wrong one.

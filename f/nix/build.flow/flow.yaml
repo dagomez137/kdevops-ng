@@ -1,22 +1,22 @@
 summary: "NixOS Build"
 description: |
-  Build a NixOS system with Nix — the `build` flow for the nix side, the way
+  Build a NixOS system with Nix: the `build` flow for the nix side, the way
   `f/kernel/build` builds a kernel and `f/qemu/build` builds an emulator. Today it
   builds the **imageless** product: a `toplevel` system whose *closure* (every store
   path it references) a VM boots over virtiofs (tmpfs root, `/nix/store` and
-  `/lib/modules` shared from the host). Other products — e.g. a disk-image `libvirt`
-  system — could be added under this same flow later. This is the Windmill
+  `/lib/modules` shared from the host). Other products (e.g. a disk-image `libvirt`
+  system) could be added under this same flow later. This is the Windmill
   reimplementation of kdevops's `nixosfi` role; booting the closure is the qsu half
-  (parked — see docs/windmill/qsu-execution-model.md).
+  (parked: see docs/windmill/qsu-execution-model.md).
 
   Steps (pinned to one worker via `same_worker`, so each sees the previous step's
   per-VM config directory under `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`):
 
-  1. `render_config` — write `flake.nix` (from the vendored imageless template) +
+  1. `render_config`: write `flake.nix` (from the vendored imageless template) +
      `default.nix` (composed from the typed inputs: profiles, testSuites, shares,
      SSH keys, source overrides).
-  2. `lock_config` — `nix flake lock` the per-VM config for reproducibility.
-  3. `build_closure` — `nix build .#toplevel` and read the bootspec
+  2. `lock_config`: `nix flake lock` the per-VM config for reproducibility.
+  3. `build_closure`: `nix build .#toplevel` and read the bootspec
      (`init`/`initrd`) from `boot.json`.
 
   By default the system is fully featured: every guest profile (devel,
@@ -24,7 +24,7 @@ description: |
   (it pulls in libvirtd) and is off by default. Pare `profiles`/`test_suites` back
   for a lighter, faster build.
 
-  Returns `{toplevel, init, initrd, config_dir}`. This flow is self-contained —
+  Returns `{toplevel, init, initrd, config_dir}`. This flow is self-contained;
   pairing the closure with a kernel is a qsu concern, not an input here.
 value:
   same_worker: true
@@ -141,16 +141,16 @@ schema:
             type: string
         shares:
           type: object
-          description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount is auto-added when Test Suites include `fstests`; `home` adds the operator''s home — both coexist.'
+          description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount is auto-added when Test Suites include `fstests`; `home` adds the operator''s home. Both coexist.'
           default: {}
         home:
           type: boolean
-          description: "Land in your home: mount the operator's host home at `/home/<you>` AND make it root's home, so `ssh <vm>` drops you straight into your files (writable — root maps to your host uid via virtiofsd). One toggle wires the closure mount, root's home, and the host serving."
+          description: "Land in your home: mount the operator's host home at `/home/<you>` AND make it root's home, so `ssh <vm>` drops you straight into your files (writable: root maps to your host uid via virtiofsd). One toggle wires the closure mount, root's home, and the host serving."
           default: true
         home_dir:
           title: Home Dir
           type: string
-          description: "Advanced: override the guest mount point + root's home (else `/home/<host operator>`, auto-discovered). The served *content* is always the operator's host home — an override only relocates where it appears in the guest."
+          description: "Advanced: override the guest mount point + root's home (else `/home/<host operator>`, auto-discovered). The served *content* is always the operator's host home; an override only relocates where it appears in the guest."
           default: ""
     closure:
       title: Closure

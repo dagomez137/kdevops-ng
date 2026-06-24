@@ -4,7 +4,7 @@ description: |
   `ExecStop=` (QMP `system_powerdown`, then SIGKILL after `TimeoutStopSec=2min`).
   Best-effort: a partially-cleaned tree still stops cleanly, so a non-zero rc is not
   fatal. virtiofsd auto-stops via `StopWhenUnneeded=yes`. Leaves the rendered units and
-  state in place — use `destroy` to remove them.
+  state in place; use `destroy` to remove them.
 kind: script
 tag: vm
 schema:

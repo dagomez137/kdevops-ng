@@ -4,15 +4,15 @@ description: |
   (`$WORKERS_DIR/shared/fstests/<vm>/`), the files the guest's
   `xfstests@<section>.service` reads from its `/var/lib/xfstests` mount:
 
-  - `local.config` — the single editable xfstests `HOST_OPTIONS` config (default =
+  - `local.config`: the single editable xfstests `HOST_OPTIONS` config (default =
     the shipped XFS profile matrix), device-agnostic: `FSTYP=xfs` plus each
     section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`. The section list is auto-discovered
     from it; `sections` narrows the run to a subset (empty = all). The discovered
     `devices` are injected into each selected section at render time.
-  - `check.env` — the systemd `EnvironmentFile`: `HOST_OPTIONS=/var/lib/xfstests/
+  - `check.env`: the systemd `EnvironmentFile`: `HOST_OPTIONS=/var/lib/xfstests/
     local.config` (the **guest** path; `./check` runs in the guest) and
-    `XFSTESTS_CHECK_ARGS` composed from the Check group. `RESULT_BASE` is left unset
-    — the `xfstests-check` wrapper forces it to `$PWD/results`.
+    `XFSTESTS_CHECK_ARGS` composed from the Check group. `RESULT_BASE` is left unset;
+    the `xfstests-check` wrapper forces it to `$PWD/results`.
 
   Both files are written atomically and echoed to the job log; `results/` is created
   for the guest to write into. Returns the `[section]` names for the per-section
@@ -63,14 +63,14 @@ schema:
         sections:
           title: Sections
           type: array
-          description: The xfstests `[section]`s to run — auto-discovered from `local.config` (the full shipped XFS matrix when empty). Empty runs every section.
+          description: "The xfstests `[section]`s to run: auto-discovered from `local.config` (the full shipped XFS matrix when empty). Empty runs every section."
           default: []
           items:
             type: string
         local_config:
           title: local.config
           type: string
-          description: "Optional override — paste a device-agnostic xfstests `HOST_OPTIONS` config (`FSTYP=xfs` + each section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`, no `TEST_DEV`/`SCRATCH_DEV`) to run instead of the generated matrix. Empty uses the full shipped XFS matrix; `render_config` injects the discovered Devices per section."
+          description: "Optional override: paste a device-agnostic xfstests `HOST_OPTIONS` config (`FSTYP=xfs` + each section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`, no `TEST_DEV`/`SCRATCH_DEV`) to run instead of the generated matrix. Empty uses the full shipped XFS matrix; `render_config` injects the discovered Devices per section."
           default: ""
         clean_results:
           title: Clean Results
@@ -105,7 +105,7 @@ schema:
         test_selection:
           title: Test selection
           type: string
-          description: "Run xfstests by groups (`-g`) or by an explicit testlist — mutually exclusive in `./check`'s typical use. `groups` emits `-g` (and `-x`); `tests` emits the positional testlist."
+          description: "Run xfstests by groups (`-g`) or by an explicit testlist: mutually exclusive in `./check`'s typical use. `groups` emits `-g` (and `-x`); `tests` emits the positional testlist."
           default: groups
           enum:
             - groups
@@ -125,7 +125,7 @@ schema:
           default: ''
         exclude:
           type: string
-          description: 'xfstests `./check -X exclude_file`: exclude individual tests — a guest path to a file listing tests to skip.'
+          description: 'xfstests `./check -X exclude_file`: exclude individual tests (a guest path to a file listing tests to skip).'
           default: ''
         report:
           type: string

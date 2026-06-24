@@ -1,7 +1,7 @@
 # A custom content-addressed store for build outputs, not the Nix store
 
-The kernel and QEMU are built with `make`/`ninja` inside a pinned Nix devShell — not
-as Nix derivations — because development needs fast incremental builds over a mutable
+The kernel and QEMU are built with `make`/`ninja` inside a pinned Nix devShell (not
+as Nix derivations) because development needs fast incremental builds over a mutable
 worktree (b4 series, branch hacking), which hermetic from-scratch derivations
 preclude. Their outputs therefore live in a worktree destdir, outside `/nix/store`,
 so Nix's native reuse (already-realised paths) and cross-host fetch (substituters /
@@ -28,7 +28,7 @@ accepted
 ## Consequences
 
 - We use Nix where it fits and not where it does not: the toolchain is a pinned
-  devShell (and its `drvPath` is our toolchain identity — validated byte-identical
+  devShell (and its `drvPath` is our toolchain identity, validated byte-identical
   across two hosts from one `flake.lock`), while the mutable build and its outputs are
   ours.
 - The input-hash identity is unavoidable regardless of transport: it must be known
@@ -42,10 +42,10 @@ accepted
   add-path`s its install tree, host A `nix copy --from ssh://B` fetches it (411 MiB in
   ~4 s), the transported `qemu-system-x86_64` runs with zero missing RPATH dependencies
   because the two hosts share one toolchain closure (the beta2 result), and a second
-  `nix copy` is a no-op — store-path validity is `reuse_check`, for free. The prototype
+  `nix copy` is a no-op: store-path validity is `reuse_check`, for free. The prototype
   also bounds the claim: a plain `add-path` registers *no* references, so closure-level
-  dedup against the toolchain is not automatic — it needs the artifact to be a
+  dedup against the toolchain is not automatic: it needs the artifact to be a
   derivation output (scanned references), not just an added path. Migrating
-  `fetch_identity` to this is a contained change — the identity and `reuse_check` logic
-  are transport-independent — and is the expected evolution if the rsync path proves
+  `fetch_identity` to this is a contained change (the identity and `reuse_check` logic
+  are transport-independent) and is the expected evolution if the rsync path proves
   limiting.

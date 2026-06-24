@@ -4,17 +4,17 @@
 Folds the list of `f/fstests/collect` results (one per `[section]`, collected by the
 flow's per-section forloop) into a single rollup: the per-section summaries, the
 per-test rows, and a `status` of `failed` when any section reported a failure (or a
-missing report), else `passed`. Pure aggregation — no guest contact. When a `vm_name`
+missing report), else `passed`. Pure aggregation, no guest contact. When a `vm_name`
 is given it also writes the full rollup to `<share>/<kver>/report.json` (atomically),
 so the run's verdict is recoverable from the share alone.
 
 The returned value is a Windmill `render_all` display of three NATIVE tables (no
-markdown — arrays of objects render as real sortable/searchable tables, while the
+markdown: arrays of objects render as real sortable/searchable tables, while the
 result-view markdown renderer has no GFM-table support):
 
-  1. run info — testsuite, filesystem type, kernel, guest
-  2. per section — the filesystem-under-test geometry + the section's pass/fail counts
-  3. per test — one row per distinct test across all sections (failures first)
+  1. run info: testsuite, filesystem type, kernel, guest
+  2. per section: the filesystem-under-test geometry + the section's pass/fail counts
+  3. per test: one row per distinct test across all sections (failures first)
 
 Equivalent command:
 
@@ -70,7 +70,7 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
     kernel_version = next((s.get("kernel_version") for s in sections if s.get("kernel_version")), "")
     fstype = next((s.get("fstype") for s in sections if s.get("fstype")), "")
 
-    # Table 2: one row per section — the filesystem-under-test geometry (configured size +
+    # Table 2: one row per section: the filesystem-under-test geometry (configured size +
     # the realized feature bits from xfs_info, when prepare captured them) then the counts.
     section_rows = []
     for s in sections:
@@ -118,7 +118,7 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
         print(f"+ wrote {path}", flush=True)
         rollup["report_json"] = str(path)
 
-    # render_all (must be the sole key): three native tables, no markdown — run info,
+    # render_all (must be the sole key): three native tables, no markdown: run info,
     # the per-section filesystem geometry + counts, then one row per test.
     run_info = [{"testsuite": "fstests", "fstype": fstype or "?",
                  "kernel": kernel_version or "?", "guest": vm_name or "?"}]

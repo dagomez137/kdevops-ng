@@ -9,7 +9,7 @@ default.nix is generated from the typed inputs and carries the per-VM compositio
 The flake's own modules list already imports the imageless backend, the user module,
 and the default overlay, so default.nix only adds to that.
 
-Both files are written under `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/` — a
+Both files are written under `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`: a
 host-visible path, so a host-forked QEMU (qsu) can later serve the built closure.
 
 Equivalent bash: scaffold from the imageless template, then edit the two files.
@@ -96,8 +96,8 @@ def main(
         shares.setdefault("/var/lib/xfstests", {"tag": "fstests"})
     #  - home: the operator's host home (tag `home`, served once by qsu) mounted at
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
-    #    in your home — writable via the root->operator virtiofsd uid-map, with no extra
-    #    guest user and no sandbox change. A flow transform can't read the filesystem, so
+    #    in your home (writable via the root->operator virtiofsd uid-map, with no extra
+    #    guest user and no sandbox change). A flow transform can't read the filesystem, so
     #    the path is resolved here; bringup passes /home/<host_user> from discover.
     home_dir = (home_dir or "").strip()
     if home and not home_dir:
@@ -137,7 +137,7 @@ def main(
     nixos_flake = vendor_dir(workers) / "nixos-flake"
     template = nixos_flake / "templates/imageless/flake.nix"
     if not template.is_file():
-        raise FileNotFoundError(f"imageless template missing at {template} — provision nixos-flake first")
+        raise FileNotFoundError(f"imageless template missing at {template}; provision nixos-flake first")
 
     # Per-VM config dir, hardened against name-based path escapes.
     config_root = workers / worker_index / "nix"
@@ -272,7 +272,7 @@ def _render_default(
         out += ["", "  nixpkgs.overlays = lib.mkAfter [", "    (final: prev: {"]
         for ov in overrides:
             # `attrs` carries extra overrideAttrs assignments (string-valued, e.g. a
-            # replacement build phase) — needed when a git `src` must build differently
+            # replacement build phase): needed when a git `src` must build differently
             # than the package's release tarball (e.g. xfsprogs from git wants its own
             # `autoreconfPhase = "make configure"` rather than nixpkgs' generic autoreconf).
             extra = "".join(f" {k} = {_nix_str(v)};" for k, v in (ov.get("attrs") or {}).items())

@@ -5,7 +5,7 @@ description: |
   every imageless guest: `f/nix/render_config` bakes the public key into each
   closure's `authorizedKeys` and `f/qsu/boot` writes a per-VM `config.d/<vm>.conf`,
   so after a one-time `Include` line in `~/.ssh/config` a plain `ssh <vm>` reaches
-  the guest over vsock with this key — no operator-managed key.
+  the guest over vsock with this key: no operator-managed key.
 
   Idempotent: keeps an existing key (set `regenerate` to force a new one, which
   invalidates the key already baked into every built closure). Returns the key
@@ -20,6 +20,6 @@ schema:
     regenerate:
       title: Regenerate
       type: boolean
-      description: Force a fresh keypair even if one exists. Invalidates the authorized key already baked into every built closure — rebuild closures after.
+      description: Force a fresh keypair even if one exists. Invalidates the authorized key already baked into every built closure; rebuild closures after.
       default: false
   required: []
