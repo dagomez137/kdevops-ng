@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-.PHONY: style generated reflow maintainers docs serve
+.PHONY: style generated reflow maintainers docs serve lint format typecheck
 
 DOCS_PORT ?= 8001
 
@@ -11,6 +11,24 @@ style: generated
 # Fail if a committed generated file no longer matches its generator output.
 generated:
 	@bash scripts/check-generated.sh
+
+# Lint and check formatting of all Python: the repo tooling under scripts/ and
+# the hand-authored Windmill step scripts under f/. ruff is the single authority;
+# its config lives in pyproject.toml.
+lint:
+	@ruff check scripts f
+	@ruff format --check scripts f
+
+# Apply ruff's lint fixes (import order) and formatting in place. Run after
+# editing Python, then `wmill sync push` to store any f/ changes.
+format:
+	@ruff check --fix scripts f
+	@ruff format scripts f
+
+# Type-check with pyright (basic, f/ relaxed; see pyproject.toml). Advisory until
+# a lint devshell ships pyright; the editor LSP and CI run the same config.
+typecheck:
+	@pyright
 
 # Rewrap wmill description fields so wmill keeps them as clean literal blocks.
 # Run after editing descriptions (then `wmill sync push` to store the rewrap).

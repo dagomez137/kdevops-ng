@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Python toolchain for kdevops-ng. ruff is the single linter and formatter for
+# both the repo tooling under scripts/ and the hand-authored Windmill step
+# scripts under f/. pyright type-checks both leniently for the editor LSP and a
+# future CI gate. See CLAUDE.md for the policy and `make lint`/`make format`.
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = ["vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+# ruff format is the single authority on line length. The E501 long-line lint
+# disagrees with it on the comments, strings, and URLs the formatter leaves
+# unwrapped by design, so disable E501 rather than fight the formatter.
+ignore = ["E501"]
+
+[tool.pyright]
+include = ["scripts", "f"]
+exclude = ["vendor", "**/__pycache__"]
+extraPaths = ["."]
+typeCheckingMode = "basic"
+# f/ step scripts carry no __init__.py and import siblings over Windmill's
+# runtime path (from f.x import y); resolve them as namespace packages from the
+# repo root and do not flag the wmill client that is injected at execution time.
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+
+# A Windmill step's main() annotations are the UI form schema rather than
+# ordinary typing, and its payloads are dict-shaped. Keep scripts/ at the basic
+# default and relax in f/ the few diagnostics those domain shapes trip.
+[[tool.pyright.executionEnvironments]]
+root = "f"
+reportArgumentType = "none"
+reportAttributeAccessIssue = "none"

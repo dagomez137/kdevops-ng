@@ -29,7 +29,9 @@ soft-wrap = { enable = true, wrap-at-text-width = true }
 name = "python"
 language-servers = ["pyright"]
 auto-format = true
-formatter = { command = "black", args = ["--quiet", "-"] }
+formatter = { command = "ruff", args = ["format", "-"] }
+text-width = 88
+rulers = [88]
 
 [language-server.pyright]
 command = "pyright-langserver"
