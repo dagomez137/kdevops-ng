@@ -43,13 +43,24 @@ def main(
     build.mkdir(parents=True, exist_ok=True)
     shell = DevShell(workers)
     base = [f"--directory={worktree}", f"O={build}"]
-    shell.run("make", *base, f"--jobs={len(os.sched_getaffinity(0))}", *flag_args, *config_goals)
+    shell.run(
+        "make",
+        *base,
+        f"--jobs={len(os.sched_getaffinity(0))}",
+        *flag_args,
+        *config_goals,
+    )
     if build_identity:
         kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
     else:
-        kernelrelease = shell.capture("make", "--silent", *base, *flag_args, "kernelrelease").strip()
+        kernelrelease = shell.capture(
+            "make", "--silent", *base, *flag_args, "kernelrelease"
+        ).strip()
 
-    print(f"configured [{' '.join(config_goals)}] -> {kernelrelease or 'unknown'}", flush=True)
+    print(
+        f"configured [{' '.join(config_goals)}] -> {kernelrelease or 'unknown'}",
+        flush=True,
+    )
 
     return {
         "kernelrelease": kernelrelease or "unknown",

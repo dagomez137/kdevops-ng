@@ -89,9 +89,12 @@ def iommu_options(fi: dict, filter_text: str = "") -> list[dict]:
     an unresolvable qemu falls back to the full supported set so the form still works.
     """
     try:
-        out = run_logged([resolve_qemu_binary(fi), "-device", "help"],
-                         capture=True, check=False)
-        found = {m.group(1) for line in out.splitlines() if (m := _IOMMU_DEVICE.match(line))}
+        out = run_logged(
+            [resolve_qemu_binary(fi), "-device", "help"], capture=True, check=False
+        )
+        found = {
+            m.group(1) for line in out.splitlines() if (m := _IOMMU_DEVICE.match(line))
+        }
         devices = [d for d in SUPPORTED_IOMMU if d in found]
     except Exception:
         devices = list(SUPPORTED_IOMMU)

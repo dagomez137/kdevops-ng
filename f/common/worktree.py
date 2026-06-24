@@ -63,14 +63,19 @@ def validate_group(worktree_group: str) -> None:
     path/flag characters (it becomes a single directory name directly under the
     Workbench). It must be one plain path component: no `.`/`..`, no separators,
     no whitespace, no leading dash."""
-    if (not worktree_group or worktree_group in (".", "..")
-            or worktree_group.startswith("-")
-            or any(c.isspace() for c in worktree_group)
-            or Path(worktree_group).parts != (worktree_group,)):
+    if (
+        not worktree_group
+        or worktree_group in (".", "..")
+        or worktree_group.startswith("-")
+        or any(c.isspace() for c in worktree_group)
+        or Path(worktree_group).parts != (worktree_group,)
+    ):
         raise ValueError(f"invalid worktree-group: {worktree_group!r}")
     if worktree_group in _RESERVED_GROUPS:
-        raise ValueError(f"worktree-group {worktree_group!r} is reserved "
-                         f"(reserved: {', '.join(_RESERVED_GROUPS)})")
+        raise ValueError(
+            f"worktree-group {worktree_group!r} is reserved "
+            f"(reserved: {', '.join(_RESERVED_GROUPS)})"
+        )
 
 
 def prepare(
@@ -90,7 +95,9 @@ def prepare(
     validate_group(worktree_group)
 
     git = Git()
-    existing = git.capture("config", "--global", "--get-all", "safe.directory", check=False)
+    existing = git.capture(
+        "config", "--global", "--get-all", "safe.directory", check=False
+    )
     if "*" not in existing.split("\n"):
         git.run("config", "--global", "--add", "safe.directory", "*")
 
@@ -111,11 +118,14 @@ def prepare(
     if not (vendor_dir(workers) / "nixos-flake/flake.nix").exists():
         raise FileNotFoundError(
             f"nixos-flake devShell missing at {vendor_dir(workers) / 'nixos-flake'}; "
-            "provision it first")
+            "provision it first"
+        )
 
     who = "developer" if developer else f"worker={location}"
-    print(f"{who} group={worktree_group} project={project} "
-          f"ref={ref} worktree={worktree}", flush=True)
+    print(
+        f"{who} group={worktree_group} project={project} ref={ref} worktree={worktree}",
+        flush=True,
+    )
 
     worktree.parent.mkdir(parents=True, exist_ok=True)
 
@@ -132,8 +142,16 @@ def prepare(
         git.run("-C", str(worktree), "checkout", "--detach", "--force", target)
     else:
         shutil.rmtree(worktree, ignore_errors=True)
-        git.run("-C", str(bare), "worktree", "add", "--force", "--detach",
-                str(worktree), target)
+        git.run(
+            "-C",
+            str(bare),
+            "worktree",
+            "add",
+            "--force",
+            "--detach",
+            str(worktree),
+            target,
+        )
     b4_branch = None
     if b4_series:
         # b4 shazam's `git am` needs a committer identity the worker container lacks.
@@ -146,7 +164,9 @@ def prepare(
         # which refuses a branch another worktree has checked out; a failure is
         # non-fatal, the build already succeeded.
         b4_branch = f"b4/{_b4_slug(b4_series)}"
-        if not git.ok("-C", str(worktree), "update-ref", f"refs/heads/{b4_branch}", "HEAD"):
+        if not git.ok(
+            "-C", str(worktree), "update-ref", f"refs/heads/{b4_branch}", "HEAD"
+        ):
             print(f"note: could not publish {b4_branch} to the Bare", flush=True)
             b4_branch = None
 
@@ -191,13 +211,21 @@ def _resolve_ref(git: Git, bare: Path, ref: str) -> str:
     live (a tag like `v11.0.0` still wins outright).
     """
     for candidate in (f"refs/tags/{ref}", f"mirror/{ref}", ref):
-        sha = git.capture("-C", str(bare), "rev-parse", "--verify", "--quiet",
-                          f"{candidate}^{{commit}}", check=False).strip()
+        sha = git.capture(
+            "-C",
+            str(bare),
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            f"{candidate}^{{commit}}",
+            check=False,
+        ).strip()
         if sha:
             return sha
     raise ValueError(
         f"could not resolve ref {ref!r} in {bare} "
-        "(tried a tag, the mirror remote, and the literal ref)")
+        "(tried a tag, the mirror remote, and the literal ref)"
+    )
 
 
 def _exclude_dirs(bare: Path, extra_dirs: tuple) -> None:

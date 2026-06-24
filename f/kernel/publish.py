@@ -42,11 +42,24 @@ def main(destdir: str, uts_release: str) -> dict:
         (stage / "boot").mkdir(parents=True, exist_ok=True)
         (stage / "lib/modules").mkdir(parents=True, exist_ok=True)
         for image in images:
-            run_logged(["cp", "--recursive", "--force",
-                        str(image), str(stage / "boot" / image.name)])
-        run_logged(["cp", "--recursive", "--force",
-                    str(src / "lib/modules" / uts_release),
-                    str(stage / "lib/modules" / uts_release)])
+            run_logged(
+                [
+                    "cp",
+                    "--recursive",
+                    "--force",
+                    str(image),
+                    str(stage / "boot" / image.name),
+                ]
+            )
+        run_logged(
+            [
+                "cp",
+                "--recursive",
+                "--force",
+                str(src / "lib/modules" / uts_release),
+                str(stage / "lib/modules" / uts_release),
+            ]
+        )
         # The kbuild build/source symlinks are absolute paths into the builder's
         # worktree; they dangle on a peer fetch and under the read-only store mount.
         mod_stage = stage / "lib/modules" / uts_release
@@ -54,7 +67,10 @@ def main(destdir: str, uts_release: str) -> dict:
             target = mod_stage / link
             if target.is_symlink():
                 target.unlink()
-                print(f"stripped {uts_release}/{link} (dangling worktree symlink)", flush=True)
+                print(
+                    f"stripped {uts_release}/{link} (dangling worktree symlink)",
+                    flush=True,
+                )
         sp = store.publish(name, str(stage))
     finally:
         shutil.rmtree(stage, ignore_errors=True)

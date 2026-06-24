@@ -34,8 +34,22 @@ _ICON = {"passed": "✅", "failed": "❌", "notrun": "⊘"}
 # (libfrog/fsgeom.c) emits as 0/1 flags, in its print order. Version fields (attr, naming/
 # log version) and the raw geometry numerics ride along in report.json's detail.geometry.
 _FEATURE_COLS = (
-    "crc", "finobt", "sparse", "rmapbt", "reflink", "bigtime", "inobtcount", "nrext64",
-    "exchange", "metadir", "projid32bit", "ascii-ci", "ftype", "parent", "lazy-count", "zoned",
+    "crc",
+    "finobt",
+    "sparse",
+    "rmapbt",
+    "reflink",
+    "bigtime",
+    "inobtcount",
+    "nrext64",
+    "exchange",
+    "metadir",
+    "projid32bit",
+    "ascii-ci",
+    "ftype",
+    "parent",
+    "lazy-count",
+    "zoned",
 )
 
 
@@ -47,15 +61,17 @@ def _per_test_rows(section: str, per_test: list[dict]) -> list[dict]:
     for t in per_test[:_TEST_TABLE_CAP]:
         runs = int(t.get("runs", 1) or 1)
         fails = int(t.get("fails", 0) or 0)
-        rows.append({
-            "section": section,
-            "test": t.get("test"),
-            "status": _ICON.get(t.get("status"), t.get("status", "")),
-            "runs": runs,
-            "fails": f"{fails}/{runs}" if runs > 1 else fails,
-            "time(s)": t.get("time", 0),
-            "message": t.get("message", ""),
-        })
+        rows.append(
+            {
+                "section": section,
+                "test": t.get("test"),
+                "status": _ICON.get(t.get("status"), t.get("status", "")),
+                "runs": runs,
+                "fails": f"{fails}/{runs}" if runs > 1 else fails,
+                "time(s)": t.get("time", 0),
+                "message": t.get("message", ""),
+            }
+        )
     return rows
 
 
@@ -63,11 +79,19 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
     sections = list(per_section or [])
     # A section with no report (still running / crashed) is treated as failed so a
     # partial run never reports a false pass; `collect` already folds that into `status`.
-    status = "failed" if any(s.get("status") == "failed" or not s.get("report_present", False)
-                             for s in sections) else "passed"
+    status = (
+        "failed"
+        if any(
+            s.get("status") == "failed" or not s.get("report_present", False)
+            for s in sections
+        )
+        else "passed"
+    )
     # Run-level facts (same across a run's sections): the kernel results are keyed by,
     # and the filesystem type under test.
-    kernel_version = next((s.get("kernel_version") for s in sections if s.get("kernel_version")), "")
+    kernel_version = next(
+        (s.get("kernel_version") for s in sections if s.get("kernel_version")), ""
+    )
     fstype = next((s.get("fstype") for s in sections if s.get("fstype")), "")
 
     # Table 2: one row per section: the filesystem-under-test geometry (configured size +
@@ -76,28 +100,42 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
     for s in sections:
         geo = (s.get("detail") or {}).get("geometry") or {}
         feat = geo.get("features") or {}
-        section_rows.append({
-            "section": s.get("section"),
-            "bsize": geo.get("bsize"),
-            "sectsize": geo.get("sectsize"),
-            **{f: feat.get(f, "") for f in _FEATURE_COLS},
-            "tests": int(s.get("tests", 0) or 0),
-            "passed": int(s.get("passed", 0) or 0),
-            "failed": int(s.get("failed", 0) or 0),
-            "notrun": int(s.get("notrun", 0) or 0),
-            "iterations": int(s.get("iterations", 1) or 1),
-        })
+        section_rows.append(
+            {
+                "section": s.get("section"),
+                "bsize": geo.get("bsize"),
+                "sectsize": geo.get("sectsize"),
+                **{f: feat.get(f, "") for f in _FEATURE_COLS},
+                "tests": int(s.get("tests", 0) or 0),
+                "passed": int(s.get("passed", 0) or 0),
+                "failed": int(s.get("failed", 0) or 0),
+                "notrun": int(s.get("notrun", 0) or 0),
+                "iterations": int(s.get("iterations", 1) or 1),
+            }
+        )
 
     # Table 3: one row per distinct test across all sections, failures already first.
-    test_rows = [r for s in sections
-                 for r in _per_test_rows(s.get("section"), (s.get("detail") or {}).get("per_test") or [])]
+    test_rows = [
+        r
+        for s in sections
+        for r in _per_test_rows(
+            s.get("section"), (s.get("detail") or {}).get("per_test") or []
+        )
+    ]
 
     # report.json keeps the full structured rollup, including one flat row per failing test.
-    failures = [{
-        "section": s.get("section"), "test": f.get("name"), "fails": f.get("fails", 1),
-        "iterations": int(s.get("iterations", 1) or 1), "type": f.get("type", ""),
-        "message": f.get("message", ""),
-    } for s in sections for f in ((s.get("detail") or {}).get("failures") or [])]
+    failures = [
+        {
+            "section": s.get("section"),
+            "test": f.get("name"),
+            "fails": f.get("fails", 1),
+            "iterations": int(s.get("iterations", 1) or 1),
+            "type": f.get("type", ""),
+            "message": f.get("message", ""),
+        }
+        for s in sections
+        for f in ((s.get("detail") or {}).get("failures") or [])
+    ]
     rollup = {
         "status": status,
         "kernel_version": kernel_version,
@@ -105,14 +143,21 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
         "sections": sections,
         "failures": failures,
     }
-    print(f"status={status} fstype={fstype or '?'} sections={len(sections)} "
-          f"tests={sum(r['tests'] for r in section_rows)} failing={len(failures)}", flush=True)
+    print(
+        f"status={status} fstype={fstype or '?'} sections={len(sections)} "
+        f"tests={sum(r['tests'] for r in section_rows)} failing={len(failures)}",
+        flush=True,
+    )
 
     if vm_name:
         # Key the aggregate by kernel too (results are kver-keyed), so two kernels' runs
         # on one guest don't clobber each other's report.json. Fall back to the share root
         # when the kernel is unknown (degraded run).
-        out_dir = share_dir(vm_name) / kernel_version if kernel_version else share_dir(vm_name)
+        out_dir = (
+            share_dir(vm_name) / kernel_version
+            if kernel_version
+            else share_dir(vm_name)
+        )
         path = out_dir / "report.json"
         _atomic_write(path, json.dumps(rollup, indent=2) + "\n")
         print(f"+ wrote {path}", flush=True)
@@ -120,6 +165,12 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
 
     # render_all (must be the sole key): three native tables, no markdown: run info,
     # the per-section filesystem geometry + counts, then one row per test.
-    run_info = [{"testsuite": "fstests", "fstype": fstype or "?",
-                 "kernel": kernel_version or "?", "guest": vm_name or "?"}]
+    run_info = [
+        {
+            "testsuite": "fstests",
+            "fstype": fstype or "?",
+            "kernel": kernel_version or "?",
+            "guest": vm_name or "?",
+        }
+    ]
     return {"render_all": [run_info, section_rows, test_rows]}

@@ -35,7 +35,11 @@ _FLAKES = ["--extra-experimental-features", "nix-command flakes"]
 def _nix_env() -> dict:
     # NO_COLOR keeps the job log plain: nix (and other honouring tools) emit no ANSI
     # escapes, so the saved log is readable without a de-colouring filter.
-    return {**os.environ, "PATH": f"{_NIX_BIN}{os.pathsep}{os.environ['PATH']}", "NO_COLOR": "1"}
+    return {
+        **os.environ,
+        "PATH": f"{_NIX_BIN}{os.pathsep}{os.environ['PATH']}",
+        "NO_COLOR": "1",
+    }
 
 
 def _log(argv: list[str], indent: int = 4, width: int = 96) -> None:
@@ -60,20 +64,30 @@ def _log(argv: list[str], indent: int = 4, width: int = 96) -> None:
         tok = argv[i]
         is_flag = tok.startswith("-")
         nxt = argv[i + 1] if i + 1 < n else None
-        if is_flag and "=" not in tok and nxt is not None and not nxt.startswith("-") and "=" not in nxt:
-            items.append((level, f"{shlex.quote(tok)} {shlex.quote(nxt)}"))  # flag + its value
+        if (
+            is_flag
+            and "=" not in tok
+            and nxt is not None
+            and not nxt.startswith("-")
+            and "=" not in nxt
+        ):
+            items.append(
+                (level, f"{shlex.quote(tok)} {shlex.quote(nxt)}")
+            )  # flag + its value
             i += 2
-        elif is_flag or "=" in tok:                                          # flag / VAR=value
+        elif is_flag or "=" in tok:  # flag / VAR=value
             items.append((level, shlex.quote(tok)))
             i += 1
-        else:                                                                # subcommand/target
+        else:  # subcommand/target
             items.append((level, shlex.quote(tok)))
             level += 1
             i += 1
 
     last = len(items) - 1
     lines = [
-        ("+ " if idx == 0 else "  " + " " * (indent * lvl)) + text + (" \\" if idx < last else "")
+        ("+ " if idx == 0 else "  " + " " * (indent * lvl))
+        + text
+        + (" \\" if idx < last else "")
         for idx, (lvl, text) in enumerate(items)
     ]
     print("\n".join(lines), flush=True)
@@ -129,8 +143,9 @@ def run_logged(argv: list[str], capture: bool = False, check: bool = True):
     """
     _log(argv)
     if capture:
-        return subprocess.run(argv, env=_nix_env(), check=check, text=True,
-                              stdout=subprocess.PIPE).stdout
+        return subprocess.run(
+            argv, env=_nix_env(), check=check, text=True, stdout=subprocess.PIPE
+        ).stdout
     return subprocess.run(argv, env=_nix_env(), check=check).returncode
 
 
@@ -193,26 +208,50 @@ class DevShell:
         # Locate the managed ccache config (written by f/kernel/build_flags). All
         # ccache settings, including cache_dir, live in that file; CCACHE_CONFIGPATH
         # only points at it. Harmless when a build does not set CC="ccache ...".
-        self._env = {**_nix_env(), "CCACHE_CONFIGPATH": f"{workers}/shared/ccache/ccache.conf"}
+        self._env = {
+            **_nix_env(),
+            "CCACHE_CONFIGPATH": f"{workers}/shared/ccache/ccache.conf",
+        }
 
     def _argv(self, command: str, *args: str) -> list[str]:
         return ["nix", *_FLAKES, "develop", self._flake, "--command", command, *args]
 
-    def run(self, command: str, *args: str, cwd: str | None = None,
-            env: dict | None = None, check: bool = True, quiet: bool = False) -> int:
+    def run(
+        self,
+        command: str,
+        *args: str,
+        cwd: str | None = None,
+        env: dict | None = None,
+        check: bool = True,
+        quiet: bool = False,
+    ) -> int:
         argv = self._argv(command, *args)
         if not quiet:
             _log(argv)
-        return subprocess.run(argv, env={**self._env, **(env or {})}, check=check,
-                              cwd=cwd).returncode
+        return subprocess.run(
+            argv, env={**self._env, **(env or {})}, check=check, cwd=cwd
+        ).returncode
 
-    def capture(self, command: str, *args: str, cwd: str | None = None,
-                env: dict | None = None, check: bool = True, quiet: bool = False) -> str:
+    def capture(
+        self,
+        command: str,
+        *args: str,
+        cwd: str | None = None,
+        env: dict | None = None,
+        check: bool = True,
+        quiet: bool = False,
+    ) -> str:
         argv = self._argv(command, *args)
         if not quiet:
             _log(argv)
-        return subprocess.run(argv, env={**self._env, **(env or {})}, check=check, text=True,
-                              stdout=subprocess.PIPE, cwd=cwd).stdout
+        return subprocess.run(
+            argv,
+            env={**self._env, **(env or {})},
+            check=check,
+            text=True,
+            stdout=subprocess.PIPE,
+            cwd=cwd,
+        ).stdout
 
 
 def _resolve_git(workers: Path | str | None = None) -> str:
@@ -228,7 +267,9 @@ def _resolve_git(workers: Path | str | None = None) -> str:
     link = base / "shared" / "gitbin"
     git = link / "bin" / "git"
     if not git.exists():
-        Nix().run("build", f"path:{vendor_dir(base)}/nixos-flake#git", "--out-link", str(link))
+        Nix().run(
+            "build", f"path:{vendor_dir(base)}/nixos-flake#git", "--out-link", str(link)
+        )
     return str(git)
 
 
@@ -252,14 +293,27 @@ class Git:
     def ok(self, *args: str) -> bool:
         argv = [self._git, *args]
         _log(argv)
-        return subprocess.run(argv, env=self._env,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        return (
+            subprocess.run(
+                argv,
+                env=self._env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            == 0
+        )
 
     def capture(self, *args: str, check: bool = True) -> str:
         argv = [self._git, *args]
         _log(argv)
-        return subprocess.run(argv, env=self._env, check=check, text=True,
-                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout
+        return subprocess.run(
+            argv,
+            env=self._env,
+            check=check,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        ).stdout
 
 
 class Nix:
@@ -283,12 +337,17 @@ class Nix:
     def capture(self, *args: str, cwd: str | None = None) -> str:
         argv = self._argv(*args)
         _log(argv)
-        return subprocess.run(argv, env=self._env, check=True, text=True,
-                              stdout=subprocess.PIPE, cwd=cwd).stdout
+        return subprocess.run(
+            argv, env=self._env, check=True, text=True, stdout=subprocess.PIPE, cwd=cwd
+        ).stdout
 
     def out_path(self, ref: str) -> str:
         """Resolve a flake ref to its built /nix/store output path."""
-        return self.capture("build", "--no-link", "--print-out-paths", ref).strip().splitlines()[-1]
+        return (
+            self.capture("build", "--no-link", "--print-out-paths", ref)
+            .strip()
+            .splitlines()[-1]
+        )
 
 
 class Systemd:

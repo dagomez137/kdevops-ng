@@ -63,8 +63,9 @@ def _safe_kver(kernel_version: str) -> str:
     return kv
 
 
-def section_results_dir(vm_name: str, kernel_version: str, section: str,
-                        workers: Path | None = None) -> Path:
+def section_results_dir(
+    vm_name: str, kernel_version: str, section: str, workers: Path | None = None
+) -> Path:
     """A section's RESULT_BASE subdir on the VM's `fstests` share, keyed by the kernel.
 
     `<share_dir>/<kver>/results/<section>`: the host view of the guest's
@@ -81,7 +82,9 @@ def section_results_dir(vm_name: str, kernel_version: str, section: str,
     base = (share_dir(vm_name, workers) / kv / "results").resolve()
     path = (base / section).resolve()
     if path != base and base not in path.parents:
-        raise ValueError(f"section {section!r} / kver {kernel_version!r} resolves outside {base}")
+        raise ValueError(
+            f"section {section!r} / kver {kernel_version!r} resolves outside {base}"
+        )
     return path
 
 
@@ -112,13 +115,15 @@ def render_local_config(local_config: str, devices: list[dict] | None = None) ->
         return text if text.endswith("\n") else text + "\n"
     devs = [d["dev"] if isinstance(d, dict) else str(d) for d in (devices or [])]
     if not devs:
-        raise ValueError("render_local_config: empty local_config and no devices to synthesize from")
+        raise ValueError(
+            "render_local_config: empty local_config and no devices to synthesize from"
+        )
     lines = ["[default]", "FSTYP=xfs", f"TEST_DEV={devs[0]}", "TEST_DIR=/media/test"]
     if len(devs) >= 2:
         lines.append(f"SCRATCH_DEV={devs[1]}")
     lines.append("SCRATCH_MNT=/media/scratch")
     if len(devs) > 2:
-        lines.append(f"SCRATCH_DEV_POOL=\"{' '.join(devs[2:])}\"")
+        lines.append(f'SCRATCH_DEV_POOL="{" ".join(devs[2:])}"')
     return "\n".join(lines) + "\n"
 
 
@@ -153,9 +158,16 @@ XFS_FEATURES: dict[str, dict] = {
     # optional feature off. asciici is excluded from `full` (case-insensitive lookup
     # would spuriously fail case-sensitive tests); nocrc (V4) cannot join either (V5
     # features need crc); realtime/logdev need external devices; all stay separate.
-    "full": {"mkfs": "-m metadir=1", "mount": "-o usrquota,grpquota,prjquota", "v4": False},
-    "nofeat": {"mkfs": "-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0",
-               "mount": "", "v4": False},
+    "full": {
+        "mkfs": "-m metadir=1",
+        "mount": "-o usrquota,grpquota,prjquota",
+        "v4": False,
+    },
+    "nofeat": {
+        "mkfs": "-m reflink=0,rmapbt=0,finobt=0,inobtcount=0,bigtime=0 -i sparse=0,nrext64=0",
+        "mount": "",
+        "v4": False,
+    },
     "quota": {"mkfs": "", "mount": "-o usrquota,grpquota", "v4": False},
     "prjquota": {"mkfs": "", "mount": "-o prjquota", "v4": False},
     "noreflink": {"mkfs": "-m reflink=0", "mount": "", "v4": False},
@@ -175,8 +187,13 @@ XFS_FEATURES: dict[str, dict] = {
     # block >= XFS_MIN_RTEXTSIZE (4096) or mkfs silently drops reflink.
     "logdev": {"mkfs": "", "mount": "", "v4": False, "needs": "logdev"},
     "realtime": {"mkfs": "-m reflink=0", "mount": "", "v4": False, "needs": "rtdev"},
-    "realtime_reflink": {"mkfs": "-m metadir=1", "mount": "", "v4": False,
-                         "needs": "rtdev", "min_block": 4096},
+    "realtime_reflink": {
+        "mkfs": "-m metadir=1",
+        "mount": "",
+        "v4": False,
+        "needs": "rtdev",
+        "min_block": 4096,
+    },
     "nocrc": {"mkfs": "-m crc=0", "mount": "", "v4": True},
 }
 
@@ -199,11 +216,15 @@ def _feature_keys(feature: str | None) -> list[str]:
         return list(XFS_FEATURES)
     key = "" if feature == "default" else feature
     if key not in XFS_FEATURES:
-        raise ValueError(f"unknown feature {feature!r}; choose from {xfs_feature_names()}")
+        raise ValueError(
+            f"unknown feature {feature!r}; choose from {xfs_feature_names()}"
+        )
     return [key]
 
 
-def xfs_profiles_matrix(feature: str | None = None, geometry: str = "matrix") -> dict[str, dict[str, str]]:
+def xfs_profiles_matrix(
+    feature: str | None = None, geometry: str = "matrix"
+) -> dict[str, dict[str, str]]:
     """The feature [x block x sector] cross-product of XFS profiles, in order.
 
     `feature` narrows to one feature's matrix (`default` = the plain `""` feature,
@@ -245,8 +266,11 @@ def xfs_profiles_matrix(feature: str | None = None, geometry: str = "matrix") ->
             for sector in XFS_SECTOR_SIZES:
                 if sector > block:
                     continue
-                name = "xfs_" + (feat + "_" if feat else "") + \
-                    f"bs{_size_tag(block)}_ss{_size_tag(sector)}"
+                name = (
+                    "xfs_"
+                    + (feat + "_" if feat else "")
+                    + f"bs{_size_tag(block)}_ss{_size_tag(sector)}"
+                )
                 parts = [feature_def["mkfs"], f"-b size={block}", f"-s size={sector}"]
                 value: dict[str, str] = {
                     "mkfs": " ".join(p for p in parts if p),
@@ -286,8 +310,11 @@ def xfs_catalog_text(feature: str | None = None, geometry: str = "matrix") -> st
     Device-agnostic by design: no `TEST_DEV`/`SCRATCH_DEV`, those are injected
     per selected section at render time.
     """
-    profiles = (XFS_PROFILES if feature in (None, "all") and geometry == "matrix"
-                else xfs_profiles_matrix(feature, geometry))
+    profiles = (
+        XFS_PROFILES
+        if feature in (None, "all") and geometry == "matrix"
+        else xfs_profiles_matrix(feature, geometry)
+    )
     blocks: list[str] = []
     for name, profile in profiles.items():
         lines = [f"[{name}]", "FSTYP=xfs"]
@@ -391,7 +418,9 @@ def device_sector(devices: list[dict] | list[str]) -> int:
     size `mkfs.xfs` enforces). Defaults to 512 when a device omits `log_sec`;
     bare-string device lists (no dict) assume 512.
     """
-    sizes = [int(d["log_sec"]) for d in devices if isinstance(d, dict) and "log_sec" in d]
+    sizes = [
+        int(d["log_sec"]) for d in devices if isinstance(d, dict) and "log_sec" in d
+    ]
     return max(sizes) if sizes else 512
 
 
@@ -414,7 +443,9 @@ def section_external(block: str) -> str | None:
     return m.group(1) if m else None
 
 
-def inject_device_base(block: str, devices: list[dict] | list[str], logwrites: bool = False) -> str:
+def inject_device_base(
+    block: str, devices: list[dict] | list[str], logwrites: bool = False
+) -> str:
     """Append the discovered-device base lines to one section's verbatim `block`.
 
     Binds a device-agnostic section to a guest's discovered devices. With no
@@ -490,7 +521,9 @@ def inject_device_base(block: str, devices: list[dict] | list[str], logwrites: b
     ]
     if "SCRATCH_DEV=" not in block and "SCRATCH_DEV_POOL=" not in block:
         if len(devs) > 2:
-            base.append(("SCRATCH_DEV_POOL=", f'SCRATCH_DEV_POOL="{" ".join(devs[1:])}"'))
+            base.append(
+                ("SCRATCH_DEV_POOL=", f'SCRATCH_DEV_POOL="{" ".join(devs[1:])}"')
+            )
         else:
             base.append(("SCRATCH_DEV=", f"SCRATCH_DEV={devs[1]}"))
     if logwrites_line:
@@ -642,8 +675,12 @@ def build_check_args(
     return " ".join(args)
 
 
-def render_check_env(host_options: str, check_args: str, test_timeout: int = 0,
-                     test_timeouts: dict[str, int] | None = None) -> str:
+def render_check_env(
+    host_options: str,
+    check_args: str,
+    test_timeout: int = 0,
+    test_timeouts: dict[str, int] | None = None,
+) -> str:
     """The systemd `EnvironmentFile` text the `xfstests@<section>.service` reads:
     `HOST_OPTIONS=<absolute guest path>` and `XFSTESTS_CHECK_ARGS=<./check flags>`.
     RESULT_BASE is omitted; the `xfstests-check` wrapper forces it.
@@ -655,7 +692,9 @@ def render_check_env(host_options: str, check_args: str, test_timeout: int = 0,
     lines = [f"HOST_OPTIONS={host_options}", f"XFSTESTS_CHECK_ARGS={check_args}"]
     if test_timeout:
         lines.append(f"TEST_TIMEOUT={int(test_timeout)}")
-    pairs = " ".join(f"{k}:{int(v)}" for k, v in (test_timeouts or {}).items() if k and v)
+    pairs = " ".join(
+        f"{k}:{int(v)}" for k, v in (test_timeouts or {}).items() if k and v
+    )
     if pairs:
         lines.append(f"TEST_TIMEOUTS={pairs}")
     return "\n".join(lines) + "\n"
@@ -694,9 +733,16 @@ def parse_xunit(results_dir: Path, section: str | None = None) -> dict:
         "failures": [],
         "notruns": [],
         "per_test": [],
-        "out_bad": sorted(str(p) for p in results_dir.glob("**/*.out.bad")
-                          if not _ROTATED_OUT_BAD.search(p.name)) if results_dir.is_dir() else [],
-        "check_log": str(results_dir / "check.log") if (results_dir / "check.log").is_file() else None,
+        "out_bad": sorted(
+            str(p)
+            for p in results_dir.glob("**/*.out.bad")
+            if not _ROTATED_OUT_BAD.search(p.name)
+        )
+        if results_dir.is_dir()
+        else [],
+        "check_log": str(results_dir / "check.log")
+        if (results_dir / "check.log").is_file()
+        else None,
     }
     if not report.is_file():
         base["error"] = "no xunit report"
@@ -741,8 +787,12 @@ def parse_xunit(results_dir: Path, section: str | None = None) -> dict:
                 if entry:
                     entry["fails"] += 1
                 else:
-                    fail_agg[name] = {"name": name, "message": child.get("message", ""),
-                                      "type": child.get("type", ""), "fails": 1}
+                    fail_agg[name] = {
+                        "name": name,
+                        "message": child.get("message", ""),
+                        "type": child.get("type", ""),
+                        "fails": 1,
+                    }
             elif ctag == "skipped":
                 case_skipped = True
         if case_skipped and not case_failed:
@@ -751,8 +801,9 @@ def parse_xunit(results_dir: Path, section: str | None = None) -> dict:
     failures = list(fail_agg.values())
     # Per-test status across passes: failed > notrun (all passes skipped) > passed.
     failed_names = set(fail_agg)
-    notrun_set = {n for n in runs
-                  if n not in failed_names and skips.get(n, 0) == runs[n]}
+    notrun_set = {
+        n for n in runs if n not in failed_names and skips.get(n, 0) == runs[n]
+    }
     notrun_names = sorted(notrun_set)
     tests = len(runs)
     failed = len(failed_names)
@@ -766,28 +817,41 @@ def parse_xunit(results_dir: Path, section: str | None = None) -> dict:
     per_test = []
     for name in runs:
         if name in failed_names:
-            status, fails, message = "failed", fail_agg[name]["fails"], fail_agg[name]["message"]
+            status, fails, message = (
+                "failed",
+                fail_agg[name]["fails"],
+                fail_agg[name]["message"],
+            )
         elif name in notrun_set:
             status, fails, message = "notrun", 0, ""
         else:
             status, fails, message = "passed", 0, ""
-        per_test.append({"test": name, "status": status, "runs": runs[name],
-                         "fails": fails, "time": round(times.get(name, 0.0)),
-                         "message": message})
+        per_test.append(
+            {
+                "test": name,
+                "status": status,
+                "runs": runs[name],
+                "fails": fails,
+                "time": round(times.get(name, 0.0)),
+                "message": message,
+            }
+        )
     per_test.sort(key=lambda r: (_rank[r["status"]], r["test"]))
 
-    base.update({
-        "passed": max(tests - failed - skipped, 0),
-        "failed": failed,
-        "skipped": skipped,
-        "tests": tests,
-        # Max passes any single test got; >1 means an `-i <n>` run (so `fails` reads
-        # out of this). 1 (or 0 for an empty report) on an ordinary single-pass run.
-        "iterations": max(runs.values(), default=0),
-        "failures": failures,
-        "notruns": notrun_names,
-        "per_test": per_test,
-    })
+    base.update(
+        {
+            "passed": max(tests - failed - skipped, 0),
+            "failed": failed,
+            "skipped": skipped,
+            "tests": tests,
+            # Max passes any single test got; >1 means an `-i <n>` run (so `fails` reads
+            # out of this). 1 (or 0 for an empty report) on an ordinary single-pass run.
+            "iterations": max(runs.values(), default=0),
+            "failures": failures,
+            "notruns": notrun_names,
+            "per_test": per_test,
+        }
+    )
     return base
 
 
@@ -862,21 +926,35 @@ class RemoteSystemd:
         """
         return (
             "ssh",
-            "-F", self._config,
-            "-o", "LogLevel=ERROR",
-            "-o", f"ProxyCommand={self._proxy} %h %p",
-            "-o", "ProxyUseFdpass=yes",
-            "-o", f"IdentityFile={self._key}",
-            "-o", "IdentitiesOnly=yes",
-            "-o", "User=root",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "BatchMode=yes",
-            "-o", "ConnectTimeout=10",
-            f"vsock/{self._cid}", shlex.join(args),
+            "-F",
+            self._config,
+            "-o",
+            "LogLevel=ERROR",
+            "-o",
+            f"ProxyCommand={self._proxy} %h %p",
+            "-o",
+            "ProxyUseFdpass=yes",
+            "-o",
+            f"IdentityFile={self._key}",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            "User=root",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "UserKnownHostsFile=/dev/null",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
+            f"vsock/{self._cid}",
+            shlex.join(args),
         )
 
-    def ssh(self, *args: str, capture: bool = True, check: bool = True, quiet: bool = False):
+    def ssh(
+        self, *args: str, capture: bool = True, check: bool = True, quiet: bool = False
+    ):
         """Run `<args>` in the guest over the vsock-SSH transport.
 
         Logs the terse `+ ssh <vm> <args>` (the `nix develop … --command ssh -o … -o …`
@@ -890,7 +968,9 @@ class RemoteSystemd:
             return self._shell.capture(*argv, check=check, quiet=True)
         return self._shell.run(*argv, check=check, quiet=True)
 
-    def systemctl(self, *args: str, capture: bool = False, check: bool = True, quiet: bool = False):
+    def systemctl(
+        self, *args: str, capture: bool = False, check: bool = True, quiet: bool = False
+    ):
         """`systemctl <args>` in the guest."""
         return self.ssh("systemctl", *args, capture=capture, check=check, quiet=quiet)
 
@@ -907,9 +987,14 @@ class RemoteSystemd:
 
     def is_system_running(self, quiet: bool = False) -> str:
         """`systemctl is-system-running`: e.g. `running`, `degraded`. Never raises."""
-        return (self.systemctl("is-system-running", capture=True, check=False, quiet=quiet) or "").strip()
+        return (
+            self.systemctl("is-system-running", capture=True, check=False, quiet=quiet)
+            or ""
+        ).strip()
 
-    def journal_combined(self, unit: str, cursor: str | None = None) -> tuple[str | None, str]:
+    def journal_combined(
+        self, unit: str, cursor: str | None = None
+    ) -> tuple[str | None, str]:
         """The guest's `<unit>` journal and the kernel ring buffer, merged chronologically
         (`journalctl … _SYSTEMD_UNIT=<unit> + _TRANSPORT=kernel`), for live streaming a run.
 
@@ -922,8 +1007,14 @@ class RemoteSystemd:
         "Failed to seek to cursor"; we retry once from `--boot` so the stream re-homes on
         the new boot instead of stalling, and never surface that error line as journal text.
         """
+
         def _query(selector: list[str]) -> str:
-            args = ["journalctl", "--no-pager", "--output=short-precise", "--show-cursor"]
+            args = [
+                "journalctl",
+                "--no-pager",
+                "--output=short-precise",
+                "--show-cursor",
+            ]
             args += selector + [f"_SYSTEMD_UNIT={unit}", "+", "_TRANSPORT=kernel"]
             return self.ssh(*args, check=False) or ""
 
@@ -944,9 +1035,15 @@ class RemoteSystemd:
 
     def unit_exists(self, template: str) -> bool:
         """Whether the guest knows `<template>` (in-guest `list-unit-files`)."""
-        out = self.systemctl("list-unit-files", template, "--no-legend",
-                             capture=True, check=False) or ""
-        return any(line.split() and line.split()[0] == template for line in out.splitlines())
+        out = (
+            self.systemctl(
+                "list-unit-files", template, "--no-legend", capture=True, check=False
+            )
+            or ""
+        )
+        return any(
+            line.split() and line.split()[0] == template for line in out.splitlines()
+        )
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -958,7 +1055,11 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     here would pull in jinja2, which the dynselect lock does not carry.
     """
     d = Path(os.environ["WORKERS_DIR"]) / "shared/vm"
-    vms = sorted(p.name.removesuffix(".vars.json") for p in d.glob("*.vars.json")) if d.is_dir() else []
+    vms = (
+        sorted(p.name.removesuffix(".vars.json") for p in d.glob("*.vars.json"))
+        if d.is_dir()
+        else []
+    )
     return [{"label": v, "value": v} for v in vms if filterText.lower() in v.lower()]
 
 
@@ -992,13 +1093,17 @@ def parse_group_names(text: str) -> list[dict]:
         if line[0].isspace():
             if groups:
                 cont = line.strip()
-                groups[-1]["description"] = (groups[-1]["description"] + " " + cont).strip()
+                groups[-1]["description"] = (
+                    groups[-1]["description"] + " " + cont
+                ).strip()
             continue
         parts = line.split(None, 1)
         name = parts[0].strip()
         if name == "Group" and parts[1:] and parts[1].strip().startswith("Name:"):
             continue
-        groups.append({"name": name, "description": parts[1].strip() if len(parts) > 1 else ""})
+        groups.append(
+            {"name": name, "description": parts[1].strip() if len(parts) > 1 else ""}
+        )
     return groups
 
 

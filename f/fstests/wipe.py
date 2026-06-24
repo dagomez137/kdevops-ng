@@ -21,7 +21,8 @@ import os
 import shlex
 from pathlib import Path
 
-from f.fstests.common import RemoteSystemd, _device_names, list_vms as _list_vms
+from f.fstests.common import RemoteSystemd, _device_names
+from f.fstests.common import list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -41,7 +42,9 @@ def _wipe(remote: RemoteSystemd, vm_name: str, devices: list[dict]) -> dict:
     """
     names = _device_names(devices)
     if not names:
-        raise ValueError(f"{vm_name}: no devices to wipe (pass devices from f/fstests/discover)")
+        raise ValueError(
+            f"{vm_name}: no devices to wipe (pass devices from f/fstests/discover)"
+        )
     devs = " ".join(shlex.quote(n) for n in names)
     script = (
         f"ok=0; for d in {devs}; do "
@@ -59,7 +62,11 @@ def _wipe(remote: RemoteSystemd, vm_name: str, devices: list[dict]) -> dict:
     out = remote.ssh("bash", "-c", script, check=True) or ""
     if out:
         print(out, flush=True)
-    wiped = [line.removeprefix("+ wiped ") for line in out.splitlines() if line.startswith("+ wiped ")]
+    wiped = [
+        line.removeprefix("+ wiped ")
+        for line in out.splitlines()
+        if line.startswith("+ wiped ")
+    ]
     failed = [n for n in names if n not in wiped]
     return {"wiped": wiped, "failed": failed}
 

@@ -88,7 +88,9 @@ def main(
     # x86-only artifact path; non-x86/ARCH builds land elsewhere -> image is None.
     image = build / "arch/x86/boot/bzImage"
     if image.is_file():
-        print(f"bzImage ready: {image} ({image.stat().st_size // 1024} KiB)", flush=True)
+        print(
+            f"bzImage ready: {image} ({image.stat().st_size // 1024} KiB)", flush=True
+        )
         return {"image": str(image), "targets": targets, **info}
 
     print(f"no bzImage at {image} (non-x86 target?)", flush=True)

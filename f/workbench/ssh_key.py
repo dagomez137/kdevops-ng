@@ -59,14 +59,25 @@ def main(regenerate: bool = False) -> dict:
 
     if regenerate or not priv.is_file() or not pub.is_file():
         key = Ed25519PrivateKey.generate()
-        _atomic_write(priv, key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.OpenSSH,
-            serialization.NoEncryption(),
-        ).decode(), 0o600)
-        _atomic_write(pub, key.public_key().public_bytes(
-            serialization.Encoding.OpenSSH, serialization.PublicFormat.OpenSSH,
-        ).decode() + " kdevops-vm\n")
+        _atomic_write(
+            priv,
+            key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.OpenSSH,
+                serialization.NoEncryption(),
+            ).decode(),
+            0o600,
+        )
+        _atomic_write(
+            pub,
+            key.public_key()
+            .public_bytes(
+                serialization.Encoding.OpenSSH,
+                serialization.PublicFormat.OpenSSH,
+            )
+            .decode()
+            + " kdevops-vm\n",
+        )
         print(f"generated {priv}", flush=True)
     else:
         print(f"keeping existing {priv}", flush=True)
@@ -76,7 +87,9 @@ def main(regenerate: bool = False) -> dict:
     print(f"wrote {config}", flush=True)
 
     include_line = f"Include {config}"
-    print(f"\nAdd to the TOP of ~/.ssh/config (once):\n    {include_line}\n", flush=True)
+    print(
+        f"\nAdd to the TOP of ~/.ssh/config (once):\n    {include_line}\n", flush=True
+    )
 
     return {
         "ssh_dir": str(ssh_dir),

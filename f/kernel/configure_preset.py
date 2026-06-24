@@ -22,8 +22,13 @@ from f.common.devshell import DevShell, vendor_dir
 from f.kernel.identity import bake_identity
 
 
-def main(worktree: str, build_dir: str, preset: str = "imageless_defconfig",
-         make_flags: str = "", build_identity: bool = True) -> dict:
+def main(
+    worktree: str,
+    build_dir: str,
+    preset: str = "imageless_defconfig",
+    make_flags: str = "",
+    build_identity: bool = True,
+) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     preset_file = _resolve_preset(workers, preset)
     build = Path(build_dir)
@@ -34,11 +39,15 @@ def main(worktree: str, build_dir: str, preset: str = "imageless_defconfig",
     flag_args = shlex.split(make_flags)
     shell = DevShell(workers)
     base = [f"--directory={worktree}", f"O={build}"]
-    shell.run("make", *base, *flag_args, f"KCONFIG_ALLCONFIG={preset_file}", "alldefconfig")
+    shell.run(
+        "make", *base, *flag_args, f"KCONFIG_ALLCONFIG={preset_file}", "alldefconfig"
+    )
     if build_identity:
         kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
     else:
-        kernelrelease = shell.capture("make", "--silent", *base, *flag_args, "kernelrelease").strip()
+        kernelrelease = shell.capture(
+            "make", "--silent", *base, *flag_args, "kernelrelease"
+        ).strip()
 
     return {
         "kernelrelease": kernelrelease,
@@ -56,5 +65,7 @@ def _resolve_preset(workers: Path, preset: str) -> Path:
         raise ValueError(f"preset {preset!r} resolves outside {fragments}")
     if not candidate.is_file():
         have = ", ".join(p.name for p in sorted(fragments.glob("*"))) or "<none>"
-        raise FileNotFoundError(f"preset {preset!r} not found in {fragments} (have: {have})")
+        raise FileNotFoundError(
+            f"preset {preset!r} not found in {fragments} (have: {have})"
+        )
     return candidate

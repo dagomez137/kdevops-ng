@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from f.fstests.common import (
     list_vms as _list_vms,
+)
+from f.fstests.common import (
     parse_xunit,
     read_xfs_info,
     section_config,
@@ -35,8 +37,11 @@ def main(vm_name: str, section: str, kernel_version: str) -> dict:
     results_dir = section_results_dir(vm_name, kernel_version, section)
     print(f"+ reading {results_dir}", flush=True)
     summary = parse_xunit(results_dir, section=section)
-    print(f"section {section}: passed={summary['passed']} failed={summary['failed']} "
-          f"skipped={summary['skipped']} (report_present={summary['report_present']})", flush=True)
+    print(
+        f"section {section}: passed={summary['passed']} failed={summary['failed']} "
+        f"skipped={summary['skipped']} (report_present={summary['report_present']})",
+        flush=True,
+    )
     # Scalar overview at the top level so the check flow's per-section forloop renders a
     # tidy one-row-per-section table (Windmill JSON-stringifies nested arrays into a cell).
     # The per-test/failure detail rides under `detail`, consumed only by `f/fstests/report`

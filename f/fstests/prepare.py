@@ -27,9 +27,11 @@ from pathlib import Path
 from f.fstests.common import (
     RemoteSystemd,
     _atomic_write,
-    list_vms as _list_vms,
     section_vars,
     share_dir,
+)
+from f.fstests.common import (
+    list_vms as _list_vms,
 )
 
 # Per-FSTYP `mkfs` overwrite flag, so a re-run does not refuse an already-formatted
@@ -114,7 +116,9 @@ def main(vm_name: str, section: str, mkfs_test_dev: bool = True) -> dict:
     xfs_info = ""
     if fstyp == "xfs":
         print(f"+ xfs_info {test_dev}", flush=True)
-        xfs_info = (remote.ssh("xfs_info", test_dev, check=False, quiet=True) or "").strip()
+        xfs_info = (
+            remote.ssh("xfs_info", test_dev, check=False, quiet=True) or ""
+        ).strip()
         if xfs_info:
             xi_path = share / f"{section}.xfs_info"
             _atomic_write(xi_path, xfs_info + "\n")

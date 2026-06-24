@@ -128,7 +128,14 @@ def main(
         cwd=build_dir,
     )
 
-    print(f"configured qemu build at {build_dir} (targets={','.join(targets)}, cc={cc})",
-          flush=True)
-    return {"build_dir": build_dir, "destdir": destdir, "target_list": targets,
-            "compiler": compiler, "ccache_conf": ccache_conf}
+    print(
+        f"configured qemu build at {build_dir} (targets={','.join(targets)}, cc={cc})",
+        flush=True,
+    )
+    return {
+        "build_dir": build_dir,
+        "destdir": destdir,
+        "target_list": targets,
+        "compiler": compiler,
+        "ccache_conf": ccache_conf,
+    }

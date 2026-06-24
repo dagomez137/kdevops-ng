@@ -30,7 +30,8 @@ import time
 from pathlib import Path
 
 from f.common.devshell import Systemd
-from f.fstests.common import RemoteSystemd, list_vms as _list_vms
+from f.fstests.common import RemoteSystemd
+from f.fstests.common import list_vms as _list_vms
 
 _DONE = ("inactive", "failed")
 _JOURNAL_LINES = 200
@@ -77,9 +78,14 @@ def main(
             print(body, flush=True)
 
     while True:
-        host_state = (host.systemctl("is-active", qemu_unit, capture=True, check=False) or "").strip()
+        host_state = (
+            host.systemctl("is-active", qemu_unit, capture=True, check=False) or ""
+        ).strip()
         if host_state == "failed":
-            print(f"{vm_name}: {qemu_unit} is failed: guest crashed, stopping poll", flush=True)
+            print(
+                f"{vm_name}: {qemu_unit} is failed: guest crashed, stopping poll",
+                flush=True,
+            )
             crashed = True
             break
 
@@ -91,11 +97,17 @@ def main(
             state = remote.show(unit, *props)
         except Exception as exc:
             poll_errors += 1
-            print(f"{vm_name}: poll of {unit} failed ({exc}); qemu still up, retrying "
-                  f"(consecutive errors: {poll_errors})", flush=True)
+            print(
+                f"{vm_name}: poll of {unit} failed ({exc}); qemu still up, retrying "
+                f"(consecutive errors: {poll_errors})",
+                flush=True,
+            )
             if time.monotonic() >= deadline:
                 timed_out = True
-                print(f"{vm_name}: timed out after {timeout}s (last poll errored)", flush=True)
+                print(
+                    f"{vm_name}: timed out after {timeout}s (last poll errored)",
+                    flush=True,
+                )
                 break
             time.sleep(int(poll_interval))
             continue
@@ -106,7 +118,10 @@ def main(
             break
         if time.monotonic() >= deadline:
             timed_out = True
-            print(f"{vm_name}: timed out after {timeout}s (ActiveState={active_state})", flush=True)
+            print(
+                f"{vm_name}: timed out after {timeout}s (ActiveState={active_state})",
+                flush=True,
+            )
             break
         time.sleep(int(poll_interval))
 
@@ -123,21 +138,36 @@ def main(
     if stream_logs:
         drain_logs()
     else:
-        unit_tail = remote.ssh("journalctl", "--no-pager", "--output=short-precise",
-                               "--lines", str(_JOURNAL_LINES),
-                               f"_SYSTEMD_UNIT={unit}", check=False)
+        unit_tail = remote.ssh(
+            "journalctl",
+            "--no-pager",
+            "--output=short-precise",
+            "--lines",
+            str(_JOURNAL_LINES),
+            f"_SYSTEMD_UNIT={unit}",
+            check=False,
+        )
         if unit_tail:
             print(f"--- {unit} (last {_JOURNAL_LINES}) ---\n{unit_tail}", flush=True)
-        kernel_tail = remote.ssh("journalctl", "--no-pager", "--output=short-precise",
-                                 "--lines", str(_JOURNAL_LINES),
-                                 "_TRANSPORT=kernel", check=False)
+        kernel_tail = remote.ssh(
+            "journalctl",
+            "--no-pager",
+            "--output=short-precise",
+            "--lines",
+            str(_JOURNAL_LINES),
+            "_TRANSPORT=kernel",
+            check=False,
+        )
         if kernel_tail:
             print(f"--- kernel (last {_JOURNAL_LINES}) ---\n{kernel_tail}", flush=True)
 
     result = state.get("Result", "")
     exec_status = state.get("ExecMainStatus", "")
-    print(f"{vm_name}: {unit} finished result={result!r} exec_status={exec_status!r} "
-          f"active_state={active_state!r} crashed={crashed} timed_out={timed_out}", flush=True)
+    print(
+        f"{vm_name}: {unit} finished result={result!r} exec_status={exec_status!r} "
+        f"active_state={active_state!r} crashed={crashed} timed_out={timed_out}",
+        flush=True,
+    )
     return {
         "vm": vm_name,
         "section": section,

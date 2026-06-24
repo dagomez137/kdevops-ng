@@ -34,11 +34,18 @@ from __future__ import annotations
 from f.common.worktree import prepare
 
 
-def main(qemu_ref: str = "v11.0.0", worktree_group: str = "vanilla", b4_series: str = "",
-         recreate_worktree: bool = False, wipe_build: bool = False,
-         clean_destdir: bool = False) -> dict:
+def main(
+    qemu_ref: str = "v11.0.0",
+    worktree_group: str = "vanilla",
+    b4_series: str = "",
+    recreate_worktree: bool = False,
+    wipe_build: bool = False,
+    clean_destdir: bool = False,
+) -> dict:
     qemu_ref = qemu_ref or "v11.0.0"
-    wipe_dirs = (("build",) if wipe_build else ()) + (("destdir",) if clean_destdir else ())
+    wipe_dirs = (("build",) if wipe_build else ()) + (
+        ("destdir",) if clean_destdir else ()
+    )
     result = prepare(
         project="qemu",
         worktree_group=worktree_group,

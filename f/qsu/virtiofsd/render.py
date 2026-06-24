@@ -44,10 +44,13 @@ def main(
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     fi = {
-        "vm_name": vm_name, "machine_type": machine_type,
+        "vm_name": vm_name,
+        "machine_type": machine_type,
         "custom_virtiofsd": custom_virtiofsd,
-        "virtiofsd_binary": virtiofsd_binary or None, "modules_dir": modules_dir or None,
-        "shares": shares, "controller_share": controller_share,
+        "virtiofsd_binary": virtiofsd_binary or None,
+        "modules_dir": modules_dir or None,
+        "shares": shares,
+        "controller_share": controller_share,
         "controller_share_tag": controller_share_tag,
         "controller_share_dir": controller_share_dir or None,
         "controller_share_guest_mount": controller_share_guest_mount or None,

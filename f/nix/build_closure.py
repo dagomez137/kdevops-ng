@@ -28,7 +28,11 @@ def main(config_dir: str) -> dict:
 
     nix = Nix()
     toplevel = nix.capture(
-        "build", f"path:{config_dir}#toplevel", "--out-link", str(result), "--print-out-paths"
+        "build",
+        f"path:{config_dir}#toplevel",
+        "--out-link",
+        str(result),
+        "--print-out-paths",
     ).strip() or os.path.realpath(result)
 
     spec = json.loads((result / "boot.json").read_text())["org.nixos.bootspec.v1"]

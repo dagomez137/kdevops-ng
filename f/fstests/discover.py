@@ -20,7 +20,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.fstests.common import RemoteSystemd, list_vms as _list_vms
+from f.fstests.common import RemoteSystemd
+from f.fstests.common import list_vms as _list_vms
 
 GUEST_CHECK = "/usr/lib/xfstests/check"
 
@@ -38,9 +39,12 @@ def _devices(remote: RemoteSystemd) -> list[dict]:
     logical sector size in bytes (lsblk `LOG-SEC`; the minimum filesystem block
     size `mkfs.xfs` enforces), defaulting to 512 when lsblk omits a parseable value.
     """
-    out = remote.ssh(
-        "lsblk", "--nodeps", "--noheadings", "--output", "NAME,SIZE,TYPE,LOG-SEC"
-    ) or ""
+    out = (
+        remote.ssh(
+            "lsblk", "--nodeps", "--noheadings", "--output", "NAME,SIZE,TYPE,LOG-SEC"
+        )
+        or ""
+    )
     devices: list[dict] = []
     for line in out.splitlines():
         fields = line.split()
@@ -75,7 +79,9 @@ def _kernel_release(remote: RemoteSystemd) -> str:
     """
     out = (remote.ssh("cat", "/proc/sys/kernel/osrelease") or "").strip()
     if not out:
-        raise RuntimeError("could not read /proc/sys/kernel/osrelease (uname -r) from guest")
+        raise RuntimeError(
+            "could not read /proc/sys/kernel/osrelease (uname -r) from guest"
+        )
     return out
 
 
@@ -92,7 +98,9 @@ def main(vm_name: str) -> dict:
         )
 
     unit_present = remote.unit_exists("xfstests@.service")
-    check_present = remote.ssh("test", "-x", GUEST_CHECK, capture=False, check=False) == 0
+    check_present = (
+        remote.ssh("test", "-x", GUEST_CHECK, capture=False, check=False) == 0
+    )
     fstests_ready = unit_present and check_present
     if not fstests_ready:
         raise RuntimeError(
@@ -111,9 +119,12 @@ def main(vm_name: str) -> dict:
 
     fstyp = _fstyp_supported(remote)
     kernel_version = _kernel_release(remote)
-    print(f"{vm_name}: booted={system_state} fstests_ready=True "
-          f"devices={len(devices)} fstyp={len(fstyp)} supported "
-          f"kernel={kernel_version}", flush=True)
+    print(
+        f"{vm_name}: booted={system_state} fstests_ready=True "
+        f"devices={len(devices)} fstyp={len(fstyp)} supported "
+        f"kernel={kernel_version}",
+        flush=True,
+    )
     return {
         "vm": vm_name,
         "host": system_state,

@@ -50,7 +50,8 @@ def main(
     if wt.resolve() not in build.resolve().parents:
         raise ValueError(
             f"build_dir {build} must live under the worktree {wt}: the fetched .cmd "
-            "source paths are relative to the build dir, so only a child resolves them")
+            "source paths are relative to the build dir, so only a child resolves them"
+        )
     build.mkdir(parents=True, exist_ok=True)
 
     workers = Path(os.environ["WORKERS_DIR"])
@@ -63,8 +64,9 @@ def main(
             store.fetch(workers, remote, sp)
             store.link_local(name, sp)
     if sp is None:
-        print(f"devel layer {uts_release}: not found locally or on the peer",
-              flush=True)
+        print(
+            f"devel layer {uts_release}: not found locally or on the peer", flush=True
+        )
         return {
             "fetched": False,
             "worktree": str(wt),
@@ -72,8 +74,9 @@ def main(
             "uts_release": uts_release,
         }
 
-    run_logged(["cp", "--recursive", "--force",
-                f"{sp.rstrip('/')}/.", str(build) + "/"])
+    run_logged(
+        ["cp", "--recursive", "--force", f"{sp.rstrip('/')}/.", str(build) + "/"]
+    )
     run_logged(["chmod", "--recursive", "u+w", str(build)])
     print(f"materialized devel layer {sp} -> {build}", flush=True)
 

@@ -18,7 +18,6 @@ import jinja2
 import yaml
 
 from f.common.devshell import DevShell, Systemd, system_dir, vendor_dir
-
 from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
 # Superset of every virtiofsd share tag the steps render an env file for
@@ -27,8 +26,14 @@ from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_bina
 # VMs owned by other trees on the same host; destroy.py enumerates which
 # per-share artefacts to remove. Keep in sync with _shares() below.
 CANONICAL_SHARE_TAGS = [
-    "store", "modules", "data-configs", "data-results", "kdevops-fstests",
-    "fstests", "home", "controller-share",
+    "store",
+    "modules",
+    "data-configs",
+    "data-results",
+    "kdevops-fstests",
+    "fstests",
+    "home",
+    "controller-share",
 ]
 
 
@@ -92,8 +97,12 @@ def state_dir(vm_name: str) -> Path:
 _VM_UNIT_PREFIX = "qemu-system@"
 _VM_UNIT_SUFFIX = ".service"
 # A loaded-unit glob fed to `systemctl --user list-units` (local and over ssh).
-_VM_UNITS_LISTING = ("list-units", "--type=service", "--no-legend",
-                     f"{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}")
+_VM_UNITS_LISTING = (
+    "list-units",
+    "--type=service",
+    "--no-legend",
+    f"{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}",
+)
 
 
 def _running_vms(out: str) -> set[str]:
@@ -109,7 +118,7 @@ def _running_vms(out: str) -> set[str]:
     for line in out.splitlines():
         for tok in line.split():
             if tok.startswith(_VM_UNIT_PREFIX) and tok.endswith(_VM_UNIT_SUFFIX):
-                vms.add(tok[len(_VM_UNIT_PREFIX):-len(_VM_UNIT_SUFFIX)])
+                vms.add(tok[len(_VM_UNIT_PREFIX) : -len(_VM_UNIT_SUFFIX)])
                 break
     return vms
 
@@ -137,10 +146,15 @@ def vm_options(filter_text: str = "") -> list[dict]:
     """
     workers = Path(os.environ["WORKERS_DIR"])
     ft = filter_text.lower()
-    local = Systemd(workers).systemctl(*_VM_UNITS_LISTING, capture=True, check=False) or ""
+    local = (
+        Systemd(workers).systemctl(*_VM_UNITS_LISTING, capture=True, check=False) or ""
+    )
     rendered = {p.stem for p in (systemd_config() / "qemu-system").glob("*.env")}
-    options = [{"label": vm, "value": vm}
-               for vm in sorted(_running_vms(local) | rendered) if ft in vm.lower()]
+    options = [
+        {"label": vm, "value": vm}
+        for vm in sorted(_running_vms(local) | rendered)
+        if ft in vm.lower()
+    ]
     seen = {o["value"] for o in options}
     for peer in _peer_hosts():
         # -F names the config explicitly: the `#systemd` dev shell does not read
@@ -149,11 +163,22 @@ def vm_options(filter_text: str = "") -> list[dict]:
         # peer; check=False so a down peer yields "" and is skipped, leaving the local
         # dropdown intact. The glob is single-quoted so the peer's shell passes it to
         # systemctl unexpanded.
-        remote = DevShell(workers, "systemd").capture(
-            "ssh", "-F", str(system_dir() / "ssh/config"),
-            "-o", "ConnectTimeout=3", "-o", "BatchMode=yes", peer,
-            f"systemctl --user list-units --type=service --no-legend "
-            f"'{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}'", check=False) or ""
+        remote = (
+            DevShell(workers, "systemd").capture(
+                "ssh",
+                "-F",
+                str(system_dir() / "ssh/config"),
+                "-o",
+                "ConnectTimeout=3",
+                "-o",
+                "BatchMode=yes",
+                peer,
+                f"systemctl --user list-units --type=service --no-legend "
+                f"'{_VM_UNIT_PREFIX}*{_VM_UNIT_SUFFIX}'",
+                check=False,
+            )
+            or ""
+        )
         for vm in sorted(_running_vms(remote)):
             if vm not in seen and ft in vm.lower():
                 options.append({"label": f"{vm} ({peer})", "value": vm})
@@ -188,7 +213,9 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
         fdir = (root / vm).resolve()
         if not vm or root.resolve() not in fdir.parents:
             raise ValueError(f"fstests share needs a valid vm_name, got {vm!r}")
-        shares.append({"tag": "fstests", "dir": str(fdir), "mount": "/var/lib/xfstests"})
+        shares.append(
+            {"tag": "fstests", "dir": str(fdir), "mount": "/var/lib/xfstests"}
+        )
     # Predefined `home` share: the operator's host home shared into the guest at the
     # SAME absolute path (so host/guest paths match). Toggled by `fi["home_share"]`;
     # read-only unless `home_share_readwrite`. Independent of the free-form
@@ -203,7 +230,10 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
         s = {
             "tag": fi.get("controller_share_tag", "controller-share"),
             "dir": fi.get("controller_share_dir", str(Path.home())),
-            "mount": fi.get("controller_share_guest_mount", fi.get("controller_share_dir", str(Path.home()))),
+            "mount": fi.get(
+                "controller_share_guest_mount",
+                fi.get("controller_share_dir", str(Path.home())),
+            ),
         }
         if not fi.get("controller_share_readwrite"):
             s["options"] = ["ro"]
@@ -297,7 +327,9 @@ def _nvme_drives(fi: dict) -> list[dict]:
             try:
                 size = int(pmr_size)
             except ValueError:
-                raise ValueError(f"nvme drive {i} pmr size {pmr_size!r} is not an integer (bytes)")
+                raise ValueError(
+                    f"nvme drive {i} pmr size {pmr_size!r} is not an integer (bytes)"
+                )
             # 0 (or an empty comma-list part) means no PMR on this drive; lets a comma-list
             # enable PMR on a subset ("16777216,0" -> drive 0 only).
             if size:
@@ -329,18 +361,31 @@ def _nvme_drives(fi: dict) -> list[dict]:
                 ctrl["pmr"] = pmr
         # Per-namespace atomics are only valid on -device nvme-ns, forcing explicit mode.
         if ns:
-            drives.append({
-                "serial": base["serial"], **ctrl,
-                "namespaces": [{"file": base["file"], "format": base["format"],
-                                **blockconf, **ns}],
-            })
+            drives.append(
+                {
+                    "serial": base["serial"],
+                    **ctrl,
+                    "namespaces": [
+                        {
+                            "file": base["file"],
+                            "format": base["format"],
+                            **blockconf,
+                            **ns,
+                        }
+                    ],
+                }
+            )
         else:
             drives.append({**base, **ctrl, **blockconf})
     return drives
 
 
 def _kernel(fi: dict, kernel: dict | None, closure: dict | None) -> dict | None:
-    image = fi.get("kernel_image") or (kernel or {}).get("vmlinuz") or (kernel or {}).get("bzImage")
+    image = (
+        fi.get("kernel_image")
+        or (kernel or {}).get("vmlinuz")
+        or (kernel or {}).get("bzImage")
+    )
     if not image:
         return None
     init = fi.get("closure_init") or (closure or {}).get("init")
@@ -350,7 +395,11 @@ def _kernel(fi: dict, kernel: dict | None, closure: dict | None) -> dict | None:
     k = {"image": image}
     if append:
         k["append"] = append
-    initrd = fi.get("kernel_initrd") or (closure or {}).get("initrd") or (kernel or {}).get("initrd")
+    initrd = (
+        fi.get("kernel_initrd")
+        or (closure or {}).get("initrd")
+        or (kernel or {}).get("initrd")
+    )
     if initrd:
         k["initrd"] = initrd
     return k
@@ -379,8 +428,12 @@ def _port_offset(fi: dict) -> int:
     return int(digest[:8], 16) % PORT_OFFSET_MODULO
 
 
-def build_vars(fi: dict, kernel: dict | None = None, closure: dict | None = None,
-               workers: Path | None = None) -> dict:
+def build_vars(
+    fi: dict,
+    kernel: dict | None = None,
+    closure: dict | None = None,
+    workers: Path | None = None,
+) -> dict:
     """Compose the qsu template vars dict from QEMU-keyword inputs + manifests.
 
     `fi` is the flow input (QEMU keyword names). `kernel`/`closure` are the
@@ -399,8 +452,12 @@ def build_vars(fi: dict, kernel: dict | None = None, closure: dict | None = None
         "cpus": int(fi.get("cpus", 4)),
         "machine_type": fi.get("machine_type", "q35"),
         "share_transport": fi.get("share_transport", "virtiofs"),
-        "ssh_port": int(fi["ssh_port"]) if fi.get("ssh_port") else int(fi.get("ssh_port_base", 10022)) + offset,
-        "vsock_cid": int(fi["vsock_cid"]) if fi.get("vsock_cid") else int(fi.get("vsock_cid_base", 100)) + offset,
+        "ssh_port": int(fi["ssh_port"])
+        if fi.get("ssh_port")
+        else int(fi.get("ssh_port_base", 10022)) + offset,
+        "vsock_cid": int(fi["vsock_cid"])
+        if fi.get("vsock_cid")
+        else int(fi.get("vsock_cid_base", 100)) + offset,
     }
     # A kernel image and its /lib/modules are a unit: an explicit kernel_image takes the
     # explicit modules_dir (a version-mismatched modules tree from a different build would

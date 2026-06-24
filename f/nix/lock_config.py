@@ -49,7 +49,9 @@ def main(config_dir: str, update: bool = False) -> dict:
     nix.run("flake", "lock", ref)
     src = _src_inputs(config_dir)
     if src:
-        print(f"+ re-locking source overrides to branch tip: {', '.join(src)}", flush=True)
+        print(
+            f"+ re-locking source overrides to branch tip: {', '.join(src)}", flush=True
+        )
         nix.run("flake", "update", "--flake", ref, *src)
     if update:
         nix.run("flake", "update", "--flake", ref, "nixos-flake")

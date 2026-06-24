@@ -53,5 +53,8 @@ def _toolchain() -> str:
     """The build-qemu devShell's derivation path: the toolchain store hash."""
     flake = vendor_dir() / "nixos-flake"
     system = f"{os.uname().machine}-linux"
-    return Nix().capture(
-        "eval", "--raw", f"path:{flake}#devShells.{system}.build-qemu.drvPath").strip()
+    return (
+        Nix()
+        .capture("eval", "--raw", f"path:{flake}#devShells.{system}.build-qemu.drvPath")
+        .strip()
+    )

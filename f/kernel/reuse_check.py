@@ -23,9 +23,15 @@ from f.common import store
 
 def _run_layer(root: str, uts_release: str) -> tuple[str | None, bool]:
     boot = Path(root) / "boot"
-    images = ([p for p in sorted(boot.glob(f"*-{uts_release}"))
-               if not p.name.startswith(("System.map", "config"))]
-              if boot.is_dir() else [])
+    images = (
+        [
+            p
+            for p in sorted(boot.glob(f"*-{uts_release}"))
+            if not p.name.startswith(("System.map", "config"))
+        ]
+        if boot.is_dir()
+        else []
+    )
     image = str(images[0]) if images else None
     has_modules = (Path(root) / "lib/modules" / uts_release).is_dir()
     return image, has_modules
@@ -42,9 +48,11 @@ def main(destdir: str, uts_release: str) -> dict:
                 root, image, has_modules = sp, sp_image, sp_modules
     present = bool(image and has_modules)
     boot = Path(root) / "boot"
-    print(f"identity {uts_release}: present={present} image={image} "
-          f"modules={Path(root) / 'lib/modules' / uts_release if has_modules else None}",
-          flush=True)
+    print(
+        f"identity {uts_release}: present={present} image={image} "
+        f"modules={Path(root) / 'lib/modules' / uts_release if has_modules else None}",
+        flush=True,
+    )
     return {
         "present": present,
         "uts_release": uts_release,

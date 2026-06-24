@@ -33,12 +33,20 @@ def main(build_dir: str, destdir: str, target_list: list[str] | None = None) -> 
     qemu_binary = binaries[0] if binaries else None
 
     if binaries:
-        print(f"installed {len(binaries)} qemu emulator(s) -> {Path(destdir) / 'bin'}",
-              flush=True)
+        print(
+            f"installed {len(binaries)} qemu emulator(s) -> {Path(destdir) / 'bin'}",
+            flush=True,
+        )
         for path in binaries:
             print(f"  {path}", flush=True)
     else:
-        print(f"no qemu-system-* binaries found under {Path(destdir) / 'bin'}", flush=True)
+        print(
+            f"no qemu-system-* binaries found under {Path(destdir) / 'bin'}", flush=True
+        )
 
-    return {"destdir": destdir, "qemu_binary": qemu_binary, "qemu_binaries": binaries,
-            "target_list": target_list or []}
+    return {
+        "destdir": destdir,
+        "qemu_binary": qemu_binary,
+        "qemu_binaries": binaries,
+        "target_list": target_list or [],
+    }

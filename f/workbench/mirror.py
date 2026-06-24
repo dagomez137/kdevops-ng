@@ -85,8 +85,11 @@ def _provision_remotes(git: Git, repo: Path, remotes: list[dict]) -> list[dict]:
     results = []
     for r in remotes:
         name, url = r["name"], remote_url(r)
-        refspec = ("+refs/heads/*:refs/heads/*" if r.get("primary")
-                   else f"+refs/heads/*:refs/remotes/{name}/*")
+        refspec = (
+            "+refs/heads/*:refs/heads/*"
+            if r.get("primary")
+            else f"+refs/heads/*:refs/remotes/{name}/*"
+        )
         if git.ok("-C", str(repo), "remote", "get-url", name):
             git.run("-C", str(repo), "remote", "set-url", name, url)
         else:
@@ -100,22 +103,37 @@ def _provision_remotes(git: Git, repo: Path, remotes: list[dict]) -> list[dict]:
     return results
 
 
-def main(kernel_trees: list[str] | None = None, protocol: str = "https",
-         extra_trees: list[str] | None = None, mirrors: list[dict] | None = None,
-         on_boot: str = "10m", on_inactive: str = "10m", mirror_dir: str = "") -> dict:
+def main(
+    kernel_trees: list[str] | None = None,
+    protocol: str = "https",
+    extra_trees: list[str] | None = None,
+    mirrors: list[dict] | None = None,
+    on_boot: str = "10m",
+    on_inactive: str = "10m",
+    mirror_dir: str = "",
+) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     mdir = Path(mirror_dir) if mirror_dir else system_dir() / "mirror"
     mirrors = mirrors or build_mirrors(
         DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
-        protocol, extra_trees or [], mdir)
+        protocol,
+        extra_trees or [],
+        mdir,
+    )
     git = Git()
     gitbin = _resolve_git(workers)
-    unit_dir = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "systemd/user"
+    unit_dir = (
+        Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+        / "systemd/user"
+    )
 
-    _write_unit(unit_dir / "git-mirror@.service",
-                _SERVICE.format(git=gitbin, mirror_dir=mdir))
-    _write_unit(unit_dir / "git-mirror@.timer",
-                _TIMER.format(on_boot=on_boot, on_inactive=on_inactive))
+    _write_unit(
+        unit_dir / "git-mirror@.service", _SERVICE.format(git=gitbin, mirror_dir=mdir)
+    )
+    _write_unit(
+        unit_dir / "git-mirror@.timer",
+        _TIMER.format(on_boot=on_boot, on_inactive=on_inactive),
+    )
 
     sd = Systemd(workers)
     sd.systemctl("daemon-reload")
@@ -124,7 +142,7 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
     # was merged into another mirror, so its repo is gone and the service would just fail).
     wants = unit_dir / "timers.target.wants"
     for link in sorted(wants.glob("git-mirror@*.timer")):
-        inst = link.name[len("git-mirror@"):-len(".timer")]
+        inst = link.name[len("git-mirror@") : -len(".timer")]
         if inst not in wanted:
             sd.systemctl("disable", "--now", link.name)
             print(f"disabled stale timer {link.name}", flush=True)
@@ -138,5 +156,10 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
         sd.systemctl("restart", f"git-mirror@{m['name']}.timer")
         provisioned.append({"name": m["name"], "remotes": remotes})
 
-    return {"mirror_dir": str(mdir), "git": gitbin, "on_boot": on_boot,
-            "on_inactive": on_inactive, "mirrors": provisioned}
+    return {
+        "mirror_dir": str(mdir),
+        "git": gitbin,
+        "on_boot": on_boot,
+        "on_inactive": on_inactive,
+        "mirrors": provisioned,
+    }

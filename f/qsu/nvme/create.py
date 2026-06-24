@@ -35,9 +35,7 @@ def main(
     workers = Path(os.environ["WORKERS_DIR"])
     qemu_img = Path(store_out("qemu", workers)) / "bin" / "qemu-img"
 
-    drives = nvme_drives_override or nvme_drives(
-        {"nvme_drive_count": nvme_drive_count}
-    )
+    drives = nvme_drives_override or nvme_drives({"nvme_drive_count": nvme_drive_count})
     sdir = state_dir(vm_name)
     sdir.mkdir(parents=True, exist_ok=True)
     print(f"state dir: {sdir}", flush=True)
@@ -53,8 +51,16 @@ def main(
             print(f"exists, skipping: {path}", flush=True)
             skipped.append(str(path))
             continue
-        run_logged([str(qemu_img), "create", "--format", str(fmt),
-                    str(path), f"{nvme_drive_size_gb}G"])
+        run_logged(
+            [
+                str(qemu_img),
+                "create",
+                "--format",
+                str(fmt),
+                str(path),
+                f"{nvme_drive_size_gb}G",
+            ]
+        )
         print(f"created {path}", flush=True)
         created.append(str(path))
 

@@ -29,19 +29,30 @@ from pathlib import Path
 
 from f.qsu.binaries import iommu_options
 from f.qsu.common import (
-    build_vars, emit_vars_yaml, qsu_dir, render, resolve_vm_name,
-    systemd_config, write_unit,
+    build_vars,
+    emit_vars_yaml,
+    qsu_dir,
+    render,
+    resolve_vm_name,
+    systemd_config,
+    write_unit,
 )
 
 
-def list_iommu(filterText: str = "", qemu_source: str = "nixpkgs",
-               qemu_binary: str = "", **_: object) -> list[dict]:
+def list_iommu(
+    filterText: str = "",
+    qemu_source: str = "nixpkgs",
+    qemu_binary: str = "",
+    **_: object,
+) -> list[dict]:
     """`dynselect-list_iommu` entrypoint for `iommu`: see `f.qsu.binaries.iommu_options`.
 
     Queries the same qemu the render will use (`qemu_source`/`qemu_binary` sit beside
     `iommu` in this schema), so the dropdown reflects that exact binary's vIOMMUs.
     """
-    return iommu_options({"qemu_source": qemu_source, "qemu_binary": qemu_binary}, filterText)
+    return iommu_options(
+        {"qemu_source": qemu_source, "qemu_binary": qemu_binary}, filterText
+    )
 
 
 def main(
@@ -107,17 +118,29 @@ def main(
     # resolved name from results.render_qemu_system.vm_name, so the whole flow agrees.
     vm_name = resolve_vm_name({"auto_vm_name": auto_vm_name, "vm_name": vm_name})
     fi = {
-        "vm_name": vm_name, "cpu": cpu, "accel": accel, "ram": ram, "cpus": cpus,
-        "machine_type": machine_type, "vm_index": vm_index,
-        "ssh_port": ssh_port, "vsock_cid": vsock_cid,
-        "ssh_port_base": ssh_port_base, "vsock_cid_base": vsock_cid_base,
+        "vm_name": vm_name,
+        "cpu": cpu,
+        "accel": accel,
+        "ram": ram,
+        "cpus": cpus,
+        "machine_type": machine_type,
+        "vm_index": vm_index,
+        "ssh_port": ssh_port,
+        "vsock_cid": vsock_cid,
+        "ssh_port_base": ssh_port_base,
+        "vsock_cid_base": vsock_cid_base,
         "iommu": iommu or None,
-        "qemu_source": qemu_source, "qemu_binary": qemu_binary or None,
-        "custom_virtiofsd": custom_virtiofsd, "virtiofsd_binary": virtiofsd_binary or None,
-        "kernel_image": kernel_image or None, "kernel_initrd": kernel_initrd or None,
-        "kernel_append": kernel_append or None, "modules_dir": modules_dir or None,
+        "qemu_source": qemu_source,
+        "qemu_binary": qemu_binary or None,
+        "custom_virtiofsd": custom_virtiofsd,
+        "virtiofsd_binary": virtiofsd_binary or None,
+        "kernel_image": kernel_image or None,
+        "kernel_initrd": kernel_initrd or None,
+        "kernel_append": kernel_append or None,
+        "modules_dir": modules_dir or None,
         "shares": shares,
-        "fstests": fstests, "home_share": home_share,
+        "fstests": fstests,
+        "home_share": home_share,
         "home_share_readwrite": home_share_readwrite,
         "controller_share": controller_share,
         "controller_share_tag": controller_share_tag,
@@ -187,28 +210,37 @@ def main(
     sidecar.parent.mkdir(parents=True, exist_ok=True)
     # Record the built binary only for qemu-build: a nixpkgs path is a GC-able store
     # path, and reusing a nixpkgs VM should re-resolve nixpkgs, not pin that path.
-    data = json.dumps({
-        "vm_name": vm_name,
-        "kernel": kernel or {},
-        "closure": closure or {},
-        "qemu_binary": v["qemu_binary"] if qemu_source == "qemu-build" else None,
-        "qemu_source": qemu_source,
-        # The host↔guest virtiofs-share contract (qsu side here mirrors the closure's
-        # fstab). Recorded so a reuse reconfigure replays the SAME host shares the
-        # reused closure still mounts; else the guest drops to emergency mode on a
-        # `tag not found`. modules_dir is omitted: it tracks the kernel, not the closure.
-        "sharing": {
-            "fstests": fstests,
-            "home_share": home_share,
-            "home_share_readwrite": home_share_readwrite,
-            "shares": shares or [],
-            "controller_share": controller_share,
-            "controller_share_tag": controller_share_tag,
-            "controller_share_dir": controller_share_dir or None,
-            "controller_share_guest_mount": controller_share_guest_mount or None,
-            "controller_share_readwrite": controller_share_readwrite,
-        },
-    }, indent=2) + "\n"
+    data = (
+        json.dumps(
+            {
+                "vm_name": vm_name,
+                "kernel": kernel or {},
+                "closure": closure or {},
+                "qemu_binary": v["qemu_binary"]
+                if qemu_source == "qemu-build"
+                else None,
+                "qemu_source": qemu_source,
+                # The host↔guest virtiofs-share contract (qsu side here mirrors the closure's
+                # fstab). Recorded so a reuse reconfigure replays the SAME host shares the
+                # reused closure still mounts; else the guest drops to emergency mode on a
+                # `tag not found`. modules_dir is omitted: it tracks the kernel, not the closure.
+                "sharing": {
+                    "fstests": fstests,
+                    "home_share": home_share,
+                    "home_share_readwrite": home_share_readwrite,
+                    "shares": shares or [],
+                    "controller_share": controller_share,
+                    "controller_share_tag": controller_share_tag,
+                    "controller_share_dir": controller_share_dir or None,
+                    "controller_share_guest_mount": controller_share_guest_mount
+                    or None,
+                    "controller_share_readwrite": controller_share_readwrite,
+                },
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     # Atomic: a concurrent reader (discover, or the dropdown's *.vars.json glob) never
     # sees a half-written sidecar.
     tmp = sidecar.parent / (sidecar.name + ".tmp")

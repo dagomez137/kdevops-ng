@@ -17,8 +17,11 @@ from __future__ import annotations
 from f.common.worktree import prepare, validate_group
 
 
-def main(worktree_group: str, projects: list[dict] | None = None,
-         recreate_worktree: bool = False) -> dict:
+def main(
+    worktree_group: str,
+    projects: list[dict] | None = None,
+    recreate_worktree: bool = False,
+) -> dict:
     # Validate the group before touching any project, so a reserved/malformed group
     # fails fast rather than after some worktrees are already laid down.
     validate_group(worktree_group)
@@ -32,16 +35,26 @@ def main(worktree_group: str, projects: list[dict] | None = None,
         ref = entry.get("git_ref") or entry.get("ref")
         if not ref:
             raise ValueError(f"project {project!r}: a git_ref is required")
-        result = prepare(project=project, ref=ref, worktree_group=worktree_group,
-                         developer=True, b4_series=entry.get("b4_series") or "",
-                         recreate_worktree=recreate_worktree)
-        worktrees.append({
-            "project": result["project"],
-            "ref": result["ref"],
-            "commit": result["commit"],
-            "worktree": result["worktree"],
-            "b4_branch": result["b4_branch"],
-        })
+        result = prepare(
+            project=project,
+            ref=ref,
+            worktree_group=worktree_group,
+            developer=True,
+            b4_series=entry.get("b4_series") or "",
+            recreate_worktree=recreate_worktree,
+        )
+        worktrees.append(
+            {
+                "project": result["project"],
+                "ref": result["ref"],
+                "commit": result["commit"],
+                "worktree": result["worktree"],
+                "b4_branch": result["b4_branch"],
+            }
+        )
 
-    print(f"worktree-group {worktree_group}: {len(worktrees)} worktree(s) ready", flush=True)
+    print(
+        f"worktree-group {worktree_group}: {len(worktrees)} worktree(s) ready",
+        flush=True,
+    )
     return {"worktree_group": worktree_group, "worktrees": worktrees}

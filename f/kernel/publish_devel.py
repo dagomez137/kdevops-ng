@@ -81,8 +81,9 @@ def main(build_dir: str, uts_release: str) -> dict:
     tmp = Path(tempfile.mkdtemp(prefix=f"{name}-"))
     try:
         stage = tmp / name
-        shutil.copytree(build_dir, stage, symlinks=True,
-                        ignore=_stage_filter(build_dir))
+        shutil.copytree(
+            build_dir, stage, symlinks=True, ignore=_stage_filter(build_dir)
+        )
         print(f"staged devel layer -> {stage}", flush=True)
         sp = store.publish(name, str(stage))
     finally:

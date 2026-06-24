@@ -28,14 +28,28 @@ from f.kernel.identity import bake_identity
 # separate flag in the sort key) so last-wins promotes the matching feature to
 # built-in. Unknown categories fall to rank 50.
 _CATEGORY_RANK = {
-    "core": 0, "arch": 1, "mem": 2, "security": 3, "storage": 4, "fs": 5,
-    "net": 6, "virt": 7, "debug": 8, "test": 9, "rust": 10, "perf": 11,
+    "core": 0,
+    "arch": 1,
+    "mem": 2,
+    "security": 3,
+    "storage": 4,
+    "fs": 5,
+    "net": 6,
+    "virt": 7,
+    "debug": 8,
+    "test": 9,
+    "rust": 10,
+    "perf": 11,
 }
 # Within core, structural fragments lead and localversion trails.
 _CORE_SUB_RANK = {
-    "64bit.config": 0, "modules.config": 1, "core.config": 2,
-    "systemd.config": 3, "initrd.config": 4,
-    "localversion.config": 80, "localversion-noauto.config": 81,
+    "64bit.config": 0,
+    "modules.config": 1,
+    "core.config": 2,
+    "systemd.config": 3,
+    "initrd.config": 4,
+    "localversion.config": 80,
+    "localversion-noauto.config": 81,
 }
 
 
@@ -52,7 +66,8 @@ def main(
     configs = vendor_dir(workers) / "linux-config-fragments/kernel/configs"
     if not configs.is_dir():
         raise FileNotFoundError(
-            f"fragment library missing at {configs}; run f/workbench/init first")
+            f"fragment library missing at {configs}; run f/workbench/init first"
+        )
 
     if not fragments:
         raise ValueError("select at least one fragment")
@@ -79,16 +94,29 @@ def main(
     # merge_config.sh invokes make relative to cwd, so run it from the worktree.
     # It takes no command-line make vars, so toolchain flags (LLVM=1) go via env.
     flag_args = shlex.split(make_flags)
-    shell.run(merge, *merge_args, *[str(p) for p in resolved], cwd=worktree,
-              env=flags_to_env(make_flags))
+    shell.run(
+        merge,
+        *merge_args,
+        *[str(p) for p in resolved],
+        cwd=worktree,
+        env=flags_to_env(make_flags),
+    )
     if build_identity:
         kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
     else:
         kernelrelease = shell.capture(
-            "make", "--silent", f"--directory={worktree}", f"O={build}", *flag_args,
-            "kernelrelease").strip()
+            "make",
+            "--silent",
+            f"--directory={worktree}",
+            f"O={build}",
+            *flag_args,
+            "kernelrelease",
+        ).strip()
 
-    print(f"configured {len(fragments)} fragment(s) -> {kernelrelease or 'unknown'}", flush=True)
+    print(
+        f"configured {len(fragments)} fragment(s) -> {kernelrelease or 'unknown'}",
+        flush=True,
+    )
 
     return {
         "kernelrelease": kernelrelease or "unknown",
@@ -101,7 +129,7 @@ def main(
 def _sort_key(frag: str) -> tuple[int, int, int, str]:
     """Canonical merge order key: (builtin-last, category, core-sub, name)."""
     if frag.startswith("builtin/"):
-        builtin, rel = 1, frag[len("builtin/"):]
+        builtin, rel = 1, frag[len("builtin/") :]
     else:
         builtin, rel = 0, frag
     category = rel.split("/", 1)[0]

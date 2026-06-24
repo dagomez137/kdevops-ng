@@ -66,12 +66,14 @@ def _list(workers: Path, remote: str, remote_index: str) -> dict:
         if not entry.is_symlink():
             continue
         target = os.path.realpath(entry)
-        entries.append({
-            "name": entry.name,
-            "kind": _kind(entry.name),
-            "store_path": target,
-            "valid": Path(target).exists(),
-        })
+        entries.append(
+            {
+                "name": entry.name,
+                "kind": _kind(entry.name),
+                "store_path": target,
+                "valid": Path(target).exists(),
+            }
+        )
 
     sizes = _closure_sizes([e["store_path"] for e in entries if e["valid"]])
     for e in entries:
@@ -79,7 +81,9 @@ def _list(workers: Path, remote: str, remote_index: str) -> dict:
     entries.sort(key=lambda e: e["name"])
 
     total = sum(e["size_bytes"] or 0 for e in entries)
-    print(f"store-index: {len(entries)} entries, {total / _MIB:.1f} MiB total", flush=True)
+    print(
+        f"store-index: {len(entries)} entries, {total / _MIB:.1f} MiB total", flush=True
+    )
     for e in entries:
         mib = (e["size_bytes"] or 0) / _MIB
         state = "ok" if e["valid"] else "DANGLING"
@@ -87,8 +91,11 @@ def _list(workers: Path, remote: str, remote_index: str) -> dict:
 
     peer = None
     if remote and remote_index:
-        names = DevShell(workers, "transfer").capture(
-            "ssh", remote, "ls", "-1", remote_index, check=False).split()
+        names = (
+            DevShell(workers, "transfer")
+            .capture("ssh", remote, "ls", "-1", remote_index, check=False)
+            .split()
+        )
         print(f"peer {remote}: {len(names)} entries", flush=True)
         peer = {"remote": remote, "names": names}
 
@@ -105,8 +112,11 @@ def _inspect(workers: Path, name: str, remote: str, remote_index: str) -> dict:
     peer_store_path = None
     if remote and remote_index:
         peer_store_path = store.peer_path(workers, remote, remote_index, name)
-    print(f"inspect {name}: store_path={sp} size_bytes={size_bytes} "
-          f"peer={peer_store_path}", flush=True)
+    print(
+        f"inspect {name}: store_path={sp} size_bytes={size_bytes} "
+        f"peer={peer_store_path}",
+        flush=True,
+    )
     return {
         "action": "inspect",
         "name": name,
@@ -121,8 +131,11 @@ def _forget(name: str, confirm: bool) -> dict:
     if not name:
         raise ValueError("forget requires a name")
     if not confirm:
-        return {"action": "forget", "removed": False,
-                "reason": "set confirm=true to remove the GC root"}
+        return {
+            "action": "forget",
+            "removed": False,
+            "reason": "set confirm=true to remove the GC root",
+        }
     entry = store.index_dir() / name
     store_path = os.path.realpath(entry) if entry.is_symlink() else None
     entry.unlink(missing_ok=True)
@@ -144,8 +157,13 @@ def _prune() -> dict:
     return {"action": "prune", "removed": removed, "count": len(removed)}
 
 
-def main(action: str = "list", name: str = "", remote: str = "",
-         remote_index: str = "", confirm: bool = False) -> dict:
+def main(
+    action: str = "list",
+    name: str = "",
+    remote: str = "",
+    remote_index: str = "",
+    confirm: bool = False,
+) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     if action == "list":
         return _list(workers, remote, remote_index)

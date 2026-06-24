@@ -30,7 +30,16 @@ from f.common.devshell import system_dir, vendor_dir
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
 _PROFILES = {"build-tools", "controller", "devel", "monitoring"}
-_TEST_SUITES = ["blktests", "fstests", "gitr", "ltp", "mmtests", "pynfs", "selftests", "sysbench"]
+_TEST_SUITES = [
+    "blktests",
+    "fstests",
+    "gitr",
+    "ltp",
+    "mmtests",
+    "pynfs",
+    "selftests",
+    "sysbench",
+]
 
 # Packages whose nixos-flake recipe a src override composes with, build-verified
 # from a git checkout, scoped to the fstests focus: fio, xfstests and xfsprogs
@@ -78,16 +87,29 @@ def main(
     vm_name = vm_name or "nixos"
     # Drop empty rows the Windmill form adds for array/object fields (a blank
     # string, an empty {} override) so an untouched optional field is a no-op.
-    profiles = [p for p in (profiles if profiles is not None else _FEATURED_PROFILES) if p]
-    test_suites = [t for t in (test_suites if test_suites is not None else _FEATURED_TEST_SUITES) if t]
+    profiles = [
+        p for p in (profiles if profiles is not None else _FEATURED_PROFILES) if p
+    ]
+    test_suites = [
+        t
+        for t in (test_suites if test_suites is not None else _FEATURED_TEST_SUITES)
+        if t
+    ]
     # Curated overrides name a package from the form's dropdown (_OVERRIDABLE_PKGS);
     # extra_overrides takes any other nixpkgs package. Both are validated below.
     overrides = [ov for ov in (overrides or []) if ov]
-    _reject_unknown("override package", [ov.get("pkg", "") for ov in overrides],
-                    set(_OVERRIDABLE_PKGS))
+    _reject_unknown(
+        "override package",
+        [ov.get("pkg", "") for ov in overrides],
+        set(_OVERRIDABLE_PKGS),
+    )
     overrides = overrides + [ov for ov in (extra_overrides or []) if ov]
     ssh_keys = [k for k in (ssh_keys or []) if k and k.strip()]
-    shares = {m: s for m, s in (shares or {}).items() if m and isinstance(s, dict) and s.get("tag")}
+    shares = {
+        m: s
+        for m, s in (shares or {}).items()
+        if m and isinstance(s, dict) and s.get("tag")
+    }
     # Predefined shares the operator should not have to declare by hand (they coexist
     # with the free-form `shares` above; an explicit entry for the same mount wins).
     # The matching host-served share is composed by f/qsu (qsu/common._shares).
@@ -107,17 +129,23 @@ def main(
         shares.setdefault(home_dir, {"tag": "home"})
 
     if not _VM_NAME_RE.match(vm_name):
-        raise ValueError(f"invalid vm_name {vm_name!r}: must match {_VM_NAME_RE.pattern}")
+        raise ValueError(
+            f"invalid vm_name {vm_name!r}: must match {_VM_NAME_RE.pattern}"
+        )
     _reject_unknown("profile", profiles, _PROFILES)
     _reject_unknown("test_suite", test_suites, _TEST_SUITES)
     for ov in overrides:
         if not _PKG_RE.match(ov.get("pkg", "")):
-            raise ValueError(f"invalid override pkg {ov.get('pkg')!r} (need {{\"pkg\": ..., \"src\": ...}})")
+            raise ValueError(
+                f'invalid override pkg {ov.get("pkg")!r} (need {{"pkg": ..., "src": ...}})'
+            )
         if not ov.get("src"):
             raise ValueError(f"override {ov['pkg']!r} missing src")
         attrs = ov.get("attrs")
-        if attrs is not None and not (isinstance(attrs, dict)
-                                      and all(_PKG_RE.match(k) and isinstance(v, str) for k, v in attrs.items())):
+        if attrs is not None and not (
+            isinstance(attrs, dict)
+            and all(_PKG_RE.match(k) and isinstance(v, str) for k, v in attrs.items())
+        ):
             raise ValueError(
                 f"override {ov['pkg']!r} attrs must be a dict of {{nixAttr: stringValue}}, e.g. "
                 f'{{"autoreconfPhase": "make configure"}}'
@@ -131,13 +159,18 @@ def main(
     if managed:
         ssh_keys = [managed, *(k for k in ssh_keys if k != managed)]
     elif not ssh_keys:
-        print("note: no kdevops VM key at system/ssh/id_ed25519.pub (run "
-              "f/workbench/init); guest will accept no SSH key", flush=True)
+        print(
+            "note: no kdevops VM key at system/ssh/id_ed25519.pub (run "
+            "f/workbench/init); guest will accept no SSH key",
+            flush=True,
+        )
 
     nixos_flake = vendor_dir(workers) / "nixos-flake"
     template = nixos_flake / "templates/imageless/flake.nix"
     if not template.is_file():
-        raise FileNotFoundError(f"imageless template missing at {template}; provision nixos-flake first")
+        raise FileNotFoundError(
+            f"imageless template missing at {template}; provision nixos-flake first"
+        )
 
     # Per-VM config dir, hardened against name-based path escapes.
     config_root = workers / worker_index / "nix"
@@ -146,8 +179,16 @@ def main(
         raise ValueError(f"vm_name {vm_name!r} resolves outside {config_root}")
 
     flake_text = _render_flake(template, nixos_flake, overrides)
-    default_text = _render_default(vm_name, user_name, profiles, test_suites, shares,
-                                   overrides, ssh_keys, home_dir if home else "")
+    default_text = _render_default(
+        vm_name,
+        user_name,
+        profiles,
+        test_suites,
+        shares,
+        overrides,
+        ssh_keys,
+        home_dir if home else "",
+    )
 
     config_dir.mkdir(parents=True, exist_ok=True)
     _emit(config_dir / "flake.nix", flake_text)
@@ -177,12 +218,16 @@ def _reject_unknown(kind: str, values: list[str], allowed: set[str]) -> None:
 def _render_flake(template: Path, nixos_flake: Path, overrides: list[dict]) -> str:
     text = template.read_text()
     if _TEMPLATE_PATH_PLACEHOLDER not in text:
-        raise RuntimeError(f"template {template} no longer contains {_TEMPLATE_PATH_PLACEHOLDER!r}")
+        raise RuntimeError(
+            f"template {template} no longer contains {_TEMPLATE_PATH_PLACEHOLDER!r}"
+        )
     text = text.replace(_TEMPLATE_PATH_PLACEHOLDER, f"path:{nixos_flake}", 1)
 
     if overrides:
         if _FOLLOWS_ANCHOR not in text:
-            raise RuntimeError(f"template {template} no longer contains the follows anchor")
+            raise RuntimeError(
+                f"template {template} no longer contains the follows anchor"
+            )
         block = "\n\n" + "\n\n".join(_override_input(ov) for ov in overrides)
         text = text.replace(_FOLLOWS_ANCHOR, _FOLLOWS_ANCHOR + block, 1)
     return text
@@ -265,8 +310,12 @@ def _render_default(
         out.append("")
         for mount, spec in shares.items():
             opts = spec.get("options")
-            opt_str = f" options = [ {' '.join(_nix_str(o) for o in opts)} ];" if opts else ""
-            out.append(f"  nixos-flake.shares.{_nix_str(mount)} = {{ tag = {_nix_str(spec['tag'])};{opt_str} }};")
+            opt_str = (
+                f" options = [ {' '.join(_nix_str(o) for o in opts)} ];" if opts else ""
+            )
+            out.append(
+                f"  nixos-flake.shares.{_nix_str(mount)} = {{ tag = {_nix_str(spec['tag'])};{opt_str} }};"
+            )
 
     if overrides:
         out += ["", "  nixpkgs.overlays = lib.mkAfter [", "    (final: prev: {"]
@@ -275,9 +324,13 @@ def _render_default(
             # replacement build phase): needed when a git `src` must build differently
             # than the package's release tarball (e.g. xfsprogs from git wants its own
             # `autoreconfPhase = "make configure"` rather than nixpkgs' generic autoreconf).
-            extra = "".join(f" {k} = {_nix_str(v)};" for k, v in (ov.get("attrs") or {}).items())
-            out.append(f"      {ov['pkg']} = prev.{ov['pkg']}.overrideAttrs "
-                       f"(_: {{ src = inputs.{ov['pkg']}-src;{extra} }});")
+            extra = "".join(
+                f" {k} = {_nix_str(v)};" for k, v in (ov.get("attrs") or {}).items()
+            )
+            out.append(
+                f"      {ov['pkg']} = prev.{ov['pkg']}.overrideAttrs "
+                f"(_: {{ src = inputs.{ov['pkg']}-src;{extra} }});"
+            )
         out += ["    })", "  ];"]
 
     out.append("}")

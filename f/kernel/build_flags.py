@@ -79,7 +79,9 @@ def main(
         timestamp = _FIXED_TIMESTAMP
         if timestamp_from_commit and worktree and commit:
             timestamp = (
-                Git().capture("-C", worktree, "log", "-1", "--format=%cd", commit).strip()
+                Git()
+                .capture("-C", worktree, "log", "-1", "--format=%cd", commit)
+                .strip()
                 or _FIXED_TIMESTAMP
             )
         parts += [
@@ -108,7 +110,8 @@ def _clang_toolchain(workers: Path) -> tuple[str, str]:
     """Unwrapped clang and its resource-include dir, exported by the build-kernel
     devShell (LLVM=1 needs the unwrapped clang; both are nix-internal paths)."""
     out = DevShell(workers).capture(
-        "bash", "-c", 'printf "%s\\n%s" "$KERNEL_CLANG_CC" "$KERNEL_CLANG_RESOURCE"')
+        "bash", "-c", 'printf "%s\\n%s" "$KERNEL_CLANG_CC" "$KERNEL_CLANG_RESOURCE"'
+    )
     cc, _, resource = out.partition("\n")
     cc, resource = cc.strip(), resource.strip()
     if not cc or not resource:
@@ -125,6 +128,6 @@ def _merge_prefix_map(extra: list[str], prefix_map: str, parts: list[str]) -> li
         if idx is None:
             parts.append(f"{var}={prefix_map}")
         else:
-            value = merged[idx][len(pfx):]
+            value = merged[idx][len(pfx) :]
             merged[idx] = f"{var}={f'{value} {prefix_map}'.strip()}"
     return merged

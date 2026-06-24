@@ -87,13 +87,25 @@ def local_path(name: str) -> str | None:
 
 def peer_path(workers: Path, remote: str, remote_index: str, name: str) -> str | None:
     """The store path the peer indexes under `name`, read over ssh, else None."""
-    out = DevShell(workers, "transfer").capture(
-        "ssh", remote, "readlink", f"{remote_index.rstrip('/')}/{name}", check=False).strip()
+    out = (
+        DevShell(workers, "transfer")
+        .capture(
+            "ssh", remote, "readlink", f"{remote_index.rstrip('/')}/{name}", check=False
+        )
+        .strip()
+    )
     return out or None
 
 
 def fetch(workers: Path, remote: str, sp: str) -> None:
     """Copy a store path from the peer into the local store over ssh."""
     DevShell(workers, "transfer").run(
-        "nix", "--extra-experimental-features", "nix-command",
-        "copy", "--from", f"ssh://{remote}", sp, "--no-check-sigs")
+        "nix",
+        "--extra-experimental-features",
+        "nix-command",
+        "copy",
+        "--from",
+        f"ssh://{remote}",
+        sp,
+        "--no-check-sigs",
+    )

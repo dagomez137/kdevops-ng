@@ -26,7 +26,8 @@ import time
 from pathlib import Path
 
 from f.common.devshell import Systemd
-from f.fstests.common import RemoteSystemd, list_vms as _list_vms
+from f.fstests.common import RemoteSystemd
+from f.fstests.common import list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -36,7 +37,10 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
 
 def _boot_id(remote: RemoteSystemd) -> str:
     """The guest's current boot id, or `""` if unreachable (mid-reboot, or already wedged)."""
-    return (remote.ssh("cat", "/proc/sys/kernel/random/boot_id", check=False, quiet=True) or "").strip()
+    return (
+        remote.ssh("cat", "/proc/sys/kernel/random/boot_id", check=False, quiet=True)
+        or ""
+    ).strip()
 
 
 def _reboot(
@@ -76,11 +80,16 @@ def _reboot(
         if now != before:
             state = remote.is_system_running(quiet=True)
             if state in ("running", "degraded"):
-                print(f"+ rebooted: boot_id={now} is-system-running={state}", flush=True)
+                print(
+                    f"+ rebooted: boot_id={now} is-system-running={state}", flush=True
+                )
                 return {"rebooted": True, "boot_id": now, "system_state": state}
             print(f"  …new boot {now} coming up (state={state or '?'})", flush=True)
         else:
-            print(f"  …guest reachable on prior boot {now} (waiting for fresh boot)", flush=True)
+            print(
+                f"  …guest reachable on prior boot {now} (waiting for fresh boot)",
+                flush=True,
+            )
     raise TimeoutError(
         f"{vm_name}: guest did not return within {timeout}s after host power-cycle "
         f"(last boot_id={now or '?'})"

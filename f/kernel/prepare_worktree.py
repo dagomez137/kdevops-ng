@@ -34,11 +34,18 @@ from __future__ import annotations
 from f.common.worktree import prepare
 
 
-def main(git_ref: str = "v7.1-rc7", worktree_group: str = "vanilla", b4_series: str = "",
-         recreate_worktree: bool = False, wipe_build: bool = False,
-         clean_destdir: bool = False) -> dict:
+def main(
+    git_ref: str = "v7.1-rc7",
+    worktree_group: str = "vanilla",
+    b4_series: str = "",
+    recreate_worktree: bool = False,
+    wipe_build: bool = False,
+    clean_destdir: bool = False,
+) -> dict:
     git_ref = git_ref or "v7.1-rc7"
-    wipe_dirs = (("build",) if wipe_build else ()) + (("destdir",) if clean_destdir else ())
+    wipe_dirs = (("build",) if wipe_build else ()) + (
+        ("destdir",) if clean_destdir else ()
+    )
     result = prepare(
         project="linux",
         worktree_group=worktree_group,

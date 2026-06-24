@@ -55,8 +55,15 @@ def main(
 
     if compile_commands:
         cc = wt / "compile_commands.json"
-        shell.run("python3", str(wt / "scripts/clang-tools/gen_compile_commands.py"),
-                  "--directory", str(build), "--output", str(cc), cwd=worktree)
+        shell.run(
+            "python3",
+            str(wt / "scripts/clang-tools/gen_compile_commands.py"),
+            "--directory",
+            str(build),
+            "--output",
+            str(cc),
+            cwd=worktree,
+        )
         out["compile_commands"] = str(cc)
 
     if scripts_gdb:

@@ -39,7 +39,7 @@ from f.common.devshell import DevShell
 # The kernel passes the hook: $1 release, $2 image, $3 System.map, $4 INSTALL_PATH.
 # Name each by release ($1), distro-style.
 _INSTALLKERNEL = (
-    '#!/bin/sh\nset -e\n'
+    "#!/bin/sh\nset -e\n"
     'cp --archive --verbose "$2" "$4/$(basename "$2")-$1"\n'
     'cp --archive --verbose "$3" "$4/$(basename "$3")-$1"\n'
 )
@@ -70,8 +70,15 @@ def main(
 
     flag_args = shlex.split(make_flags)
     shell = DevShell(workers)
-    shell.run("make", f"--directory={worktree}", f"O={build}", *flag_args,
-              f"INSTALL_PATH={boot}", "install", env={"HOME": str(home)})
+    shell.run(
+        "make",
+        f"--directory={worktree}",
+        f"O={build}",
+        *flag_args,
+        f"INSTALL_PATH={boot}",
+        "install",
+        env={"HOME": str(home)},
+    )
 
     print(f"installed kernel image -> {boot}", flush=True)
     return {"destdir": str(dest), "boot": str(boot)}

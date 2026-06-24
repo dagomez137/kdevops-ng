@@ -46,21 +46,38 @@ def main(vm_name: str) -> dict:
     sidecar = workers / "shared/vm" / f"{vm_name}.vars.json"
     if not sidecar.is_file():
         print(f"no reuse sidecar at {sidecar}", flush=True)
-        return {"vm_name": vm_name, "kernel": {}, "closure": {},
-                "qemu_binary": None, "qemu_source": None, "sharing": {}, **host}
+        return {
+            "vm_name": vm_name,
+            "kernel": {},
+            "closure": {},
+            "qemu_binary": None,
+            "qemu_source": None,
+            "sharing": {},
+            **host,
+        }
     try:
         data = json.loads(sidecar.read_text())
     except (json.JSONDecodeError, OSError) as e:
         print(f"unreadable sidecar {sidecar}: {e}", flush=True)
-        return {"vm_name": vm_name, "kernel": {}, "closure": {},
-                "qemu_binary": None, "qemu_source": None, "sharing": {}, **host}
+        return {
+            "vm_name": vm_name,
+            "kernel": {},
+            "closure": {},
+            "qemu_binary": None,
+            "qemu_source": None,
+            "sharing": {},
+            **host,
+        }
     sharing = data.get("sharing") or {}
-    print(f"reuse from {sidecar}: qemu_source={data.get('qemu_source')} "
-          f"kernel={'set' if data.get('kernel') else 'empty'} "
-          f"closure={'set' if data.get('closure') else 'empty'} "
-          f"shares=fstests:{'on' if sharing.get('fstests') else 'off'},"
-          f"home:{'on' if sharing.get('home_share') else 'off'} "
-          f"host_user={host['host_user']}", flush=True)
+    print(
+        f"reuse from {sidecar}: qemu_source={data.get('qemu_source')} "
+        f"kernel={'set' if data.get('kernel') else 'empty'} "
+        f"closure={'set' if data.get('closure') else 'empty'} "
+        f"shares=fstests:{'on' if sharing.get('fstests') else 'off'},"
+        f"home:{'on' if sharing.get('home_share') else 'off'} "
+        f"host_user={host['host_user']}",
+        flush=True,
+    )
     return {
         "vm_name": vm_name,
         "kernel": data.get("kernel") or {},

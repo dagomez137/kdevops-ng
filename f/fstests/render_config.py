@@ -41,14 +41,12 @@ import shutil
 from pathlib import Path
 
 from f.fstests.common import (
+    GUEST_PAGE_SIZE,
     GUEST_STATE_DIR,
     _atomic_write,
     build_check_args,
     device_sector,
-    GUEST_PAGE_SIZE,
     inject_device_base,
-    list_groups as _list_groups,
-    list_vms as _list_vms,
     parse_sections,
     render_check_env,
     section_block,
@@ -59,6 +57,12 @@ from f.fstests.common import (
     section_sector_size,
     share_dir,
     xfs_catalog_text,
+)
+from f.fstests.common import (
+    list_groups as _list_groups,
+)
+from f.fstests.common import (
+    list_vms as _list_vms,
 )
 
 
@@ -163,11 +167,24 @@ def main(
     share = share_dir(vm_name)
 
     host_options = f"{GUEST_STATE_DIR}/local.config"
-    check_args = build_check_args(test_selection, groups, exclude_group, exclude, report,
-                                  randomize, tests, iterations, loop_on_fail, stop_on_fail)
+    check_args = build_check_args(
+        test_selection,
+        groups,
+        exclude_group,
+        exclude,
+        report,
+        randomize,
+        tests,
+        iterations,
+        loop_on_fail,
+        stop_on_fail,
+    )
 
     env_path = share / "check.env"
-    _emit(env_path, render_check_env(host_options, check_args, test_timeout, test_timeouts))
+    _emit(
+        env_path,
+        render_check_env(host_options, check_args, test_timeout, test_timeouts),
+    )
 
     # The editable `local_config` textarea is the source; empty falls back to the
     # shipped starter catalog. The Sections dropdown lists exactly this config's
@@ -284,11 +301,17 @@ def main(
             kept = _rotate_results(section_dir)
             if kept is not None:
                 rotated[section] = kept
-                print(f"+ kept prior {section} results as result.{kept:04d}.xml / check.{kept:04d}.log", flush=True)
+                print(
+                    f"+ kept prior {section} results as result.{kept:04d}.xml / check.{kept:04d}.log",
+                    flush=True,
+                )
                 archived = _rotate_failure_artifacts(section_dir, kept)
                 if archived > 0:
                     archived_failures[section] = archived
-                    print(f"+ kept {archived} prior {section} failure artifacts as <base>.{kept:04d}.<suffix>", flush=True)
+                    print(
+                        f"+ kept {archived} prior {section} failure artifacts as <base>.{kept:04d}.<suffix>",
+                        flush=True,
+                    )
         # Lay down the one-section config (whichever branch ran above).
         path = share / f"{section}.config"
         _emit(path, section_text[section])
@@ -299,7 +322,9 @@ def main(
         "vm_name": vm_name,
         "kernel_version": kernel_version,
         "share_dir": str(share),
-        "results_dir": str(section_results_dir(vm_name, kernel_version, run_sections[0]).parent),
+        "results_dir": str(
+            section_results_dir(vm_name, kernel_version, run_sections[0]).parent
+        ),
         "sections": run_sections,
         "skipped": skipped,
         "rotated": rotated,

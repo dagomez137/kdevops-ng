@@ -78,18 +78,23 @@ def _write_ssh_alias(vm_name: str, vsock_cid: int | None) -> str | None:
     if not vsock_cid or not priv.is_file():
         return None
     conf = system_dir() / "ssh/config.d" / f"{vm_name}.conf"
-    _atomic_write(conf, "\n".join([
-        f"Host {vm_name}",
-        f"    HostName vsock/{vsock_cid}",
-        "    ProxyCommand /usr/lib/systemd/systemd-ssh-proxy %h %p",
-        "    ProxyUseFdpass yes",
-        f"    IdentityFile {priv}",
-        "    IdentitiesOnly yes",
-        "    User root",
-        "    StrictHostKeyChecking accept-new",
-        "    UserKnownHostsFile /dev/null",
-        "",
-    ]))
+    _atomic_write(
+        conf,
+        "\n".join(
+            [
+                f"Host {vm_name}",
+                f"    HostName vsock/{vsock_cid}",
+                "    ProxyCommand /usr/lib/systemd/systemd-ssh-proxy %h %p",
+                "    ProxyUseFdpass yes",
+                f"    IdentityFile {priv}",
+                "    IdentitiesOnly yes",
+                "    User root",
+                "    StrictHostKeyChecking accept-new",
+                "    UserKnownHostsFile /dev/null",
+                "",
+            ]
+        ),
+    )
     print(f"wrote {conf}", flush=True)
     return str(conf)
 
@@ -116,7 +121,9 @@ def main(
     deadline = time.monotonic() + min(int(wait_timeout), 60)
     state = ""
     while time.monotonic() < deadline:
-        state = (systemd.systemctl("is-active", unit, capture=True, check=False) or "").strip()
+        state = (
+            systemd.systemctl("is-active", unit, capture=True, check=False) or ""
+        ).strip()
         if state in ("active", "failed"):
             break
         time.sleep(2)
@@ -129,9 +136,20 @@ def main(
         # D-Bus so the unit's exit status is available, but the qemu stderr that holds
         # the actual reason is in the host journal, which the worker cannot read; point
         # the operator at the journalctl command that shows it on the host.
-        props = (systemd.systemctl(
-            "show", unit, "--property=Result,ExecMainStatus,ExecMainCode",
-            capture=True, check=False) or "").strip().replace("\n", " ")
+        props = (
+            (
+                systemd.systemctl(
+                    "show",
+                    unit,
+                    "--property=Result,ExecMainStatus,ExecMainCode",
+                    capture=True,
+                    check=False,
+                )
+                or ""
+            )
+            .strip()
+            .replace("\n", " ")
+        )
         raise RuntimeError(
             f"{unit} did not come up (state={state or 'unknown'}{'; ' + props if props else ''}); "
             f"the guest failed to boot. Reason: journalctl --user-unit={unit}"
@@ -146,7 +164,10 @@ def main(
     else:
         ssh_command = f"ssh -p {ssh_port} root@127.0.0.1"
 
-    print(f"qemu-system@{vm_name} is {state or 'unknown'}; access: {ssh_command}", flush=True)
+    print(
+        f"qemu-system@{vm_name} is {state or 'unknown'}; access: {ssh_command}",
+        flush=True,
+    )
     return {
         "vm_name": vm_name,
         "ssh_port": int(ssh_port),

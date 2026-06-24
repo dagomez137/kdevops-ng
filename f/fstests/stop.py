@@ -25,7 +25,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.fstests.common import RemoteSystemd, list_vms as _list_vms
+from f.fstests.common import RemoteSystemd
+from f.fstests.common import list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -36,7 +37,10 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
 def main(vm_name: str, sections: list[str] | None = None) -> dict:
     sections = list(sections or [])
     if not vm_name or not sections:
-        print(f"+ stop: nothing to do (vm_name={vm_name!r}, sections={sections})", flush=True)
+        print(
+            f"+ stop: nothing to do (vm_name={vm_name!r}, sections={sections})",
+            flush=True,
+        )
         return {"vm_name": vm_name, "stopped": [], "skipped_no_transport": False}
     workers = Path(os.environ["WORKERS_DIR"])
     try:

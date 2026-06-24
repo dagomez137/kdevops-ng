@@ -57,8 +57,11 @@ def bake_identity(shell, worktree: str, build_dir: str, make_flags: str = "") ->
 
 def _digest(config_text: str, worktree: str, make_flags: str) -> str:
     """A 12-hex hash over the inputs that fix a build's bytes (host-independent)."""
-    config = "\n".join(line for line in config_text.splitlines()
-                       if not line.startswith("CONFIG_LOCALVERSION="))
+    config = "\n".join(
+        line
+        for line in config_text.splitlines()
+        if not line.startswith("CONFIG_LOCALVERSION=")
+    )
     flags = re.sub(r"-fdebug-prefix-map=\S*", "-fdebug-prefix-map=", make_flags)
     commit = Git().capture("-C", worktree, "rev-parse", "HEAD").strip()
     blob = "\0".join([config, _toolchain(), flags, commit]).encode()
@@ -69,8 +72,13 @@ def _toolchain() -> str:
     """The build-kernel devShell's derivation path: the toolchain store hash."""
     flake = vendor_dir() / "nixos-flake"
     system = f"{os.uname().machine}-linux"
-    return Nix().capture(
-        "eval", "--raw", f"path:{flake}#devShells.{system}.build-kernel.drvPath").strip()
+    return (
+        Nix()
+        .capture(
+            "eval", "--raw", f"path:{flake}#devShells.{system}.build-kernel.drvPath"
+        )
+        .strip()
+    )
 
 
 def _localversion(config_text: str) -> str:

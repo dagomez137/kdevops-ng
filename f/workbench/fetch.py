@@ -66,19 +66,34 @@ _KERNEL_ORG = {
 # human label). These are the core trees plus the set kdevops mirrors today; all are the
 # kernel object graph, so they live as remotes on one merged linux.git. Extend freely.
 KERNEL_TREES = {
-    "torvalds":        ("pub/scm/linux/kernel/git/torvalds/linux",        "Mainline (Linus Torvalds)"),
-    "linux-next":      ("pub/scm/linux/kernel/git/next/linux-next",        "linux-next integration"),
-    "linux-stable":    ("pub/scm/linux/kernel/git/stable/linux",           "Stable"),
-    "linux-stable-rc": ("pub/scm/linux/kernel/git/stable/linux-stable-rc", "Stable release candidates"),
-    "modules":         ("pub/scm/linux/kernel/git/modules/linux",          "Modules (Luis Chamberlain)"),
-    "mcgrof":          ("pub/scm/linux/kernel/git/mcgrof/linux",           "Luis Chamberlain"),
-    "mcgrof-next":     ("pub/scm/linux/kernel/git/mcgrof/linux-next",      "Luis Chamberlain (next)"),
-    "axboe":           ("pub/scm/linux/kernel/git/axboe/linux",            "Block, io_uring, NVMe (Jens Axboe)"),
-    "vfs":             ("pub/scm/linux/kernel/git/vfs/vfs",                "VFS (Christian Brauner)"),
-    "cel":             ("pub/scm/linux/kernel/git/cel/linux",              "NFS server (Chuck Lever)"),
-    "jlayton":         ("pub/scm/linux/kernel/git/jlayton/linux",          "NFS / locks (Jeff Layton)"),
-    "cxl":             ("pub/scm/linux/kernel/git/cxl/cxl",                "CXL"),
-    "xfs":             ("pub/scm/fs/xfs/xfs-linux",                        "XFS"),
+    "torvalds": (
+        "pub/scm/linux/kernel/git/torvalds/linux",
+        "Mainline (Linus Torvalds)",
+    ),
+    "linux-next": (
+        "pub/scm/linux/kernel/git/next/linux-next",
+        "linux-next integration",
+    ),
+    "linux-stable": ("pub/scm/linux/kernel/git/stable/linux", "Stable"),
+    "linux-stable-rc": (
+        "pub/scm/linux/kernel/git/stable/linux-stable-rc",
+        "Stable release candidates",
+    ),
+    "modules": ("pub/scm/linux/kernel/git/modules/linux", "Modules (Luis Chamberlain)"),
+    "mcgrof": ("pub/scm/linux/kernel/git/mcgrof/linux", "Luis Chamberlain"),
+    "mcgrof-next": (
+        "pub/scm/linux/kernel/git/mcgrof/linux-next",
+        "Luis Chamberlain (next)",
+    ),
+    "axboe": (
+        "pub/scm/linux/kernel/git/axboe/linux",
+        "Block, io_uring, NVMe (Jens Axboe)",
+    ),
+    "vfs": ("pub/scm/linux/kernel/git/vfs/vfs", "VFS (Christian Brauner)"),
+    "cel": ("pub/scm/linux/kernel/git/cel/linux", "NFS server (Chuck Lever)"),
+    "jlayton": ("pub/scm/linux/kernel/git/jlayton/linux", "NFS / locks (Jeff Layton)"),
+    "cxl": ("pub/scm/linux/kernel/git/cxl/cxl", "CXL"),
+    "xfs": ("pub/scm/fs/xfs/xfs-linux", "XFS"),
 }
 
 # Pre-checked when the operator does not pick: the common core.
@@ -94,11 +109,15 @@ def remote_url(remote: dict) -> str:
         return remote["url"]
     proto = remote.get("protocol", "https")
     if proto not in _KERNEL_ORG:
-        raise ValueError(f"remote {remote.get('name')!r}: unknown protocol {proto!r} "
-                         f"(want one of {', '.join(_KERNEL_ORG)})")
+        raise ValueError(
+            f"remote {remote.get('name')!r}: unknown protocol {proto!r} "
+            f"(want one of {', '.join(_KERNEL_ORG)})"
+        )
     if not remote.get("path"):
-        raise ValueError(f"remote {remote.get('name')!r}: needs a git.kernel.org `path` "
-                         "or an explicit `url`")
+        raise ValueError(
+            f"remote {remote.get('name')!r}: needs a git.kernel.org `path` "
+            "or an explicit `url`"
+        )
     return _KERNEL_ORG[proto].format(path=remote["path"])
 
 
@@ -106,11 +125,20 @@ def _extra_name(path: str) -> str:
     """A git remote name for a free-form kernel.org `path`: the maintainer when the leaf
     is the generic `linux`/`linux-next`, else the leaf (e.g. fs/xfs/xfs-linux -> xfs-linux)."""
     parts = path.strip("/").split("/")
-    return parts[-2] if len(parts) >= 2 and parts[-1] in ("linux", "linux-next") else parts[-1]
+    return (
+        parts[-2]
+        if len(parts) >= 2 and parts[-1] in ("linux", "linux-next")
+        else parts[-1]
+    )
 
 
-def build_mirrors(kernel_trees: list[str], protocol: str, extra_trees: list[str],
-                  mirror_dir: Path, qemu_url: str = DEFAULT_QEMU_URL) -> list[dict]:
+def build_mirrors(
+    kernel_trees: list[str],
+    protocol: str,
+    extra_trees: list[str],
+    mirror_dir: Path,
+    qemu_url: str = DEFAULT_QEMU_URL,
+) -> list[dict]:
     """Compose the full mirror config from a friendly selection: the curated kernel
     `kernel_trees` (names in KERNEL_TREES) plus free-form `extra_trees` (git.kernel.org
     paths), all over one `protocol`, as remotes on a single merged linux.git (torvalds is
@@ -120,32 +148,57 @@ def build_mirrors(kernel_trees: list[str], protocol: str, extra_trees: list[str]
     remotes = []
     for name in names:
         if name not in KERNEL_TREES:
-            raise ValueError(f"unknown kernel tree {name!r} (curated: {', '.join(KERNEL_TREES)})")
+            raise ValueError(
+                f"unknown kernel tree {name!r} (curated: {', '.join(KERNEL_TREES)})"
+            )
         path, _ = KERNEL_TREES[name]
-        remotes.append({"name": name, "path": path, "protocol": protocol,
-                        "primary": name == "torvalds"})
+        remotes.append(
+            {
+                "name": name,
+                "path": path,
+                "protocol": protocol,
+                "primary": name == "torvalds",
+            }
+        )
     for path in extra_trees:
         remotes.append({"name": _extra_name(path), "path": path, "protocol": protocol})
     return [
-        {"name": "linux", "project": "linux",
-         "mirror": str(mirror_dir / "linux.git"), "remotes": remotes},
-        {"name": "qemu", "project": "qemu",
-         "mirror": str(mirror_dir / "qemu.git"),
-         "remotes": [{"name": "origin", "url": qemu_url, "primary": True}]},
+        {
+            "name": "linux",
+            "project": "linux",
+            "mirror": str(mirror_dir / "linux.git"),
+            "remotes": remotes,
+        },
+        {
+            "name": "qemu",
+            "project": "qemu",
+            "mirror": str(mirror_dir / "qemu.git"),
+            "remotes": [{"name": "origin", "url": qemu_url, "primary": True}],
+        },
     ]
 
 
-def main(kernel_trees: list[str] | None = None, protocol: str = "https",
-         extra_trees: list[str] | None = None, mirrors: list[dict] | None = None,
-         peers: list[str] | None = None, refresh: bool = True) -> dict:
+def main(
+    kernel_trees: list[str] | None = None,
+    protocol: str = "https",
+    extra_trees: list[str] | None = None,
+    mirrors: list[dict] | None = None,
+    peers: list[str] | None = None,
+    refresh: bool = True,
+) -> dict:
     system = system_dir()
     mirrors = mirrors or build_mirrors(
         DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
-        protocol, extra_trees or [], system / "mirror")
+        protocol,
+        extra_trees or [],
+        system / "mirror",
+    )
     peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
     git = Git()
-    existing = git.capture("config", "--global", "--get-all", "safe.directory", check=False)
+    existing = git.capture(
+        "config", "--global", "--get-all", "safe.directory", check=False
+    )
     if "*" not in existing.split("\n"):
         git.run("config", "--global", "--add", "safe.directory", "*")
 
@@ -159,18 +212,23 @@ def main(kernel_trees: list[str] | None = None, protocol: str = "https",
         origin = remote_url(_primary(entry))
         action = _ensure(git, mirror, bare, origin, trees, refresh)
         peer_results = _ensure_peers(git, bare, peers, system, project)
-        head = git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip() or None
+        head = (
+            git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip()
+            or None
+        )
         print(f"{name}: {_progress(action, refresh)} (origin {origin})", flush=True)
-        results.append({
-            "name": name,
-            "mirror": mirror,
-            "origin": origin,
-            "trees": trees,
-            "bare": str(bare),
-            "action": action,
-            "head": head,
-            "peers": peer_results,
-        })
+        results.append(
+            {
+                "name": name,
+                "mirror": mirror,
+                "origin": origin,
+                "trees": trees,
+                "bare": str(bare),
+                "action": action,
+                "head": head,
+                "peers": peer_results,
+            }
+        )
 
     # Persist the peer registry where any worker can read it without touching git:
     # the qsu VM discovery (f.qsu.common.vm_options) sweeps these hosts over ssh.
@@ -189,7 +247,9 @@ def _validate(entry: dict) -> tuple[str, str, str]:
     project = entry.get("project")
     for key, value in (("name", name), ("mirror", mirror), ("project", project)):
         if not isinstance(value, str) or not value:
-            raise ValueError(f"mirror entry {entry!r}: {key} must be a non-empty string")
+            raise ValueError(
+                f"mirror entry {entry!r}: {key} must be a non-empty string"
+            )
     if not entry.get("remotes"):
         raise ValueError(f"mirror {name!r}: needs at least one remote")
     if mirror.startswith("-"):
@@ -209,8 +269,9 @@ def _primary(entry: dict) -> dict:
     return remotes[0]
 
 
-def _ensure(git: Git, mirror: str, bare: Path, origin: str, trees: list[str],
-            refresh: bool) -> str:
+def _ensure(
+    git: Git, mirror: str, bare: Path, origin: str, trees: list[str], refresh: bool
+) -> str:
     """Ensure `bare` borrows the merged mirror's objects and has a single `mirror`
     remote that copies the mirror's primary heads to refs/remotes/mirror/* (so worktree
     resolves `mirror/<ref>`) and each extra tree (refs/remotes/<tree>/*) through
@@ -231,19 +292,35 @@ def _ensure(git: Git, mirror: str, bare: Path, origin: str, trees: list[str],
         git.ok("-C", str(bare), "remote", "set-url", "mirror", mirror)
     else:
         git.ok("-C", str(bare), "remote", "add", "mirror", mirror)
-    git.run("-C", str(bare), "config", "--replace-all", "remote.mirror.fetch",
-            "+refs/heads/*:refs/remotes/mirror/*")
+    git.run(
+        "-C",
+        str(bare),
+        "config",
+        "--replace-all",
+        "remote.mirror.fetch",
+        "+refs/heads/*:refs/remotes/mirror/*",
+    )
     for tree in trees:
-        git.run("-C", str(bare), "config", "--add", "remote.mirror.fetch",
-                f"+refs/remotes/{tree}/*:refs/remotes/{tree}/*")
-    if (fresh or refresh) and not git.ok("-C", str(bare), "fetch", "--tags", "--force",
-                                         "--prune", "mirror"):
-        print(f"note: fetch of {bare} from {mirror} failed; using local refs", flush=True)
+        git.run(
+            "-C",
+            str(bare),
+            "config",
+            "--add",
+            "remote.mirror.fetch",
+            f"+refs/remotes/{tree}/*:refs/remotes/{tree}/*",
+        )
+    if (fresh or refresh) and not git.ok(
+        "-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"
+    ):
+        print(
+            f"note: fetch of {bare} from {mirror} failed; using local refs", flush=True
+        )
     return "created" if fresh else ("refreshed" if refresh else "present")
 
 
-def _ensure_peers(git: Git, bare: Path, peers: list[str], system: Path,
-                  project: str) -> list[dict]:
+def _ensure_peers(
+    git: Git, bare: Path, peers: list[str], system: Path, project: str
+) -> list[dict]:
     """Wire a `<peer>` remote per ssh-host alias -> that peer's Bare, deriving the URL
     from the shared SYSTEM_DIR layout. Adds the remote and its
     `+refs/heads/*:refs/remotes/<peer>/*` refspec; does not fetch (push is the workflow,
@@ -259,8 +336,13 @@ def _ensure_peers(git: Git, bare: Path, peers: list[str], system: Path,
         else:
             git.ok("-C", str(bare), "remote", "add", peer, url)
             action = "added"
-        git.ok("-C", str(bare), "config", f"remote.{peer}.fetch",
-               f"+refs/heads/*:refs/remotes/{peer}/*")
+        git.ok(
+            "-C",
+            str(bare),
+            "config",
+            f"remote.{peer}.fetch",
+            f"+refs/heads/*:refs/remotes/{peer}/*",
+        )
         print(f"{project}/{peer}: {action} ({url})", flush=True)
         results.append({"name": peer, "url": url})
     return results

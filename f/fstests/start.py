@@ -19,7 +19,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.fstests.common import RemoteSystemd, list_vms as _list_vms
+from f.fstests.common import RemoteSystemd
+from f.fstests.common import list_vms as _list_vms
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -41,4 +42,9 @@ def main(vm_name: str, section: str) -> dict:
         )
 
     print(f"{vm_name}: started {unit} (ActiveState={active_state})", flush=True)
-    return {"vm": vm_name, "section": section, "unit": unit, "active_state": active_state}
+    return {
+        "vm": vm_name,
+        "section": section,
+        "unit": unit,
+        "active_state": active_state,
+    }

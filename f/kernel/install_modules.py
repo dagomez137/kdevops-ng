@@ -50,16 +50,23 @@ def main(
 
     flag_args = shlex.split(make_flags)
     shell = DevShell(workers)
-    shell.run("make", f"--directory={worktree}", f"O={build}", *flag_args,
-              f"INSTALL_MOD_PATH={dest}", "modules_install")
+    shell.run(
+        "make",
+        f"--directory={worktree}",
+        f"O={build}",
+        *flag_args,
+        f"INSTALL_MOD_PATH={dest}",
+        "modules_install",
+    )
 
     modules = dest / "lib/modules"
     source = None
     if source_symlink:
         # Pair the `build` symlink modules_install created with the canonical
         # `source` symlink (-> the worktree) for the release just installed.
-        release = shell.capture("make", "--silent", f"--directory={worktree}",
-                                f"O={build}", "kernelrelease").strip()
+        release = shell.capture(
+            "make", "--silent", f"--directory={worktree}", f"O={build}", "kernelrelease"
+        ).strip()
         link = modules / release / "source"
         link.parent.mkdir(parents=True, exist_ok=True)
         if link.is_symlink() or link.exists():
