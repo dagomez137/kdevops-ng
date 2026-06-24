@@ -7,7 +7,7 @@ dirs and `virtiofsd@<vm>-*.env` files, the systemd `StateDirectory`
 (`~/.local/state/qemu-system/<vm>` — the NVMe qcow2 backing files + runtime sockets),
 the `shared/vm/<vm>.vars.json` reuse sidecar (so a destroyed VM stops appearing in the
 `f/qsu/bringup` Reuse-from-VM dropdown, which globs that registry), and the
-`system/ssh/config.d/<vm>.conf` alias `f/qsu/boot` wrote (so `ssh <vm>` stops resolving
+`$SYSTEM_DIR/ssh/config.d/<vm>.conf` alias `f/qsu/boot` wrote (so `ssh <vm>` stops resolving
 once the guest is gone).
 machined unregisters automatically on stop. A final `daemon-reload` drops the removed
 drop-ins.

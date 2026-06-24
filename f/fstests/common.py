@@ -821,17 +821,18 @@ class RemoteSystemd:
         # managed config is absent (workbench not initialised).
         config = system_dir() / "ssh/config"
         self._config = str(config) if config.is_file() else "/dev/null"
-        self._cid = cid if cid is not None else self._resolve_cid(workers, vm_name)
+        self._cid = cid if cid is not None else self._resolve_cid(vm_name)
         if self._cid is None:
+            conf = system_dir() / "ssh/config.d" / f"{vm_name}.conf"
             raise ValueError(
                 f"no vsock cid for {vm_name!r}: pass cid= or boot the VM so "
-                f"$SYSTEM_DIR/ssh/config.d/{vm_name}.conf carries HostName vsock/<cid>"
+                f"{conf} carries HostName vsock/<cid>"
             )
         self._proxy = self._resolve_proxy()
 
     @staticmethod
-    def _resolve_cid(workers: Path, vm_name: str) -> int | None:
-        """Parse the vsock cid from `f/qsu/boot`'s `system/ssh/config.d/<vm>.conf`."""
+    def _resolve_cid(vm_name: str) -> int | None:
+        """Parse the vsock cid from `f/qsu/boot`'s `$SYSTEM_DIR/ssh/config.d/<vm>.conf`."""
         conf = system_dir() / "ssh/config.d" / f"{vm_name}.conf"
         if not conf.is_file():
             return None

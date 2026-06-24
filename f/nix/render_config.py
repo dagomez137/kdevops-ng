@@ -114,7 +114,7 @@ def main(
     worker_index = os.environ["WORKER_INDEX"]
 
     # The kdevops-managed VM key is always trusted, additive to any explicit ssh_keys.
-    managed = _managed_pubkey(workers)
+    managed = _managed_pubkey()
     if managed:
         ssh_keys = [managed, *(k for k in ssh_keys if k != managed)]
     elif not ssh_keys:
@@ -149,7 +149,7 @@ def main(
     }
 
 
-def _managed_pubkey(workers: Path) -> str | None:
+def _managed_pubkey() -> str | None:
     """The kdevops-managed VM public key, baked into every guest's authorizedKeys."""
     pub = system_dir() / "ssh/id_ed25519.pub"
     return pub.read_text().strip() if pub.is_file() else None

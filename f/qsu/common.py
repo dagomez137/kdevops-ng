@@ -114,8 +114,8 @@ def _running_vms(out: str) -> set[str]:
     return vms
 
 
-def _peer_hosts(workers: Path) -> list[str]:
-    """Registered peer ssh-host aliases (one per line in `system/peers`, written by
+def _peer_hosts() -> list[str]:
+    """Registered peer ssh-host aliases (one per line in `$SYSTEM_DIR/peers`, written by
     f/workbench/fetch). Missing/empty file means no peers, so discovery stays local."""
     f = system_dir() / "peers"
     if not f.is_file():
@@ -128,7 +128,7 @@ def vm_options(filter_text: str = "") -> list[dict]:
 
     Local VMs are the running user units (`systemctl --user list-units
     'qemu-system@*.service'`) plus any with a rendered `<vm>.env` still on disk
-    (stopped but not torn down). Each registered peer (`system/peers`) is then swept
+    (stopped but not torn down). Each registered peer (`$SYSTEM_DIR/peers`) is then swept
     best-effort over ssh (the same `systemctl --user list-units`) so the dropdown
     spans every workbench host; an unreachable peer drops out silently rather than
     failing the local list. Peer VMs are labelled `<vm> (<peer>)`. The lifecycle
@@ -142,7 +142,7 @@ def vm_options(filter_text: str = "") -> list[dict]:
     options = [{"label": vm, "value": vm}
                for vm in sorted(_running_vms(local) | rendered) if ft in vm.lower()]
     seen = {o["value"] for o in options}
-    for peer in _peer_hosts(workers):
+    for peer in _peer_hosts():
         # -F names the config explicitly: the `#systemd` dev shell does not read
         # ~/.ssh/config, so the peer Host/IdentityFile aliases (system/ssh) must be
         # pointed at directly. BatchMode never prompts; ConnectTimeout bounds a dead

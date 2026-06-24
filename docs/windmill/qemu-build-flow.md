@@ -64,7 +64,7 @@ one warm worktree per worker (ADR-0001). The chain:
    `$SYSTEM_DIR/bare/kernel/linux.git` with `git init --bare`, borrowing the
    mirror's objects through an alternate and fetching its heads into
    `refs/remotes/mirror/*`; `refs/heads/*` is reserved for developer branches. The
-   `system/` tree is bind-mounted into every worker. (The host `setup-workspace.sh`
+   System workbench (`$SYSTEM_DIR`) is bind-mounted into every worker. (The host `setup-workspace.sh`
    no longer clones mirrors — `init` owns that; it only provisions the host-sourced
    nixos-flake + config fragments for now.)
 3. **Warm worktree** (`f/kernel/prepare_worktree.py`): off the Bare,
@@ -79,7 +79,7 @@ QEMU copies this verbatim, substituting the namespace (`qemu-project`) and canon
 name (`qemu`).
 
 > Migration: a host provisioned under the old `workers/shared/<ns>/<canonical>` clone
-> layout re-provisions fresh — `f/workbench/init` builds the new Bare under `system/`,
+> layout re-provisions fresh: `f/workbench/init` builds the new Bare under `$SYSTEM_DIR`,
 > and the old `shared/<ns>/...` clones, `shared/ws/*` trees, and the numeric
 > `workers/<NNNN>` sandbox dirs (now `w<NNNN>`) become unused. Remove them with
 > `rm --recursive --force` once no build references them.

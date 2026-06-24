@@ -30,9 +30,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from f.common.devshell import system_dir
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+from f.common.devshell import system_dir
 
 
 def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:

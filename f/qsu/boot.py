@@ -67,8 +67,8 @@ def _ssh_banner(port: int, timeout: float = 3.0) -> bool:
         return False
 
 
-def _write_ssh_alias(workers: Path, vm_name: str, vsock_cid: int | None) -> str | None:
-    """Write this VM's `Host <vm>` block into system/ssh/config.d so `ssh <vm>` works.
+def _write_ssh_alias(vm_name: str, vsock_cid: int | None) -> str | None:
+    """Write this VM's `Host <vm>` block into $SYSTEM_DIR/ssh/config.d so `ssh <vm>` works.
 
     Needs the kdevops-managed key (f/workbench/ssh_key) and a vsock cid; the block
     routes `<vm>` over vsock with that key, picked up by the operator's one-time
@@ -138,7 +138,7 @@ def main(
         )
     ssh_ready = _ssh_banner(int(ssh_port))
 
-    ssh_config = _write_ssh_alias(workers, vm_name, vsock_cid)
+    ssh_config = _write_ssh_alias(vm_name, vsock_cid)
     if ssh_config:
         ssh_command = f"ssh {vm_name}"
     elif vsock_cid:
