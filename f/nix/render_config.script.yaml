@@ -96,7 +96,7 @@ schema:
     overrides:
       title: Package source overrides
       type: array
-      description: "Rebuild a package nixos-flake builds from your own source instead of its pinned version: pick the package, give a src (an absolute path or a git/flake URL), and the closure picks it up while keeping the flake's build recipe. fio, xfstests, libbpf-tools (verified for the fstests focus; more join per test suite). For any other nixpkgs package, use the advanced field below."
+      description: "Rebuild a package nixos-flake builds from your own source instead of its pinned version: pick the package, give a src (an absolute path or a git/flake URL), and the closure picks it up while keeping the flake's build recipe. fio, xfstests, xfsprogs, libbpf-tools (verified for the fstests focus; more join per test suite). For any other nixpkgs package, use the advanced field below."
       default: []
       items:
         type: object
@@ -104,7 +104,7 @@ schema:
           pkg:
             title: Package
             type: string
-            enum: [fio, xfstests, libbpf-tools]
+            enum: [fio, xfstests, xfsprogs, libbpf-tools]
           src:
             title: Source
             type: string

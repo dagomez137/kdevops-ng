@@ -32,13 +32,12 @@ from f.common.devshell import system_dir, vendor_dir
 _PROFILES = {"build-tools", "controller", "devel", "monitoring"}
 _TEST_SUITES = ["blktests", "fstests", "gitr", "ltp", "mmtests", "pynfs", "selftests", "sysbench"]
 
-# Packages whose nixos-flake recipe a src override composes with, scoped to the
-# fstests focus. fio and xfstests are build-verified from a git checkout (overlays);
-# libbpf-tools is recipe-backed (custom pkg, src from iovisor/bcc). xfsprogs is held
-# until its recipe is fixed (a git src builds but its install trips on the soname
-# version files); packages for other suites (spdk, xnvme, nfstest, pynfs, ...) join
-# as verified. The advanced `extra_overrides` takes any other nixpkgs package.
-_OVERRIDABLE_PKGS = ["fio", "xfstests", "libbpf-tools"]
+# Packages whose nixos-flake recipe a src override composes with, build-verified
+# from a git checkout, scoped to the fstests focus: fio, xfstests and xfsprogs
+# (overlays) and libbpf-tools (custom pkg, src from iovisor/bcc). Packages for other
+# suites (spdk, xnvme, nfstest, pynfs, ...) join as verified. The advanced
+# `extra_overrides` takes any other nixpkgs package.
+_OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools"]
 
 # Profiles whose effect is behind an enable gate: importing alone is inert, so we
 # turn them on when selected. devel and build-tools are active on import. controller
