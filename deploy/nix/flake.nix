@@ -42,6 +42,24 @@
         {
           default = windmill;
           inherit windmill;
+          # The database, pinned to this flake's nixpkgs so the whole stack
+          # builds from one revision. install.sh GC-roots it to an out-link the
+          # systemd --user units exec.
+          postgresql = pkgs.postgresql_16;
+
+          # The cluster init/configure helper run as windmill-db.service's
+          # ExecStartPre/Post. writeShellApplication puts its tools on PATH and
+          # shellchecks the script.
+          db-setup = pkgs.writeShellApplication {
+            name = "windmill-db-setup";
+            runtimeInputs = [
+              pkgs.postgresql_16
+              pkgs.openssl
+              pkgs.coreutils
+              pkgs.gnugrep
+            ];
+            text = builtins.readFile ./bin/windmill-db-setup;
+          };
           # The frontend FOD on its own: lets `nix build .#windmill-frontend`
           # resolve npmDepsHash and iterate on UI changes without the Rust build.
           windmill-frontend = windmill.web-ui;

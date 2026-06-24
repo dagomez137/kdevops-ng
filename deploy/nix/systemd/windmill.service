@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Windmill server (API + embedded UI), run from nix under systemd --user.
+# Mirrors deploy/podman/systemd/windmill.container (MODE=server, Restart=always).
+#
+# DATABASE_URL comes from the env file windmill-db-setup writes, so the rotated
+# postgres password is never hard-coded here. The server listens on an internal
+# loopback port; caddy owns the public 127.0.0.1:8000 and routes the websocket
+# (LSP) paths to windmill-extra and everything else here, matching the podman
+# Caddyfile. install.sh fills in the @SW@ out-link prefix.
+[Unit]
+Description=Windmill server (API + UI) (nix)
+Requires=windmill-db.service
+After=windmill-db.service
+
+[Service]
+Environment=MODE=server
+Environment=PORT=8002
+EnvironmentFile=%S/windmill-nix/env/database.env
+ExecStart=@SW@/windmill/bin/windmill
+Restart=always
+
+[Install]
+WantedBy=default.target

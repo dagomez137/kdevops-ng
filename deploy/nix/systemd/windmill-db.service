@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Windmill PostgreSQL, run from nix under systemd --user. The cluster lives
+# under the user state dir (%S = $XDG_STATE_HOME) instead of a podman volume;
+# the socket goes in the runtime dir (%t = $XDG_RUNTIME_DIR). windmill-db-setup
+# initdb's the cluster, rotates the password, and creates the windmill database.
+# install.sh fills in the @SW@ out-link prefix the units exec.
+[Unit]
+Description=Windmill PostgreSQL (nix)
+
+[Service]
+Type=notify
+NotifyAccess=all
+Environment=WMNIX_STATE=%S/windmill-nix
+Environment=PGDATA=%S/windmill-nix/pgdata
+Environment=PGPORT=5432
+Environment=PGHOST_SOCKET=%t
+ExecStartPre=@SW@/db-setup/bin/windmill-db-setup pre
+ExecStart=@SW@/postgresql/bin/postgres -D %S/windmill-nix/pgdata -c listen_addresses=127.0.0.1 -c port=5432 -c unix_socket_directories=%t
+ExecStartPost=@SW@/db-setup/bin/windmill-db-setup post
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

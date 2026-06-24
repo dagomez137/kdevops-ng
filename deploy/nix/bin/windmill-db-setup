@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Initialize and configure the Windmill postgres cluster for the systemd --user
+# backend. Idempotent. Two phases, run as ExecStartPre/ExecStartPost of
+# windmill-db.service:
+#
+#   pre   initdb the cluster if absent (local socket trust, TCP scram).
+#   post  once postgres is accepting connections: rotate the role password to a
+#         generated secret, ensure the windmill database exists, and write the
+#         DATABASE_URL the server and workers read.
+#
+# Postgres tools (initdb, psql, pg_isready, createdb) come from PATH; the unit
+# puts the nix postgresql out-link bin there. Standalone use: run inside
+# `nix shell nixpkgs#postgresql_16`.
+set -o errexit -o nounset -o pipefail
+
+STATE="${WMNIX_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/windmill-nix}"
+PGDATA="${PGDATA:-$STATE/pgdata}"
+PGPORT="${PGPORT:-5432}"
+SOCKDIR="${PGHOST_SOCKET:-${XDG_RUNTIME_DIR:-/tmp}}"
+SECRET="$STATE/secrets/pg-password"
+ENVFILE="$STATE/env/database.env"
+DBNAME=windmill
+
+psql_local() { psql --host="$SOCKDIR" --port="$PGPORT" --username=postgres --no-password "$@"; }
+
+phase_pre() {
+    mkdir --parents "$STATE/secrets" "$STATE/env"
+    chmod 700 "$STATE/secrets"
+    if [ ! -f "$PGDATA/PG_VERSION" ]; then
+        mkdir --parents "$PGDATA"
+        # Local (unix socket) connections trust, so the post phase can set the
+        # password without already having one; TCP connections require scram.
+        initdb --pgdata="$PGDATA" --username=postgres --encoding=UTF8 \
+            --auth-local=trust --auth-host=scram-sha-256
+        echo "initdb: created cluster at $PGDATA"
+    else
+        echo "initdb: cluster already present at $PGDATA"
+    fi
+}
+
+phase_post() {
+    # Wait for the socket to accept connections (postgres just started).
+    for _ in $(seq 1 60); do
+        if pg_isready --host="$SOCKDIR" --port="$PGPORT" --username=postgres --quiet; then break; fi
+        sleep 1
+    done
+
+    # Generate a URL-safe password once and rotate the changeme default to it.
+    if [ ! -f "$SECRET" ]; then
+        (umask 077; openssl rand -hex 24 > "$SECRET")
+        echo "secret: generated $SECRET"
+    fi
+    local pw; pw="$(<"$SECRET")"
+    psql_local --dbname=postgres --quiet \
+        --command="ALTER ROLE postgres WITH PASSWORD '$pw';"
+    echo "role: postgres password set from $SECRET"
+
+    if ! psql_local --dbname=postgres --tuples-only --no-align \
+        --command="SELECT 1 FROM pg_database WHERE datname='$DBNAME';" | grep --quiet 1; then
+        createdb --host="$SOCKDIR" --port="$PGPORT" --username=postgres --no-password "$DBNAME"
+        echo "database: created $DBNAME"
+    else
+        echo "database: $DBNAME already present"
+    fi
+
+    # The connection string the server and workers consume. Loopback TCP, so
+    # they need the password even though local socket setup did not.
+    (umask 077
+     printf 'DATABASE_URL=postgres://postgres:%s@127.0.0.1:%s/%s?sslmode=disable\n' \
+         "$pw" "$PGPORT" "$DBNAME" > "$ENVFILE")
+    echo "wrote $ENVFILE"
+}
+
+case "${1:-}" in
+    pre) phase_pre ;;
+    post) phase_post ;;
+    *) echo "usage: $0 {pre|post}" >&2; exit 2 ;;
+esac
