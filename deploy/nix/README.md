@@ -84,9 +84,50 @@ fork version (`CE v1.738.0`). Stop the server and run
 
 ## Running the full stack
 
-The `systemd --user` units that run the server, postgres, the worker groups,
-the LSP gateway, and the caddy router are being added under `systemd/`. Until
-then the smoke test above is the way to run the server by hand.
+`install.sh` builds every component to a GC-rooted out-link under
+`$XDG_STATE_HOME/windmill-nix/sw`, renders the `systemd --user` units into the
+user unit directory, and brings the instance up. Idempotent: re-run it to pick
+up a new build or a changed unit.
+
+```
+./deploy/nix/install.sh
+```
+
+That starts postgres (`127.0.0.1:5432`, in a cluster under the user state dir,
+with the role password rotated off the shared default on first boot), the
+server (`MODE=server`, internal `127.0.0.1:8002`), the windmill-extra LSP
+gateway (`127.0.0.1:3001`), one native worker, the build pool, and caddy. Caddy
+is the only public boundary: it binds loopback and fronts the server and the
+LSP gateway on one origin, so the UI is reached over an SSH forward.
+
+```
+ssh -L 8000:localhost:8000 <user>@<host>   # then http://localhost:8000
+```
+
+Knobs (environment variables):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `CADDY_PORT` | `8000` | loopback port caddy fronts the stack on |
+| `WORKERS` | `2` | build-pool worker count |
+| `VM_WORKERS` / `VM_RUN_WORKERS` | `0` | vm and vm-run pools (need the workbench; see below) |
+| `WORKBENCH_DIR` / `SYSTEM_DIR` / `WORKERS_DIR` / `VENDOR_DIR` | under the repo | build-area paths |
+
+The vm and vm-run pools default off: they drive QEMU/systemd VMs and need the
+workbench provisioned (the System bare, the peer ssh key, the `vhost_vsock`
+module), which is a separate step. `teardown.sh` stops and removes the units;
+`teardown.sh --purge` also wipes the cluster and secrets.
+
+Two operational notes:
+
+- The units reuse the same names as the podman backend
+  (`windmill.service`, `windmill-db.service`, …), and static user units shadow
+  podman's quadlet-generated ones, so the two backends cannot run at once.
+  Deploy one. To switch from podman, retire its quadlets first
+  (`~/.config/containers/systemd/windmill*`).
+- `systemctl --user` from a shell without a login session needs
+  `XDG_RUNTIME_DIR=/run/user/$(id -u)` and a matching
+  `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus`.
 
 ## Bumping the fork
 
