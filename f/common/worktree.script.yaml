@@ -8,7 +8,7 @@ description: |
   resolves under `<workbench>/<worktree-group>/<project>` (default group `vanilla`;
   `system` and `workers` are reserved). It refreshes upstream refs into the Bare
   first, and can apply a lore series on top via `b4 shazam`. Used by
-  `f/kernel/prepare_worktree`, `f/qemu/prepare_worktree`, and `f/workbench/worktree`.
+  `f/kernel/prepare_worktree`, `f/qemu/prepare_worktree`, and `f/workbench/worktree/init`.
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

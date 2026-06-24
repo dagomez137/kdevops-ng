@@ -58,7 +58,7 @@ def main():
     return "f/common/worktree: shared worktree-prepare helper"
 
 
-def _validate_group(worktree_group: str) -> None:
+def validate_group(worktree_group: str) -> None:
     """Reject a worktree-group that collides with a reserved sibling or carries
     path/flag characters (it becomes a single directory name directly under the
     Workbench). It must be one plain path component: no `.`/`..`, no separators,
@@ -87,7 +87,7 @@ def prepare(
 ) -> dict:
     if ref.startswith("-"):
         raise ValueError(f"invalid ref: {ref}")
-    _validate_group(worktree_group)
+    validate_group(worktree_group)
 
     git = Git()
     existing = git.capture("config", "--global", "--get-all", "safe.directory", check=False)
