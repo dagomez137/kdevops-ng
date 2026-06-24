@@ -60,6 +60,11 @@
             ];
             text = builtins.readFile ./bin/windmill-db-setup;
           };
+
+          # The reverse proxy. The Caddyfile is pure HTTP reverse_proxy (the
+          # podman backend's caddy-l4 image name notwithstanding), so plain
+          # caddy serves it.
+          caddy = pkgs.caddy;
           # The frontend FOD on its own: lets `nix build .#windmill-frontend`
           # resolve npmDepsHash and iterate on UI changes without the Rust build.
           windmill-frontend = windmill.web-ui;

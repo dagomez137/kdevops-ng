@@ -13,8 +13,9 @@ mapfile -t units < <(systemctl --user list-units --all --plain --no-legend \
     'windmill*' 2>/dev/null | awk '{print $1}')
 [ "${#units[@]}" -gt 0 ] && systemctl --user stop "${units[@]}" 2>/dev/null || true
 rm --force "$UNITS"/windmill.service "$UNITS"/windmill-db.service \
-    "$UNITS"/windmill-native.service "$UNITS"/windmill-worker@.service \
-    "$UNITS"/windmill-worker-vm@.service "$UNITS"/windmill-worker-vmrun@.service
+    "$UNITS"/windmill-native.service "$UNITS"/windmill-caddy.service \
+    "$UNITS"/windmill-worker@.service "$UNITS"/windmill-worker-vm@.service \
+    "$UNITS"/windmill-worker-vmrun@.service
 systemctl --user daemon-reload
 echo "stopped and removed units"
 

@@ -22,6 +22,11 @@ WORKERS="${WORKERS:-2}"
 VM_WORKERS="${VM_WORKERS:-0}"
 VM_RUN_WORKERS="${VM_RUN_WORKERS:-0}"
 
+# Loopback port caddy fronts the stack on (the SSH-forward target). The podman
+# backend owns 8000 while it runs, so set CADDY_PORT to another port to bring the
+# nix proxy up alongside it.
+CADDY_PORT="${CADDY_PORT:-8000}"
+
 # Build area (ADR-0008), defaulting under the repo like the podman backend.
 # These are plain host paths now (no bind-mounts), passed to the build and vm
 # workers through workbench.env.
@@ -30,7 +35,7 @@ SYSTEM_DIR="${SYSTEM_DIR:-$WORKBENCH_DIR/system}"
 WORKERS_DIR="${WORKERS_DIR:-$WORKBENCH_DIR/workers}"
 VENDOR_DIR="${VENDOR_DIR:-$(dirname "$WORKBENCH_DIR")/vendor}"
 
-COMPONENTS=(windmill postgresql db-setup)
+COMPONENTS=(windmill postgresql db-setup caddy)
 
 echo "== build components to GC-rooted out-links under $SW =="
 mkdir --parents "$SW"
@@ -51,11 +56,12 @@ loginctl enable-linger "$USER" >/dev/null 2>&1 || true
     printf 'WORKERS_DIR=%s\n' "$WORKERS_DIR"
     printf 'VENDOR_DIR=%s\n' "$VENDOR_DIR"
 } >"$STATE/env/workbench.env"
+install --mode=644 "$HERE/Caddyfile" "$STATE/Caddyfile"
 
 echo "== render units into $UNITS =="
 mkdir --parents "$UNITS"
 for u in "$HERE"/systemd/*.service; do
-    sed "s|@SW@|$SW|g" "$u" >"$UNITS/$(basename "$u")"
+    sed -e "s|@SW@|$SW|g" -e "s|@CADDY_PORT@|$CADDY_PORT|g" "$u" >"$UNITS/$(basename "$u")"
     echo "  $(basename "$u")"
 done
 
@@ -66,6 +72,7 @@ systemctl --user daemon-reload
 systemctl --user restart windmill-db.service
 systemctl --user restart windmill.service
 systemctl --user restart windmill-native.service
+systemctl --user restart windmill-caddy.service
 
 # Stop any worker instances from a previous run so a reduced count takes effect,
 # then start the requested set. Template instances are addressed by index: the
@@ -84,6 +91,6 @@ start_pool windmill-worker "$WORKERS" 0
 start_pool windmill-worker-vm "$VM_WORKERS" 1
 start_pool windmill-worker-vmrun "$VM_RUN_WORKERS" 1
 
-echo "up -> server http://127.0.0.1:8002"
+echo "up -> caddy http://127.0.0.1:$CADDY_PORT  (server :8002 behind it)"
 echo "      workers: 1 native + $WORKERS build + $VM_WORKERS vm + $VM_RUN_WORKERS vm-run"
-echo "      systemctl --user status windmill windmill-native 'windmill-worker@*'"
+echo "      systemctl --user status windmill windmill-caddy windmill-native 'windmill-worker@*'"
