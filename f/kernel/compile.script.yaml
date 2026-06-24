@@ -1,19 +1,36 @@
-summary: "Kernel: compile targets"
-description: |
+summary: 'Kernel: compile targets'
+description: >
   Build one or more make targets (default `bzImage`) for an already-configured
-  worktree inside the `nixos-flake#build` devShell, with `make --jobs=$(nproc)` so
+
+  worktree inside the `nixos-flake#build` devShell, with `make --jobs=$(nproc)`
+  so
+
   the container cgroup governs CPU and N concurrent builds self-balance.
 
-  Reads `worktree`/`build_dir` from a prior `prepare_worktree` step and expects a
+
+  Reads `worktree`/`build_dir` from a prior `prepare_worktree` step and expects
+  a
+
   `.config` from `configure`. Returns `image` (the `arch/x86/boot/bzImage` path:
-  x86 only, `null` for other targets/arches) plus the build provenance the kernel
-  bakes into `include/generated/{utsrelease,compile,utsversion}.h` (written by the
-  build, so they confirm what was actually used), each under the kernel's own macro
+
+  x86 only, `null` for other targets/arches) plus the build provenance the
+  kernel
+
+  bakes into `include/generated/{utsrelease,compile,utsversion}.h` (written by
+  the
+
+  build, so they confirm what was actually used), each under the kernel's own
+  macro
+
   name: `uts_release`, `linux_compiler`, `uts_machine`, `linux_compile_by`,
+
   `linux_compile_host`, and `uts_version` (the `uname -v` string).
 
+
   **Reusable on its own**: the same script backs a future `build_matrix` flow
+
   that fans out over many refs/defconfigs.
+lock: '!inline f/kernel/compile.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -24,20 +41,20 @@ schema:
     - targets
     - make_flags
   properties:
-    worktree:
-      type: string
-      description: Kernel source worktree (from prepare_worktree).
     build_dir:
       type: string
       description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+    make_flags:
+      type: string
+      description: Extra make variables/flags, space-separated, appended verbatim.
+      default: ''
     targets:
       type: string
       description: Space-separated make targets to build.
       default: bzImage
-    make_flags:
+    worktree:
       type: string
-      description: Extra make variables/flags, space-separated, appended verbatim.
-      default: ""
+      description: Kernel source worktree (from prepare_worktree).
   required:
     - worktree
     - build_dir

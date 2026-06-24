@@ -1,4 +1,4 @@
-summary: "QEMU: configure (out-of-tree)"
+summary: 'QEMU: configure (out-of-tree)'
 description: |
   Configure an out-of-tree QEMU build inside the `nixos-flake#build` devShell.
   First `meson subprojects download` (run in the source) fetches QEMU's vendored
@@ -8,6 +8,7 @@ description: |
   `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags`.
 
   Reads `worktree`/`build_dir`/`destdir` from a prior `prepare_worktree` step.
+lock: '!inline f/qemu/configure.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -23,33 +24,9 @@ schema:
     - ccache_max_size
     - configure_args
   properties:
-    worktree:
-      type: string
-      description: QEMU source worktree (from prepare_worktree).
     build_dir:
       type: string
       description: Out-of-tree build directory (from prepare_worktree).
-    destdir:
-      type: string
-      description: Install prefix the build configures for (from prepare_worktree).
-    target_list:
-      type: array
-      description: QEMU emulator targets (`--target-list`), comma-joined. The build flow offers the selectable list.
-      default:
-        - x86_64-softmmu
-      items:
-        type: string
-    compiler:
-      type: string
-      description: Toolchain to build with, pinned via `CC`/`CXX`.
-      default: gcc
-      enum:
-        - gcc
-        - clang
-    reproducible:
-      type: boolean
-      description: Add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` (common parent of `worktree`/`build_dir`) so the build path stops leaking into the binary.
-      default: true
     ccache:
       type: boolean
       description: Compile through ccache (`CC="ccache <cc>"`, shared `CCACHE_DIR`).
@@ -58,11 +35,38 @@ schema:
       type: integer
       description: ccache max cache size in GiB (written to ccache.conf max_size).
       default: 10
-      showExpr: "fields.ccache !== false"
+      showExpr: fields.ccache !== false
+    compiler:
+      type: string
+      description: Toolchain to build with, pinned via `CC`/`CXX`.
+      default: gcc
+      enum:
+        - gcc
+        - clang
     configure_args:
       type: string
       description: Extra configure flags, space-separated, appended verbatim.
-      default: ""
+      default: ''
+    destdir:
+      type: string
+      description: Install prefix the build configures for (from prepare_worktree).
+    reproducible:
+      type: boolean
+      description: Add one `-ffile-prefix-map=<prefix>=/qemu` to
+        `--extra-cflags`/`--extra-cxxflags` (common parent of
+        `worktree`/`build_dir`) so the build path stops leaking into the binary.
+      default: true
+    target_list:
+      type: array
+      description: QEMU emulator targets (`--target-list`), comma-joined. The build
+        flow offers the selectable list.
+      default:
+        - x86_64-softmmu
+      items:
+        type: string
+    worktree:
+      type: string
+      description: QEMU source worktree (from prepare_worktree).
   required:
     - worktree
     - build_dir

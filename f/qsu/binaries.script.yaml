@@ -1,4 +1,4 @@
-summary: "Shared helper: resolve /nix store paths and qemu/virtiofsd binaries"
+summary: 'Shared helper: resolve /nix store paths and qemu/virtiofsd binaries'
 description: |
   Library module imported by the qsu steps (`from f.qsu.binaries import ...`).
   Not a runnable step on its own. Resolves nixos-flake packages to their
@@ -6,6 +6,7 @@ description: |
   backs the `dynselect-list_iommu` dropdown via `iommu_options`. Split out of
   `f.qsu.common` so it stays dependency-free (no `jinja2`/`yaml`) for dynselect
   helpers to import.
+lock: '!inline f/qsu/binaries.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

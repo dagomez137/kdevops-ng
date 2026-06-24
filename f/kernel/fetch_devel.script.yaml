@@ -1,14 +1,30 @@
 summary: "Kernel: fetch a release's devel layer from the Nix store onto a worktree"
-description: |
-  Index a worktree against a build identity's devel layer without rebuilding. Resolve
+description: >
+  Index a worktree against a build identity's devel layer without rebuilding.
+  Resolve
+
   the `kernel-devel-<release>` store path (from the local index, or pulled with
-  `nix copy` from a peer's `store-index` over the `transfer` devShell), then copy the
-  developer subset (`.cmd` files, headers, `Module.symvers`, `scripts/`, GDB helpers)
-  into the worktree's build dir and regenerate `compile_commands.json` locally so it
-  indexes this worktree's own source. The companion to `f/kernel/publish_devel`. The
-  build dir defaults to the worktree's own `build` child and must stay under it (the
-  fetched `.cmd` paths are relative to the build dir). Returns `fetched` plus the
+
+  `nix copy` from a peer's `store-index` over the `transfer` devShell), then
+  copy the
+
+  developer subset (`.cmd` files, headers, `Module.symvers`, `scripts/`, GDB
+  helpers)
+
+  into the worktree's build dir and regenerate `compile_commands.json` locally
+  so it
+
+  indexes this worktree's own source. The companion to `f/kernel/publish_devel`.
+  The
+
+  build dir defaults to the worktree's own `build` child and must stay under it
+  (the
+
+  fetched `.cmd` paths are relative to the build dir). Returns `fetched` plus
+  the
+
   resolved `worktree`/`build_dir`/`compile_commands`/`entries`.
+lock: '!inline f/kernel/fetch_devel.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -20,24 +36,27 @@ schema:
     - remote_index
     - build_dir
   properties:
-    worktree:
+    build_dir:
       type: string
-      description: Local kernel source checkout that receives the devel layer and a regenerated compile_commands.json.
-    uts_release:
-      type: string
-      description: The build identity (baked kernelrelease) whose devel layer to fetch.
+      description: Where the devel layer lands; defaults to `<worktree>/build`. Must
+        stay under the worktree.
+      default: ''
     remote:
       type: string
       description: SSH host of the peer builder; empty resolves from the local store only.
-      default: ""
+      default: ''
     remote_index:
       type: string
-      description: The peer builder's `store-index` directory, read over ssh to learn the devel layer's store path; empty resolves from the local store only.
-      default: ""
-    build_dir:
+      description: The peer builder's `store-index` directory, read over ssh to learn
+        the devel layer's store path; empty resolves from the local store only.
+      default: ''
+    uts_release:
       type: string
-      description: Where the devel layer lands; defaults to `<worktree>/build`. Must stay under the worktree.
-      default: ""
+      description: The build identity (baked kernelrelease) whose devel layer to fetch.
+    worktree:
+      type: string
+      description: Local kernel source checkout that receives the devel layer and a
+        regenerated compile_commands.json.
   required:
     - worktree
     - uts_release

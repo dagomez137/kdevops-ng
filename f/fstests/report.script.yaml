@@ -1,13 +1,28 @@
-summary: "xfstests: aggregate per-section results into one run verdict"
-description: |
-  Fold the list of `f/fstests/collect` results (one per `[section]`) into one rollup,
-  with a `status` of `failed` if any section reported a failure or a missing report, else
-  `passed`. Returns a Windmill `render_all` of three native tables (no markdown): run info
-  (testsuite, filesystem type, kernel, guest), one row per section (the filesystem-under-
-  test geometry plus that section's pass/fail counts), and one row per distinct test across
-  all sections (status, runs, fails, time, message; failures first). When `vm_name` is given
-  it also writes the structured rollup to `$WORKERS_DIR/shared/fstests/<vm>/<kver>/report.json`.
+summary: 'xfstests: aggregate per-section results into one run verdict'
+description: >
+  Fold the list of `f/fstests/collect` results (one per `[section]`) into one
+  rollup,
+
+  with a `status` of `failed` if any section reported a failure or a missing
+  report, else
+
+  `passed`. Returns a Windmill `render_all` of three native tables (no
+  markdown): run info
+
+  (testsuite, filesystem type, kernel, guest), one row per section (the
+  filesystem-under-
+
+  test geometry plus that section's pass/fail counts), and one row per distinct
+  test across
+
+  all sections (status, runs, fails, time, message; failures first). When
+  `vm_name` is given
+
+  it also writes the structured rollup to
+  `$WORKERS_DIR/shared/fstests/<vm>/<kver>/report.json`.
+
   The host never contacts the guest.
+lock: '!inline f/fstests/report.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -17,16 +32,17 @@ schema:
     - vm_name
   properties:
     per_section:
-      title: Per Section
       type: array
       description: The `f/fstests/collect` result objects, one per section, to aggregate.
       default: []
       items:
         type: object
+      title: Per Section
     vm_name:
-      title: VM Name
       type: string
-      description: "Optional: when set, also write the rollup to `$WORKERS_DIR/shared/fstests/<vm>/report.json`."
+      description: 'Optional: when set, also write the rollup to
+        `$WORKERS_DIR/shared/fstests/<vm>/report.json`.'
       default: ''
+      title: VM Name
   required:
     - per_section

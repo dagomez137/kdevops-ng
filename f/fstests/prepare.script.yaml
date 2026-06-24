@@ -1,20 +1,35 @@
 summary: "xfstests: prepare a section's mount points and format TEST_DEV"
-description: |
+description: >
   Make an xfstests run self-contained on a booted guest over vsock-SSH. From the
+
   section's resolved `local.config` vars, (re)create the xfstests mount points
+
   (`TEST_DIR`, `SCRATCH_MNT`; they live on the guest's tmpfs root and are lost
+
   each boot) and format `TEST_DEV` with the section's `FSTYP`, supplying the
+
   per-`FSTYP` overwrite flag (`-f`/`-F`) so `mkfs` does not refuse an
+
   already-formatted device. `SCRATCH_DEV` is left alone: `./check` mkfs's it
+
   itself per test. The `FSTYP` is read from the rendered `local.config` (it
-  varies per run and section), not baked into the guest closure. For an xfs section
-  it then captures the realized `xfs_info` of the formatted `TEST_DEV` (read-only) to
-  `<share>/<vm>/<section>.xfs_info`, so the report can show the actual feature set
+
+  varies per run and section), not baked into the guest closure. For an xfs
+  section
+
+  it then captures the realized `xfs_info` of the formatted `TEST_DEV`
+  (read-only) to
+
+  `<share>/<vm>/<section>.xfs_info`, so the report can show the actual feature
+  set
+
   (reflink, rmapbt, bigtime, crc, ...) mkfs enabled beyond `MKFS_OPTIONS`.
 
-  Returns `{vm, section, fstyp, test_dev, test_dir, scratch_mnt, formatted, mkfs_options, xfs_info}`.
+
+  Returns `{vm, section, fstyp, test_dev, test_dir, scratch_mnt, formatted,
+  mkfs_options, xfs_info}`.
+lock: '!inline f/fstests/prepare.script.lock'
 kind: script
-tag: vm
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -23,19 +38,22 @@ schema:
     - section
     - mkfs_test_dev
   properties:
+    mkfs_test_dev:
+      type: boolean
+      description: Reformat `TEST_DEV` with the section's `FSTYP` before the run
+        (xfstests only mkfs's `SCRATCH_DEV` itself).
+      default: true
+      title: Reformat TEST_DEV
+    section:
+      type: string
+      description: xfstests config-section name (the `[section]` header) to prepare
+        from `local.config`.
     vm_name:
-      title: VM Name
       type: object
       description: Booted VM to prepare the xfstests section on, over vsock-SSH.
       format: dynselect-list_vms
-    section:
-      type: string
-      description: xfstests config-section name (the `[section]` header) to prepare from `local.config`.
-    mkfs_test_dev:
-      title: Reformat TEST_DEV
-      type: boolean
-      default: true
-      description: Reformat `TEST_DEV` with the section's `FSTYP` before the run (xfstests only mkfs's `SCRATCH_DEV` itself).
+      title: VM Name
   required:
     - vm_name
     - section
+tag: vm

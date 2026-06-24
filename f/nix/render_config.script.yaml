@@ -1,8 +1,12 @@
-summary: "Nix: render a per-VM imageless config (flake.nix + default.nix)"
-description: |
+summary: 'Nix: render a per-VM imageless config (flake.nix + default.nix)'
+description: >
   Render a per-VM imageless NixOS configuration under
-  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`: the Windmill equivalent of kdevops's
+
+  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`: the Windmill equivalent of
+  kdevops's
+
   `nixosfi` generate-configs phase.
+
 
   - `flake.nix` is a near-verbatim copy of the vendored imageless **template**
     (`vendor/nixos-flake/templates/imageless/flake.nix`); only the
@@ -14,7 +18,9 @@ description: |
     flake's modules list already imports the imageless backend + user + overlay, so
     this file only adds to that.
 
-  Both files are echoed to the job log. Returns `config_dir` for the lock/build steps.
+  Both files are echoed to the job log. Returns `config_dir` for the lock/build
+  steps.
+lock: '!inline f/nix/render_config.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -31,14 +37,68 @@ schema:
     - extra_overrides
     - user_name
   properties:
-    vm_name:
-      title: VM Name
+    extra_overrides:
+      type: array
+      description: Raw [{pkg, src, ref?, attrs?}] for any nixpkgs package not in the
+        curated list above. Merged with the form overrides.
+      default: []
+      items:
+        type: object
+      title: 'Advanced: arbitrary package overrides'
+    home:
+      type: boolean
+      description: "Predefined `home` share: mount the operator's host home into the
+        guest at the same absolute path (tag `home`). Resolved on the worker;
+        `home_dir` overrides. Pair with `File Sharing → Home Share` so the host
+        serves it."
+      default: false
+    home_dir:
       type: string
-      description: Guest hostname and per-VM config directory name.
-      default: nixos
+      description: Override the home-share path (else the worker's `$HOME`). Must
+        match what `f/qsu` serves.
+      default: ''
+      title: Home Dir
+    overrides:
+      type: array
+      description: "Rebuild a package nixos-flake builds from your own source instead
+        of its pinned version: pick the package, give a src (an absolute path or
+        a git/flake URL), and the closure picks it up while keeping the flake's
+        build recipe. fio, xfstests, xfsprogs, libbpf-tools (verified for the
+        fstests focus; more join per test suite). For any other nixpkgs package,
+        use the advanced field below."
+      default: []
+      items:
+        type: object
+        properties:
+          attrs:
+            type: object
+            description: 'Advanced: extra string-valued overrideAttrs, e.g.
+              {"autoreconfPhase": "make configure"} for xfsprogs from git.'
+            title: Extra build attrs
+          pkg:
+            type: string
+            enum:
+              - fio
+              - xfstests
+              - xfsprogs
+              - libbpf-tools
+            title: Package
+          ref:
+            type: string
+            description: Git ref (branch or tag) when src is a URL.
+          src:
+            type: string
+            description: An absolute path (e.g. /home/you/src/fio) or a git/flake URL.
+            title: Source
+        required:
+          - pkg
+          - src
+      title: Package source overrides
     profiles:
       type: array
-      description: nixos-flake profile modules to import (fully featured by default; pare back for a lighter closure). controller is a host role and off by default.
+      description: nixos-flake profile modules to import (fully featured by default;
+        pare back for a lighter closure). controller is a host role and off by
+        default.
       default:
         - devel
         - build-tools
@@ -50,9 +110,25 @@ schema:
           - controller
           - devel
           - monitoring
+    shares:
+      type: object
+      description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home":
+        {"tag": "home", "options": ["ro"]}}. The `fstests` mount
+        (`/var/lib/xfstests`) is added automatically when `test_suites` includes
+        `fstests`; `home` adds the operator''s home. Both coexist with explicit
+        entries here.'
+      default: {}
+    ssh_keys:
+      type: array
+      description: Authorized SSH keys for the root and unprivileged accounts.
+      default: []
+      items:
+        type: string
+      title: SSH Keys
     test_suites:
       type: array
-      description: nixos-flake testSuite modules to import (all by default; pare back for a lighter closure).
+      description: nixos-flake testSuite modules to import (all by default; pare back
+        for a lighter closure).
       default:
         - blktests
         - fstests
@@ -73,62 +149,14 @@ schema:
           - pynfs
           - selftests
           - sysbench
-    ssh_keys:
-      title: SSH Keys
-      type: array
-      description: Authorized SSH keys for the root and unprivileged accounts.
-      default: []
-      items:
-        type: string
-    shares:
-      type: object
-      description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests` mount (`/var/lib/xfstests`) is added automatically when `test_suites` includes `fstests`; `home` adds the operator''s home. Both coexist with explicit entries here.'
-      default: {}
-    home:
-      type: boolean
-      description: "Predefined `home` share: mount the operator's host home into the guest at the same absolute path (tag `home`). Resolved on the worker; `home_dir` overrides. Pair with `File Sharing → Home Share` so the host serves it."
-      default: false
-    home_dir:
-      title: Home Dir
-      type: string
-      description: "Override the home-share path (else the worker's `$HOME`). Must match what `f/qsu` serves."
-      default: ""
-    overrides:
-      title: Package source overrides
-      type: array
-      description: "Rebuild a package nixos-flake builds from your own source instead of its pinned version: pick the package, give a src (an absolute path or a git/flake URL), and the closure picks it up while keeping the flake's build recipe. fio, xfstests, xfsprogs, libbpf-tools (verified for the fstests focus; more join per test suite). For any other nixpkgs package, use the advanced field below."
-      default: []
-      items:
-        type: object
-        properties:
-          pkg:
-            title: Package
-            type: string
-            enum: [fio, xfstests, xfsprogs, libbpf-tools]
-          src:
-            title: Source
-            type: string
-            description: "An absolute path (e.g. /home/you/src/fio) or a git/flake URL."
-          ref:
-            type: string
-            description: "Git ref (branch or tag) when src is a URL."
-          attrs:
-            title: Extra build attrs
-            type: object
-            description: 'Advanced: extra string-valued overrideAttrs, e.g. {"autoreconfPhase": "make configure"} for xfsprogs from git.'
-        required:
-          - pkg
-          - src
-    extra_overrides:
-      title: "Advanced: arbitrary package overrides"
-      type: array
-      description: 'Raw [{pkg, src, ref?, attrs?}] for any nixpkgs package not in the curated list above. Merged with the form overrides.'
-      default: []
-      items:
-        type: object
     user_name:
       type: string
       description: Unprivileged account name in the guest (nixos-flake.user.name).
       default: kdevops
+    vm_name:
+      type: string
+      description: Guest hostname and per-VM config directory name.
+      default: nixos
+      title: VM Name
   required:
     - vm_name

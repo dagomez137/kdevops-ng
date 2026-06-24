@@ -1,12 +1,19 @@
-summary: "QEMU/systemd: stop a VM"
-description: |
+summary: 'QEMU/systemd: stop a VM'
+description: >
   `systemctl --user stop qemu-system@<vm>`, which runs the unit's graceful
-  `ExecStop=` (QMP `system_powerdown`, then SIGKILL after `TimeoutStopSec=2min`).
-  Best-effort: a partially-cleaned tree still stops cleanly, so a non-zero rc is not
-  fatal. virtiofsd auto-stops via `StopWhenUnneeded=yes`. Leaves the rendered units and
+
+  `ExecStop=` (QMP `system_powerdown`, then SIGKILL after
+  `TimeoutStopSec=2min`).
+
+  Best-effort: a partially-cleaned tree still stops cleanly, so a non-zero rc is
+  not
+
+  fatal. virtiofsd auto-stops via `StopWhenUnneeded=yes`. Leaves the rendered
+  units and
+
   state in place; use `destroy` to remove them.
+lock: '!inline f/qsu/stop.script.lock'
 kind: script
-tag: vm
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -14,9 +21,13 @@ schema:
     - vm_name
   properties:
     vm_name:
-      title: VM Name
       type: object
-      description: systemd instance to stop (`qemu-system@<vm_name>`). The dropdown lists the running VMs (`systemctl --user list-units 'qemu-system@*'`, across the local host and registered peers) plus any with a rendered `<vm>.env`.
+      description: systemd instance to stop (`qemu-system@<vm_name>`). The dropdown
+        lists the running VMs (`systemctl --user list-units 'qemu-system@*'`,
+        across the local host and registered peers) plus any with a rendered
+        `<vm>.env`.
       format: dynselect-list_vms
+      title: VM Name
   required:
     - vm_name
+tag: vm

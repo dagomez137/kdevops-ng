@@ -1,17 +1,30 @@
-summary: "Kernel: configure via make goals"
-description: |
+summary: 'Kernel: configure via make goals'
+description: >
   Configure method **make**: generate a `.config` by running one or more config
+
   make goals. Covers a single existing target (`defconfig`, `x86_64_defconfig`,
-  `allmodconfig`, `tinyconfig`, a kdevops-provided `defconfig-*`, ...) and ordered
+
+  `allmodconfig`, `tinyconfig`, a kdevops-provided `defconfig-*`, ...) and
+  ordered
+
   lists where `*.config` fragments merge onto a base; `["defconfig",
+
   "kvm_guest.config"]` is base + KVM guest. Runs inside the `nixos-flake#build`
+
   devShell; out-of-tree build (`make O=`), sources in `worktree`, artifacts in
+
   `build_dir`.
 
+
   One of the interchangeable configure steps (see also
+
   `configure_fragments` and `configure_preset`). Reads
+
   `worktree`/`build_dir` from a prior `prepare_worktree` step. Returns
-  `kernelrelease`, the `.config` path, `method`, and the resolved `defconfig` list.
+
+  `kernelrelease`, the `.config` path, `method`, and the resolved `defconfig`
+  list.
+lock: '!inline f/kernel/configure_make.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -23,14 +36,22 @@ schema:
     - make_flags
     - build_identity
   properties:
-    worktree:
-      type: string
-      description: Kernel source worktree (from prepare_worktree).
     build_dir:
       type: string
       description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
+    build_identity:
+      type: boolean
+      description: Bake a hash of the build inputs into kernelrelease (unique per
+        config/toolchain/flags) so identical builds can be fetched or reused
+        instead of rebuilt.
+      default: true
     defconfig:
       type: array
+      description: Config make goals, applied in order (`defconfig`,
+        `x86_64_defconfig`, `tinyconfig`, ...). Extra *.config fragments merge
+        onto the base, e.g. `["defconfig", "kvm_guest.config"]`.
+      default:
+        - defconfig
       items:
         type: string
         enum:
@@ -49,17 +70,14 @@ schema:
           - rust.config
           - xen.config
           - nopm.config
-      description: Config make goals, applied in order (`defconfig`, `x86_64_defconfig`, `tinyconfig`, ...). Extra *.config fragments merge onto the base, e.g. `["defconfig", "kvm_guest.config"]`.
-      default:
-        - defconfig
     make_flags:
       type: string
-      description: Extra make variables/flags, space-separated, appended verbatim (e.g. "W=1").
-      default: ""
-    build_identity:
-      type: boolean
-      description: Bake a hash of the build inputs into kernelrelease (unique per config/toolchain/flags) so identical builds can be fetched or reused instead of rebuilt.
-      default: true
+      description: Extra make variables/flags, space-separated, appended verbatim
+        (e.g. "W=1").
+      default: ''
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree).
   required:
     - worktree
     - build_dir

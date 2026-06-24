@@ -1,13 +1,25 @@
 summary: "Kernel: publish a build identity's devel layer to the Nix store"
-description: |
+description: >
   Stage the build dir's developer subset, the `.cmd` files, generated headers,
+
   `Module.symvers`, `scripts/` and GDB helpers, but none of the object or image
-  binaries, and add it to the Nix store under `kernel-devel-<release>`, indexed as a
-  GC root. The companion to `f/kernel/publish` (which publishes the run layer); a
-  developer's `fetch_devel` then resolves this store path to index a worktree. Binaries
-  are excluded once here, so the store path is already lean. Run only after a real
+
+  binaries, and add it to the Nix store under `kernel-devel-<release>`, indexed
+  as a
+
+  GC root. The companion to `f/kernel/publish` (which publishes the run layer);
+  a
+
+  developer's `fetch_devel` then resolves this store path to index a worktree.
+  Binaries
+
+  are excluded once here, so the store path is already lean. Run only after a
+  real
+
   build (the flow skips it on reuse). Returns the index `name`, the resolved
+
   `store_path`, and the `uts_release`.
+lock: '!inline f/kernel/publish_devel.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

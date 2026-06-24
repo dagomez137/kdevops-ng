@@ -1,4 +1,4 @@
-summary: "xfstests: cold power-cycle a guest and wait for it to come back"
+summary: 'xfstests: cold power-cycle a guest and wait for it to come back'
 description: |
   Run-global startup step: cold power-cycle a guest by restarting its host
   `qemu-system@<vm>.service` unit, then block until a fresh boot reaches
@@ -11,8 +11,8 @@ description: |
   it so the wipe acts on a fresh boot.
 
   Returns `{vm, rebooted}` (`+ boot_id`, `system_state` when it rebooted).
+lock: '!inline f/fstests/reboot.script.lock'
 kind: script
-tag: vm-run
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -22,25 +22,29 @@ schema:
     - reboot_timeout
     - poll_interval
   properties:
+    poll_interval:
+      type: integer
+      description: Seconds between is-system-running polls while waiting for the guest
+        to come back.
+      default: 5
+      title: Poll Interval
+    reboot_guest:
+      type: boolean
+      description: Power-cycle the guest and wait for it to come back. Off = no-op
+        (returns `rebooted=false`).
+      default: false
+      title: Reboot Guest
+    reboot_timeout:
+      type: integer
+      description: Seconds to wait for the guest to come back after the power-cycle
+        before failing.
+      default: 300
+      title: Reboot Timeout
     vm_name:
-      title: VM Name
       type: object
       description: Booted VM to power-cycle (its host `qemu-system@<vm>` unit).
       format: dynselect-list_vms
-    reboot_guest:
-      title: Reboot Guest
-      type: boolean
-      default: false
-      description: Power-cycle the guest and wait for it to come back. Off = no-op (returns `rebooted=false`).
-    reboot_timeout:
-      title: Reboot Timeout
-      type: integer
-      default: 300
-      description: Seconds to wait for the guest to come back after the power-cycle before failing.
-    poll_interval:
-      title: Poll Interval
-      type: integer
-      default: 5
-      description: Seconds between is-system-running polls while waiting for the guest to come back.
+      title: VM Name
   required:
     - vm_name
+tag: vm-run

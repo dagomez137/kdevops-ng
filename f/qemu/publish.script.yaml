@@ -1,10 +1,19 @@
 summary: "QEMU: publish a build identity's install tree to the Nix store"
-description: |
-  Add the per-identity install prefix (`destdir/<identity>`) to the Nix store under
-  `qemu-<identity>`, indexed as a GC root. The prefix IS the identity, so the whole
-  tree is the run layer and is added as-is, with no staging. A peer can then fetch it
-  with `nix copy`. Run only after a real install (the flow skips it on reuse). Returns
+description: >
+  Add the per-identity install prefix (`destdir/<identity>`) to the Nix store
+  under
+
+  `qemu-<identity>`, indexed as a GC root. The prefix IS the identity, so the
+  whole
+
+  tree is the run layer and is added as-is, with no staging. A peer can then
+  fetch it
+
+  with `nix copy`. Run only after a real install (the flow skips it on reuse).
+  Returns
+
   the index `name`, the resolved `store_path`, and the `prefix`.
+lock: '!inline f/qemu/publish.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

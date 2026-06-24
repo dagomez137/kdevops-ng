@@ -1,18 +1,35 @@
-summary: "Workbench mirror: provision git-mirror@ refresh timers"
-description: |
+summary: 'Workbench mirror: provision git-mirror@ refresh timers'
+description: >
   Install the `git-mirror@.{service,timer}` template pair into the host
-  `systemd --user` manager and enable one instance per mirror repo, so each local
+
+  `systemd --user` manager and enable one instance per mirror repo, so each
+  local
+
   `SYSTEM_DIR/mirror/<repo>.git` is force-refreshed from its upstream
-  `origin` (`git remote update --prune`) on a self-pacing loop: `OnBootSec` after
-  boot, then `OnUnitInactiveSec` after each run finishes. Per-repo instances pace
+
+  `origin` (`git remote update --prune`) on a self-pacing loop: `OnBootSec`
+  after
+
+  boot, then `OnUnitInactiveSec` after each run finishes. Per-repo instances
+  pace
+
   and fail independently (a slow `linux` fetch never delays `qemu`).
 
-  `git` is the flake's own (a stable gc-rooted path), so the host unit needs nothing
-  on PATH. A repo with no mirror on disk is skipped, not enabled. Runs on a `vm`
-  worker (it drives the host user manager over the user bus, like the qsu steps).
 
-  Returns the enabled/skipped repos and the resolved git + mirror dir. Check with
+  `git` is the flake's own (a stable gc-rooted path), so the host unit needs
+  nothing
+
+  on PATH. A repo with no mirror on disk is skipped, not enabled. Runs on a `vm`
+
+  worker (it drives the host user manager over the user bus, like the qsu
+  steps).
+
+
+  Returns the enabled/skipped repos and the resolved git + mirror dir. Check
+  with
+
   `systemctl --user list-timers 'git-mirror@*'`.
+lock: '!inline f/workbench/mirror.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -26,48 +43,83 @@ schema:
     - mirror_dir
     - mirrors
   properties:
-    kernel_trees:
-      title: Kernel trees
-      type: array
-      description: "Linux trees to mirror as remotes on the merged linux.git (Mainline always the base). torvalds=Mainline · linux-next · linux-stable · linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis · axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under Extra trees."
-      default: [torvalds, linux-next, linux-stable, modules, axboe]
-      items:
-        type: string
-        enum: [torvalds, linux-next, linux-stable, linux-stable-rc, modules, mcgrof, mcgrof-next, axboe, vfs, cel, jlayton, cxl, xfs]
-    protocol:
-      title: Protocol
-      type: string
-      enum: [https, git, https-googlesource]
-      default: https
-      description: "How to reach git.kernel.org: https (default), git (faster, often firewalled), or https-googlesource (the Google mirror when kernel.org is down). Per-tree overrides live in the advanced mirrors config."
     extra_trees:
-      title: Extra trees
       type: array
-      description: "Additional git.kernel.org tree paths not in the curated list (e.g. pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The remote name derives from the path."
+      description: Additional git.kernel.org tree paths not in the curated list (e.g.
+        pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The
+        remote name derives from the path.
       default: []
       items:
         type: string
-    on_boot:
-      title: On Boot
-      type: string
-      description: First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`, `1h`).
-      default: 10m
-    on_inactive:
-      title: On Inactive
-      type: string
-      description: Next refresh this long after the previous one finishes (systemd `OnUnitInactiveSec`).
-      default: 10m
+      title: Extra trees
+    kernel_trees:
+      type: array
+      description: Linux trees to mirror as remotes on the merged linux.git (Mainline
+        always the base). torvalds=Mainline · linux-next · linux-stable ·
+        linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis ·
+        axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever
+        (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under
+        Extra trees.
+      default:
+        - torvalds
+        - linux-next
+        - linux-stable
+        - modules
+        - axboe
+      items:
+        type: string
+        enum:
+          - torvalds
+          - linux-next
+          - linux-stable
+          - linux-stable-rc
+          - modules
+          - mcgrof
+          - mcgrof-next
+          - axboe
+          - vfs
+          - cel
+          - jlayton
+          - cxl
+          - xfs
+      title: Kernel trees
     mirror_dir:
-      title: Mirror Dir
       type: string
       description: Directory holding the `<repo>.git` mirrors. Empty = `SYSTEM_DIR/mirror`.
-      default: ""
+      default: ''
+      title: Mirror Dir
     mirrors:
-      title: "Advanced: full mirror config"
       type: array
-      description: "Power-user override of the whole mirror layout (`[{name, mirror, project, remotes:[{name, path|url, protocol, primary}]}]`) for per-tree protocols, a custom QEMU URL, extra projects, etc. When non-empty it REPLACES the trees/protocol fields above. Empty = use the form."
+      description: Power-user override of the whole mirror layout (`[{name, mirror,
+        project, remotes:[{name, path|url, protocol, primary}]}]`) for per-tree
+        protocols, a custom QEMU URL, extra projects, etc. When non-empty it
+        REPLACES the trees/protocol fields above. Empty = use the form.
       default: []
       items:
         type: object
+      title: 'Advanced: full mirror config'
+    on_boot:
+      type: string
+      description: First refresh this long after boot (systemd `OnBootSec`, e.g.
+        `10m`, `1h`).
+      default: 10m
+      title: On Boot
+    on_inactive:
+      type: string
+      description: Next refresh this long after the previous one finishes (systemd
+        `OnUnitInactiveSec`).
+      default: 10m
+      title: On Inactive
+    protocol:
+      type: string
+      description: 'How to reach git.kernel.org: https (default), git (faster, often
+        firewalled), or https-googlesource (the Google mirror when kernel.org is
+        down). Per-tree overrides live in the advanced mirrors config.'
+      default: https
+      enum:
+        - https
+        - git
+        - https-googlesource
+      title: Protocol
   required: []
 tag: vm

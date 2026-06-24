@@ -1,11 +1,20 @@
-summary: "QEMU/systemd shared helpers: vars dict + jinja2 render + host systemd"
-description: |
+summary: 'QEMU/systemd shared helpers: vars dict + jinja2 render + host systemd'
+description: >
   Library module imported by the `f/qsu/*` steps
-  (`from f.qsu.common import build_vars, render, store_out, ...`). Not a runnable step
+
+  (`from f.qsu.common import build_vars, render, store_out, ...`). Not a
+  runnable step
+
   on its own. Builds the qsu template vars dict from QEMU-keyword inputs + the
-  kernel/closure build manifests, renders the vendored qsu `.j2` templates with jinja2,
-  resolves `/nix/store` paths, and exposes the canonical share-tag list. The host
+
+  kernel/closure build manifests, renders the vendored qsu `.j2` templates with
+  jinja2,
+
+  resolves `/nix/store` paths, and exposes the canonical share-tag list. The
+  host
+
   `systemd --user` manager is driven via `f.common.devshell.Systemd`.
+lock: '!inline f/qsu/common.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

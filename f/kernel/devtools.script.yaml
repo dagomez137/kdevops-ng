@@ -1,17 +1,25 @@
-summary: "Kernel: generate dev-tooling artifacts (clangd, GDB, rust-analyzer)"
-description: |
-  Generate developer-tooling artifacts from an already-built kernel worktree, inside
-  the `nixos-flake#build` devShell. Each is independently toggled and on by default:
+summary: 'Kernel: generate dev-tooling artifacts (clangd, GDB, rust-analyzer)'
+description: >
+  Generate developer-tooling artifacts from an already-built kernel worktree,
+  inside
+
+  the `nixos-flake#build` devShell. Each is independently toggled and on by
+  default:
+
 
   - `compile_commands`: `gen_compile_commands.py` writes `compile_commands.json`
     (clangd/cscope/IDE C index) to the source-tree root.
   - `scripts_gdb`: `make scripts_gdb` materializes `vmlinux-gdb.py` + the `lx-*`
     GDB helpers in the build dir.
-  - `rust_analyzer`: `make rust-analyzer` writes `rust-project.json`, copied to the
+  - `rust_analyzer`: `make rust-analyzer` writes `rust-project.json`, copied to
+  the
     source-tree root. Auto-skipped unless `CONFIG_RUST=y` in the build's `.config`.
 
-  Runs after `compile`. Reads `worktree`/`build_dir` from `prepare_worktree`. Returns
+  Runs after `compile`. Reads `worktree`/`build_dir` from `prepare_worktree`.
+  Returns
+
   the artifact paths (null for any that was skipped).
+lock: '!inline f/kernel/devtools.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -24,9 +32,6 @@ schema:
     - rust_analyzer
     - make_flags
   properties:
-    worktree:
-      type: string
-      description: Kernel source worktree (from prepare_worktree).
     build_dir:
       type: string
       description: Out-of-tree build directory, passed as make O= (from prepare_worktree).
@@ -34,19 +39,22 @@ schema:
       type: boolean
       description: Generate `compile_commands.json` (clangd/IDE C index) in the source tree.
       default: true
-    scripts_gdb:
-      title: Scripts GDB
-      type: boolean
-      description: Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build dir.
-      default: true
+    make_flags:
+      type: string
+      description: Extra make variables/flags, space-separated, appended verbatim.
+      default: ''
     rust_analyzer:
       type: boolean
       description: Generate `rust-project.json` (rust-analyzer) when `CONFIG_RUST=y`.
       default: true
-    make_flags:
+    scripts_gdb:
+      type: boolean
+      description: Build kernel GDB helpers (`vmlinux-gdb.py` + `lx-*`) into the build dir.
+      default: true
+      title: Scripts GDB
+    worktree:
       type: string
-      description: Extra make variables/flags, space-separated, appended verbatim.
-      default: ""
+      description: Kernel source worktree (from prepare_worktree).
   required:
     - worktree
     - build_dir

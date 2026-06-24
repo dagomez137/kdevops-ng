@@ -1,4 +1,4 @@
-summary: "QEMU: install into destdir"
+summary: 'QEMU: install into destdir'
 description: |
   Install the built QEMU inside the `nixos-flake#build` devShell with
   `make --directory=<build_dir> install`, honoring the `--prefix=<destdir>` set
@@ -7,6 +7,7 @@ description: |
 
   Returns `qemu_binary` (the first `destdir/bin/qemu-system-*`) and the full
   `qemu_binaries` list.
+lock: '!inline f/qemu/install.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

@@ -1,7 +1,10 @@
-summary: "QEMU/systemd: render the virtiofsd units + per-share env/drop-in"
-description: |
-  Render the **virtiofsd** component of the QEMU-in-systemd unit set into the host
+summary: 'QEMU/systemd: render the virtiofsd units + per-share env/drop-in'
+description: >
+  Render the **virtiofsd** component of the QEMU-in-systemd unit set into the
+  host
+
   user manager's search path (`$HOME/.config/systemd`):
+
 
   - the host-wide, socket-activated `virtiofsd@.service` and `virtiofsd@.socket`
     templates (written once; `ExecStart=` execs the `/nix/store` `virtiofsd`);
@@ -11,11 +14,16 @@ description: |
     `Before=qemu-system@<vm>.service` so virtiofsd outlives the guest's powerdown.
 
   `shares` is rendered verbatim when supplied (the boot flow wires it from the
-  qemu-system render step so both components agree on the share set); otherwise it is
-  recomposed from `modules_dir` + the controller-share knobs. Returns the unit paths
+
+  qemu-system render step so both components agree on the share set); otherwise
+  it is
+
+  recomposed from `modules_dir` + the controller-share knobs. Returns the unit
+  paths
+
   and the per-share artefact list.
+lock: '!inline f/qsu/virtiofsd/render.script.lock'
 kind: script
-tag: vm
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -34,62 +42,69 @@ schema:
     - kernel
     - closure
   properties:
-    vm_name:
-      title: VM Name
-      type: string
-      description: systemd instance the shares belong to (`virtiofsd@<vm_name>-<tag>`).
-    shares:
-      type: array
-      description: Composed virtiofs shares (`{tag,dir,mount,options}`) to render; the boot flow passes the qemu-system render step's `shares`.
-      default: []
-      items:
-        type: object
-    custom_virtiofsd:
-      title: Custom virtiofsd
-      type: boolean
-      description: Use a custom `virtiofsd` instead of the reproducible `nixos-flake` one.
-      default: false
-    virtiofsd_binary:
-      title: virtiofsd Binary
-      type: string
-      description: Path to a custom `virtiofsd` (e.g. a nix derivation output or your own build).
-      default: ""
-      showExpr: "fields.custom_virtiofsd === true"
-    machine_type:
-      type: string
-      description: Machine type (`-machine type=`); selects the vhost-user-fs device variant.
-      default: q35
-    modules_dir:
-      type: string
-      description: Host modules tree shared at `/lib/modules` when `shares` is recomposed. Empty = `kernel.modules_dir`.
-      default: ""
+    closure:
+      type: object
+      description: The `f/nix/build_closure` result manifest.
+      default: {}
     controller_share:
       type: boolean
       description: Append one operator-defined controller-directory share.
+      default: false
+    controller_share_dir:
+      type: string
+      description: Absolute controller path to share. Empty = `$HOME`.
+      default: ''
+    controller_share_guest_mount:
+      type: string
+      description: Guest mount point for the controller share. Empty = same as the
+        controller path.
+      default: ''
+    controller_share_readwrite:
+      type: boolean
+      description: Mount the controller share read-write (default read-only).
       default: false
     controller_share_tag:
       type: string
       description: virtiofs tag for the controller share.
       default: controller-share
-    controller_share_dir:
-      type: string
-      description: Absolute controller path to share. Empty = `$HOME`.
-      default: ""
-    controller_share_guest_mount:
-      type: string
-      description: Guest mount point for the controller share. Empty = same as the controller path.
-      default: ""
-    controller_share_readwrite:
+    custom_virtiofsd:
       type: boolean
-      description: Mount the controller share read-write (default read-only).
+      description: Use a custom `virtiofsd` instead of the reproducible `nixos-flake` one.
       default: false
+      title: Custom virtiofsd
     kernel:
       type: object
-      description: The `f/kernel/build` result manifest (`modules_dir`), used when `shares` is recomposed.
+      description: The `f/kernel/build` result manifest (`modules_dir`), used when
+        `shares` is recomposed.
       default: {}
-    closure:
-      type: object
-      description: The `f/nix/build_closure` result manifest.
-      default: {}
+    machine_type:
+      type: string
+      description: Machine type (`-machine type=`); selects the vhost-user-fs device
+        variant.
+      default: q35
+    modules_dir:
+      type: string
+      description: Host modules tree shared at `/lib/modules` when `shares` is
+        recomposed. Empty = `kernel.modules_dir`.
+      default: ''
+    shares:
+      type: array
+      description: Composed virtiofs shares (`{tag,dir,mount,options}`) to render; the
+        boot flow passes the qemu-system render step's `shares`.
+      default: []
+      items:
+        type: object
+    virtiofsd_binary:
+      type: string
+      description: Path to a custom `virtiofsd` (e.g. a nix derivation output or your
+        own build).
+      default: ''
+      showExpr: fields.custom_virtiofsd === true
+      title: virtiofsd Binary
+    vm_name:
+      type: string
+      description: systemd instance the shares belong to (`virtiofsd@<vm_name>-<tag>`).
+      title: VM Name
   required:
     - vm_name
+tag: vm

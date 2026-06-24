@@ -1,20 +1,37 @@
-summary: "xfstests: wipe the test/scratch devices (per-section, before prepare)"
-description: |
-  Per-section device prep for an xfstests run, against a booted guest over vsock-SSH:
-  runs at the start of each section, before `prepare` creates the mount points. Per
-  discovered NVMe data disk, `umount` then `wipefs --all` + `blkdiscard --force`.
+summary: 'xfstests: wipe the test/scratch devices (per-section, before prepare)'
+description: >
+  Per-section device prep for an xfstests run, against a booted guest over
+  vsock-SSH:
+
+  runs at the start of each section, before `prepare` creates the mount points.
+  Per
+
+  discovered NVMe data disk, `umount` then `wipefs --all` + `blkdiscard
+  --force`.
+
   `blkdiscard` TRIMs the device so the thin-provisioned qcow2 backing deflates;
-  without it a device left full by a prior section reports `No space left on device`
-  even after the filesystem is recreated, and the backing inflates across sections.
+
+  without it a device left full by a prior section reports `No space left on
+  device`
+
+  even after the filesystem is recreated, and the backing inflates across
+  sections.
+
   Trimming per section before `prepare` keeps each section starting clean.
 
+
   Safe by default: TEST_DEV/SCRATCH_DEV data is disposable (`prepare` re-mkfs's
-  TEST_DEV, `./check` re-mkfs's SCRATCH per test). `blkdiscard` runs even if `wipefs`
+
+  TEST_DEV, `./check` re-mkfs's SCRATCH per test). `blkdiscard` runs even if
+  `wipefs`
+
   fails; the step fails only if NO device could be discarded.
 
-  Returns `{vm, wiped, failed}` (the device nodes wiped / that could not be discarded).
+
+  Returns `{vm, wiped, failed}` (the device nodes wiped / that could not be
+  discarded).
+lock: '!inline f/fstests/wipe.script.lock'
 kind: script
-tag: vm
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -23,22 +40,25 @@ schema:
     - devices
     - wipe_devices
   properties:
-    vm_name:
-      title: VM Name
-      type: object
-      description: Booted VM whose test/scratch devices to wipe, over vsock-SSH.
-      format: dynselect-list_vms
     devices:
-      title: Devices
       type: array
-      description: The NVMe data disks to wipe (`[{name, size, log_sec}]`, from `f/fstests/discover`). Empty wipes nothing.
+      description: The NVMe data disks to wipe (`[{name, size, log_sec}]`, from
+        `f/fstests/discover`). Empty wipes nothing.
       default: []
       items:
         type: object
+      title: Devices
+    vm_name:
+      type: object
+      description: Booted VM whose test/scratch devices to wipe, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
     wipe_devices:
-      title: Wipe Devices
       type: boolean
+      description: '`wipefs --all` + `blkdiscard --force` every test/scratch NVMe. Off
+        = no-op.'
       default: true
-      description: "`wipefs --all` + `blkdiscard --force` every test/scratch NVMe. Off = no-op."
+      title: Wipe Devices
   required:
     - vm_name
+tag: vm

@@ -1,58 +1,78 @@
-summary: "QEMU Build"
-description: |
+summary: QEMU Build
+description: >
   Build a custom QEMU from source, reproducibly, inside the `nixos-flake#build`
-  devShell over this worker's warm `main` worktree cut from the durable Bare. Mirrors
+
+  devShell over this worker's warm `main` worktree cut from the durable Bare.
+  Mirrors
+
   `f/kernel/build`; the distro `install-deps` the kdevops QEMU role performs is
+
   gone, because the devShell already carries QEMU's build toolchain
+
   (`inputsFrom = [ pkgs.qemu ]`: meson, ninja, GCC, pkg-config, glib, pixman).
 
+
   Steps (pinned to one worker via `same_worker`, so each sees the previous
+
   step's files):
 
+
   1. `prepare_worktree`: resolve the slot and check out `qemu_ref`.
+
   2. `configure`: out-of-tree `meson subprojects download`, then
      `configure --target-list --prefix=<worktree>/destdir --disable-download`.
   3. `compile`: `make --jobs=$(nproc)` (drives ninja).
+
   4. `install`: `make install` into `<worktree>/destdir`.
+
   5. `publish`: add this identity's install tree to the Nix store so a peer can
      fetch it; only after a real install (skipped on reuse).
   6. `collect`: merge the step results into one manifest.
 
+
   Each worker builds in its own warm `main` worktree
+
   (`workers/<worker>/qemu/main`), synced to `qemu_ref` every run so
-  rebuilds stay incremental and isolated builds on different workers run in parallel.
-  `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean build.
+
+  rebuilds stay incremental and isolated builds on different workers run in
+  parallel.
+
+  `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean
+  build.
+
 
   Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
-  `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the same way it
+
+  `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the
+  same way it
+
   consumes `f/kernel/build`. See `docs/windmill/qemu-build-flow.md`.
 value:
-  same_worker: true
   modules:
     - id: prepare_worktree
       summary: Resolve slot + check out worktree
       value:
         type: script
-        path: f/qemu/prepare_worktree
         input_transforms:
-          qemu_ref:
-            type: javascript
-            expr: flow_input.worktree?.qemu_ref
-          worktree_group:
-            type: javascript
-            expr: flow_input.worktree?.worktree_group
           b4_series:
             type: javascript
             expr: flow_input.worktree?.b4_series
+          clean_destdir:
+            type: javascript
+            expr: flow_input.installation?.clean_destdir
+          qemu_ref:
+            type: javascript
+            expr: flow_input.worktree?.qemu_ref
           recreate_worktree:
             type: javascript
             expr: flow_input.worktree?.recreate_worktree
           wipe_build:
             type: javascript
             expr: flow_input.worktree?.wipe_build
-          clean_destdir:
+          worktree_group:
             type: javascript
-            expr: flow_input.installation?.clean_destdir
+            expr: flow_input.worktree?.worktree_group
+        path: f/qemu/prepare_worktree
       retry:
         constant:
           attempts: 2
@@ -64,33 +84,30 @@ value:
       summary: compute build identity + per-identity install prefix
       value:
         type: script
-        path: f/qemu/identity
         input_transforms:
-          worktree:
+          compiler:
             type: javascript
-            expr: results.prepare_worktree.worktree
+            expr: flow_input.build?.compiler
+          configure_args:
+            type: javascript
+            expr: flow_input.configuration?.configure_args
           destdir:
             type: javascript
             expr: results.prepare_worktree.destdir
           target_list:
             type: javascript
             expr: flow_input.configuration?.target_list
-          configure_args:
+          worktree:
             type: javascript
-            expr: flow_input.configuration?.configure_args
-          compiler:
-            type: javascript
-            expr: flow_input.build?.compiler
+            expr: results.prepare_worktree.worktree
+        path: f/qemu/identity
       timeout:
         type: static
         value: 120
     - id: fetch_identity
       summary: fetch this identity's install tree from a peer builder
-      skip_if:
-        expr: '!flow_input.prebuilt?.remote || !flow_input.prebuilt?.remote_index'
       value:
         type: script
-        path: f/qemu/fetch_identity
         input_transforms:
           prefix:
             type: javascript
@@ -101,6 +118,9 @@ value:
           remote_index:
             type: javascript
             expr: flow_input.prebuilt?.remote_index
+        path: f/qemu/fetch_identity
+      skip_if:
+        expr: '!flow_input.prebuilt?.remote || !flow_input.prebuilt?.remote_index'
       timeout:
         type: static
         value: 1800
@@ -108,103 +128,103 @@ value:
       summary: reuse if this identity is already installed
       value:
         type: script
-        path: f/qemu/reuse_check
         input_transforms:
           prefix:
             type: javascript
             expr: results.identity.prefix
+        path: f/qemu/reuse_check
       timeout:
         type: static
         value: 120
     - id: configure
       summary: configure (out-of-tree, --disable-download)
-      skip_if:
-        expr: '(flow_input.configuration?.skip_configure === true) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
-        path: f/qemu/configure
         input_transforms:
-          worktree:
-            type: javascript
-            expr: results.prepare_worktree.worktree
           build_dir:
             type: javascript
             expr: results.prepare_worktree.build_dir
-          destdir:
-            type: javascript
-            expr: results.identity.prefix
-          target_list:
-            type: javascript
-            expr: flow_input.configuration?.target_list
-          compiler:
-            type: javascript
-            expr: flow_input.build?.compiler
-          reproducible:
-            type: javascript
-            expr: flow_input.build?.reproducible
           ccache:
             type: javascript
             expr: flow_input.build?.ccache
           ccache_max_size:
             type: javascript
             expr: flow_input.build?.ccache_max_size
+          compiler:
+            type: javascript
+            expr: flow_input.build?.compiler
           configure_args:
             type: javascript
             expr: flow_input.configuration?.configure_args
+          destdir:
+            type: javascript
+            expr: results.identity.prefix
+          reproducible:
+            type: javascript
+            expr: flow_input.build?.reproducible
+          target_list:
+            type: javascript
+            expr: flow_input.configuration?.target_list
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/qemu/configure
       retry:
         constant:
           attempts: 2
           seconds: 10
+      skip_if:
+        expr: (flow_input.configuration?.skip_configure === true) ||
+          (results.reuse_check?.present === true &&
+          flow_input.installation?.reuse !== false)
       timeout:
         type: static
         value: 900
     - id: compile
       summary: make --jobs=$(nproc)
-      skip_if:
-        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
       value:
         type: script
-        path: f/qemu/compile
         input_transforms:
           build_dir:
             type: javascript
             expr: results.prepare_worktree.build_dir
+        path: f/qemu/compile
       retry:
         constant:
           attempts: 2
           seconds: 10
+      skip_if:
+        expr: results.reuse_check?.present === true && flow_input.installation?.reuse
+          !== false
       timeout:
         type: static
         value: 3600
     - id: devtools
       summary: compile_commands.json (clangd)
-      # Default-on: skip only when explicitly disabled (an unset input must not skip).
-      skip_if:
-        expr: '(flow_input.devtools?.compile_commands === false) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
-        path: f/qemu/devtools
         input_transforms:
-          worktree:
-            type: javascript
-            expr: results.prepare_worktree.worktree
           build_dir:
             type: javascript
             expr: results.prepare_worktree.build_dir
           compile_commands:
             type: javascript
             expr: flow_input.devtools?.compile_commands
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/qemu/devtools
+      skip_if:
+        expr: (flow_input.devtools?.compile_commands === false) ||
+          (results.reuse_check?.present === true &&
+          flow_input.installation?.reuse !== false)
       timeout:
         type: static
         value: 60
     - id: install
       summary: make install -> destdir
-      # Default-on: skip only when explicitly disabled (an unset input must not skip).
-      skip_if:
-        expr: '(flow_input.installation?.install === false) || (results.reuse_check?.present === true && flow_input.installation?.reuse !== false)'
       value:
         type: script
-        path: f/qemu/install
         input_transforms:
           build_dir:
             type: javascript
@@ -215,20 +235,26 @@ value:
           target_list:
             type: javascript
             expr: flow_input.configuration?.target_list
+        path: f/qemu/install
+      skip_if:
+        expr: (flow_input.installation?.install === false) ||
+          (results.reuse_check?.present === true &&
+          flow_input.installation?.reuse !== false)
       timeout:
         type: static
         value: 900
     - id: publish
       summary: publish this identity's install tree to the Nix store
-      skip_if:
-        expr: 'results.reuse_check?.present === true && flow_input.installation?.reuse !== false'
       value:
         type: script
-        path: f/qemu/publish
         input_transforms:
           prefix:
             type: javascript
             expr: results.identity.prefix
+        path: f/qemu/publish
+      skip_if:
+        expr: results.reuse_check?.present === true && flow_input.installation?.reuse
+          !== false
       timeout:
         type: static
         value: 600
@@ -236,69 +262,32 @@ value:
       summary: Merge step results into one manifest
       value:
         type: rawscript
-        language: bun
-        content: |
-          // Pure flow glue: merge the typed step results into one manifest. Every
-          // field is sourced from the step results so the manifest reflects the
-          // effective build, and QEMU/systemd reads the same shape regardless of provider.
-          export async function main(
-            prepare: any,
-            identity: any,
-            configure: any,
-            devtools: any,
-            install: any,
-            reuse: any,
-            publish: any,
-          ) {
-            // After a real install, point the emulator at its /nix/store copy (the
-            // published tree is the prefix verbatim, so basenames match) so a
-            // cross-worker-group boot resolves it; on reuse the manifest already
-            // carries the store path, and a build-only run falls back to the destdir.
-            const storeBin = (p: string) =>
-              publish?.store_path && p ? publish.store_path + "/bin/" + p.split("/").pop() : p;
-            return {
-              worker: prepare?.worker ?? null,
-              qemu_ref: prepare?.qemu_ref ?? null,
-              commit: prepare?.commit ?? null,
-              version: prepare?.version ?? null,
-              target_list: configure?.target_list ?? null,
-              compiler: configure?.compiler ?? null,
-              identity: identity?.identity ?? null,
-              prefix: identity?.prefix ?? null,
-              worktree: prepare?.worktree ?? null,
-              build_dir: prepare?.build_dir ?? null,
-              destdir: install?.destdir ?? identity?.prefix ?? prepare?.destdir ?? null,
-              qemu_binary: install?.qemu_binary
-                ? storeBin(install.qemu_binary)
-                : (reuse?.qemu_binary ?? null),
-              qemu_binaries: install?.qemu_binaries
-                ? install.qemu_binaries.map(storeBin)
-                : null,
-              compile_commands: devtools?.compile_commands ?? null,
-            };
-          }
+        content: '!inline merge_step_results_into_one_manifest.inline_script.ts'
         input_transforms:
-          prepare:
-            type: javascript
-            expr: results.prepare_worktree
-          identity:
-            type: javascript
-            expr: results.identity
           configure:
             type: javascript
             expr: results.configure
           devtools:
             type: javascript
             expr: results.devtools
+          identity:
+            type: javascript
+            expr: results.identity
           install:
             type: javascript
             expr: results.install
-          reuse:
+          prepare:
             type: javascript
-            expr: results.reuse_check
+            expr: results.prepare_worktree
           publish:
             type: javascript
             expr: results.publish
+          reuse:
+            type: javascript
+            expr: results.reuse_check
+        lock: '!inline merge_step_results_into_one_manifest.inline_script.lock'
+        language: bun
+  same_worker: true
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -310,55 +299,64 @@ schema:
     - installation
     - prebuilt
   properties:
-    worktree:
-      title: Worktree
+    build:
       type: object
-      description: Source ref, optional patch series, and warm-tree lifecycle.
+      description: 'Compile knobs: toolchain, reproducibility and ccache.'
       default: {}
       order:
-        - qemu_ref
-        - worktree_group
-        - b4_series
-        - recreate_worktree
-        - wipe_build
+        - compiler
+        - reproducible
+        - ccache
+        - ccache_max_size
       properties:
-        qemu_ref:
-          title: QEMU Ref
-          type: string
-          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref via the mirror, or a developer branch).
-          default: v11.0.0
-        worktree_group:
-          title: Worktree group
-          type: string
-          description: Worktree-group this build belongs to (default vanilla; system/workers are reserved).
-          default: vanilla
-        b4_series:
-          title: b4 Series
-          type: string
-          description: Optional lore series (message-id/URL) to apply on top of the checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
-          default: ""
-        recreate_worktree:
-          title: Recreate Worktree
+        ccache:
           type: boolean
-          description: Lay a fresh detached checkout (rm the warm tree, its build dir and destdir too, first) instead of reusing it. Default off keeps the warm tree for incremental rebuilds.
-          default: false
-        wipe_build:
+          description: Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).
+          default: true
+        ccache_max_size:
+          type: integer
+          description: ccache max cache size in GiB (written to ccache.conf max_size).
+          default: 10
+          showExpr: fields.ccache !== false
+        compiler:
+          type: string
+          description: Toolchain to build QEMU with (pinned via configure `--cc/--cxx`,
+            which beats the devShell's `CC`). GCC is clean; clang adds
+            `-Qunused-arguments`.
+          default: gcc
+          enum:
+            - gcc
+            - clang
+        reproducible:
           type: boolean
-          description: Wipe the build dir before building (default off = incremental reuse).
-          default: false
+          description: 'Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to
+            `--extra-cflags`/`--extra-cxxflags` so the host build path stops
+            leaking into the binary.'
+          default: true
+      title: Build
     configuration:
-      title: Configuration
       type: object
-      description: "What QEMU is configured to build: targets and configure flags."
+      description: 'What QEMU is configured to build: targets and configure flags.'
       default: {}
       order:
         - target_list
         - configure_args
         - skip_configure
       properties:
+        configure_args:
+          type: string
+          description: Extra configure flags appended verbatim. Older QEMU may need
+            `--disable-werror` against the bleeding-edge nixpkgs toolchain.
+          default: ''
+        skip_configure:
+          type: boolean
+          description: 'Skip configure and recompile the existing build dir (incremental
+            rebuild: the build dir is already configured).'
+          default: false
         target_list:
           type: array
-          description: QEMU emulator targets to build (`--target-list`). *-softmmu = system emulation (VMs); *-linux-user/*-bsd-user = user-mode.
+          description: QEMU emulator targets to build (`--target-list`). *-softmmu =
+            system emulation (VMs); *-linux-user/*-bsd-user = user-mode.
           default:
             - x86_64-softmmu
           items:
@@ -430,47 +428,8 @@ schema:
               - xtensaeb-softmmu
               - xtensa-linux-user
               - xtensa-softmmu
-        configure_args:
-          type: string
-          description: Extra configure flags appended verbatim. Older QEMU may need `--disable-werror` against the bleeding-edge nixpkgs toolchain.
-          default: ""
-        skip_configure:
-          type: boolean
-          description: "Skip configure and recompile the existing build dir (incremental rebuild: the build dir is already configured)."
-          default: false
-    build:
-      title: Build
-      type: object
-      description: "Compile knobs: toolchain, reproducibility and ccache."
-      default: {}
-      order:
-        - compiler
-        - reproducible
-        - ccache
-        - ccache_max_size
-      properties:
-        compiler:
-          type: string
-          description: Toolchain to build QEMU with (pinned via configure `--cc/--cxx`, which beats the devShell's `CC`). GCC is clean; clang adds `-Qunused-arguments`.
-          default: gcc
-          enum:
-            - gcc
-            - clang
-        reproducible:
-          type: boolean
-          description: "Reproducible build: add one `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags` so the host build path stops leaking into the binary."
-          default: true
-        ccache:
-          type: boolean
-          description: Compile through ccache (`--cc="ccache <cc>"`, shared `ccache.conf`).
-          default: true
-        ccache_max_size:
-          type: integer
-          description: ccache max cache size in GiB (written to ccache.conf max_size).
-          default: 10
-          showExpr: "fields.ccache !== false"
+      title: Configuration
     devtools:
-      title: Developer tools
       type: object
       description: Optional IDE artifacts produced after compile.
       default: {}
@@ -479,10 +438,11 @@ schema:
       properties:
         compile_commands:
           type: boolean
-          description: Copy meson's `compile_commands.json` into the source root (clangd/IDE index).
+          description: Copy meson's `compile_commands.json` into the source root
+            (clangd/IDE index).
           default: true
+      title: Developer tools
     installation:
-      title: Install
       type: object
       description: Install the emulator and manage the destdir.
       default: {}
@@ -491,22 +451,29 @@ schema:
         - install
         - clean_destdir
       properties:
-        reuse:
-          type: boolean
-          description: Skip configure/compile/install when this build identity is already installed under its prefix (reuse the prior build). Off forces a rebuild without wiping the destdir.
-          default: true
-        install:
-          type: boolean
-          description: Install the built emulator into destdir (make install). Off = build only (e.g. a dev worktree).
-          default: true
         clean_destdir:
           type: boolean
-          description: Wipe the install `destdir` first (default off). Leave off so an install never wipes binaries a running QEMU/systemd VM uses.
+          description: Wipe the install `destdir` first (default off). Leave off so an
+            install never wipes binaries a running QEMU/systemd VM uses.
           default: false
+        install:
+          type: boolean
+          description: Install the built emulator into destdir (make install). Off = build
+            only (e.g. a dev worktree).
+          default: true
+        reuse:
+          type: boolean
+          description: Skip configure/compile/install when this build identity is already
+            installed under its prefix (reuse the prior build). Off forces a
+            rebuild without wiping the destdir.
+          default: true
+      title: Install
     prebuilt:
-      title: Prebuilt
       type: object
-      description: Cross-host build host to pull a prebuilt identity from before building. When a peer already published this build identity to the Nix store, its whole install tree is fetched into the per-identity prefix so the build is reused instead of repeated.
+      description: Cross-host build host to pull a prebuilt identity from before
+        building. When a peer already published this build identity to the Nix
+        store, its whole install tree is fetched into the per-identity prefix so
+        the build is reused instead of repeated.
       default: {}
       order:
         - remote
@@ -514,10 +481,56 @@ schema:
       properties:
         remote:
           type: string
-          description: SSH host of the peer QEMU builder to fetch this build identity's install tree from. Empty (default) builds locally with no fetch.
-          default: ""
+          description: SSH host of the peer QEMU builder to fetch this build identity's
+            install tree from. Empty (default) builds locally with no fetch.
+          default: ''
         remote_index:
           type: string
-          description: The peer builder's `store-index` directory (its `WORKERS_DIR/shared/store-index`), read over ssh to learn the install tree's Nix store path. Empty (default) builds locally with no fetch.
-          default: ""
+          description: The peer builder's `store-index` directory (its
+            `WORKERS_DIR/shared/store-index`), read over ssh to learn the
+            install tree's Nix store path. Empty (default) builds locally with
+            no fetch.
+          default: ''
+      title: Prebuilt
+    worktree:
+      type: object
+      description: Source ref, optional patch series, and warm-tree lifecycle.
+      default: {}
+      order:
+        - qemu_ref
+        - worktree_group
+        - b4_series
+        - recreate_worktree
+        - wipe_build
+      properties:
+        b4_series:
+          type: string
+          description: Optional lore series (message-id/URL) to apply on top of the
+            checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
+          default: ''
+          title: b4 Series
+        qemu_ref:
+          type: string
+          description: Branch, tag or commit in the Bare to build (a tag, an upstream ref
+            via the mirror, or a developer branch).
+          default: v11.0.0
+          title: QEMU Ref
+        recreate_worktree:
+          type: boolean
+          description: Lay a fresh detached checkout (rm the warm tree, its build dir and
+            destdir too, first) instead of reusing it. Default off keeps the
+            warm tree for incremental rebuilds.
+          default: false
+          title: Recreate Worktree
+        wipe_build:
+          type: boolean
+          description: Wipe the build dir before building (default off = incremental reuse).
+          default: false
+        worktree_group:
+          type: string
+          description: Worktree-group this build belongs to (default vanilla;
+            system/workers are reserved).
+          default: vanilla
+          title: Worktree group
+      title: Worktree
   required: []
