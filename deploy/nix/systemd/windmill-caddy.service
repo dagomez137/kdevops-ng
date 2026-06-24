@@ -5,21 +5,21 @@
 # listener to loopback and defaults to internal TLS (HTTPS on 8000).
 #
 # Binary out-link, and the Caddyfile the operator copies into place:
-#   nix build .#caddy --out-link %S/windmill-nix/sw/caddy
-#   cp deploy/nix/Caddyfile %S/windmill-nix/Caddyfile
-# Override the port with WMNIX_CADDY_PORT (the Caddyfile reads it), via
-# `systemctl --user edit` or %E/windmill-nix/windmill-caddy.env; keep the
+#   nix build .#caddy --out-link %S/windmill/sw/caddy
+#   cp deploy/nix/Caddyfile %S/windmill/Caddyfile
+# Override the port with WINDMILL_CADDY_PORT (the Caddyfile reads it), via
+# `systemctl --user edit` or %E/windmill/windmill-caddy.env; keep the
 # server BASE_URL in step with the scheme and port. Switching TLS mode (off or
 # a provided cert) is an edit of the Caddyfile.
 [Unit]
-Description=Windmill reverse proxy (caddy, loopback only) (nix)
+Description=Windmill reverse proxy (Caddy)
 Requires=windmill.service
 After=windmill.service
 
 [Service]
-Environment=WMNIX_CADDY_PORT=8000
-EnvironmentFile=-%E/windmill-nix/windmill-caddy.env
-ExecStart=%S/windmill-nix/sw/caddy/bin/caddy run --adapter caddyfile --config %S/windmill-nix/Caddyfile
+Environment=WINDMILL_CADDY_PORT=8000
+EnvironmentFile=-%E/windmill/windmill-caddy.env
+ExecStart=%S/windmill/sw/caddy/bin/caddy run --adapter caddyfile --config %S/windmill/Caddyfile
 Restart=always
 
 [Install]

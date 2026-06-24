@@ -3,21 +3,21 @@
 # Mirrors deploy/podman/systemd/windmill.container (MODE=server, Restart=always).
 #
 # The binary is reached through a fixed out-link the operator creates with
-#   nix build .#windmill --out-link %S/windmill-nix/sw/windmill
+#   nix build .#windmill --out-link %S/windmill/sw/windmill
 # (%S is $XDG_STATE_HOME). systemd expands %S in the executable path but not
 # environment variables, so the path is a specifier, not a $VAR.
 #
 # DATABASE_URL comes from the file windmill-db-setup writes, so the rotated
 # postgres password is never written into a unit. Override PORT, BASE_URL, or
 # anything else with `systemctl --user edit windmill.service` or a
-# %E/windmill-nix/windmill.env file (%E is $XDG_CONFIG_HOME).
+# %E/windmill/windmill.env file (%E is $XDG_CONFIG_HOME).
 #
 # BASE_URL sets the Secure flag on the session cookie: the server derives
 # IS_SECURE from a base_url that starts with https://, not from a forwarded
 # header. Keep it in lockstep with what caddy serves: the default pairs with
 # caddy's default internal TLS on 8000, so change both together.
 [Unit]
-Description=Windmill server (API + UI) (nix)
+Description=Windmill server (API and UI)
 Requires=windmill-db.service
 After=windmill-db.service
 
@@ -25,9 +25,9 @@ After=windmill-db.service
 Environment=MODE=server
 Environment=PORT=8002
 Environment=BASE_URL=https://localhost:8000
-EnvironmentFile=%S/windmill-nix/env/database.env
-EnvironmentFile=-%E/windmill-nix/windmill.env
-ExecStart=%S/windmill-nix/sw/windmill/bin/windmill
+EnvironmentFile=%S/windmill/env/database.env
+EnvironmentFile=-%E/windmill/windmill.env
+ExecStart=%S/windmill/sw/windmill/bin/windmill
 Restart=always
 
 [Install]

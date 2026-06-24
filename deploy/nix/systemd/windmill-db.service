@@ -5,24 +5,24 @@
 # initdb's the cluster, rotates the password, and creates the windmill database.
 #
 # The binaries are fixed out-links the operator creates:
-#   nix build .#postgresql --out-link %S/windmill-nix/sw/postgresql
-#   nix build .#db-setup   --out-link %S/windmill-nix/sw/db-setup
+#   nix build .#postgresql --out-link %S/windmill/sw/postgresql
+#   nix build .#db-setup   --out-link %S/windmill/sw/db-setup
 # Override PGPORT or PGDATA with `systemctl --user edit windmill-db.service` or
-# a %E/windmill-nix/windmill-db.env file.
+# a %E/windmill/windmill-db.env file.
 [Unit]
-Description=Windmill PostgreSQL (nix)
+Description=Windmill database (PostgreSQL)
 
 [Service]
 Type=notify
 NotifyAccess=all
-Environment=WMNIX_STATE=%S/windmill-nix
-Environment=PGDATA=%S/windmill-nix/pgdata
+Environment=WINDMILL_STATE=%S/windmill
+Environment=PGDATA=%S/windmill/pgdata
 Environment=PGPORT=5432
 Environment=PGHOST_SOCKET=%t
-EnvironmentFile=-%E/windmill-nix/windmill-db.env
-ExecStartPre=%S/windmill-nix/sw/db-setup/bin/windmill-db-setup pre
-ExecStart=%S/windmill-nix/sw/postgresql/bin/postgres -D %S/windmill-nix/pgdata -c listen_addresses=127.0.0.1 -c port=${PGPORT} -c unix_socket_directories=%t
-ExecStartPost=%S/windmill-nix/sw/db-setup/bin/windmill-db-setup post
+EnvironmentFile=-%E/windmill/windmill-db.env
+ExecStartPre=%S/windmill/sw/db-setup/bin/windmill-db-setup pre
+ExecStart=%S/windmill/sw/postgresql/bin/postgres -D %S/windmill/pgdata -c listen_addresses=127.0.0.1 -c port=${PGPORT} -c unix_socket_directories=%t
+ExecStartPost=%S/windmill/sw/db-setup/bin/windmill-db-setup post
 Restart=on-failure
 
 [Install]

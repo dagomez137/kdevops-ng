@@ -24,7 +24,7 @@ path but not environment variables.
 
 .. code-block:: shell
 
-   sw=~/.local/state/windmill-nix/sw
+   sw=~/.local/state/windmill/sw
    nix build .#windmill       --out-link "$sw/windmill"
    nix build .#postgresql     --out-link "$sw/postgresql"
    nix build .#db-setup       --out-link "$sw/db-setup"
@@ -45,7 +45,7 @@ active login session.
 .. code-block:: shell
 
    cp deploy/nix/systemd/*.service ~/.config/systemd/user/
-   cp deploy/nix/Caddyfile ~/.local/state/windmill-nix/Caddyfile
+   cp deploy/nix/Caddyfile ~/.local/state/windmill/Caddyfile
    loginctl enable-linger "$USER"
    systemctl --user daemon-reload
    systemctl --user enable --now \
@@ -71,25 +71,32 @@ Configure
 =========
 
 Each unit ships sane defaults as ``Environment=`` lines and reads an optional
-``%E/windmill-nix/<unit>.env`` override file (``%E`` is ``$XDG_CONFIG_HOME``).
-Override either by editing that file or with a drop-in:
+``%E/windmill/<unit>.env`` override file (``%E`` is ``$XDG_CONFIG_HOME``).
+Override either by editing that file or with a drop-in. ``systemctl edit`` opens
+``$SYSTEMD_EDITOR``, then ``$EDITOR``, then ``$VISUAL``, falling back to a
+built-in default, so set one to use your editor:
 
 .. code-block:: shell
 
-   systemctl --user edit windmill.service      # writes a drop-in override.conf
+   SYSTEMD_EDITOR=hx systemctl --user edit windmill.service
+
+Export ``SYSTEMD_EDITOR`` from your shell profile to make it the default.
 
 The knobs:
 
 * The server port (``PORT``, default ``8002``) and base URL (``BASE_URL``,
   default ``https://localhost:8000``) live on ``windmill.service``.
-* The public port (``WMNIX_CADDY_PORT``, default ``8000``) lives on
+* The public port (``WINDMILL_CADDY_PORT``, default ``8000``) lives on
   ``windmill-caddy.service``; the Caddyfile reads it.
-* The build-pool size is the number of ``windmill-worker@`` instances you
-  enable. The ``vm`` and ``vm-run`` pools
-  (``windmill-worker-vm@``, ``windmill-worker-vmrun@``) are templates you enable
-  once the workbench is provisioned.
-* The build-area paths (``WORKBENCH_DIR`` and friends) default under the state
-  directory on the worker units; point them at a real workbench to run builds.
+* Every worker is one ``windmill-worker@`` instance, and its ``WORKER_GROUP``
+  and ``WORKER_TAGS`` select which jobs it pulls. The default is the build pool
+  (group ``default``), so the build-pool size is just the number of instances
+  you enable. For a specialised worker, override those two on the instance, for
+  example ``WORKER_GROUP=vm`` with ``WORKER_TAGS=vm`` for the QEMU VM lifecycle
+  ops or ``WORKER_TAGS=vm-run`` for the long fstests poll (the unit header
+  explains the split and its workbench and ``vhost_vsock`` requirements).
+* The build-area paths (``WORKBENCH_DIR`` and friends) live on the worker units;
+  see `The workbench`_ below.
 
 TLS and the base URL
 --------------------
@@ -103,6 +110,23 @@ non-Secure; the reverse drops the cookie and breaks login. The defaults pair
 HTTP, or an operator certificate instead of the internal CA, edit the Caddyfile
 as its header comment describes and set ``BASE_URL`` to match.
 
+The workbench
+-------------
+
+The workbench is the build area the workers use: the System workbench
+(``SYSTEM_DIR``) holds the durable git mirrors and the ssh key for reaching
+guests, and each worker gets a sandbox under ``WORKERS_DIR``. The worker units
+default ``WORKBENCH_DIR`` to ``%S/windmill/workbench`` (under the state
+directory).
+
+Put it wherever suits you, a directory in ``$HOME`` such as ``~/workbench`` or
+one nested in the repository such as ``kdevops-ng/workbench``, and point
+``WORKBENCH_DIR`` (and ``SYSTEM_DIR`` or ``WORKERS_DIR`` if you relocate them
+out of it) there with a drop-in or the ``windmill-worker.env`` file. Create the
+directory, then run the ``f/workbench`` init flow from Windmill to provision the
+durable bits, the System bare mirrors and the ssh key; the workers fill the
+sandboxes as jobs run.
+
 Tear down
 =========
 
@@ -112,7 +136,7 @@ Tear down
    rm ~/.config/systemd/user/windmill*.service
    systemctl --user daemon-reload
 
-The state under ``~/.local/state/windmill-nix`` (the cluster, the secret, the
+The state under ``~/.local/state/windmill`` (the cluster, the secret, the
 out-links) is left in place; remove it to wipe the database.
 
 Switching from the podman backend

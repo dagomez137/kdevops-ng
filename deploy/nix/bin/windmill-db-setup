@@ -13,7 +13,7 @@
 # `nix shell nixpkgs#postgresql_16`.
 set -o errexit -o nounset -o pipefail
 
-STATE="${WMNIX_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/windmill-nix}"
+STATE="${WINDMILL_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/windmill}"
 PGDATA="${PGDATA:-$STATE/pgdata}"
 PGPORT="${PGPORT:-5432}"
 SOCKDIR="${PGHOST_SOCKET:-${XDG_RUNTIME_DIR:-/tmp}}"

@@ -1,17 +1,35 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-# Windmill build worker (group default), a systemd template: enable one instance
-# per index with `systemctl --user enable --now windmill-worker@0 windmill-worker@1`.
-# Mirrors deploy/podman/windmill-worker.container.tmpl, but with no container the
-# /nix store, the build area, and the user bus are already host-visible, so the
+# Windmill worker, a systemd template: enable one instance per index with
+# `systemctl --user enable --now windmill-worker@0000 windmill-worker@0001`.
+# Instance names are zero-padded (%i is an arbitrary string, not a number) so
+# they sort in order under `systemctl list-units` and `ls WORKERS_DIR`. Mirrors
+# deploy/podman/windmill-worker.container.tmpl, but with no container the /nix
+# store, the build area, and the user bus are already host-visible, so the
 # bind-mounts drop and only the env contract remains.
 #
-# WORKER_INDEX (%i) selects this worker's sandbox dir under WORKERS_DIR. The
-# build-area paths default under the state dir; point them at a real workbench
-# (commonly the repo's workbench/) with `systemctl --user edit` or a
-# %E/windmill-nix/windmill-worker.env file. The user bus is reached at %t/bus so
-# a build step can drive the host systemd --user.
+# One unit serves every worker kind; the worker group and tags select which jobs
+# it pulls, the canonical Windmill mechanism. The defaults are the build pool
+# (group default). For a specialised worker, override WORKER_GROUP and
+# WORKER_TAGS per instance with a drop-in or env file, for example:
+#
+#   systemctl --user edit windmill-worker@0005  # then in the drop-in:
+#     [Service]
+#     Environment=WORKER_GROUP=vm
+#     Environment=WORKER_TAGS=vm
+#
+# The vm group runs the f/qsu/* steps that drive QEMU VMs through systemd. Its
+# work is split across two tags so a long job never starves a quick one: the
+# `vm` tag is the quick lifecycle and control ops (boot, stop, destroy, status),
+# the `vm-run` tag is only the long-lived fstests wait poll. Give each tag its
+# own instances; the vm-run instance count is the concurrent-test-run cap. The
+# vm group needs the workbench provisioned (the System bare, the peer ssh key)
+# and the vhost_vsock module loaded.
+#
+# WORKER_INDEX (%i) selects this worker's sandbox dir under WORKERS_DIR; keep
+# instance names distinct so the dirs do not collide. The build-area paths
+# default under the state dir; point them at a real workbench to run builds.
 [Unit]
-Description=Windmill worker %i (group default; builds) (nix)
+Description=Windmill worker %i
 Requires=windmill-db.service
 After=windmill-db.service
 
@@ -21,14 +39,14 @@ Environment=NUM_WORKERS=1
 Environment=WORKER_GROUP=default
 Environment=WORKER_INDEX=%i
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
-Environment=WORKBENCH_DIR=%S/windmill-nix/workbench
-Environment=SYSTEM_DIR=%S/windmill-nix/workbench/system
-Environment=WORKERS_DIR=%S/windmill-nix/workbench/workers
-Environment=VENDOR_DIR=%S/windmill-nix/vendor
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
-EnvironmentFile=%S/windmill-nix/env/database.env
-EnvironmentFile=-%E/windmill-nix/windmill-worker.env
-ExecStart=%S/windmill-nix/sw/windmill/bin/windmill
+Environment=WORKBENCH_DIR=%S/windmill/workbench
+Environment=SYSTEM_DIR=%S/windmill/workbench/system
+Environment=WORKERS_DIR=%S/windmill/workbench/workers
+Environment=VENDOR_DIR=%S/windmill/vendor
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
+EnvironmentFile=%S/windmill/env/database.env
+EnvironmentFile=-%E/windmill/windmill-worker.env
+ExecStart=%S/windmill/sw/windmill/bin/windmill
 Restart=always
 
 [Install]
