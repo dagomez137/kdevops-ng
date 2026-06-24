@@ -20,6 +20,7 @@ Workflow after editing descriptions in the UI or via the CLI: `wmill sync pull`,
 then `make reflow`, then `wmill sync push` so the instance stores the rewrapped
 prose, then commit.
 """
+
 import argparse
 import re
 import sys
@@ -149,14 +150,19 @@ def process(path, write):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     mode = ap.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--check", action="store_true", help="fail if a description would fold")
-    mode.add_argument("--write", action="store_true", help="rewrap descriptions in place")
+    mode.add_argument(
+        "--check", action="store_true", help="fail if a description would fold"
+    )
+    mode.add_argument(
+        "--write", action="store_true", help="rewrap descriptions in place"
+    )
     args = ap.parse_args()
 
     files = sorted(
         p
         for p in ROOT.rglob("*")
-        if (p.name == "flow.yaml" or p.name.endswith(".script.yaml")) and p not in GENERATED
+        if (p.name == "flow.yaml" or p.name.endswith(".script.yaml"))
+        and p not in GENERATED
     )
     status, wrote = 0, 0
     for path in files:
@@ -166,7 +172,9 @@ def main():
             print(f"reflowed {rel}")
             wrote += 1
         for num, length in problems:
-            print(f"error: {rel}:{num}: description line exceeds {LIMIT} columns ({length}); run `make reflow`")
+            print(
+                f"error: {rel}:{num}: description line exceeds {LIMIT} columns ({length}); run `make reflow`"
+            )
             status = 1
     if args.write:
         print(f"reflowed {wrote} file(s)")

@@ -37,7 +37,7 @@ def jx(expr):
 # untagged on a default worker (no host bus), so it enumerates the sidecar registry
 # WORKERS_DIR/shared/vm/<vm>.vars.json (written by the render step) rather than
 # `machinectl`. Returned as the flow schema's x-windmill-dyn-select-code.
-DYN_SELECT_CODE = '''import os
+DYN_SELECT_CODE = """import os
 from pathlib import Path
 
 
@@ -54,7 +54,7 @@ def list_iommu(filterText: str = "", **_: object) -> list:
     # constrains to the supported four regardless.
     from f.qsu.binaries import iommu_options
     return iommu_options({}, filterText)
-'''
+"""
 
 
 kernel = load(f"{ROOT}/kernel/build.flow/flow.yaml")
@@ -132,8 +132,8 @@ nt["closure"] = jx(
 # (which would mismatch the guest and miss its test-suite units). home_dir defaults to the
 # discovered host operator's home (root login lands there).
 nt["guest"] = jx(
-    '({...flow_input.nix_guest, '
-    'vm_name: (flow_input.nix_guest?.vm_name || flow_input.reuse_from_vm || flow_input.boot_vm?.vm_name), '
+    "({...flow_input.nix_guest, "
+    "vm_name: (flow_input.nix_guest?.vm_name || flow_input.reuse_from_vm || flow_input.boot_vm?.vm_name), "
     'home_dir: ((flow_input.nix_guest?.home_dir || "").trim() '
     '|| ("/home/" + (results.discover?.host_user || "kdevops")))})'
 )
@@ -197,7 +197,7 @@ boot_transforms = {
     "nvme": jx("flow_input.boot_nvme"),
     "orchestration": jx("flow_input.boot_orchestration"),
     "qemu": jx(
-        '({...flow_input.boot_qemu, '
+        "({...flow_input.boot_qemu, "
         'qemu_source: flow_input.qemu_source === "build" ? "qemu-build" '
         ': (flow_input.qemu_source === "reuse" ? results.discover?.qemu_source : "nixpkgs"), '
         'qemu_binary: flow_input.qemu_source === "build" ? results.build_qemu?.qemu_binary '
@@ -210,11 +210,11 @@ boot_transforms = {
     # inputs rather than replayed from an empty base (which would drop fstests/home).
     "sharing": jx(
         '(flow_input.closure_source === "reuse" && results.discover?.sharing && Object.keys(results.discover.sharing).length > 0 '
-        '? ({ ...results.discover.sharing, ...flow_input.boot_sharing, modules_dir: flow_input.reuse?.modules_dir }) '
-        ': ({ ...flow_input.boot_sharing, modules_dir: flow_input.reuse?.modules_dir, '
+        "? ({ ...results.discover.sharing, ...flow_input.boot_sharing, modules_dir: flow_input.reuse?.modules_dir }) "
+        ": ({ ...flow_input.boot_sharing, modules_dir: flow_input.reuse?.modules_dir, "
         'fstests: (flow_input.nix_closure?.test_suites || []).includes("fstests"), '
-        'home_share: (flow_input.nix_guest?.home === true), '
-        'home_share_readwrite: (flow_input.nix_guest?.home === true) }))'
+        "home_share: (flow_input.nix_guest?.home === true), "
+        "home_share_readwrite: (flow_input.nix_guest?.home === true) }))"
     ),
     "kernel_boot": jx(
         '({kernel: flow_input.kernel_source === "build" ? results.build_kernel : results.discover?.kernel, '
@@ -225,20 +225,44 @@ boot_transforms = {
 }
 
 modules = [
-    {"id": "discover", "summary": "Discover reuse artifacts + host operator (f/qsu/discover)",
-     "value": {"type": "script", "path": "f/qsu/discover",
-               "input_transforms": {"vm_name": jx("flow_input.reuse_from_vm || flow_input.boot_vm?.vm_name")}}},
-    {"id": "build_kernel", "summary": "Build the kernel (f/kernel/build)",
-     "skip_if": {"expr": 'flow_input.kernel_source !== "build"'},
-     "value": {"type": "flow", "path": "f/kernel/build", "input_transforms": kt}},
-    {"id": "build_nix", "summary": "Build the NixOS closure (f/nix/build)",
-     "skip_if": {"expr": 'flow_input.closure_source !== "build"'},
-     "value": {"type": "flow", "path": "f/nix/build", "input_transforms": nt}},
-    {"id": "build_qemu", "summary": "Build QEMU (f/qemu/build)",
-     "skip_if": {"expr": 'flow_input.qemu_source !== "build"'},
-     "value": {"type": "flow", "path": "f/qemu/build", "input_transforms": qt}},
-    {"id": "boot", "summary": "Render + boot the VM (f/qsu/boot)",
-     "value": {"type": "flow", "path": "f/qsu/boot", "input_transforms": boot_transforms}},
+    {
+        "id": "discover",
+        "summary": "Discover reuse artifacts + host operator (f/qsu/discover)",
+        "value": {
+            "type": "script",
+            "path": "f/qsu/discover",
+            "input_transforms": {
+                "vm_name": jx("flow_input.reuse_from_vm || flow_input.boot_vm?.vm_name")
+            },
+        },
+    },
+    {
+        "id": "build_kernel",
+        "summary": "Build the kernel (f/kernel/build)",
+        "skip_if": {"expr": 'flow_input.kernel_source !== "build"'},
+        "value": {"type": "flow", "path": "f/kernel/build", "input_transforms": kt},
+    },
+    {
+        "id": "build_nix",
+        "summary": "Build the NixOS closure (f/nix/build)",
+        "skip_if": {"expr": 'flow_input.closure_source !== "build"'},
+        "value": {"type": "flow", "path": "f/nix/build", "input_transforms": nt},
+    },
+    {
+        "id": "build_qemu",
+        "summary": "Build QEMU (f/qemu/build)",
+        "skip_if": {"expr": 'flow_input.qemu_source !== "build"'},
+        "value": {"type": "flow", "path": "f/qemu/build", "input_transforms": qt},
+    },
+    {
+        "id": "boot",
+        "summary": "Render + boot the VM (f/qsu/boot)",
+        "value": {
+            "type": "flow",
+            "path": "f/qsu/boot",
+            "input_transforms": boot_transforms,
+        },
+    },
 ]
 
 bringup = {
@@ -265,7 +289,9 @@ bringup = {
 }
 
 dest = f"{ROOT}/qsu/bringup.flow/flow.yaml"
-text = yaml.safe_dump(bringup, default_flow_style=False, sort_keys=False, width=4096, allow_unicode=True)
+text = yaml.safe_dump(
+    bringup, default_flow_style=False, sort_keys=False, width=4096, allow_unicode=True
+)
 
 if "--check" in sys.argv[1:]:
     try:
@@ -276,8 +302,10 @@ if "--check" in sys.argv[1:]:
         print(f"OK: {dest} is up to date")
         sys.exit(0)
     diff = difflib.unified_diff(
-        (on_disk or "").splitlines(keepends=True), text.splitlines(keepends=True),
-        fromfile=f"{dest} (on disk)", tofile="gen-bringup.py (regenerated)",
+        (on_disk or "").splitlines(keepends=True),
+        text.splitlines(keepends=True),
+        fromfile=f"{dest} (on disk)",
+        tofile="gen-bringup.py (regenerated)",
     )
     sys.stderr.write("".join(diff))
     sys.stderr.write(
