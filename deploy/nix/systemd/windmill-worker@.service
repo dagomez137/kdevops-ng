@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Windmill build worker (group default), a systemd template: one instance per
+# index, started as windmill-worker@0, windmill-worker@1, ... Mirrors
+# deploy/podman/windmill-worker.container.tmpl, but with no container the
+# /nix store, the build area, and the user bus are already host-visible, so the
+# bind-mounts drop and only the env contract remains.
+#
+# WORKER_INDEX (%i) selects this worker's sandbox dir under WORKERS_DIR. The
+# build-area paths come from workbench.env (written by install.sh); the user bus
+# is reached at %t/bus so a build step can drive the host systemd --user.
+[Unit]
+Description=Windmill worker %i (group default; builds) (nix)
+Requires=windmill-db.service
+After=windmill-db.service
+
+[Service]
+EnvironmentFile=%S/windmill-nix/env/database.env
+EnvironmentFile=%S/windmill-nix/env/workbench.env
+Environment=MODE=worker
+Environment=NUM_WORKERS=1
+Environment=WORKER_GROUP=default
+Environment=WORKER_INDEX=%i
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
+ExecStart=@SW@/windmill/bin/windmill
+Restart=always
+
+[Install]
+WantedBy=default.target

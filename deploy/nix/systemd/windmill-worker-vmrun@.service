@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Windmill VM long-poll worker (group vm, tag vm-run), a systemd template:
+# windmill-worker-vmrun@1, @2, ... Same host integration as the vm worker, but
+# pulls only the vm-run tag: the long-lived fstests wait poll, split from the vm
+# control tag so a multi-hour run never starves a quick lifecycle op. The
+# instance count is the concurrent-test-run cap. Mirrors the vm-run side of
+# deploy/podman/windmill-worker-vm.container.tmpl.
+#
+# Needs the workbench provisioned and vhost_vsock loaded; install.sh starts
+# these only when VM_RUN_WORKERS > 0.
+[Unit]
+Description=Windmill vm-run worker %i (group vm; long fstests poll) (nix)
+Requires=windmill-db.service
+After=windmill-db.service
+
+[Service]
+EnvironmentFile=%S/windmill-nix/env/database.env
+EnvironmentFile=%S/windmill-nix/env/workbench.env
+Environment=MODE=worker
+Environment=NUM_WORKERS=1
+Environment=WORKER_GROUP=vm
+Environment=WORKER_TAGS=vm-run
+Environment=WORKER_INDEX=vmrun%i
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
+ExecStart=@SW@/windmill/bin/windmill
+Restart=always
+
+[Install]
+WantedBy=default.target
