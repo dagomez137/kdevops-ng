@@ -25,25 +25,25 @@ of thing.
 | **Worktree-group**    | A topic or chain of work within a Workbench (default name `vanilla`; many may exist, e.g. `largeio`). Holds one Worktree per project the topic involves; switchable. | workbench, default |
 | **System workbench**  | The host-local infrastructure singleton (mirrors, bares, ssh key, store), default `system/` under the Workbench but relocatable on its own. User-scoped, sudo-less. | service workbench |
 | **Worker sandbox**    | A worker's own build area (default `workers/<id>/`, relocatable on its own). A worker builds here, never in a developer's Worktree. | workbench, worker dir |
-| **Canonical name**    | A project's upstream source-directory name (`linux`, `qemu`); the project folder within a worktree-group is named by it. Project-namespace is dropped. | project name, source name |
+| **Project name**      | A project's upstream source-directory name (`linux`, `qemu`); the project folder within a worktree-group is named by it. | canonical name, source name |
 
 ## Source and artifacts
 
 | Term               | Definition                                                                                                                                                                  | Aliases to avoid     |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| **Worktree**       | A git checkout of a project within a worktree-group, the folder named by the project's canonical name. A *developer worktree* is developer-owned; a *worker worktree* is worker-owned and synced to a ref. A worker never modifies a developer's worktree. A project gains several worktrees by appearing in several worktree-groups. | tree, checkout       |
-| **Build**          | The build directory paired with one worktree. A **child of the source worktree** by default (`<canonical>/build`, hidden via `.git/info/exclude`) so kbuild emits relative paths and artifacts relocate across hosts with no rewrite; an external/sibling location is allowed but forfeits cross-host LSP. One per worktree. | build dir, O=        |
+| **Worktree**       | A git checkout of a project within a worktree-group, the folder named by the project name. A *developer worktree* is developer-owned; a *worker worktree* is worker-owned and synced to a ref. A worker never modifies a developer's worktree. A project gains several worktrees by appearing in several worktree-groups. | tree, checkout       |
+| **Build**          | The build directory paired with one worktree. A **child of the source worktree** by default (`<project>/build`, hidden via `.git/info/exclude`) so kbuild emits relative paths and artifacts relocate across hosts with no rewrite; an external/sibling location is allowed but forfeits cross-host LSP. One per worktree. | build dir, O=        |
 | **Mirror**         | A *disposable* local cache of an upstream, force-refreshed on a timer. Pure ref/object source — it never holds worktrees or dev branches.                                  | cache, clone         |
-| **Bare**           | The *durable* working repo at `system/bare/<canonical>.git`: holds dev branches and all worktrees, borrows the Mirror's objects, and pulls the Mirror's refs into a remotes namespace. Never force-pruned. Per host. | remote, clone        |
+| **Bare**           | The *durable* working repo at `system/bare/<project>.git`: holds dev branches and all worktrees, borrows the Mirror's objects, and pulls the Mirror's refs into a remotes namespace. Never force-pruned. Per host. | remote, clone        |
 | **Build identity** | A content hash of a build's inputs — config, toolchain (the Nix devShell's store hash), make flags, source commit — **baked into `kernelrelease` via `LOCALVERSION`** so the running kernel self-reports it. Same identity ⇒ same bytes. | build hash, release  |
 | **Store**          | A content-addressed registry of built artifacts keyed by **Build identity** (echoing the Nix store). A host that lacks a needed identity *fetches* it from a peer (file-sync, or NFS when co-located) instead of rebuilding — fetch beats build. | destdir, artefactory, registry, releases |
 
 ## Relationships
 
-- A **Workbench** contains one folder per **Worktree-group**; a worktree-group contains one folder per project, named by its **canonical name**.
+- A **Workbench** contains one folder per **Worktree-group**; a worktree-group contains one folder per project, named by its **project name**.
 - The pair (**Worktree-group**, project) keys a VM's reusable artifacts in the **Store**.
 - A **Worktree-group** holds one **Worktree** per project; each **Worktree** is developer-controlled but worker-initialized. A project gains several worktrees by appearing in several worktree-groups.
-- A **Build** is per-worktree (one per worktree, kept warm independently); the **Store** is project-level (one per canonical project, shared across its worktrees).
+- A **Build** is per-worktree (one per worktree, kept warm independently); the **Store** is project-level (one per project, shared across its worktrees).
 - Reproducibility is what makes *fetch* and *rebuild* interchangeable: two hosts building one **Build identity** produce the same bytes, so a host may fetch an identity from a peer or rebuild it locally and never repeat work either way.
 - All **Worktrees** on a host hang off that host's **Bare**; the **Mirror** never holds worktrees.
 - A **Worker** always builds in its own isolated **Worktree** (build as a child of the source); it never builds in or modifies a **Developer**'s worktree. A developer worktree receives worker output only by *materialize* (copy same-host, fetch cross-host).

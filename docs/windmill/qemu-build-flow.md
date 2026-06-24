@@ -61,22 +61,21 @@ one warm worktree per worker (ADR-0001). The chain:
    is needed. A QEMU mirror `$SYSTEM_DIR/mirror/qemu.git` sits alongside it.
 2. **Workbench bootstrap** (idempotent): the `f/workbench/init` flow (over
    `f/workbench/fetch`) provisions a durable **Bare** at
-   `$SYSTEM_DIR/bare/kernel/linux.git` with `git init --bare`, borrowing the
+   `$SYSTEM_DIR/bare/linux.git` with `git init --bare`, borrowing the
    mirror's objects through an alternate and fetching its heads into
    `refs/remotes/mirror/*`; `refs/heads/*` is reserved for developer branches. The
    System workbench (`$SYSTEM_DIR`) is bind-mounted into every worker. (The host `setup-workspace.sh`
    no longer clones mirrors — `init` owns that; it only provisions the host-sourced
    nixos-flake + config fragments for now.)
 3. **Warm worktree** (`f/kernel/prepare_worktree.py`): off the Bare,
-   `git worktree add --force --detach <slot>/linux <ref>` into this worker's one
-   warm `main` slot `WORKERS_DIR/<WORKER_INDEX>/kernel/main`, re-synced to the ref
+   `git worktree add --force --detach <worktree> <ref>` into this worker's one
+   warm `main` worktree `WORKERS_DIR/<WORKER_INDEX>/linux/main`, re-synced to the ref
    every build so rebuilds stay incremental and builds on different workers run in
    parallel. `build/` and `destdir/` are children of the source checkout. All of it
    lives under `WORKERS_DIR`, bind-mounted at **identical host paths**, so a
    host-forked process (the qsu QEMU) reads the artifacts directly.
 
-QEMU copies this verbatim, substituting the namespace (`qemu-project`) and canonical
-name (`qemu`).
+QEMU copies this verbatim, substituting the project name (`qemu`).
 
 > Migration: a host provisioned under the old `workers/shared/<ns>/<canonical>` clone
 > layout re-provisions fresh: `f/workbench/init` builds the new Bare under `$SYSTEM_DIR`,
@@ -103,7 +102,7 @@ prepare_worktree → configure → compile → devtools → install → collect
 | `collect` | write `result.json` and return it as the flow result | host |
 
 Warm-tree layout (worker scope): the source at
-`WORKERS_DIR/<WORKER_INDEX>/qemu-project/main/qemu`, with `build/` and `destdir/` as
+`WORKERS_DIR/<WORKER_INDEX>/qemu/main`, with `build/` and `destdir/` as
 children of it. `--prefix={destdir}` makes `make install` populate `destdir/bin` and
 `destdir/share/qemu`; QEMU resolves its data dir relative to that prefix, which
 is stable because the slot path is stable.
@@ -181,8 +180,8 @@ it, so qsu consumes the manifest without knowing how QEMU was built.
   `nixos-flake#build`; `Git` runs host-side worktree ops) and
   `f/common/worktree` (the warm-worktree logic). No new wiring.
 - **Thin wrapper**: `f/qemu/prepare_worktree.py` wraps `f/common/worktree.prepare`
-  with QEMU coordinates (namespace `qemu-project`, canonical `qemu`, plus `destdir`
-  and the `VERSION` read) — the exact same step name and shape as
+  with QEMU coordinates (project `qemu`, plus `destdir` and the `VERSION` read), the
+  exact same step name and shape as
   `f/kernel/prepare_worktree.py`. Slot resolution, `safe.directory` handling,
   prune / warm-tree re-sync, `recreate_worktree`, and `b4 shazam` (published to the
   Bare as `b4/<slug>`) all live in the shared library.

@@ -25,7 +25,7 @@ Each alias becomes a `<peer>` remote on every Bare, its URL the peer's Bare unde
 **same `SYSTEM_DIR` layout**:
 
 ```
-ssh://<peer>/<SYSTEM_DIR>/bare/<namespace>/<canonical>.git
+ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git
 ```
 
 with a `+refs/heads/*:refs/remotes/<peer>/*` refspec. The derivation assumes peers
@@ -56,7 +56,7 @@ workflow and a peer may be empty or unreachable. List peer hosts, not self.
 
    B's `prepare()` resolves `<branch>` locally (it is now a `refs/heads/*` entry in B's
    Bare — no fetch needed), lays its warm `main` worktree at `B`'s
-   `w<NNNN>/kernel/main/linux`, and builds. The build's run layer can then come **back**
+   `w<NNNN>/linux/main`, and builds. The build's run layer can then come **back**
    to A through the Store (`prebuilt` `remote`/`remote_index`), closing the
    "build on B, boot on A" loop.
 
