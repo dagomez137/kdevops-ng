@@ -29,6 +29,15 @@ VM_RUN_WORKERS="${VM_RUN_WORKERS:-3}"
 # Workbench; every worker bind-mounts it read-only at the same absolute path.
 VENDOR_DIR="${VENDOR_DIR:-$(dirname "$WORKBENCH_DIR")/vendor}"
 
+# Every worker bind-mounts the whole Workbench (so system/, the sandboxes, the
+# shared caches and the developer worktree-groups are all reachable at identical
+# paths). The System workbench and the worker-sandbox root are inside it by default,
+# so they need no separate mount; add one only when a user has relocated SYSTEM_DIR
+# or WORKERS_DIR outside the Workbench. Empty token = no extra mount (blank line).
+_outside_workbench() { case "$1" in "$WORKBENCH_DIR" | "$WORKBENCH_DIR"/*) return 1 ;; *) return 0 ;; esac; }
+SYSTEM_MOUNT=""; _outside_workbench "$SYSTEM_DIR"  && SYSTEM_MOUNT="Volume=$SYSTEM_DIR:$SYSTEM_DIR:rw"
+WORKERS_MOUNT=""; _outside_workbench "$WORKERS_DIR" && WORKERS_MOUNT="Volume=$WORKERS_DIR:$WORKERS_DIR:rw"
+
 # The per-worker identity of the i-th vm control worker: the first stays `vm` (its
 # sandbox dir, WORKER_INDEX and container name are unchanged), the rest are
 # `vm2`, `vm3`, ... so they coexist without colliding on the per-worker dir.
@@ -41,6 +50,8 @@ _render_vm_worker() {
 			--expression "s|@SYSTEM_DIR@|$SYSTEM_DIR|g" \
 			--expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
 			--expression "s|@VENDOR_DIR@|$VENDOR_DIR|g" \
+			--expression "s|@SYSTEM_MOUNT@|$SYSTEM_MOUNT|g" \
+			--expression "s|@WORKERS_MOUNT@|$WORKERS_MOUNT|g" \
 			--expression "s|@SECCOMP_PROFILE@|$SECCOMP|g" \
 			--expression "s|@VMTAG@|$1|g" \
 			--expression "s|@VMSELF@|$2|g" \
@@ -72,6 +83,8 @@ for i in $(seq 1 "$WORKERS"); do
 				--expression "s|@SYSTEM_DIR@|$SYSTEM_DIR|g" \
 				--expression "s|@WORKERS_DIR@|$WORKERS_DIR|g" \
 				--expression "s|@VENDOR_DIR@|$VENDOR_DIR|g" \
+				--expression "s|@SYSTEM_MOUNT@|$SYSTEM_MOUNT|g" \
+				--expression "s|@WORKERS_MOUNT@|$WORKERS_MOUNT|g" \
 				"$HERE/windmill-worker.container.tmpl" >"$UNITS/windmill-worker-$i.container"
 done
 

@@ -31,15 +31,17 @@ Volume=%C/windmill/cache:/tmp/windmill/cache
 # Shared logs volume (see windmill.container): workers write large job logs here
 # so the server can serve them for download.
 Volume=%C/windmill/logs:/tmp/windmill/logs
-# Build area mounted at IDENTICAL host paths so git worktree links resolve: the
-# System workbench (the durable Bare every worktree hangs off, writable for the
-# per-build mirror fetch and developer pushes; relocatable on its own), the shared
-# runtime caches under the worker-sandbox root, the pinned vendored deps
-# (read-only, ADR-0006), and this worker's own numbered sandbox.
-Volume=@SYSTEM_DIR@:@SYSTEM_DIR@:rw
-Volume=@WORKERS_DIR@/shared:@WORKERS_DIR@/shared:rw
+# Build area at IDENTICAL host paths so git worktree links resolve. By default the
+# whole Workbench is mounted (the System workbench, every worker sandbox, the shared
+# caches, and the developer worktree-groups), so a worker resolves any of them and
+# the worktree-group initializer can lay developer groups down host-visibly. The
+# pinned vendored deps are a sibling of the Workbench, mounted read-only (ADR-0006).
+# When SYSTEM_DIR or WORKERS_DIR is relocated outside the Workbench, install.sh fills
+# in a separate mount for it (otherwise the line is empty).
+Volume=@WORKBENCH_DIR@:@WORKBENCH_DIR@:rw
+@SYSTEM_MOUNT@
+@WORKERS_MOUNT@
 Volume=@VENDOR_DIR@:@VENDOR_DIR@:ro
-Volume=@WORKERS_DIR@/@SELFDIR@:@WORKERS_DIR@/@SELFDIR@:rw
 [Service]
 Restart=always
 [Install]
