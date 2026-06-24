@@ -10,6 +10,13 @@ build and guest environments.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Introduction
+
+   overview
+   wmill
+
+.. toctree::
+   :maxdepth: 2
    :caption: Reference
 
    terms
