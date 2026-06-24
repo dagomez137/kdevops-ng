@@ -198,6 +198,9 @@ def _override_input(ov: dict) -> str:
         lines += ['      type = "git";', f"      url = {_nix_str(src)};"]
         if ref:
             lines.append(f"      ref = {_nix_str(ref)};")
+        # bcc (libbpf-tools) vendors libbpf/bpftool/blazesym as submodules a
+        # build needs; harmless for repos that have none.
+        lines.append("      submodules = true;")
     lines += ["      flake = false;", "    };"]
     return "\n".join(lines)
 
