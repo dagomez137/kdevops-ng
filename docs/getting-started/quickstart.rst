@@ -25,8 +25,8 @@ on caddy's internal certificate; trust it with ``nix run .#windmill-trust``. See
 Run wmill
 =========
 
-``wmill`` is provisioned from Nix, so run it from the dev shell rather than a
-host install:
+``wmill`` is provisioned from Nix, so run it from the development shell rather
+than a host install:
 
 .. code-block:: console
 

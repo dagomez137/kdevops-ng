@@ -11,6 +11,12 @@ Windmill server, the kernels and QEMU under test, and the developer tooling. So
 the host stays minimal: it needs no distro QEMU or build packages, only Nix and
 a little kernel-level access for the guests.
 
+kdevops-ng needs systemd as the init system. ``systemctl is-system-running``
+reports the manager state (``running``, or ``degraded`` if a unit has failed),
+and is absent or errors where systemd is not PID 1. The underlying check, the
+one ``sd_booted`` performs, is whether ``/run/systemd/system`` exists. Modern
+distributions satisfy this by default.
+
 Nix
 ===
 
@@ -90,7 +96,8 @@ Load the ``vfio-pci`` driver:
    $ sudo modprobe vfio-pci
 
 Render the udev rule from your file and install it (``minijinja-cli`` comes from
-the dev shell). It sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"`` so the
+the development shell). It sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"``
+so the
 ``kvm`` group can open ``/dev/vfio``, with a per-device block for each address:
 
 .. code-block:: console
