@@ -9,5 +9,6 @@ Orientation and first steps: what kdevops-ng is, and how to drive it.
 .. toctree::
    :maxdepth: 1
 
+   quickstart
    overview
    wmill

@@ -26,21 +26,8 @@ Nix-equipped host and would not require NixOS. That change waits on the
 trade-off being worth it, since it gives up the directly hand-editable units
 this deployment is built around.
 
-Quick start
-===========
-
-Deploy the whole stack, then open ``https://localhost:8000`` in a browser on
-the host. If the host is remote, forward the port over SSH first:
-
-.. code-block:: console
-
-   $ nix run .#windmill-deploy                  # build, install, activate
-   $ ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
-
-The browser warns once on caddy's internal certificate; trust it with
-``nix run .#windmill-trust``. The sections below expand each step: what is
-built and where it lives, how to configure it, how to add workers, and how to
-tear it down.
+For the two-command happy path, see :doc:`/getting-started/quickstart`; the
+sections below are the full reference.
 
 Build
 =====
