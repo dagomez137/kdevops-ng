@@ -39,8 +39,38 @@ let
       program = lib.getExe program;
       meta = { inherit description; };
     };
+
+  # A plain menu printer (no repo cwd needed): `nix run` lists the commands.
+  help = {
+    type = "app";
+    program = lib.getExe (writeShellApplication {
+      name = "kdevops-help";
+      text = ''
+        cat <<'MENU'
+        kdevops-ng development commands (nix-based; there is no Makefile)
+
+          nix flake check                    verify: lint, formatting, generated drift
+          nix develop .#checks -c bash scripts/check-style.sh
+                                             whitespace, end-of-file, commit trailers
+          nix fmt                            format the tree (nixfmt + ruff)
+          nix run .#format                   ruff lint-fix and format Python
+          nix run .#reflow                   rewrap wmill description fields
+          nix develop .#checks -c pyright    type-check (advisory)
+          nix run .#docs                     render docs to docs/_build/html
+          nix run .#serve -- PORT            serve the HTML on 127.0.0.1 (default 8001)
+          nix run .#maintainers -- FILE      who to Cc for a change
+          nix develop .#checks               shell with all tooling on PATH
+
+        Details: docs/contributing/development.rst   Outputs: nix flake show
+        MENU
+      '';
+    });
+    meta.description = "List the project's development commands";
+  };
 in
 {
+  default = help;
+  inherit help;
   format = mkApp {
     name = "kdevops-format";
     description = "Apply ruff lint fixes and formatting to all Python";
