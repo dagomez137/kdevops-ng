@@ -160,7 +160,7 @@ in
     description = "Render the documentation to docs/_build/html with Sphinx";
     runtimeInputs = [ toolsets.docsPython ];
     text = ''
-      sphinx-build docs docs/_build/html
+      sphinx-build --write-all docs docs/_build/html
       echo "docs ready: docs/_build/html/index.html"
     '';
   };
@@ -171,7 +171,7 @@ in
     runtimeInputs = [ toolsets.docsPython ];
     text = ''
       port="''${1:-8001}"
-      sphinx-autobuild docs docs/_build/html --host 127.0.0.1 --port "$port"
+      sphinx-autobuild --write-all docs docs/_build/html --host 127.0.0.1 --port "$port"
     '';
   };
 
