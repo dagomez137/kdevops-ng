@@ -4,8 +4,9 @@
 Quick start
 ===========
 
-Deploy the Windmill instance and push the workspace, all from Nix. Each step
-links to its full reference.
+Deploy the Windmill instance and push the workspace, all from Nix. Install the
+prerequisites first (see :doc:`requirements`). Each step links to its full
+reference.
 
 Deploy
 ======

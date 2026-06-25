@@ -6,7 +6,8 @@ kdevops-ng
 
 kdevops-ng is a Linux kernel development and test-automation framework built
 on a self-hosted Windmill workflow engine, with Nix supplying reproducible
-build and guest environments.
+build and guest environments. It runs on any Linux distribution with systemd
+and Nix; see :doc:`getting-started/requirements`.
 
 .. note::
 
