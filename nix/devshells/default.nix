@@ -9,7 +9,10 @@ let
   docs = import ./docs.nix { inherit pkgs toolsets; };
   default = pkgs.mkShell {
     inputsFrom = [ checks ];
-    packages = [ wmill ];
+    packages = [
+      wmill
+      pkgs.minijinja
+    ];
   };
 in
 {
