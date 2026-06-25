@@ -47,8 +47,8 @@ follows so each is a conscious choice and not drift:
   `activate`, `deactivate`, `uninstall`, `wipe`, `teardown`, and the
   `windmill-worker-*` pair): these `cp` unit files, `systemctl --user enable/
   disable --now`, `loginctl enable-linger`, and `rm` state. They orchestrate the
-  deploy backend's deliberately static, hand-editable units (see
-  `docs/deployment/nix-backend.rst` and ADR-0008's sibling deploy decisions),
+  deployment's deliberately static, hand-editable units (see
+  `docs/deployment/nix.rst` and ADR-0008's sibling deploy decisions),
   built for the loopback, SSH-forward operator who tunes units with
   `systemctl --user edit`. This is where "apps as a `make` substitute" is most
   visible, and where an idiomatic declarative alternative genuinely exists.
@@ -62,7 +62,7 @@ any Nix-equipped distro (Debian, Fedora, and the like); it does not require NixO
 It is the natural next evolution of the Windmill lifecycle apps and is recorded
 here as the planned direction, not adopted now.
 
-It is deferred because it shifts the operator model the deploy backend chose:
+It is deferred because it shifts the operator model the deployment chose:
 
 - The operator adopts a `home.nix` and runs `home-manager switch` instead of
   `nix run .#windmill-deploy`, and the flake pulls in home-manager (a heavyweight
@@ -89,7 +89,7 @@ accepted
   (`.md` ADRs are development files, not part of the published rst). The
   development guide (`docs/contributing/development.rst`) states that the
   `nix run` commands are workspace-bound task runners, run inside the checkout,
-  not portable programs. The deploy guide (`docs/deployment/nix-backend.rst`)
+  not portable programs. The deploy guide (`docs/deployment/nix.rst`)
   states that the lifecycle is imperative over static units by design, and names
   the declarative home-manager module as the planned next evolution.
 - The optional cleanups (a reproducible `packages.docs`, re-exporting the

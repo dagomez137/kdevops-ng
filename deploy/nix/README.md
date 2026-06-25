@@ -1,8 +1,8 @@
-# deploy/nix: the nix backend
+# deploy/nix: the Nix deployment
 
-The nix backend builds a custom Windmill server from source with nix and runs
+The Nix deployment builds a custom Windmill server from source with nix and runs
 the whole stack (server, postgres, workers, the LSP gateway, caddy) under
-`systemd --user`, with no container runtime. It is the default backend.
+`systemd --user`, with no container runtime. It is the default deployment.
 
 The contents:
 
@@ -17,4 +17,4 @@ The contents:
 
 There is no install script. The build, deploy, and configuration steps, and the
 TLS and base-URL pairing, are documented in the Sphinx site under
-**Deployment → Nix backend** (`docs/nix-backend.rst`).
+**Deployment → Nix** (`docs/deployment/nix.rst`).

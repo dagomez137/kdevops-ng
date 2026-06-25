@@ -108,7 +108,7 @@ Deploying the Windmill stack
 
 The self-hosted Windmill instance builds and deploys from this flake too, with
 ``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. See
-:doc:`/deployment/nix-backend` for the full procedure, what each service is,
+:doc:`/deployment/nix` for the full procedure, what each service is,
 configuration, TLS, workers, and teardown.
 
 The Nix store

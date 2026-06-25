@@ -22,7 +22,7 @@ Connecting
 ==========
 
 Point the CLI at the local instance once it is running (see
-:doc:`/deployment/nix-backend` to bring it up).
+:doc:`/deployment/nix` to bring it up).
 
 .. code-block:: console
 

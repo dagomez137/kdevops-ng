@@ -11,7 +11,7 @@ later.
 ## Layout
 
 `BOOTSTRAP.md` is the minimal end-to-end setup. `deploy/` holds the instance
-backends. `podman/` works today; `distro/` and `nix/` are planned. See
+deployment methods. `podman/` works today; `distro/` and `nix/` are planned. See
 `deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
 and resources, no secrets, single `kdevops` workspace on branch `main`). `f/`
 holds the workspace content and is machine-managed by `wmill`. The root

@@ -4,11 +4,10 @@
 Deployment
 ==========
 
-How to run the Windmill instance. A deployment backend is one way to build and
-run the stack; the Nix backend is the current one, and a distro backend is
-planned.
+How to run the Windmill instance. A deployment method is one way to build and
+run the stack; Nix is the current one, and a distro deployment is planned.
 
 .. toctree::
    :maxdepth: 1
 
-   nix-backend
+   nix

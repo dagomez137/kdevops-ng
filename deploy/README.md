@@ -1,9 +1,9 @@
-# deploy: pick a backend
+# deploy: pick a deployment method
 
 Three interchangeable ways to run the same Windmill instance (localhost:8000,
-same DB, same `wmill.yaml`). Bring up one, then `wmill sync push`.
+same DB, same `wmill.yaml`). Deploy one, then `wmill sync push`.
 
-| Backend | Dir | Runtime | Status |
+| Method | Dir | Runtime | Status |
 |---|---|---|---|
 | Podman | `podman/` | rootless containers + Quadlet (systemd --user) | ✅ working |
 | Distro | `distro/` | release binary + apt postgres, systemd services (no container runtime) | TODO |

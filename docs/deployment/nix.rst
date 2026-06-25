@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: copyleft-next-0.3.1
 
-===========
-Nix backend
-===========
+===
+Nix
+===
 
-The Nix backend (``deploy/nix/``) builds a custom Windmill server from source
+The Nix deployment (``deploy/nix/``) builds a custom Windmill server from source
 with Nix and runs the whole stack under ``systemd --user``, with no container
 runtime. A Nix-built binary links against ``/nix/store`` and runs natively on
 the host. What disqualified Nix for a container image, its dependence on the
@@ -24,7 +24,7 @@ home-manager ``systemd.user.services`` module, where activation becomes
 ``home-manager switch`` and the units are generated; it would run on any
 Nix-equipped host and would not require NixOS. That change waits on the
 trade-off being worth it, since it gives up the directly hand-editable units
-this backend is built around.
+this deployment is built around.
 
 Quick start
 ===========
@@ -315,12 +315,12 @@ deactivate so the cluster is stopped:
    state=~/.local/state/windmill
    rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
 
-Switching from the podman backend
-==================================
+Switching from Podman
+=====================
 
-The units reuse the same names as the podman backend, and static user units
+The units reuse the same names as the Podman deployment, and static user units
 shadow podman's quadlet-generated ones, so the two cannot run at once. Retire
 podman first by moving its quadlets aside
-(``~/.config/containers/systemd/windmill*``) and reloading, then deploy this
-backend. The workspace itself lives in git, so push it to the fresh instance
+(``~/.config/containers/systemd/windmill*``) and reloading, then deploy the Nix
+one. The workspace itself lives in git, so push it to the fresh instance
 with ``wmill sync push`` once the stack is up.
