@@ -9,7 +9,7 @@
 #   nix build .#windmill-extra --out-link %S/windmill/sw/windmill-extra
 # Override PORT with `systemctl --user edit` or %E/windmill/windmill-extra.env.
 [Unit]
-Description=Windmill LSP gateway
+Description=Windmill LSP Gateway
 Requires=windmill.service
 After=windmill.service
 

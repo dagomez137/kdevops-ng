@@ -10,7 +10,7 @@
 # Override PGPORT or PGDATA with `systemctl --user edit windmill-db.service` or
 # a %E/windmill/windmill-db.env file.
 [Unit]
-Description=Windmill database (PostgreSQL)
+Description=Windmill Database (PostgreSQL)
 
 [Service]
 Type=notify

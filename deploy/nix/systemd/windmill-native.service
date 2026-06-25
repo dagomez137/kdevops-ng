@@ -4,7 +4,7 @@
 # lightweight and need no build area. The binary is the same out-link the
 # server uses (nix build .#windmill --out-link %S/windmill/sw/windmill).
 [Unit]
-Description=Windmill native worker
+Description=Windmill Native Worker
 Requires=windmill-db.service
 After=windmill-db.service
 

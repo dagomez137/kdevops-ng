@@ -12,7 +12,7 @@
 # server BASE_URL in step with the scheme and port. Switching TLS mode (off or
 # a provided cert) is an edit of the Caddyfile.
 [Unit]
-Description=Windmill reverse proxy (Caddy)
+Description=Windmill Reverse Proxy (Caddy)
 Requires=windmill.service
 After=windmill.service
 

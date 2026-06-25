@@ -29,7 +29,7 @@
 # instance names distinct so the dirs do not collide. The build-area paths
 # default under the state dir; point them at a real workbench to run builds.
 [Unit]
-Description=Windmill worker %i
+Description=Windmill Worker %i
 Requires=windmill-db.service
 After=windmill-db.service
 
