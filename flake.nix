@@ -24,10 +24,10 @@
   outputs =
     { nixpkgs, treefmt-nix, ... }:
     let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
+      # Only the systems this tooling is actually built and run on. The deploy
+      # backend targets more; this developer/CI flake does not, so listing more
+      # would only add phantom outputs and `nix flake check` omission warnings.
+      systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
       treefmtFor = system: treefmt-nix.lib.evalModule (pkgsFor system) ./nix/treefmt.nix;
