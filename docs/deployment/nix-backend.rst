@@ -37,15 +37,15 @@ runs:
 
 .. code-block:: shell
 
-   sw=~/.local/state/windmill/sw
-   nix build ./deploy/nix#windmill       --out-link "$sw/windmill"
-   nix build ./deploy/nix#postgresql     --out-link "$sw/postgresql"
-   nix build ./deploy/nix#db-setup       --out-link "$sw/db-setup"
-   nix build ./deploy/nix#caddy          --out-link "$sw/caddy"
-   nix build ./deploy/nix#windmill-extra --out-link "$sw/windmill-extra"
+   pkgs=~/.local/state/windmill/pkgs
+   nix build .#windmill       --out-link "$pkgs/windmill"
+   nix build .#postgresql     --out-link "$pkgs/postgresql"
+   nix build .#db-setup       --out-link "$pkgs/db-setup"
+   nix build .#caddy          --out-link "$pkgs/caddy"
+   nix build .#windmill-extra --out-link "$pkgs/windmill-extra"
 
 The server build is heavy (around 10 GB and a clean compile of about 18
-minutes). ``./deploy/nix#windmill-oracle`` is the same server with the
+minutes). ``.#windmill-oracle`` is the same server with the
 fourteenth language, Oracle, which pulls the unfree Oracle Instant Client.
 
 Deploy
@@ -64,7 +64,7 @@ the Caddyfile where the proxy reads it:
 .. code-block:: shell
 
    cp deploy/nix/systemd/*.service ~/.config/systemd/user/
-   cp deploy/nix/Caddyfile ~/.local/state/windmill/Caddyfile
+   cp deploy/nix/Caddyfile ~/.config/windmill/Caddyfile
 
 Activate
 --------
@@ -103,6 +103,13 @@ reads from, and a headless host has no browser store to install into.
 
 Configure
 =========
+
+State and config split by XDG role. The stack's state (the database cluster,
+the build out-links under ``pkgs``, the generated env) lives under
+``~/.local/state/windmill``, which each unit declares as ``StateDirectory=`` so
+systemd creates and owns it. Operator config (the Caddyfile and the per-unit
+``.env`` overrides) lives under ``~/.config/windmill``. The PostgreSQL socket
+lives in the per-service runtime dir ``$XDG_RUNTIME_DIR/windmill``.
 
 Each unit ships sane defaults as ``Environment=`` lines and reads an optional
 ``%E/windmill/<unit>.env`` override file (``%E`` is ``$XDG_CONFIG_HOME``).
@@ -264,13 +271,14 @@ it explicitly, only when nothing else needs it, with the ``disable-linger`` app
 Uninstall
 ---------
 
-``nix run .#windmill-uninstall`` removes the installed units and the Caddyfile,
-then reloads the manager:
+``nix run .#windmill-uninstall`` removes the installed units, any worker
+drop-ins, and the Caddyfile, then reloads the manager:
 
 .. code-block:: shell
 
    rm --force ~/.config/systemd/user/windmill*.service
-   rm --force ~/.local/state/windmill/Caddyfile
+   rm --recursive --force ~/.config/systemd/user/windmill-worker@.service.d
+   rm --force ~/.config/windmill/Caddyfile
    systemctl --user daemon-reload
 
 Wipe
