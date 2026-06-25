@@ -209,32 +209,6 @@
               pkgs.openssh
             ];
           };
-
-          # Sphinx documentation toolchain: render reStructuredText sources to
-          # HTML with the PyData theme, reproducibly on any host. The theme is
-          # pinned ahead of the nixpkgs channel via its published wheel.
-          #   nix develop .#docs -c sphinx-build <source> <out>
-          docs = pkgs.mkShell {
-            packages = [
-              (pkgs.python3.withPackages (
-                ps: [
-                  ps.sphinx
-                  ps.sphinx-copybutton
-                  (ps.pydata-sphinx-theme.overridePythonAttrs (_: rec {
-                    version = "0.19.0";
-                    src = ps.fetchPypi {
-                      pname = "pydata_sphinx_theme";
-                      inherit version;
-                      format = "wheel";
-                      dist = "py3";
-                      python = "py3";
-                      hash = "sha256-XX3+O+sPrMiLXXj/SkyUjyFMwOA6rifn/FgobpY7WIs=";
-                    };
-                  }))
-                ]
-              ))
-            ];
-          };
         }
       );
 
