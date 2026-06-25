@@ -5,7 +5,7 @@
 # listener to loopback and defaults to internal TLS (HTTPS on 8000).
 #
 # Binary out-link, and the Caddyfile the operator copies into place:
-#   nix build .#caddy --out-link %S/windmill/sw/caddy
+#   nix build .#caddy --out-link %S/windmill/pkgs/caddy
 #   cp deploy/nix/Caddyfile %S/windmill/Caddyfile
 # Override the port with WINDMILL_CADDY_PORT (the Caddyfile reads it), via
 # `systemctl --user edit` or %E/windmill/windmill-caddy.env; keep the
@@ -19,7 +19,7 @@ After=windmill.service
 [Service]
 Environment=WINDMILL_CADDY_PORT=8000
 EnvironmentFile=-%E/windmill/windmill-caddy.env
-ExecStart=%S/windmill/sw/caddy/bin/caddy run --adapter caddyfile --config %S/windmill/Caddyfile
+ExecStart=%S/windmill/pkgs/caddy/bin/caddy run --adapter caddyfile --config %S/windmill/Caddyfile
 Restart=always
 
 [Install]

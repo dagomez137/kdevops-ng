@@ -32,12 +32,12 @@ let
 
   windmillBuild = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
-    sw="$state/sw"
-    nix build .#windmill       --out-link "$sw/windmill"
-    nix build .#postgresql     --out-link "$sw/postgresql"
-    nix build .#db-setup       --out-link "$sw/db-setup"
-    nix build .#caddy          --out-link "$sw/caddy"
-    nix build .#windmill-extra --out-link "$sw/windmill-extra"
+    pkgs="$state/pkgs"
+    nix build .#windmill       --out-link "$pkgs/windmill"
+    nix build .#postgresql     --out-link "$pkgs/postgresql"
+    nix build .#db-setup       --out-link "$pkgs/db-setup"
+    nix build .#caddy          --out-link "$pkgs/caddy"
+    nix build .#windmill-extra --out-link "$pkgs/windmill-extra"
   '';
 
   windmillInstall = ''
@@ -73,7 +73,7 @@ let
   # Spares the build-area workbench under the same state dir.
   windmillWipe = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
-    rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
+    rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"
   '';
 
   windmillTrust = ''
@@ -97,7 +97,7 @@ let
 
   windmillUntrust = ''
     root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
-    caddy="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill/sw/caddy/bin/caddy"
+    caddy="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill/pkgs/caddy/bin/caddy"
     if [ ! -x "$caddy" ]; then
       echo "kdevops: caddy not built at $caddy (nix run .#windmill-build)" >&2
       exit 1
@@ -272,7 +272,7 @@ in
       state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
       config="''${XDG_CONFIG_HOME:-$HOME/.config}"
       units="$config/systemd/user"
-      nix build .#windmill --out-link "$state/sw/windmill"
+      nix build .#windmill --out-link "$state/pkgs/windmill"
       mkdir --parents "$units/windmill-worker@.service.d"
       cp deploy/nix/systemd/windmill-worker@.service "$units/"
       cp --no-preserve=mode ${workerRemoteDropIn} \

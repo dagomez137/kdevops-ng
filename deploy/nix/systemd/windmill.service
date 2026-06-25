@@ -3,7 +3,7 @@
 # Mirrors deploy/podman/systemd/windmill.container (MODE=server, Restart=always).
 #
 # The binary is reached through a fixed out-link the operator creates with
-#   nix build .#windmill --out-link %S/windmill/sw/windmill
+#   nix build .#windmill --out-link %S/windmill/pkgs/windmill
 # (%S is $XDG_STATE_HOME). systemd expands %S in the executable path but not
 # environment variables, so the path is a specifier, not a $VAR.
 #
@@ -27,7 +27,7 @@ Environment=PORT=8002
 Environment=BASE_URL=https://localhost:8000
 EnvironmentFile=%S/windmill/env/database.env
 EnvironmentFile=-%E/windmill/windmill.env
-ExecStart=%S/windmill/sw/windmill/bin/windmill
+ExecStart=%S/windmill/pkgs/windmill/bin/windmill
 Restart=always
 
 [Install]

@@ -47,7 +47,7 @@ Environment=VENDOR_DIR=%S/windmill/vendor
 Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
 EnvironmentFile=%S/windmill/env/database.env
 EnvironmentFile=-%E/windmill/windmill-worker.env
-ExecStart=%S/windmill/sw/windmill/bin/windmill
+ExecStart=%S/windmill/pkgs/windmill/bin/windmill
 Restart=always
 
 [Install]

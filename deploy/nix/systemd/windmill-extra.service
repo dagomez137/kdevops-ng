@@ -6,7 +6,7 @@
 # ruff config from the server.
 #
 # Binary out-link:
-#   nix build .#windmill-extra --out-link %S/windmill/sw/windmill-extra
+#   nix build .#windmill-extra --out-link %S/windmill/pkgs/windmill-extra
 # Override PORT with `systemctl --user edit` or %E/windmill/windmill-extra.env.
 [Unit]
 Description=Windmill LSP Gateway
@@ -17,7 +17,7 @@ After=windmill.service
 Environment=PORT=3001
 Environment=WINDMILL_BASE_URL=http://127.0.0.1:8002
 EnvironmentFile=-%E/windmill/windmill-extra.env
-ExecStart=%S/windmill/sw/windmill-extra/bin/windmill-extra
+ExecStart=%S/windmill/pkgs/windmill-extra/bin/windmill-extra
 Restart=always
 
 [Install]
