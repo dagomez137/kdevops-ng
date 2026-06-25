@@ -46,6 +46,7 @@ def block_region(lines, i):
     excluded.
     """
     m = DESC_RE.match(lines[i])
+    assert m is not None
     key_indent = len(m.group("indent"))
     j, last = i + 1, i + 1
     while j < len(lines):
