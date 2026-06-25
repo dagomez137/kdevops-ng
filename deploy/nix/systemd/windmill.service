@@ -17,7 +17,7 @@
 # header. Keep it in lockstep with what caddy serves: the default pairs with
 # caddy's default internal TLS on 8000, so change both together.
 [Unit]
-Description=Windmill Server (API and UI)
+Description=Windmill Server
 Requires=windmill-db.service
 After=windmill-db.service
 
