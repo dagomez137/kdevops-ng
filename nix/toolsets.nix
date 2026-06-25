@@ -7,6 +7,7 @@ let
   # PyData theme pinned ahead of the channel via its published wheel.
   docsPython = pkgs.python3.withPackages (ps: [
     ps.sphinx
+    ps.sphinx-autobuild
     ps.sphinx-copybutton
     (ps.pydata-sphinx-theme.overridePythonAttrs (_: rec {
       version = "0.19.0";

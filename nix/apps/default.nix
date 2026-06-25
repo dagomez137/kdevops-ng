@@ -167,12 +167,11 @@ in
 
   serve = mkApp {
     name = "kdevops-serve";
-    description = "Render the docs, then serve them on 127.0.0.1 (arg: port)";
+    description = "Live-render the docs on 127.0.0.1, rebuilding on save (arg: port)";
     runtimeInputs = [ toolsets.docsPython ];
     text = ''
-      sphinx-build docs docs/_build/html
       port="''${1:-8001}"
-      python3 -m http.server "$port" --bind 127.0.0.1 --directory docs/_build/html
+      sphinx-autobuild docs docs/_build/html --host 127.0.0.1 --port "$port"
     '';
   };
 
