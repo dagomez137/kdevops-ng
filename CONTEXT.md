@@ -21,7 +21,7 @@ of thing.
 
 | Term                  | Definition                                                                                                                                                              | Aliases to avoid          |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| **Workbench**         | The developer's build area: a directory, relocatable as a whole (default `workbench/`, or e.g. `$HOME/src`), that holds the worktree-groups. *Not* a Windmill workspace. | workspace, sandbox, bench |
+| **Workbench**         | A directory containing a developer's worktree-groups and the kdevops-ng infrastructure (the System workbench and the worker sandboxes) that defaults under it; it relocates as a whole (default `workbench/`, or e.g. `$HOME/src`) and the infrastructure relocates on its own. *Not* a Windmill workspace. | workspace, sandbox, bench |
 | **Worktree-group**    | A topic or chain of work within a Workbench (default name `vanilla`; many may exist, e.g. `largeio`). Holds one Worktree per project the topic involves; switchable. | workbench, default |
 | **System workbench**  | The host-local infrastructure singleton (mirrors, bares, ssh key, store), default `system/` under the Workbench but relocatable on its own. User-scoped, sudo-less. | service workbench |
 | **Worker sandbox**    | A worker's own build area (default `workers/<id>/`, relocatable on its own). A worker builds here, never in a developer's Worktree. | workbench, worker dir |

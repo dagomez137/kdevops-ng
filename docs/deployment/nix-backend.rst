@@ -140,14 +140,14 @@ as its header comment describes and set ``BASE_URL`` to match.
 The workbench
 -------------
 
-The worker build-area paths point at a :term:`Workbench`, the
-:term:`Developer`'s build area that holds the :term:`Worktree-groups
-<Worktree-group>`. It is not a Windmill workspace, and not where a worker
-builds. Two infrastructure siblings sit beside the groups: the :term:`System
-workbench` (``system/``, ``SYSTEM_DIR``), the host-local singleton holding the
-mirrors, bares, ssh key and store, and the :term:`Worker sandboxes <Worker
-sandbox>` (``workers/<id>/``, ``WORKERS_DIR``), where the workers actually
-build.
+The worker build-area paths point at a :term:`Workbench`: a directory
+containing the :term:`Developer`'s :term:`Worktree-groups <Worktree-group>` and
+the kdevops-ng infrastructure that defaults under it. It is not a Windmill
+workspace. The infrastructure is the :term:`System workbench` (``system/``,
+``SYSTEM_DIR``), the host-local singleton holding the mirrors, bares, ssh key
+and store, and the :term:`Worker sandboxes <Worker sandbox>` (``workers/<id>/``,
+``WORKERS_DIR``), where each worker builds in its own worktree, never in a
+developer's worktree.
 
 The units default ``WORKBENCH_DIR`` to ``%S/windmill/workbench``, under the
 systemd state directory (``%S`` is ``$XDG_STATE_HOME``), the recommended place

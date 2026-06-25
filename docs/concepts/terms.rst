@@ -80,10 +80,12 @@ Places
 .. glossary::
 
    Workbench
-      The :term:`Developer`'s build area: a directory, relocatable as a whole
-      (default ``workbench/``, or for example ``$HOME/src``), that holds the
-      :term:`Worktree-groups <Worktree-group>`. It is *not* a Windmill
-      workspace.
+      A directory containing a :term:`Developer`'s :term:`Worktree-groups
+      <Worktree-group>` and the kdevops-ng infrastructure (the :term:`System
+      workbench` and the :term:`Worker sandboxes <Worker sandbox>`) that
+      defaults under it. It relocates as a whole (default ``workbench/``, or
+      for example ``$HOME/src``), and the infrastructure relocates on its own.
+      It is *not* a Windmill workspace.
 
       Avoid: *workspace*, *sandbox*, *bench*.
 

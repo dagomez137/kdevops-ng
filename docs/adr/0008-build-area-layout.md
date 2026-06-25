@@ -9,7 +9,7 @@ one agreed shape.
 ## Decision
 
 ```
-workbench/                 the Workbench: a relocatable build area (default dir;
+workbench/                 the Workbench: a relocatable directory (default dir;
                            a developer may point it at $HOME/src instead)
   system/                  reserved: bare/  mirror/  ssh/  store/   (relocatable on its own)
   workers/                 reserved: per-worker build sandboxes <id>/ (relocatable on its own)
@@ -23,9 +23,11 @@ workbench/                 the Workbench: a relocatable build area (default dir;
 vendor/                    pinned upstream projects (ADR-0006, already top-level)
 ```
 
-A **Workbench** is the developer's build area, a directory that is relocatable as
-a whole (default `workbench/`, or wherever the developer puts it, such as
-`$HOME/src`). A **worktree-group** is a topic or chain of work inside it (default
+A **Workbench** is a directory containing the developer's worktree-groups and the
+kdevops-ng infrastructure (the System workbench and the per-worker sandboxes) that
+defaults under it; it is relocatable as a whole (default `workbench/`, or wherever
+the developer puts it, such as `$HOME/src`), and the infrastructure relocates on
+its own. A **worktree-group** is a topic or chain of work inside it (default
 name `vanilla`; others named by topic, such as `largeio`); the developer switches
 between them. Each worktree-group holds one **worktree** per project the topic
 involves, and the project folder is named by its **canonical name** (`linux`,
