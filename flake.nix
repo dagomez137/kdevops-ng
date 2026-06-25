@@ -22,7 +22,12 @@
   };
 
   outputs =
-    { nixpkgs, treefmt-nix, ... }:
+    {
+      self,
+      nixpkgs,
+      treefmt-nix,
+      ...
+    }:
     let
       # Only the systems this tooling is actually built and run on. The deploy
       # backend targets more; this developer/CI flake does not, so listing more
@@ -42,12 +47,18 @@
         {
           devShells = import ./nix/devshells { inherit pkgs toolsets; };
           apps = import ./nix/apps { inherit pkgs toolsets; };
+          # Verification: lint and drift checks, plus treefmt's own formatting
+          # check so `nix flake check` is the whole CI gate.
+          checks = import ./nix/checks.nix { inherit pkgs self toolsets; } // {
+            formatting = (treefmtFor system).config.build.check self;
+          };
         }
       );
     in
     {
       devShells = nixpkgs.lib.mapAttrs (_: v: v.devShells) perSystem;
       apps = nixpkgs.lib.mapAttrs (_: v: v.apps) perSystem;
+      checks = nixpkgs.lib.mapAttrs (_: v: v.checks) perSystem;
       formatter = forAllSystems (system: (treefmtFor system).config.build.wrapper);
     };
 }
