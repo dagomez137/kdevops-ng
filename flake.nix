@@ -15,10 +15,14 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, treefmt-nix, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -26,10 +30,11 @@
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
+      treefmtFor = system: treefmt-nix.lib.evalModule (pkgsFor system) ./nix/treefmt.nix;
     in
     {
       devShells = forAllSystems (system: import ./nix/devshells { pkgs = pkgsFor system; });
       apps = forAllSystems (system: import ./nix/apps { pkgs = pkgsFor system; });
-      formatter = forAllSystems (system: (pkgsFor system).nixfmt);
+      formatter = forAllSystems (system: (treefmtFor system).config.build.wrapper);
     };
 }
