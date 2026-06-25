@@ -21,6 +21,12 @@ Each kind of task uses the Nix command that fits its purpose: read-only
 verification is a flake *check*, programs that change, build, serve, or query
 the tree are *apps* run with ``nix run``, and the formatter is ``nix fmt``.
 
+These apps are workspace-bound task runners, not portable programs: each one
+changes into the checkout and acts on it, so it is run as ``nix run .#<name>``
+from inside the repository, not as ``nix run github:owner/kdevops-ng#<name>``
+from anywhere. This is a deliberate choice of ``apps`` as the task interface in
+place of a Makefile.
+
 The development shell
 =====================
 

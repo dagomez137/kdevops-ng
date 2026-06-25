@@ -15,6 +15,16 @@ install script; the apps run the steps shown below, so you can equally build a
 single component or install by hand. Everything else is sane defaults plus the
 ordinary ``systemd`` override mechanisms.
 
+The deploy is deliberately imperative over static units: the apps copy
+hand-editable unit files and drive ``systemctl --user``, so you tune the
+running instance with ``systemctl --user edit`` and the ordinary drop-in
+mechanism rather than a generator. The planned next evolution is a declarative
+home-manager ``systemd.user.services`` module, where activation becomes
+``home-manager switch`` and the units are generated; it would run on any
+Nix-equipped host and would not require NixOS. That change waits on the
+trade-off being worth it, since it gives up the directly hand-editable units
+this backend is built around.
+
 Build
 =====
 
