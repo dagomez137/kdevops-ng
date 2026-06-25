@@ -10,3 +10,4 @@ Look-up details for the workspace and its formats.
    :maxdepth: 1
 
    wmill-yaml
+   step-code-style

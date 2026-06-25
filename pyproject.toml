@@ -2,7 +2,7 @@
 # Python toolchain for kdevops-ng. ruff is the single linter and formatter for
 # both the repo tooling under scripts/ and the hand-authored Windmill step
 # scripts under f/. pyright type-checks both leniently for the editor LSP and a
-# future CI gate. See CLAUDE.md for the policy and `make lint`/`make format`.
+# future CI gate. See docs/reference/step-code-style.rst and CLAUDE.md.
 
 [tool.ruff]
 line-length = 88
