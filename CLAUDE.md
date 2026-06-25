@@ -32,6 +32,12 @@ as separate sentences, or use a colon, semicolon, or parentheses instead.
 Box-drawing connectors in a genuine diagram are fine; this rule is about em and
 en dashes inside sentences.
 
+Distinguish a tool's project name from its command in all prose (docs, code
+comments, commit messages). Name the project in plain text with its canonical
+spelling (Ruff, Pyright, Black, PyYAML, QEMU, NixOS; lowercase names keep their
+case, such as isort and pyflakes) and backtick the executable you run (`ruff`,
+`pyright`, `nixfmt`). So "Ruff is the formatter", but "run `ruff check`".
+
 Always use the modern unified Nix CLI (`nix <subcommand>`) everywhere, in code,
 scripts, docs and "Equivalent command" lines, and never the classic `nix-*`
 binaries. Use `nix build <path> --out-link <link>` to create a GC root (not
@@ -102,12 +108,12 @@ When writing or extending Windmill flows and steps, also follow these rules:
   (`f.workbench.fetch`'s `KERNEL_TREES` checklist plus the advanced `mirrors`
   override, feeding both `fetch` and `mirror`) is the worked example.
 
-The Python here is kept lint-clean and consistently formatted by `ruff`, the
+The Python here is kept lint-clean and consistently formatted by Ruff, the
 single linter and formatter, configured in `pyproject.toml` at line length 88.
 `nix run .#format` applies it, and the flake's `lint` check verifies it, run
 together with the rest by `nix flake check`. This covers both the repo tooling
 under `scripts/` and the hand-authored Windmill step scripts under `f/**/*.py`.
-Type-checking uses `pyright` (basic mode, with the `f/` rules relaxed for
+Type-checking uses Pyright (basic mode, with the `f/` rules relaxed for
 Windmill's schema-bearing `main()` signatures); it is advisory, surfaced by the
 editor and `nix develop .#checks --command pyright`, not by the gate.
 
