@@ -6,8 +6,9 @@ Nix backend
 
 The Nix backend (``deploy/nix/``) builds a custom Windmill server from source
 with Nix and runs the whole stack under ``systemd --user``, with no container
-runtime. A Nix-built binary links ``/nix/store`` and runs natively on the host,
-so the thing that ruled Nix out for the container image is the natural fit here.
+runtime. A Nix-built binary links against ``/nix/store`` and runs natively on
+the host. What disqualified Nix for a container image, its dependence on the
+store, is exactly what suits a host deployment.
 
 Build and deploy run from the repository root as two flake apps:
 ``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. There is no
@@ -25,11 +26,26 @@ Nix-equipped host and would not require NixOS. That change waits on the
 trade-off being worth it, since it gives up the directly hand-editable units
 this backend is built around.
 
+Quick start
+===========
+
+Deploy the whole stack, then reach the UI over an SSH forward:
+
+.. code-block:: console
+
+   $ nix run .#windmill-deploy                  # build, install, activate
+   $ ssh -L 8000:localhost:8000 <user>@<host>   # then https://localhost:8000
+
+The browser warns once on caddy's internal certificate; trust it with
+``nix run .#windmill-trust``. The sections below expand each step: what is
+built and where it lives, how to configure it, how to add workers, and how to
+tear it down.
+
 Build
 =====
 
-``nix run .#windmill-build`` builds every component to a GC-rooted out-link
-under the user state directory. The out-link is a stable path that always points
+``nix run .#windmill-build`` builds each component to its own GC-rooted out-link
+under the user state directory. An out-link is a stable path that always points
 at the current build and survives ``nix store gc``; the units reach the binary
 through it with the ``%S`` (state directory) specifier, because ``systemd``
 expands specifiers in the executable path but not environment variables. It
@@ -52,8 +68,8 @@ Deploy
 ======
 
 ``nix run .#windmill-deploy`` does the whole sequence at once: build, install,
-activate. The two deploy stages also run on their own, so you can customise the
-installed units (``systemctl --user edit``) between installing and activating.
+activate. Install and activate also run on their own, so you can customise the
+installed units (``systemctl --user edit``) between them.
 
 Install
 -------
