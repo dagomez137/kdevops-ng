@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 #
-# One app per Makefile verb, each a hermetic bundle of exactly its tools, so the
-# Makefile is a thin forwarder (`make style` -> `nix run .#style`). Every app
-# changes into the repo root first, so it works regardless of the caller's cwd.
+# `nix run` apps are programs the flake provides: each verb here either mutates
+# the tree (format, reflow), serves it (serve), builds it (docs), or queries it
+# (maintainers). Read-only verification lives in nix/checks.nix (run by `nix
+# flake check`), not here; advisory pyright and the git-aware style script run
+# from the checks devShell. Every app changes into the repo root first, so it
+# works regardless of the caller's cwd.
 { pkgs, toolsets }:
 let
   inherit (pkgs) lib writeShellApplication;
@@ -38,35 +41,6 @@ let
     };
 in
 {
-  generated = mkApp {
-    name = "kdevops-generated";
-    description = "Check that committed generated files match their generators";
-    runtimeInputs = toolsets.gateRuntime;
-    text = "bash scripts/check-generated.sh";
-  };
-
-  style = mkApp {
-    name = "kdevops-style";
-    description = "Run the full pre-commit gate (generated, ruff, whitespace)";
-    runtimeInputs = toolsets.gateRuntime;
-    text = ''
-      bash scripts/check-generated.sh
-      ruff check scripts f
-      ruff format --check scripts f
-      bash scripts/check-style.sh
-    '';
-  };
-
-  lint = mkApp {
-    name = "kdevops-lint";
-    description = "Lint and format-check all Python with ruff";
-    runtimeInputs = [ pkgs.ruff ];
-    text = ''
-      ruff check scripts f
-      ruff format --check scripts f
-    '';
-  };
-
   format = mkApp {
     name = "kdevops-format";
     description = "Apply ruff lint fixes and formatting to all Python";
@@ -77,14 +51,11 @@ in
     '';
   };
 
-  typecheck = mkApp {
-    name = "kdevops-typecheck";
-    description = "Type-check Python with pyright (advisory)";
-    runtimeInputs = [
-      pkgs.pyright
-      toolsets.pyEnv
-    ];
-    text = "pyright";
+  reflow = mkApp {
+    name = "kdevops-reflow";
+    description = "Rewrap wmill description fields into clean literal blocks";
+    runtimeInputs = [ toolsets.pyEnv ];
+    text = "python3 scripts/reflow-descriptions.py --write";
   };
 
   docs = mkApp {
@@ -105,13 +76,6 @@ in
       port="''${1:-8001}"
       python3 -m http.server "$port" --bind 127.0.0.1 --directory docs/_build/html
     '';
-  };
-
-  reflow = mkApp {
-    name = "kdevops-reflow";
-    description = "Rewrap wmill description fields into clean literal blocks";
-    runtimeInputs = [ toolsets.pyEnv ];
-    text = "python3 scripts/reflow-descriptions.py --write";
   };
 
   maintainers = mkApp {

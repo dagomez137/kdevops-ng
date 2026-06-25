@@ -1,35 +1,45 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-.PHONY: style generated reflow maintainers docs serve lint format typecheck
+.PHONY: style check generated lint format typecheck fmt reflow maintainers docs serve
 
 DOCS_PORT ?= 8001
+# The system whose flake checks `make lint` and `make generated` build. The
+# tooling flake only provides x86_64-linux (see flake.nix).
+NIX_SYSTEM ?= x86_64-linux
 
-# kdevops-ng does its tooling in nix: each target below is a thin forwarder to a
-# hermetic `nix run .#<verb>` app (defined in nix/apps), so the toolchain is the
-# same on every host and in CI.
+# kdevops-ng does its tooling in nix, and each target uses the nix command that
+# fits the task: read-only verification runs as flake checks (`nix flake check`),
+# advisory and git-aware tools run from the checks devShell (`nix develop -c`),
+# and programs that mutate, serve, or query run as apps (`nix run`).
 
-# Run before every commit (rule 5). The gate runs generated-file drift, the ruff
-# lint and format check, and the whitespace/EOF/commit-trailer checks, all
-# hermetically from the flake.
-style:
-	@nix run .#style
+# Run before every commit (rule 5). The full gate: the flake checks (ruff lint
+# and format, generated-file drift, tree formatting) plus the git-aware
+# whitespace, end-of-file, and commit-trailer checks that need the git repo.
+style: check
+	@nix develop .#checks --command bash scripts/check-style.sh
 
-# Fail if a committed generated file no longer matches its generator output.
-generated:
-	@nix run .#generated
+# The CI gate: every read-only verification the flake defines.
+check:
+	@nix flake check
 
-# Lint and check formatting of all Python (scripts/ and the f/ step scripts).
+# Individual flake checks (the gate runs both together via `make check`).
 lint:
-	@nix run .#lint
+	@nix build --print-build-logs .#checks.$(NIX_SYSTEM).lint && echo "lint: OK"
 
-# Apply ruff's lint fixes (import order) and formatting in place. Run after
-# editing Python, then `wmill sync push` to store any f/ changes.
+generated:
+	@nix build --print-build-logs .#checks.$(NIX_SYSTEM).generated && echo "generated: OK"
+
+# Format the whole tree in place: nixfmt for Nix and ruff for Python, via treefmt.
+fmt:
+	@nix fmt
+
+# Apply ruff's lint fixes (import order) and formatting to Python in place. Run
+# after editing Python, then `wmill sync push` to store any f/ changes.
 format:
 	@nix run .#format
 
-# Type-check with pyright (basic, f/ relaxed; see pyproject.toml). Advisory: it
-# is not part of `make style`.
+# Type-check with pyright (advisory; not part of the gate, see pyproject.toml).
 typecheck:
-	@nix run .#typecheck
+	@nix develop .#checks --command pyright
 
 # Rewrap wmill description fields so wmill keeps them as clean literal blocks.
 # Run after editing descriptions (then `wmill sync push` to store the rewrap).
