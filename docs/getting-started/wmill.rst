@@ -22,19 +22,31 @@ Connecting
 ==========
 
 Point the CLI at the local instance once it is running (see
-:doc:`/deployment/nix` to bring it up).
+:doc:`/deployment/nix` to bring it up). The interactive login opens a browser,
+which a host with no desktop has not got, so do the first-run setup over the
+API. A fresh instance ships the default superadmin ``admin@windmill.dev`` /
+``changeme`` and only a ``starter`` workspace; authenticate, create the
+``kdevops`` workspace, mint a CLI token, and point ``wmill`` at it:
 
 .. code-block:: console
 
-   $ wmill workspace add kdevops kdevops http://localhost:8000/ --token <token>
-   $ wmill init
+   $ url=http://localhost:8000
+   $ sess=$(curl --silent --request POST "$url/api/auth/login" \
+       --header 'Content-Type: application/json' \
+       --data '{"email":"admin@windmill.dev","password":"changeme"}')
+   $ curl --silent --request POST "$url/api/workspaces/create" \
+       --header "Authorization: Bearer $sess" \
+       --header 'Content-Type: application/json' \
+       --data '{"id":"kdevops","name":"kdevops"}'
+   $ token=$(curl --silent --request POST "$url/api/users/tokens/create" \
+       --header "Authorization: Bearer $sess" \
+       --header 'Content-Type: application/json' \
+       --data '{"label":"wmill-cli"}')
+   $ wmill workspace add kdevops kdevops "$url/" --token "$token"
 
-Pass ``--token``; the interactive login opens a browser, which a host with no
-desktop cannot do. A fresh instance starts with the default superadmin
-``admin@windmill.dev`` / ``changeme`` and a ``starter`` workspace, so log in to
-the UI once to create the ``kdevops`` workspace and a token (account settings),
-then run the command above. ``wmill init`` writes AI-assistant context and a few
-editor files that are git-ignored; it is optional.
+Change that default password after the first login. ``wmill init`` writes
+AI-assistant context and a few editor files that are git-ignored; it is
+optional.
 
 Two workflows
 =============
