@@ -1,21 +1,5 @@
 {
   "nodes": {
-    "nixos-flake": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "path": "./vendor/nixos-flake",
-        "type": "path"
-      },
-      "original": {
-        "path": "./vendor/nixos-flake",
-        "type": "path"
-      },
-      "parent": []
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1782116945,
@@ -34,7 +18,6 @@
     },
     "root": {
       "inputs": {
-        "nixos-flake": "nixos-flake",
         "nixpkgs": "nixpkgs"
       }
     }
