@@ -9,6 +9,7 @@ Requires=windmill-db.service
 After=windmill-db.service
 
 [Service]
+StateDirectory=windmill
 Environment=MODE=worker
 Environment=NATIVE_MODE=true
 Environment=WORKER_GROUP=native

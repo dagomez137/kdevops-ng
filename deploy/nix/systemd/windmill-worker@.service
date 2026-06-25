@@ -35,6 +35,7 @@ Requires=windmill-db.service
 After=windmill-db.service
 
 [Service]
+StateDirectory=windmill
 Environment=MODE=worker
 Environment=NUM_WORKERS=1
 Environment=WORKER_GROUP=default

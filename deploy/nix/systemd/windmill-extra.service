@@ -14,6 +14,7 @@ Requires=windmill.service
 After=windmill.service
 
 [Service]
+StateDirectory=windmill
 Environment=PORT=3001
 Environment=WINDMILL_BASE_URL=http://127.0.0.1:8002
 EnvironmentFile=-%E/windmill/windmill-extra.env

@@ -17,6 +17,7 @@ Requires=windmill.service
 After=windmill.service
 
 [Service]
+StateDirectory=windmill
 Environment=WINDMILL_CADDY_PORT=8000
 EnvironmentFile=-%E/windmill/windmill-caddy.env
 ExecStart=%S/windmill/pkgs/caddy/bin/caddy run --adapter caddyfile --config %E/windmill/Caddyfile

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Windmill PostgreSQL, run from nix under systemd --user. The cluster lives
 # under the user state dir (%S = $XDG_STATE_HOME) instead of a podman volume;
-# the socket goes in the runtime dir (%t = $XDG_RUNTIME_DIR). windmill-db-setup
+# the socket goes in a per-service runtime dir (%t/windmill, via
+# RuntimeDirectory=; %t = $XDG_RUNTIME_DIR). windmill-db-setup
 # initdb's the cluster, rotates the password, and creates the windmill database.
 #
 # The binaries are fixed out-links the operator creates:
@@ -13,15 +14,17 @@
 Description=Windmill Database (PostgreSQL)
 
 [Service]
+StateDirectory=windmill
+RuntimeDirectory=windmill
 Type=notify
 NotifyAccess=all
 Environment=WINDMILL_STATE=%S/windmill
 Environment=PGDATA=%S/windmill/pgdata
 Environment=PGPORT=5432
-Environment=PGHOST_SOCKET=%t
+Environment=PGHOST_SOCKET=%t/windmill
 EnvironmentFile=-%E/windmill/windmill-db.env
 ExecStartPre=%S/windmill/pkgs/db-setup/bin/windmill-db-setup pre
-ExecStart=%S/windmill/pkgs/postgresql/bin/postgres -D %S/windmill/pgdata -c listen_addresses=127.0.0.1 -c port=${PGPORT} -c unix_socket_directories=%t
+ExecStart=%S/windmill/pkgs/postgresql/bin/postgres -D %S/windmill/pgdata -c listen_addresses=127.0.0.1 -c port=${PGPORT} -c unix_socket_directories=%t/windmill
 ExecStartPost=%S/windmill/pkgs/db-setup/bin/windmill-db-setup post
 Restart=on-failure
 
