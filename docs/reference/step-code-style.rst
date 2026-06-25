@@ -202,17 +202,14 @@ time, so ``reportMissingImports`` and ``reportMissingModuleSource`` are set to
 ``none`` at the top level to avoid false unresolved-import noise. Apart from
 those two import diagnostics, ``scripts/`` keeps the basic default.
 
-Comments and docstrings
------------------------
+Docstrings
+----------
 
 A step opens with a module docstring in the ``f/kernel`` and ``f/qemu`` style:
 a short prose summary followed by an ``Equivalent command`` (or
 ``Equivalent bash``) block that shows the operation as a copy-pasteable shell
-command. Inline comments are terse and added only when the code is not
-obvious; a comment may state the why as well as the what. The full why belongs
-in the commit body, never as a redundant inline explanation. There is no
-docstring rule in the gate, and none is wanted: docstring boilerplate would
-conflict with this policy.
+command. There is no docstring rule in the gate, and none is wanted: requiring
+a docstring on every symbol would force boilerplate that restates the obvious.
 
 Naming
 ------

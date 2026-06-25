@@ -63,8 +63,7 @@ When writing or extending Windmill flows and steps, also follow these rules:
   not steps (`common.py`, `identity.py`, `worktree.py`, `store.py`,
   `devshell.py`). Keep one step per concern and let thin flows compose them.
 - **Terse comments, only when needed.** Add a comment only when what the code
-  does is not obvious; it may state the why as well as the what. The full "why"
-  always belongs in the commit body, never as a redundant inline explanation.
+  does is not obvious. The "why" belongs in the commit body, not inline.
 - **Reuse the shared dispatcher.** Run external commands through the
   `f/common/devshell` runners (`DevShell`/`Systemd`/`Nix`/`run_logged`); extend
   that module rather than fork it. Add a new dispatcher only when the work does
