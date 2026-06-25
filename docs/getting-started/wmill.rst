@@ -29,8 +29,12 @@ Point the CLI at the local instance once it is running (see
    $ wmill workspace add kdevops kdevops http://localhost:8000/ --token <token>
    $ wmill init
 
-``wmill init`` writes AI-assistant context and a few editor files that are
-git-ignored; it is optional.
+Pass ``--token``; the interactive login opens a browser, which a host with no
+desktop cannot do. A fresh instance starts with the default superadmin
+``admin@windmill.dev`` / ``changeme`` and a ``starter`` workspace, so log in to
+the UI once to create the ``kdevops`` workspace and a token (account settings),
+then run the command above. ``wmill init`` writes AI-assistant context and a few
+editor files that are git-ignored; it is optional.
 
 Two workflows
 =============

@@ -51,21 +51,40 @@ PCI passthrough (VFIO)
 ======================
 
 Passing a host PCI device (an NVMe drive, say) into a guest needs VFIO, set up
-once with sudo; afterwards the passthrough runs in user mode. Load the driver,
-install the udev rule that lets the ``kvm`` group open the VFIO nodes, and
-reload udev:
+once with sudo; afterwards the passthrough runs in user mode.
+
+First find the address of each device to pass through. ``lspci`` lists them; the
+first column is the address, with the ``0000:`` domain shown by ``-D``:
+
+.. code-block:: console
+
+   $ lspci -nn -D
+   0000:2d:00.0 Non-Volatile memory controller [0108]: Samsung ... [144d:a80a]
+
+List the addresses in a small YAML file, say ``passthrough.yaml``; ``opts`` is
+an optional per-device QEMU device suffix:
+
+.. code-block:: yaml
+
+   pci_passthrough:
+     - addr: "0000:2d:00.0"
+     - addr: "0000:03:00.0"
+       opts: "rombar=0"
+
+Then load the driver, render the udev rule from that file, install it, and
+reload udev (``minijinja-cli`` comes from the dev shell):
 
 .. code-block:: console
 
    $ sudo cp vendor/qemu-system-units/files/vfio-pci.conf \
        /etc/modules-load.d/vfio-pci.conf
    $ sudo modprobe vfio-pci
-   $ minijinja-cli --trim-blocks \
-       vendor/qemu-system-units/templates/vfio-udev.rules.j2 <vm>.yaml \
+   $ nix develop --command minijinja-cli --trim-blocks \
+       vendor/qemu-system-units/templates/vfio-udev.rules.j2 passthrough.yaml \
        | sudo tee /etc/udev/rules.d/10-vfio-kvm.rules
    $ sudo udevadm control --reload-rules
    $ sudo udevadm trigger --subsystem-match=pci
 
 The rule sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"`` so the ``kvm``
-group can open ``/dev/vfio``, with a per-device block for each address in the
-VM's ``pci_passthrough``. Skip this section unless a flow uses passthrough.
+group can open ``/dev/vfio``, with a per-device block for each address. Skip
+this section unless a flow uses passthrough.
