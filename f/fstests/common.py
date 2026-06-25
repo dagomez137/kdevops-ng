@@ -1016,7 +1016,8 @@ class RemoteSystemd:
                 "--show-cursor",
             ]
             args += selector + [f"_SYSTEMD_UNIT={unit}", "+", "_TRANSPORT=kernel"]
-            return self.ssh(*args, check=False) or ""
+            out = self.ssh(*args, check=False)
+            return out if isinstance(out, str) else ""
 
         out = _query([f"--after-cursor={cursor}"] if cursor else ["--boot"])
         if cursor and "Failed to seek to cursor" in out:

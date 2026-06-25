@@ -65,7 +65,7 @@ def _per_test_rows(section: str, per_test: list[dict]) -> list[dict]:
             {
                 "section": section,
                 "test": t.get("test"),
-                "status": _ICON.get(t.get("status"), t.get("status", "")),
+                "status": _ICON.get(t.get("status", ""), t.get("status", "")),
                 "runs": runs,
                 "fails": f"{fails}/{runs}" if runs > 1 else fails,
                 "time(s)": t.get("time", 0),
