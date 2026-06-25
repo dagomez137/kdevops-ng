@@ -31,10 +31,23 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
       treefmtFor = system: treefmt-nix.lib.evalModule (pkgsFor system) ./nix/treefmt.nix;
+      # One toolsets evaluation per system, shared by the devShells and the apps
+      # so a shell and its matching app can never drift.
+      perSystem = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor system;
+          toolsets = import ./nix/toolsets.nix { inherit pkgs; };
+        in
+        {
+          devShells = import ./nix/devshells { inherit pkgs toolsets; };
+          apps = import ./nix/apps { inherit pkgs toolsets; };
+        }
+      );
     in
     {
-      devShells = forAllSystems (system: import ./nix/devshells { pkgs = pkgsFor system; });
-      apps = forAllSystems (system: import ./nix/apps { pkgs = pkgsFor system; });
+      devShells = nixpkgs.lib.mapAttrs (_: v: v.devShells) perSystem;
+      apps = nixpkgs.lib.mapAttrs (_: v: v.apps) perSystem;
       formatter = forAllSystems (system: (treefmtFor system).config.build.wrapper);
     };
 }
