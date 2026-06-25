@@ -84,7 +84,8 @@ symlinks so they start at login) and starts in one step:
    loginctl enable-linger "$USER"
    systemctl --user enable --now \
        windmill-db windmill windmill-extra windmill-native windmill-caddy
-   systemctl --user enable --now windmill-worker@0000 windmill-worker@0001
+   systemctl --user enable --now windmill-worker@0000 windmill-worker@0001 \
+       windmill-worker@0002 windmill-worker@0003
 
 The database service runs ``windmill-db-setup`` on first boot: it initialises
 the cluster under the state directory, rotates the role password off the shared
@@ -146,33 +147,37 @@ Workers are ``windmill-worker@`` instances differentiated only by worker group
 and tags, the canonical Windmill mechanism. Instance names are zero-padded
 (``windmill-worker@0000``, ``@0001``) so they sort in order under ``systemctl
 --user list-units``; the index is only the worker's sandbox-dir label, not a
-number Windmill reads. The default group ``default`` is the build pool, so
-enabling more instances widens build concurrency.
+number Windmill reads.
 
-The kdevops workspace also drives QEMU virtual machines through systemd (the
-``f/qsu`` steps), which a default worker does not serve. Those jobs use the
-``vm`` group, split across two tags so a long job never starves a quick one: the
-``vm`` tag is the quick lifecycle and control ops (boot, stop, destroy,
-status), the ``vm-run`` tag is only the long-lived fstests wait poll. The
-``vm-run`` instance count is the concurrent-test-run cap.
+The default deploy ships the full mix, so every flow runs out of the box:
+``@0000`` and ``@0001`` in the build pool (group ``default``), ``@0002`` in the
+``vm`` group on the ``vm`` tag, and ``@0003`` in the ``vm`` group on the
+``vm-run`` tag. The vm and vm-run instances get their group and tags from
+per-instance drop-ins the install step writes.
 
-Give an instance the vm role with a per-instance drop-in (``systemctl edit``
-opens your editor, set above):
+The kdevops workspace drives QEMU virtual machines through systemd (the
+``f/qsu`` steps), and those jobs use the ``vm`` group, split across two tags so
+a long job never starves a quick one: the ``vm`` tag is the quick lifecycle and
+control ops (boot, stop, destroy, status), the ``vm-run`` tag is only the
+long-lived fstests wait poll. The ``vm-run`` instance count is the
+concurrent-test-run cap. The vm group needs the :term:`System workbench`
+provisioned and the host ``vhost_vsock`` module loaded.
+
+Scale a role by enabling more instances: add ``default`` instances to widen
+build concurrency, or ``vm-run`` instances to raise the test-run cap. Drop a
+per-instance override in, then enable it:
 
 .. code-block:: shell
 
-   systemctl --user edit windmill-worker@0002
+   systemctl --user edit windmill-worker@0004   # then in the drop-in:
 
 .. code-block:: ini
 
    [Service]
    Environment=WORKER_GROUP=vm
-   Environment=WORKER_TAGS=vm
+   Environment=WORKER_TAGS=vm-run
 
-Use ``WORKER_TAGS=vm-run`` on the instances that run the poll, then enable each
-with ``systemctl --user enable --now windmill-worker@0002``. The vm group needs
-the :term:`System workbench` provisioned and the host ``vhost_vsock`` module
-loaded.
+Then ``systemctl --user enable --now windmill-worker@0004``.
 
 On a separate host
 ~~~~~~~~~~~~~~~~~~~
