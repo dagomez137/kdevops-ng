@@ -106,6 +106,44 @@ let
     rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
   '';
 
+  # trust: caddy serves HTTPS with its own internal CA (the Caddyfile sets
+  # skip_install_trust, so nothing is trusted automatically). On this loopback-
+  # only host reached over an SSH forward, the browser runs on the client, not
+  # here, and `caddy trust` only installs into a local store via the admin API
+  # the Caddyfile disables. So the useful operation is to surface the root the
+  # client must trust: print its path and the steps to trust it there.
+  windmillTrust = ''
+    root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
+    if [ ! -f "$root" ]; then
+      echo "kdevops: no caddy root CA at $root" >&2
+      echo "kdevops: activate the stack first (nix run .#windmill-activate)" >&2
+      exit 1
+    fi
+    echo "caddy root CA: $root"
+    cat <<EOF
+    Trust it where the browser runs, which is your SSH-forward client, not this
+    host. Copy it over:
+      scp "$USER@<host>:$root" windmill-root.crt
+    then trust it on the client:
+      Firefox  Settings > Privacy & Security > Certificates > Authorities > Import
+      NSS      certutil -d sql:~/.pki/nssdb -A -t "C,," -n windmill-local -i windmill-root.crt
+      macOS    security add-trusted-cert -d -r trustRoot -k login.keychain windmill-root.crt
+    EOF
+  '';
+
+  # untrust: the mirror, for a host that did trust the CA locally. `caddy
+  # untrust --cert` reads the PEM directly, so it works without the admin API
+  # that trust needs. A no-op where the CA was never installed.
+  windmillUntrust = ''
+    root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
+    caddy="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill/sw/caddy/bin/caddy"
+    if [ ! -x "$caddy" ]; then
+      echo "kdevops: caddy not built at $caddy (nix run .#windmill-build)" >&2
+      exit 1
+    fi
+    "$caddy" untrust --cert "$root"
+  '';
+
   # Drop-in for the worker template on a host that runs workers only. There is no
   # local database to order against, so clear that dependency; and db-setup,
   # which writes the required database.env, does not run here, so make that file
@@ -149,6 +187,8 @@ let
           nix run .#windmill-uninstall       remove its units + Caddyfile
           nix run .#windmill-wipe            delete its data (database, out-links)
           nix run .#windmill-teardown        deactivate, uninstall, and wipe at once
+          nix run .#windmill-trust           show the caddy root CA to trust on the client
+          nix run .#windmill-untrust         untrust the caddy root CA on this host
           nix run .#windmill-worker-install  set up this host as a worker for a server
           nix run .#windmill-worker-activate enable N worker instances (arg: N)
           nix run .#disable-linger           drop user linger (user-global; opt-in)
@@ -273,6 +313,29 @@ in
       ${windmillWipe}
       echo "windmill torn down and wiped"
     '';
+  };
+
+  # Surface the caddy root CA so it can be trusted on the SSH-forward client.
+  # No repo cwd, so plain apps rather than going through mkApp (like
+  # disable-linger). trust only reads and prints the root; untrust runs the
+  # built caddy to remove it from this host's trust store.
+  windmill-trust = {
+    type = "app";
+    program = lib.getExe (writeShellApplication {
+      name = "kdevops-windmill-trust";
+      runtimeInputs = [ pkgs.coreutils ];
+      text = windmillTrust;
+    });
+    meta.description = "Show the caddy root CA path to trust on the SSH-forward client";
+  };
+
+  windmill-untrust = {
+    type = "app";
+    program = lib.getExe (writeShellApplication {
+      name = "kdevops-windmill-untrust";
+      text = windmillUntrust;
+    });
+    meta.description = "Untrust the caddy root CA from this host's trust store";
   };
 
   # A worker-only host that joins an existing server, in two stages so the

@@ -84,8 +84,12 @@ the LSP gateway on ``127.0.0.1:3001``, and caddy fronts both on
    ssh -L 8000:localhost:8000 <user>@<host>   # then https://localhost:8000
 
 The default is HTTPS with caddy's internal CA, so the browser warns once on the
-untrusted certificate. Run ``<state>/sw/caddy/bin/caddy trust`` to install the
-root and remove the warning.
+untrusted certificate. The browser runs on the client that opens the forward,
+not on the host, so the certificate has to be trusted there. ``nix run
+.#windmill-trust`` prints the root CA path and the steps to copy and trust it on
+the client; ``nix run .#windmill-untrust`` removes it again. Host-side
+``caddy trust`` does not apply here: the Caddyfile disables the admin API it
+reads from, and a headless host has no browser store to install into.
 
 Configure
 =========
