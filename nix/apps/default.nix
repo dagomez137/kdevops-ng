@@ -57,7 +57,15 @@ let
 
   # Linger stays: it is user-global; the disable-linger app drops it.
   windmillDeactivate = ''
-    systemctl --user disable --now 'windmill*'
+    config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+    # systemctl stop takes a glob; disable does not. Stop by glob, then disable
+    # each unit that has an install symlink, the worker instances included.
+    systemctl --user stop 'windmill*' || true
+    shopt -s nullglob
+    for link in "$config"/systemd/user/default.target.wants/windmill*; do
+      systemctl --user disable "''${link##*/}"
+    done
+    systemctl --user daemon-reload
   '';
 
   windmillUninstall = ''

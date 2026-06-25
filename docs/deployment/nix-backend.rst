@@ -256,12 +256,16 @@ Deactivate
 ----------
 
 ``nix run .#windmill-deactivate`` stops and disables the services and any worker
-instances. ``disable --now`` disables the ``[Install]`` symlinks and stops in
-one step:
+instances. ``systemctl stop`` accepts a glob but ``disable`` does not, so it
+stops everything by glob, then disables each unit that has an install symlink
+(the worker template instances included):
 
 .. code-block:: shell
 
-   systemctl --user disable --now 'windmill*'
+   systemctl --user stop 'windmill*'
+   for link in ~/.config/systemd/user/default.target.wants/windmill*; do
+       systemctl --user disable "${link##*/}"
+   done
 
 Linger is left enabled. It is user-global, not a Windmill setting, so disabling
 it would stop every lingering user service, the workbench mirrors included. Drop
