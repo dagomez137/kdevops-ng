@@ -277,10 +277,11 @@ in
 
   # A worker-only host that joins an existing server, in two stages so the
   # operator points the worker at the server's database in between. install
-  # builds just the worker binary and installs the worker unit plus the drop-in
-  # that clears its local-database dependency; it bakes in no DATABASE_URL,
-  # because a worker-only host has no local database to default to. activate
-  # enables N instances once DATABASE_URL is set.
+  # builds just the windmill binary (only #windmill, not the database, proxy, and
+  # rest that windmill-build produces) and installs the worker unit plus the
+  # drop-in that clears its local-database dependency; it bakes in no
+  # DATABASE_URL, because a worker-only host has no local database to default to.
+  # activate enables N instances once DATABASE_URL is set.
   windmill-worker-install = mkApp {
     name = "kdevops-windmill-worker-install";
     description = "Build and install the Windmill worker unit for a remote server";
@@ -303,12 +304,12 @@ in
     '';
   };
 
-  # Enable and start N worker instances. windmill-worker@ is a systemd template,
-  # so this just instantiates it; add more any time with the same systemctl call,
-  # no rebuild or reinstall.
+  # Enable and start worker instances 0..N-1; idempotent, so re-running with a
+  # larger count is how you scale up. windmill-worker@ is a systemd template, so
+  # this just instantiates it, no rebuild or reinstall.
   windmill-worker-activate = mkApp {
     name = "kdevops-windmill-worker-activate";
-    description = "Enable and start N Windmill worker instances (arg: count)";
+    description = "Enable and start N Windmill worker instances; re-run to scale";
     text = ''
       count="''${1:-1}"
       case "$count" in
@@ -319,10 +320,13 @@ in
       esac
       loginctl enable-linger "$USER"
       for ((i = 0; i < count; i++)); do
-        systemctl --user enable --now "windmill-worker@$i"
+        printf -v idx '%04d' "$i"
+        systemctl --user enable --now "windmill-worker@$idx"
       done
-      echo "enabled worker@0..$((count - 1)); add more with:"
-      echo "  systemctl --user enable --now windmill-worker@<n>"
+      last=$(printf '%04d' "$((count - 1))")
+      echo "enabled worker@0000..$last. Scale up by re-running this with a"
+      echo "larger count; a single instance can also be added with:"
+      echo "  systemctl --user enable --now windmill-worker@<NNNN>"
     '';
   };
 

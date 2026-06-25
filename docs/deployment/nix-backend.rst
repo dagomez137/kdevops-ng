@@ -150,11 +150,14 @@ On a separate host
 
 A second machine can run workers for an existing server without the rest of the
 stack, in two steps with the database pointed at the server in between.
-``nix run .#windmill-worker-install`` builds only the worker binary and installs
-only the ``windmill-worker@`` unit, with a drop-in that clears its
-local-database dependency and makes the server-written ``database.env``
-optional. It bakes in no ``DATABASE_URL``, because a worker-only host has no
-local database to default to; set it, then enable as many instances as you want:
+``nix run .#windmill-worker-install`` builds just the windmill binary, the same
+one the worker runs in worker mode, not the database, proxy, and rest that
+``windmill-build`` produces, so there is no separate worker build and no need to
+run ``windmill-build`` first. It installs only the ``windmill-worker@`` unit,
+with a drop-in that clears its local-database dependency and makes the
+server-written ``database.env`` optional. It bakes in no ``DATABASE_URL``,
+because a worker-only host has no local database to default to; set it, then
+enable as many instances as you want:
 
 .. code-block:: shell
 
@@ -170,12 +173,15 @@ instance:
    [Service]
    Environment=DATABASE_URL=postgres://user:pw@server:5432/windmill
 
+``windmill-worker-activate`` is idempotent, so scaling up is just re-running it
+with a larger count: ``nix run .#windmill-worker-activate -- 8``. Underneath,
 ``windmill-worker@`` is a systemd template, so each instance points at the one
-unit file. Enabling more workers afterwards needs no rebuild or reinstall, just
-``systemctl --user enable --now windmill-worker@4``. The server's PostgreSQL
-must be reachable from this host: it binds ``127.0.0.1`` by default, so expose
-it or tunnel. Build-pool workers also need the :term:`System workbench`
-provisioned here, the same ``f/workbench`` init flow as on any worker host.
+unit file and a single one can also be added with ``systemctl --user enable
+--now windmill-worker@4`` (no rebuild or reinstall either way). The server's
+PostgreSQL must be reachable from this host: it binds ``127.0.0.1`` by default,
+so expose it or tunnel. Build-pool workers also need the :term:`System
+workbench` provisioned here, the same ``f/workbench`` init flow as on any worker
+host.
 
 TLS and the base URL
 --------------------
