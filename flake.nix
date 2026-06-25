@@ -52,7 +52,10 @@
           toolsets = import ./nix/toolsets.nix { inherit pkgs; };
         in
         {
-          devShells = import ./nix/devshells { inherit pkgs toolsets; };
+          devShells = import ./nix/devshells {
+            inherit pkgs toolsets;
+            inherit (windmill-deploy.packages.${system}) wmill;
+          };
           apps = import ./nix/apps { inherit pkgs toolsets; };
           checks =
             import ./nix/checks.nix {
