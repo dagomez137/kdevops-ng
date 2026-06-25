@@ -5,9 +5,9 @@ same DB, same `wmill.yaml`). Deploy one, then `wmill sync push`.
 
 | Method | Dir | Runtime | Status |
 |---|---|---|---|
-| Podman | `podman/` | rootless containers + Quadlet (systemd --user) | ✅ working |
-| Distro | `distro/` | release binary + apt postgres, systemd services (no container runtime) | TODO |
-| Nix    | `nix/`    | flake / NixOS module | TODO |
+| Nix    | `nix/`    | nix flake + systemd --user (no container runtime) | ✅ default |
+| Podman | `podman/` | rootless containers + Quadlet (systemd --user) | retired |
+| Distro | `distro/` | release binary + apt postgres, systemd services (no container runtime) | planned |
 
 To run a patched server (a fix not yet in a release) instead of the upstream
 `windmill:main` image, see

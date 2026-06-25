@@ -313,7 +313,7 @@ deactivate so the cluster is stopped:
 .. code-block:: shell
 
    state=~/.local/state/windmill
-   rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
+   rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"
 
 Switching from Podman
 =====================
