@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 #
 # The project's developer and CI entry point. kdevops-ng does its tooling in
-# nix: this root flake owns the repo's own tooling (lint, format, type-check,
-# docs) as devShells and apps, so `make` targets are thin forwarders to
-# `nix run .#<verb>`.
+# nix, and each output uses the mechanism that fits its purpose: read-only
+# verification is `checks` (run by `nix flake check`), `devShells` carry the
+# tools for interactive and advisory use, `apps` are the programs that mutate,
+# serve, build, or query, and `formatter` is treefmt for `nix fmt`. The Makefile
+# is a thin front door that routes each target to the right one of these.
 #
-# Organisation is by concern, not by tool: devShells are per workflow (checks,
-# docs), apps are per verb. The worker-runtime build shells stay in
-# vendor/nixos-flake because workers reach them by path; only developer-facing
-# tooling lives here. That library becomes an input in the phase that re-exports
-# its shells, not before.
+# The worker-runtime build shells stay in vendor/nixos-flake because workers
+# reach them by path; only developer-facing tooling lives here. That library
+# becomes an input in the phase that re-exports its shells, not before.
 {
   description = "kdevops-ng developer and CI tooling for the Windmill workspace";
 
