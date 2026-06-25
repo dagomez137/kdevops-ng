@@ -329,7 +329,7 @@ def _nvme_drives(fi: dict) -> list[dict]:
             except ValueError:
                 raise ValueError(
                     f"nvme drive {i} pmr size {pmr_size!r} is not an integer (bytes)"
-                )
+                ) from None
             # 0 (or an empty comma-list part) means no PMR on this drive; lets a comma-list
             # enable PMR on a subset ("16777216,0" -> drive 0 only).
             if size:
