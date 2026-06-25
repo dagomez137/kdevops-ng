@@ -50,10 +50,13 @@ Log out and back in for the group change to take effect.
 PCI passthrough (VFIO)
 ======================
 
-Passing a host PCI device (an NVMe drive, say) into a guest needs VFIO, set up
-once with sudo; afterwards the passthrough runs in user mode.
+Letting a guest take a host PCI device (an NVMe drive, say) needs VFIO. This is
+a one-time sudo setup that grants the ``kvm`` group access to the devices you
+may want to hand to guests; after it, a flow binds and passes a device in user
+mode, with no sudo at VM time. Do it only for devices you intend to make
+available; skip the section otherwise.
 
-First find the address of each device to pass through. ``lspci`` lists them; the
+First list the host PCI devices and note the address of each candidate. The
 first column is the address, with the ``0000:`` domain shown by ``-D``:
 
 .. code-block:: console
@@ -61,8 +64,7 @@ first column is the address, with the ``0000:`` domain shown by ``-D``:
    $ lspci -nn -D
    0000:2d:00.0 Non-Volatile memory controller [0108]: Samsung ... [144d:a80a]
 
-List the addresses in a small YAML file, say ``passthrough.yaml``; ``opts`` is
-an optional per-device QEMU device suffix:
+Record the addresses in a small YAML file, say ``passthrough.yaml``:
 
 .. code-block:: yaml
 
@@ -71,20 +73,35 @@ an optional per-device QEMU device suffix:
      - addr: "0000:03:00.0"
        opts: "rombar=0"
 
-Then load the driver, render the udev rule from that file, install it, and
-reload udev (``minijinja-cli`` comes from the dev shell):
+``opts`` is an optional string of extra QEMU ``-device vfio-pci`` properties
+(``rombar=0`` drops the option-ROM BAR). List the available ones with
+``qemu-system-x86_64 -device vfio-pci,help``; see the QEMU `device emulation`_
+guide for the syntax and the kernel `VFIO`_ docs for the framework.
+
+.. _device emulation: https://www.qemu.org/docs/master/system/device-emulation.html
+.. _VFIO: https://docs.kernel.org/driver-api/vfio.html
+
+Load the ``vfio-pci`` driver:
 
 .. code-block:: console
 
    $ sudo cp vendor/qemu-system-units/files/vfio-pci.conf \
        /etc/modules-load.d/vfio-pci.conf
    $ sudo modprobe vfio-pci
+
+Render the udev rule from your file and install it (``minijinja-cli`` comes from
+the dev shell). It sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"`` so the
+``kvm`` group can open ``/dev/vfio``, with a per-device block for each address:
+
+.. code-block:: console
+
    $ nix develop --command minijinja-cli --trim-blocks \
        vendor/qemu-system-units/templates/vfio-udev.rules.j2 passthrough.yaml \
        | sudo tee /etc/udev/rules.d/10-vfio-kvm.rules
+
+Reload udev so the rule takes effect:
+
+.. code-block:: console
+
    $ sudo udevadm control --reload-rules
    $ sudo udevadm trigger --subsystem-match=pci
-
-The rule sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"`` so the ``kvm``
-group can open ``/dev/vfio``, with a per-device block for each address. Skip
-this section unless a flow uses passthrough.
