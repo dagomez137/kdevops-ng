@@ -80,7 +80,7 @@ symlinks so they start at login) and starts in one step:
    loginctl enable-linger "$USER"
    systemctl --user enable --now \
        windmill-db windmill windmill-extra windmill-native windmill-caddy
-   systemctl --user enable --now windmill-worker@0 windmill-worker@1
+   systemctl --user enable --now windmill-worker@0000 windmill-worker@0001
 
 The database service runs ``windmill-db-setup`` on first boot: it initialises
 the cluster under the state directory, rotates the role password off the shared
@@ -132,8 +132,11 @@ Workers
 -------
 
 Workers are ``windmill-worker@`` instances differentiated only by worker group
-and tags, the canonical Windmill mechanism. The default group ``default`` is the
-build pool, so enabling more instances widens build concurrency.
+and tags, the canonical Windmill mechanism. Instance names are zero-padded
+(``windmill-worker@0000``, ``@0001``) so they sort in order under ``systemctl
+--user list-units``; the index is only the worker's sandbox-dir label, not a
+number Windmill reads. The default group ``default`` is the build pool, so
+enabling more instances widens build concurrency.
 
 The kdevops workspace also drives QEMU virtual machines through systemd (the
 ``f/qsu`` steps), which a default worker does not serve. Those jobs use the
@@ -147,7 +150,7 @@ opens your editor, set above):
 
 .. code-block:: shell
 
-   systemctl --user edit windmill-worker@2
+   systemctl --user edit windmill-worker@0002
 
 .. code-block:: ini
 
@@ -156,8 +159,9 @@ opens your editor, set above):
    Environment=WORKER_TAGS=vm
 
 Use ``WORKER_TAGS=vm-run`` on the instances that run the poll, then enable each
-with ``systemctl --user enable --now windmill-worker@2``. The vm group needs the
-:term:`System workbench` provisioned and the host ``vhost_vsock`` module loaded.
+with ``systemctl --user enable --now windmill-worker@0002``. The vm group needs
+the :term:`System workbench` provisioned and the host ``vhost_vsock`` module
+loaded.
 
 On a separate host
 ~~~~~~~~~~~~~~~~~~~
@@ -191,7 +195,7 @@ instance:
 with a larger count: ``nix run .#windmill-worker-activate -- 8``. Underneath,
 ``windmill-worker@`` is a systemd template, so each instance points at the one
 unit file and a single one can also be added with ``systemctl --user enable
---now windmill-worker@4`` (no rebuild or reinstall either way). The server's
+--now windmill-worker@0004`` (no rebuild or reinstall either way). The server's
 PostgreSQL must be reachable from this host: it binds ``127.0.0.1`` by default,
 so expose it or tunnel. Build-pool workers also need the :term:`System
 workbench` provisioned here, the same ``f/workbench`` init flow as on any worker
