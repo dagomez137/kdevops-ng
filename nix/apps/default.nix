@@ -100,10 +100,10 @@ let
     fi
     echo "caddy root CA: $root"
     cat <<EOF
-    Trust it where the browser runs, which is your SSH-forward client, not this
-    host. Copy it over:
+    Trust it where the browser runs. For a local browser, trust the file above
+    on this host. For a remote browser, copy it to the SSH-forward client first:
       scp "$USER@<host>:$root" windmill-root.crt
-    then trust it on the client:
+    then trust it there:
       Firefox  Settings > Privacy & Security > Certificates > Authorities > Import
       NSS      certutil -d sql:~/.pki/nssdb -A -t "C,," -n windmill-local -i windmill-root.crt
       macOS    security add-trusted-cert -d -r trustRoot -k login.keychain windmill-root.crt
