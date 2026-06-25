@@ -17,7 +17,7 @@ let
     {
       name,
       description,
-      runtimeInputs,
+      runtimeInputs ? [ ],
       text,
     }:
     let
@@ -40,8 +40,11 @@ let
       meta = { inherit description; };
     };
 
-  # Shared build sequence for the Windmill stack: the out-links the units read
-  # through the %S state-dir specifier. Sets `state` and `sw` for callers.
+  # The Windmill deploy stages, each a self-contained shell snippet so its app
+  # runs on its own and windmill-deploy can compose all three.
+  #
+  # build: compile the components to the out-links the units read through the %S
+  # state-dir specifier.
   windmillBuild = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     sw="$state/sw"
@@ -50,6 +53,27 @@ let
     nix build ./deploy/nix#db-setup       --out-link "$sw/db-setup"
     nix build ./deploy/nix#caddy          --out-link "$sw/caddy"
     nix build ./deploy/nix#windmill-extra --out-link "$sw/windmill-extra"
+  '';
+
+  # install: place the units and Caddyfile where the user manager and proxy read
+  # them (%E is $XDG_CONFIG_HOME, %S is $XDG_STATE_HOME).
+  windmillInstall = ''
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
+    config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+    mkdir --parents "$config/systemd/user" "$state"
+    cp deploy/nix/systemd/*.service "$config/systemd/user/"
+    cp deploy/nix/Caddyfile "$state/Caddyfile"
+  '';
+
+  # activate: reload the manager onto the installed units, linger the user so
+  # they run without a login session, then enable (persist) and start the
+  # services and workers. `enable --now` enables and starts in one step.
+  windmillActivate = ''
+    systemctl --user daemon-reload
+    loginctl enable-linger "$USER"
+    systemctl --user enable --now \
+      windmill-db windmill windmill-extra windmill-native windmill-caddy
+    systemctl --user enable --now windmill-worker@0000 windmill-worker@0001
   '';
 
   # A plain menu printer (no repo cwd needed): `nix run` lists the commands.
@@ -73,7 +97,9 @@ let
           nix run .#maintainers -- FILE      who to Cc for a change
           nix develop .#checks               shell with all tooling on PATH
           nix run .#windmill-build           build the Windmill deploy stack
-          nix run .#windmill-deploy          build, install, and enable it
+          nix run .#windmill-install         install its systemd units + Caddyfile
+          nix run .#windmill-activate        enable and start its services
+          nix run .#windmill-deploy          build, install, and activate at once
 
         Details: docs/contributing/development.rst   Outputs: nix flake show
         MENU
@@ -130,34 +156,37 @@ in
     text = ''perl scripts/get_maintainer.pl --no-tree --no-git-fallback -f "$@"'';
   };
 
-  # Build the Windmill stack (deploy/nix) to the GC-rooted out-links the
-  # systemd --user units reach through the %S state-dir specifier. The server
-  # build is heavy (~10 GB). nix is taken from the caller's environment.
+  # The Windmill deploy stack (deploy/nix), built and run under systemd --user.
+  # nix, systemctl, and loginctl come from the caller's running user session;
+  # the server build is heavy (~10 GB). The three stages run on their own for
+  # step-by-step control, and windmill-deploy runs all of them at once.
   windmill-build = mkApp {
     name = "kdevops-windmill-build";
     description = "Build the Windmill deploy stack to its out-links";
-    runtimeInputs = [ pkgs.coreutils ];
     text = windmillBuild;
   };
 
-  # Build, install the units and Caddyfile, and enable the services: the
-  # documented deploy sequence (docs/deployment/nix-backend.rst) as one command.
-  # systemctl, loginctl, and nix come from the caller's running user session.
+  windmill-install = mkApp {
+    name = "kdevops-windmill-install";
+    description = "Install the Windmill systemd --user units and Caddyfile";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = windmillInstall;
+  };
+
+  windmill-activate = mkApp {
+    name = "kdevops-windmill-activate";
+    description = "Enable and start the Windmill systemd --user services";
+    text = windmillActivate;
+  };
+
   windmill-deploy = mkApp {
     name = "kdevops-windmill-deploy";
-    description = "Build, install, and enable the Windmill systemd --user stack";
+    description = "Build, install, and activate the whole Windmill stack";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
       ${windmillBuild}
-      config="''${XDG_CONFIG_HOME:-$HOME/.config}"
-      mkdir --parents "$config/systemd/user" "$state"
-      cp deploy/nix/systemd/*.service "$config/systemd/user/"
-      cp deploy/nix/Caddyfile "$state/Caddyfile"
-      loginctl enable-linger "$USER"
-      systemctl --user daemon-reload
-      systemctl --user enable --now \
-        windmill-db windmill windmill-extra windmill-native windmill-caddy
-      systemctl --user enable --now windmill-worker@0 windmill-worker@1
+      ${windmillInstall}
+      ${windmillActivate}
       echo "windmill deployed; reach the UI with: ssh -L 8000:localhost:8000 $USER@<host>"
     '';
   };

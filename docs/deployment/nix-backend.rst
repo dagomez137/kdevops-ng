@@ -41,17 +41,33 @@ fourteenth language, Oracle, which pulls the unfree Oracle Instant Client.
 Deploy
 ======
 
-``nix run .#windmill-deploy`` builds the stack and then installs the units into
-the user unit directory and the Caddyfile where the proxy reads it, and enables
-the services. ``enable-linger`` lets them run without an active login session.
-On top of the build it runs:
+``nix run .#windmill-deploy`` does the whole sequence at once: build, install,
+activate. The two deploy stages also run on their own, so you can customise the
+installed units (``systemctl --user edit``) between installing and activating.
+
+Install
+-------
+
+``nix run .#windmill-install`` places the units in the user unit directory and
+the Caddyfile where the proxy reads it:
 
 .. code-block:: shell
 
    cp deploy/nix/systemd/*.service ~/.config/systemd/user/
    cp deploy/nix/Caddyfile ~/.local/state/windmill/Caddyfile
-   loginctl enable-linger "$USER"
+
+Activate
+--------
+
+``nix run .#windmill-activate`` reloads the manager onto the installed units,
+lingers the user so the services run without an active login session, then
+enables and starts them. ``enable --now`` enables (creates the ``[Install]``
+symlinks so they start at login) and starts in one step:
+
+.. code-block:: shell
+
    systemctl --user daemon-reload
+   loginctl enable-linger "$USER"
    systemctl --user enable --now \
        windmill-db windmill windmill-extra windmill-native windmill-caddy
    systemctl --user enable --now windmill-worker@0 windmill-worker@1
