@@ -11,7 +11,8 @@ truth. See the upstream `wmill CLI`_ documentation for the full command set.
 .. _wmill CLI: https://www.windmill.dev/docs/advanced/cli
 
 ``wmill`` is provisioned from Nix, pinned to the server version, not a host
-install. Enter the dev shell with ``nix develop`` to put it on ``PATH``, or
+install. Enter the development shell with ``nix develop`` to put it on
+``PATH``, or
 prefix a single command with ``nix develop --command``:
 
 .. code-block:: console
@@ -22,24 +23,28 @@ Connecting
 ==========
 
 Point the CLI at the local instance once it is running (see
-:doc:`/deployment/nix` to bring it up). ``wmill`` logs in through a browser or a
-pasted token, and a host with no desktop has neither, so fetch one token over
-the API from the seeded superadmin (``admin@windmill.dev`` / ``changeme`` on a
-fresh instance); ``wmill`` does the rest, ``--create`` making the workspace:
+:doc:`/deployment/nix` to bring it up). The CLI and the API talk to the server
+directly on ``127.0.0.1:8002`` (plain HTTP); ``127.0.0.1:8000`` is caddy's HTTPS
+front for the browser, so a request there over ``http://`` fails. ``wmill`` logs
+in through a browser or a pasted token, and a host with no desktop has neither,
+so fetch one token from the seeded superadmin (``admin@windmill.dev`` /
+``changeme`` on a fresh instance); ``wmill`` does the rest, ``--create`` making
+the workspace:
 
 .. code-block:: console
 
-   $ url=http://localhost:8000
+   $ url=http://localhost:8002
    $ token=$(curl --silent --request POST "$url/api/auth/login" \
        --header 'Content-Type: application/json' \
        --data '{"email":"admin@windmill.dev","password":"changeme"}')
    $ wmill workspace add kdevops kdevops "$url/" --token "$token" --create
 
-A fresh instance seeds only a ``starter`` workspace, so ``--create`` adds
-``kdevops``. Change that default password after the first login, and mint a
-durable token with ``wmill token create`` if you want one. ``wmill init`` writes
-AI-assistant context and a few editor files that are git-ignored; it is
-optional.
+The token is saved to ``~/.config/windmill/remotes.ndjson``, so later commands
+are just ``wmill sync push``. A fresh instance seeds only a ``starter``
+workspace, so ``--create`` adds ``kdevops``. Change that default password after
+the first login, and mint a durable token with ``wmill token create`` if you
+want one. ``wmill init`` writes AI-assistant context and a few editor files that
+are git-ignored; it is optional.
 
 Two workflows
 =============
