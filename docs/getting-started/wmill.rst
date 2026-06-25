@@ -21,8 +21,8 @@ prefix a single command with ``nix develop --command``:
 Connecting
 ==========
 
-Point the CLI at the local instance once. ``BOOTSTRAP.md`` covers bringing the
-instance up and creating the workspace.
+Point the CLI at the local instance once it is running (see
+:doc:`/deployment/nix-backend` to bring it up).
 
 .. code-block:: console
 
