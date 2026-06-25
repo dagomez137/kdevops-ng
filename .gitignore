@@ -24,3 +24,7 @@ __pycache__/
 
 # Sphinx HTML output; rebuilt locally and by Read the Docs, never tracked.
 /docs/_build/
+
+# `nix build` GC-root symlinks (e.g. from `nix build .#checks.<system>.lint`).
+/result
+/result-*
