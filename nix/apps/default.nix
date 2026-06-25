@@ -106,4 +106,18 @@ in
       python3 -m http.server "$port" --bind 127.0.0.1 --directory docs/_build/html
     '';
   };
+
+  reflow = mkApp {
+    name = "kdevops-reflow";
+    description = "Rewrap wmill description fields into clean literal blocks";
+    runtimeInputs = [ toolsets.pyEnv ];
+    text = "python3 scripts/reflow-descriptions.py --write";
+  };
+
+  maintainers = mkApp {
+    name = "kdevops-maintainers";
+    description = "Who to Cc for a change (args: one or more files)";
+    runtimeInputs = [ pkgs.perl ];
+    text = ''perl scripts/get_maintainer.pl --no-tree --no-git-fallback -f "$@"'';
+  };
 }

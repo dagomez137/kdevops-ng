@@ -5,8 +5,7 @@ DOCS_PORT ?= 8001
 
 # kdevops-ng does its tooling in nix: each target below is a thin forwarder to a
 # hermetic `nix run .#<verb>` app (defined in nix/apps), so the toolchain is the
-# same on every host and in CI. reflow and maintainers still run on host python
-# and perl; a later phase moves them into the flake too.
+# same on every host and in CI.
 
 # Run before every commit (rule 5). The gate runs generated-file drift, the ruff
 # lint and format check, and the whitespace/EOF/commit-trailer checks, all
@@ -35,11 +34,11 @@ typecheck:
 # Rewrap wmill description fields so wmill keeps them as clean literal blocks.
 # Run after editing descriptions (then `wmill sync push` to store the rewrap).
 reflow:
-	@python3 scripts/reflow-descriptions.py --write
+	@nix run .#reflow
 
 # Who to Cc for a change: make maintainers FILE=f/fstests/report.py
 maintainers:
-	@perl scripts/get_maintainer.pl --no-tree --no-git-fallback -f $(FILE)
+	@nix run .#maintainers -- $(FILE)
 
 # Render the documentation locally with the flake's pinned Sphinx toolchain.
 docs:
