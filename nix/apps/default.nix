@@ -45,6 +45,14 @@ let
     mkdir --parents "$config/systemd/user" "$config/windmill"
     cp deploy/nix/systemd/*.service "$config/systemd/user/"
     cp deploy/nix/Caddyfile "$config/windmill/Caddyfile"
+    # Default worker mix: @0000-0001 build, @0002 vm, @0003 vm-run.
+    mkdir --parents \
+      "$config/systemd/user/windmill-worker@0002.service.d" \
+      "$config/systemd/user/windmill-worker@0003.service.d"
+    cp --no-preserve=mode ${workerVmDropIn} \
+      "$config/systemd/user/windmill-worker@0002.service.d/group.conf"
+    cp --no-preserve=mode ${workerVmRunDropIn} \
+      "$config/systemd/user/windmill-worker@0003.service.d/group.conf"
   '';
 
   windmillActivate = ''
@@ -52,7 +60,8 @@ let
     loginctl enable-linger "$USER"
     systemctl --user enable --now \
       windmill-db windmill windmill-extra windmill-native windmill-caddy
-    systemctl --user enable --now windmill-worker@0000 windmill-worker@0001
+    systemctl --user enable --now windmill-worker@0000 windmill-worker@0001 \
+      windmill-worker@0002 windmill-worker@0003
   '';
 
   # Linger stays: it is user-global; the disable-linger app drops it.
@@ -71,7 +80,7 @@ let
   windmillUninstall = ''
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
     rm --force "$config/systemd/user/"windmill*.service
-    rm --recursive --force "$config/systemd/user/windmill-worker@.service.d"
+    rm --recursive --force "$config/systemd/user/"windmill-worker@*.service.d
     rm --force "$config/windmill/Caddyfile"
     systemctl --user daemon-reload
   '';
@@ -120,6 +129,18 @@ let
     [Service]
     EnvironmentFile=
     EnvironmentFile=-%E/windmill/windmill-worker.env
+  '';
+
+  # Per-instance group/tags for the vm workers the default deploy ships.
+  workerVmDropIn = pkgs.writeText "windmill-worker-vm.conf" ''
+    [Service]
+    Environment=WORKER_GROUP=vm
+    Environment=WORKER_TAGS=vm
+  '';
+  workerVmRunDropIn = pkgs.writeText "windmill-worker-vm-run.conf" ''
+    [Service]
+    Environment=WORKER_GROUP=vm
+    Environment=WORKER_TAGS=vm-run
   '';
 
   help = {
