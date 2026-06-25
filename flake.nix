@@ -8,6 +8,12 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # The deploy backend is its own flake; re-export its packages here so the
+    # Windmill stack builds as `nix build .#windmill` from the repository root.
+    windmill-deploy = {
+      url = "path:./deploy/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -15,6 +21,7 @@
       self,
       nixpkgs,
       treefmt-nix,
+      windmill-deploy,
       ...
     }:
     let
@@ -66,6 +73,7 @@
       devShells = lib.mapAttrs (_: v: v.devShells) perSystem;
       apps = lib.mapAttrs (_: v: v.apps) perSystem;
       checks = lib.mapAttrs (_: v: v.checks) perSystem;
+      packages = forAllSystems (system: windmill-deploy.packages.${system});
       formatter = forAllSystems (system: (treefmtFor system).config.build.wrapper);
     };
 }

@@ -19,7 +19,8 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "treefmt-nix": "treefmt-nix"
+        "treefmt-nix": "treefmt-nix",
+        "windmill-deploy": "windmill-deploy"
       }
     },
     "treefmt-nix": {
@@ -41,6 +42,22 @@
         "repo": "treefmt-nix",
         "type": "github"
       }
+    },
+    "windmill-deploy": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "path": "./deploy/nix",
+        "type": "path"
+      },
+      "original": {
+        "path": "./deploy/nix",
+        "type": "path"
+      },
+      "parent": []
     }
   },
   "root": "root",

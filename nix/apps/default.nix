@@ -33,11 +33,11 @@ let
   windmillBuild = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     sw="$state/sw"
-    nix build ./deploy/nix#windmill       --out-link "$sw/windmill"
-    nix build ./deploy/nix#postgresql     --out-link "$sw/postgresql"
-    nix build ./deploy/nix#db-setup       --out-link "$sw/db-setup"
-    nix build ./deploy/nix#caddy          --out-link "$sw/caddy"
-    nix build ./deploy/nix#windmill-extra --out-link "$sw/windmill-extra"
+    nix build .#windmill       --out-link "$sw/windmill"
+    nix build .#postgresql     --out-link "$sw/postgresql"
+    nix build .#db-setup       --out-link "$sw/db-setup"
+    nix build .#caddy          --out-link "$sw/caddy"
+    nix build .#windmill-extra --out-link "$sw/windmill-extra"
   '';
 
   windmillInstall = ''
@@ -272,7 +272,7 @@ in
       state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
       config="''${XDG_CONFIG_HOME:-$HOME/.config}"
       units="$config/systemd/user"
-      nix build ./deploy/nix#windmill --out-link "$state/sw/windmill"
+      nix build .#windmill --out-link "$state/sw/windmill"
       mkdir --parents "$units/windmill-worker@.service.d"
       cp deploy/nix/systemd/windmill-worker@.service "$units/"
       cp --no-preserve=mode ${workerRemoteDropIn} \
