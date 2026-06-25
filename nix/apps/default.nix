@@ -41,11 +41,10 @@ let
   '';
 
   windmillInstall = ''
-    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
-    mkdir --parents "$config/systemd/user" "$state"
+    mkdir --parents "$config/systemd/user" "$config/windmill"
     cp deploy/nix/systemd/*.service "$config/systemd/user/"
-    cp deploy/nix/Caddyfile "$state/Caddyfile"
+    cp deploy/nix/Caddyfile "$config/windmill/Caddyfile"
   '';
 
   windmillActivate = ''
@@ -63,10 +62,9 @@ let
 
   windmillUninstall = ''
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
-    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     rm --force "$config/systemd/user/"windmill*.service
     rm --recursive --force "$config/systemd/user/windmill-worker@.service.d"
-    rm --force "$state/Caddyfile"
+    rm --force "$config/windmill/Caddyfile"
     systemctl --user daemon-reload
   '';
 

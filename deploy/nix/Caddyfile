@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # One origin in front of the two backends, matching deploy/podman/Caddyfile. The
 # websocket paths go to the windmill-extra LSP gateway, everything else to the
-# server. Copy this to %S/windmill/Caddyfile (where windmill-caddy.service
-# reads it).
+# server. Copy this to %E/windmill/Caddyfile (where windmill-caddy.service
+# reads it; %E is $XDG_CONFIG_HOME, the config dir, not state).
 #
 # Default mode is internal TLS: caddy serves HTTPS with its own CA, the system
 # trust store untouched (one-time browser warning; `caddy trust` removes it).
