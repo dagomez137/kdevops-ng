@@ -60,10 +60,11 @@ orphan words. So descriptions are wrapped so that no line passes 80 columns. A
 line is its indentation plus its content, so a deeper-nested description wraps
 narrower.
 
-``make reflow`` rewraps every description in place. ``make style``, through
-``scripts/reflow-descriptions.py --check``, fails if a committed description
-would fold. After editing a description in the UI or the CLI, run ``wmill sync
-pull``, then ``make reflow``, then ``wmill sync push``, and commit.
+``nix run .#reflow`` rewraps every description in place. ``nix flake check``,
+through ``scripts/reflow-descriptions.py --check``, fails if a committed
+description would fold. After editing a description in the UI or the CLI, run
+``wmill sync pull``, then ``nix run .#reflow``, then ``wmill sync push``, and
+commit.
 
 What is preserved
 =================

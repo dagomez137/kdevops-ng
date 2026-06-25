@@ -39,7 +39,7 @@ files are kept in the canonical form described in
 .. code-block:: console
 
    $ wmill sync pull          # instance -> files
-   $ make reflow              # keep descriptions as clean literal blocks
+   $ nix run .#reflow         # keep descriptions as clean literal blocks
    $ wmill sync push          # files -> instance
    $ git add <paths> && git commit --signoff
 

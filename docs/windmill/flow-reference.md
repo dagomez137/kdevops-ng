@@ -188,7 +188,7 @@ observability. Use when control flow is easier expressed in code than as a graph
 
 ```
 # edit f/<path>.flow/flow.yaml  (script in value.modules[].value.content)
-make style
+nix flake check
 wmill sync push --yes
 wmill flow run f/kernel/build --data '{"config_method":"make","defconfig":["tinyconfig"]}'
 # if edited in the UI instead: wmill sync pull --yes, then commit

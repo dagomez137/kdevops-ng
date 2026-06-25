@@ -12,13 +12,13 @@ blank line (double-spacing the prose) and strands orphan words on stub lines.
 
 This tool rewraps description prose so no line passes 80 columns, which makes
 wmill keep the readable literal form, stable across a `wmill sync` round-trip.
-`--check` (run by `make generated`) fails if any committed description would
-fold; `--write` rewraps in place, touching only the description regions and
-leaving every other byte that wmill emitted untouched.
+`--check` (the flake's `generated` check) fails if any committed description
+would fold; `--write` rewraps in place, touching only the description regions
+and leaving every other byte that wmill emitted untouched.
 
 Workflow after editing descriptions in the UI or via the CLI: `wmill sync pull`,
-then `make reflow`, then `wmill sync push` so the instance stores the rewrapped
-prose, then commit.
+then `nix run .#reflow`, then `wmill sync push` so the instance stores the
+rewrapped prose, then commit.
 """
 
 import argparse
@@ -174,7 +174,7 @@ def main():
             wrote += 1
         for num, length in problems:
             print(
-                f"error: {rel}:{num}: description line exceeds {LIMIT} columns ({length}); run `make reflow`"
+                f"error: {rel}:{num}: description line exceeds {LIMIT} columns ({length}); run `nix run .#reflow`"
             )
             status = 1
     if args.write:

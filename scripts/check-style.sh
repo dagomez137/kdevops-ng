@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: copyleft-next-0.3.1
-# Style + commit-message checks for kdevops-ng. Invoked by `make style`.
+# Style + commit-message checks for kdevops-ng. Run from the checks devShell:
+#   nix develop .#checks --command bash scripts/check-style.sh
 # Hand-authored files only: machine-generated workspace content (f/, wmill-lock.yaml)
 # is owned by wmill, the vendored git subtrees under vendor/ are upstream-owned, the
 # verbatim license texts under LICENSES/ must stay byte-for-byte,

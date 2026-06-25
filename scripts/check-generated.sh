@@ -3,8 +3,8 @@
 # Drift guard for in-repo generated files. Each generator owns a --check mode that
 # regenerates in memory and diffs against the committed output, exiting non-zero on
 # drift. The reflow guard instead fails if any committed wmill description would
-# fold (a line past 80 columns); `make reflow` fixes it. Invoked by `make
-# generated` (and `make style`).
+# fold (a line past 80 columns); `nix run .#reflow` fixes it. This is the flake's
+# `generated` check, so `nix flake check` runs it.
 set -o errexit -o nounset -o pipefail
 
 python3 scripts/gen-bringup.py --check

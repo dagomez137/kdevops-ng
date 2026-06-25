@@ -26,7 +26,8 @@ a reStructuredText comment, followed by a blank line and the title:
    Page title
    ==========
 
-``make style`` checks that every ``.rst`` file under ``docs/`` carries it.
+``scripts/check-style.sh`` checks that every ``.rst`` file under ``docs/``
+carries it.
 
 Line length
 ===========
@@ -35,8 +36,8 @@ Wrap prose at 80 columns. Lines that contain a URL are exempt, because a URL
 cannot be broken; table rows are exempt for the same reason. Keep code blocks
 short, and prefer a continuation over a single long line.
 
-``make style`` enforces the limit for ``.rst`` files under ``docs/`` and skips
-any line that contains a URL.
+``scripts/check-style.sh`` enforces the limit for ``.rst`` files under
+``docs/`` and skips any line that contains a URL.
 
 Headings
 ========

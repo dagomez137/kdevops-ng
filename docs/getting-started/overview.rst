@@ -21,9 +21,9 @@ Repository layout
    ├── deploy/     brings the Windmill instance up (podman today)
    ├── vendor/     pinned upstream projects (nixos-flake, ...)
    ├── docs/       this documentation site and the ADRs
-   ├── scripts/    make-style checks and generators
+   ├── scripts/    check scripts and generators
    ├── wmill.yaml  workspace-as-code configuration
-   └── Makefile    style, generated, docs and serve targets
+   └── flake.nix   nix tooling: checks, apps, devShells, formatter
 
 The big pieces:
 
