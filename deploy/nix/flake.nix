@@ -75,6 +75,9 @@
           # caddy serves it.
           caddy = pkgs.caddy;
 
+          # The workspace CLI (wmill), pinned to the server version.
+          wmill = pkgs.callPackage ./wmill/package.nix { };
+
           # The LSP gateway (editor intellisense), built from the fork's lsp/.
           windmill-extra = (extraPkgs system).callPackage ./windmill-extra/package.nix {
             inherit windmill;
