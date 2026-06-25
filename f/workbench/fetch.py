@@ -240,16 +240,18 @@ def main(
     return {"system_dir": str(system), "mirrors": results, "peers": peers}
 
 
+def _require_str(entry: dict, key: str) -> str:
+    value = entry.get(key)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"mirror entry {entry!r}: {key} must be a non-empty string")
+    return value
+
+
 def _validate(entry: dict) -> tuple[str, str, str]:
     """Validate one mirror entry and return its (name, mirror, project)."""
-    name = entry.get("name")
-    mirror = entry.get("mirror")
-    project = entry.get("project")
-    for key, value in (("name", name), ("mirror", mirror), ("project", project)):
-        if not isinstance(value, str) or not value:
-            raise ValueError(
-                f"mirror entry {entry!r}: {key} must be a non-empty string"
-            )
+    name = _require_str(entry, "name")
+    mirror = _require_str(entry, "mirror")
+    project = _require_str(entry, "project")
     if not entry.get("remotes"):
         raise ValueError(f"mirror {name!r}: needs at least one remote")
     if mirror.startswith("-"):
