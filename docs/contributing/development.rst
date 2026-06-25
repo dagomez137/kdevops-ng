@@ -14,12 +14,13 @@ reference.
 
 .. code-block:: console
 
-   $ nix flake show           # the apps (nix run .#<name>), checks, and shells
+   $ nix flake show           # apps, packages, checks, shells, formatter
    $ nix run                  # a short pointer to the gate, formatter, and list
 
 Each kind of task uses the Nix command that fits its purpose: read-only
-verification is a flake *check*, programs that change, build, serve, or query
-the tree are *apps* run with ``nix run``, and the formatter is ``nix fmt``.
+verification is a flake *check*, programs that change, serve, or query the tree
+are *apps* run with ``nix run``, the Windmill components are *packages* built
+with ``nix build .#<name>``, and the formatter is ``nix fmt``.
 
 These apps are workspace-bound task runners, not portable programs: each one
 changes into the checkout and acts on it, so it is run as ``nix run .#<name>``
@@ -106,6 +107,20 @@ The self-hosted Windmill instance builds and deploys from this flake too, with
 ``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. See
 :doc:`/deployment/nix-backend` for the full procedure, what each service is,
 configuration, TLS, workers, and teardown.
+
+The Nix store
+=============
+
+Builds accumulate in ``/nix/store``. ``nix store gc`` reclaims space by deleting
+store paths nothing roots. The deploy out-links under
+``~/.local/state/windmill/pkgs`` are GC roots, as is any ``result`` symlink a
+``nix build`` leaves, so the collector keeps the builds they point at. To free a
+build, remove its out-link or ``result`` first, then collect:
+
+.. code-block:: console
+
+   $ nix store gc                 # delete unrooted store paths
+   $ rm result && nix store gc    # drop a build, then reclaim it
 
 Other
 =====
