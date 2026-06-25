@@ -10,7 +10,7 @@ target-version = "py311"
 extend-exclude = ["vendor"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "UP", "B"]
 # ruff format is the single authority on line length. The E501 long-line lint
 # disagrees with it on the comments, strings, and URLs the formatter leaves
 # unwrapped by design, so disable E501 rather than fight the formatter.
