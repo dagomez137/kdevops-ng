@@ -30,6 +30,10 @@
 # default under the state dir; point them at a real workbench to run builds.
 [Unit]
 Description=Windmill Worker %i
+# The co-located default: this host also runs the database, so require it and
+# order after it. A worker-only host whose database is remote drops these (and
+# makes database.env optional) with the remote-server.conf drop-in that
+# `nix run .#windmill-worker-install` installs.
 Requires=windmill-db.service
 After=windmill-db.service
 
