@@ -76,6 +76,34 @@ let
     systemctl --user enable --now windmill-worker@0000 windmill-worker@0001
   '';
 
+  # The teardown stages mirror deploy in reverse.
+  #
+  # deactivate: stop and disable the services and any worker instances (`disable
+  # --now` disables the [Install] symlinks and stops in one step), then drop the
+  # linger. The glob also catches worker instances beyond @0 and @1.
+  windmillDeactivate = ''
+    systemctl --user disable --now 'windmill*'
+    loginctl disable-linger "$USER"
+  '';
+
+  # uninstall: remove the installed units and the Caddyfile, then reload.
+  windmillUninstall = ''
+    config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
+    rm --force "$config/systemd/user/"windmill*.service
+    rm --force "$state/Caddyfile"
+    systemctl --user daemon-reload
+  '';
+
+  # wipe: delete the instance data (the database cluster, the build out-links,
+  # and the generated env) under the state dir. Destructive; the build-area
+  # workbench under the same state dir is left alone. Run after deactivate so the
+  # cluster is stopped.
+  windmillWipe = ''
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
+    rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
+  '';
+
   # A plain menu printer (no repo cwd needed): `nix run` lists the commands.
   help = {
     type = "app";
@@ -100,6 +128,10 @@ let
           nix run .#windmill-install         install its systemd units + Caddyfile
           nix run .#windmill-activate        enable and start its services
           nix run .#windmill-deploy          build, install, and activate at once
+          nix run .#windmill-deactivate      stop and disable its services
+          nix run .#windmill-uninstall       remove its units + Caddyfile
+          nix run .#windmill-wipe            delete its data (database, out-links)
+          nix run .#windmill-teardown        deactivate, uninstall, and wipe at once
 
         Details: docs/contributing/development.rst   Outputs: nix flake show
         MENU
@@ -188,6 +220,38 @@ in
       ${windmillInstall}
       ${windmillActivate}
       echo "windmill deployed; reach the UI with: ssh -L 8000:localhost:8000 $USER@<host>"
+    '';
+  };
+
+  windmill-deactivate = mkApp {
+    name = "kdevops-windmill-deactivate";
+    description = "Stop and disable the Windmill systemd --user services";
+    text = windmillDeactivate;
+  };
+
+  windmill-uninstall = mkApp {
+    name = "kdevops-windmill-uninstall";
+    description = "Remove the installed Windmill units and Caddyfile";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = windmillUninstall;
+  };
+
+  windmill-wipe = mkApp {
+    name = "kdevops-windmill-wipe";
+    description = "Delete the Windmill instance data (database, out-links, env)";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = windmillWipe;
+  };
+
+  windmill-teardown = mkApp {
+    name = "kdevops-windmill-teardown";
+    description = "Deactivate, uninstall, and wipe the whole Windmill stack";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${windmillDeactivate}
+      ${windmillUninstall}
+      ${windmillWipe}
+      echo "windmill torn down and wiped"
     '';
   };
 }

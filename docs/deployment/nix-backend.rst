@@ -185,14 +185,46 @@ as jobs run.
 Tear down
 =========
 
+``nix run .#windmill-teardown`` does the reverse of deploy in one shot:
+deactivate, uninstall, wipe. The stages also run on their own, so you can stop
+the services without removing anything, or wipe the data but keep the units.
+
+Deactivate
+----------
+
+``nix run .#windmill-deactivate`` stops and disables the services and any worker
+instances, then drops the linger. ``disable --now`` disables the ``[Install]``
+symlinks and stops in one step:
+
 .. code-block:: shell
 
    systemctl --user disable --now 'windmill*'
-   rm ~/.config/systemd/user/windmill*.service
+   loginctl disable-linger "$USER"
+
+Uninstall
+---------
+
+``nix run .#windmill-uninstall`` removes the installed units and the Caddyfile,
+then reloads the manager:
+
+.. code-block:: shell
+
+   rm --force ~/.config/systemd/user/windmill*.service
+   rm --force ~/.local/state/windmill/Caddyfile
    systemctl --user daemon-reload
 
-The state under ``~/.local/state/windmill`` (the cluster, the secret, the
-out-links) is left in place; remove it to wipe the database.
+Wipe
+----
+
+``nix run .#windmill-wipe`` deletes the instance data under the state directory:
+the database cluster, the build out-links, and the generated env. It leaves the
+build-area workbench (also under the state directory) alone. Run it after
+deactivate so the cluster is stopped:
+
+.. code-block:: shell
+
+   state=~/.local/state/windmill
+   rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
 
 Switching from the podman backend
 ==================================
