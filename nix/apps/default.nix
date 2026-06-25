@@ -1,18 +1,8 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-#
-# `nix run` apps are programs the flake provides: each verb here either mutates
-# the tree (format, reflow), serves it (serve), builds it (docs), or queries it
-# (maintainers). Read-only verification lives in nix/checks.nix (run by `nix
-# flake check`), not here; advisory pyright and the git-aware style script run
-# from the checks devShell. Every app changes into the repo root first, so it
-# works regardless of the caller's cwd.
 { pkgs, toolsets }:
 let
   inherit (pkgs) lib writeShellApplication;
 
-  # Build a `nix run` app from a tool bundle and a script body. The body runs
-  # from the repo root; meta.description shows in `nix flake show` and clears the
-  # `nix flake check` missing-meta warning.
   mkApp =
     {
       name,
@@ -40,11 +30,6 @@ let
       meta = { inherit description; };
     };
 
-  # The Windmill deploy stages, each a self-contained shell snippet so its app
-  # runs on its own and windmill-deploy can compose all three.
-  #
-  # build: compile the components to the out-links the units read through the %S
-  # state-dir specifier.
   windmillBuild = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     sw="$state/sw"
@@ -55,8 +40,6 @@ let
     nix build ./deploy/nix#windmill-extra --out-link "$sw/windmill-extra"
   '';
 
-  # install: place the units and Caddyfile where the user manager and proxy read
-  # them (%E is $XDG_CONFIG_HOME, %S is $XDG_STATE_HOME).
   windmillInstall = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -65,9 +48,6 @@ let
     cp deploy/nix/Caddyfile "$state/Caddyfile"
   '';
 
-  # activate: reload the manager onto the installed units, linger the user so
-  # they run without a login session, then enable (persist) and start the
-  # services and workers. `enable --now` enables and starts in one step.
   windmillActivate = ''
     systemctl --user daemon-reload
     loginctl enable-linger "$USER"
@@ -76,18 +56,11 @@ let
     systemctl --user enable --now windmill-worker@0000 windmill-worker@0001
   '';
 
-  # The teardown stages mirror deploy in reverse.
-  #
-  # deactivate: stop and disable the services and any worker instances (`disable
-  # --now` disables the [Install] symlinks and stops in one step). The glob also
-  # catches worker instances beyond @0 and @1. Linger is NOT dropped here: it is
-  # user-global, so disabling it would stop every other lingering user service,
-  # the workbench mirrors included. The separate disable-linger app does that.
+  # Linger stays: it is user-global; the disable-linger app drops it.
   windmillDeactivate = ''
     systemctl --user disable --now 'windmill*'
   '';
 
-  # uninstall: remove the installed units and the Caddyfile, then reload.
   windmillUninstall = ''
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
@@ -97,21 +70,12 @@ let
     systemctl --user daemon-reload
   '';
 
-  # wipe: delete the instance data (the database cluster, the build out-links,
-  # and the generated env) under the state dir. Destructive; the build-area
-  # workbench under the same state dir is left alone. Run after deactivate so the
-  # cluster is stopped.
+  # Spares the build-area workbench under the same state dir.
   windmillWipe = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
   '';
 
-  # trust: caddy serves HTTPS with its own internal CA (the Caddyfile sets
-  # skip_install_trust, so nothing is trusted automatically). On this loopback-
-  # only host reached over an SSH forward, the browser runs on the client, not
-  # here, and `caddy trust` only installs into a local store via the admin API
-  # the Caddyfile disables. So the useful operation is to surface the root the
-  # client must trust: print its path and the steps to trust it there.
   windmillTrust = ''
     root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
     if [ ! -f "$root" ]; then
@@ -131,9 +95,6 @@ let
     EOF
   '';
 
-  # untrust: the mirror, for a host that did trust the CA locally. `caddy
-  # untrust --cert` reads the PEM directly, so it works without the admin API
-  # that trust needs. A no-op where the CA was never installed.
   windmillUntrust = ''
     root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
     caddy="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill/sw/caddy/bin/caddy"
@@ -144,11 +105,7 @@ let
     "$caddy" untrust --cert "$root"
   '';
 
-  # Drop-in for the worker template on a host that runs workers only. There is no
-  # local database to order against, so clear that dependency; and db-setup,
-  # which writes the required database.env, does not run here, so make that file
-  # optional. The operator sets DATABASE_URL with `systemctl --user edit
-  # windmill-worker@`, or via the optional windmill-worker.env.
+  # Empty Requires=/After=/EnvironmentFile= reset the list: no local db here.
   workerRemoteDropIn = pkgs.writeText "windmill-worker-remote.conf" ''
     [Unit]
     Requires=
@@ -159,7 +116,6 @@ let
     EnvironmentFile=-%E/windmill/windmill-worker.env
   '';
 
-  # A plain menu printer (no repo cwd needed): `nix run` lists the commands.
   help = {
     type = "app";
     program = lib.getExe (writeShellApplication {
@@ -248,10 +204,6 @@ in
     text = ''perl scripts/get_maintainer.pl --no-tree --no-git-fallback -f "$@"'';
   };
 
-  # The Windmill deploy stack (deploy/nix), built and run under systemd --user.
-  # nix, systemctl, and loginctl come from the caller's running user session;
-  # the server build is heavy (~10 GB). The three stages run on their own for
-  # step-by-step control, and windmill-deploy runs all of them at once.
   windmill-build = mkApp {
     name = "kdevops-windmill-build";
     description = "Build the Windmill deploy stack to its out-links";
@@ -315,10 +267,6 @@ in
     '';
   };
 
-  # Surface the caddy root CA so it can be trusted on the SSH-forward client.
-  # No repo cwd, so plain apps rather than going through mkApp (like
-  # disable-linger). trust only reads and prints the root; untrust runs the
-  # built caddy to remove it from this host's trust store.
   windmill-trust = {
     type = "app";
     program = lib.getExe (writeShellApplication {
@@ -338,13 +286,6 @@ in
     meta.description = "Untrust the caddy root CA from this host's trust store";
   };
 
-  # A worker-only host that joins an existing server, in two stages so the
-  # operator points the worker at the server's database in between. install
-  # builds just the windmill binary (only #windmill, not the database, proxy, and
-  # rest that windmill-build produces) and installs the worker unit plus the
-  # drop-in that clears its local-database dependency; it bakes in no
-  # DATABASE_URL, because a worker-only host has no local database to default to.
-  # activate enables N instances once DATABASE_URL is set.
   windmill-worker-install = mkApp {
     name = "kdevops-windmill-worker-install";
     description = "Build and install the Windmill worker unit for a remote server";
@@ -367,9 +308,6 @@ in
     '';
   };
 
-  # Enable and start worker instances 0..N-1; idempotent, so re-running with a
-  # larger count is how you scale up. windmill-worker@ is a systemd template, so
-  # this just instantiates it, no rebuild or reinstall.
   windmill-worker-activate = mkApp {
     name = "kdevops-windmill-worker-activate";
     description = "Enable and start N Windmill worker instances; re-run to scale";
@@ -393,10 +331,6 @@ in
     '';
   };
 
-  # Not a Windmill operation: linger is per-user and user-global. Windmill
-  # teardown deliberately leaves it on because other lingering services (the
-  # workbench mirrors) depend on it; this opt-in target turns it off explicitly.
-  # No repo cwd, so it is a plain app rather than going through mkApp.
   disable-linger = {
     type = "app";
     program = lib.getExe (writeShellApplication {
