@@ -124,11 +124,11 @@ let
         cat <<'MENU'
         kdevops-ng development commands
 
-          nix flake check   the pre-commit gate
+          nix flake check   lint, format, generated drift
           nix fmt           format the tree
           nix flake show    list the runnable apps (nix run .#<name>)
 
-        Full guide: docs/contributing/development.rst
+        Full guide and the pre-commit gate: docs/contributing/development.rst
         MENU
       '';
     });
