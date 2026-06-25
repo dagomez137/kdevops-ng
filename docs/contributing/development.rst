@@ -31,15 +31,18 @@ place of a Makefile.
 The development shell
 =====================
 
-``nix develop .#checks`` drops you into a shell with the whole toolchain on
-``PATH`` (``ruff``, ``pyright``, ``nixfmt``, ``statix``, ``deadnix``,
-``shellcheck``, ``python3``, ``git``). Use it for ad-hoc work, or run a single
-tool without entering it:
+``nix develop`` drops you into the default shell: the checks toolchain plus
+``wmill``, the workspace CLI, so the tools come from Nix rather than a host
+install. ``nix develop .#checks`` is the same toolchain without ``wmill``
+(``ruff``, ``pyright``, ``nixfmt``, ``statix``, ``deadnix``, ``shellcheck``,
+``python3``, ``git``), and ``nix develop .#docs`` is the Sphinx toolchain on its
+own. Use a shell for ad-hoc work, or run a single tool without entering it:
 
 .. code-block:: console
 
+   $ nix develop --command wmill --version       # wmill from Nix, not the host
    $ nix develop .#checks --command ruff check scripts f
-   $ nix develop .#docs           # the Sphinx toolchain on its own
+   $ nix develop .#docs --command sphinx-build --version
 
 Verifying
 =========

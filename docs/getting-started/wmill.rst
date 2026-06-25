@@ -10,6 +10,14 @@ truth. See the upstream `wmill CLI`_ documentation for the full command set.
 
 .. _wmill CLI: https://www.windmill.dev/docs/advanced/cli
 
+``wmill`` is provisioned from Nix, pinned to the server version, not a host
+install. Enter the dev shell with ``nix develop`` to put it on ``PATH``, or
+prefix a single command with ``nix develop --command``:
+
+.. code-block:: console
+
+   $ nix develop --command wmill --version
+
 Connecting
 ==========
 
