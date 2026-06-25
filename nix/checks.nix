@@ -3,20 +3,21 @@
 # Read-only verification, run by `nix flake check` (and so by CI). These are the
 # semantically correct home for lint and drift checks, as opposed to apps: an
 # app runs a program, a check verifies the source. Each runs against a writable
-# copy of just the sources it needs, so tool caches and bytecode have somewhere
-# to go and the whole repo is not copied into every check.
+# copy of its fileset-scoped source (see flake.nix), so tool caches and bytecode
+# have somewhere to go and an edit elsewhere in the tree does not re-run it.
 {
   pkgs,
-  self,
+  lintSrc,
+  generatedSrc,
   toolsets,
 }:
 let
   inherit (pkgs) runCommandLocal;
 in
 {
-  # ruff lint plus format verification, the same rules make format applies.
+  # ruff lint plus format verification, the same rules `nix run .#format` applies.
   lint = runCommandLocal "kdevops-check-lint" { nativeBuildInputs = [ pkgs.ruff ]; } ''
-    cp --recursive --no-preserve=mode ${self}/scripts ${self}/f ${self}/pyproject.toml .
+    cp --recursive --no-preserve=mode ${lintSrc}/. .
     ruff check scripts f
     ruff format --check scripts f
     touch $out
@@ -32,7 +33,7 @@ in
         ];
       }
       ''
-        cp --recursive --no-preserve=mode ${self}/scripts ${self}/f .
+        cp --recursive --no-preserve=mode ${generatedSrc}/. .
         export PYTHONDONTWRITEBYTECODE=1
         bash scripts/check-generated.sh
         touch $out
