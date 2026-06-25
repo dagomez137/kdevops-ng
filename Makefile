@@ -3,33 +3,34 @@
 
 DOCS_PORT ?= 8001
 
-# Run before every commit (rule 5). Checks whitespace, EOF newlines, the HEAD
-# commit-message trailers (Generated-by/Signed-off-by), generated-file drift, and
-# Python lint and formatting (make lint).
-style: generated lint
-	@bash scripts/check-style.sh
+# kdevops-ng does its tooling in nix: each target below is a thin forwarder to a
+# hermetic `nix run .#<verb>` app (defined in nix/apps), so the toolchain is the
+# same on every host and in CI. reflow and maintainers still run on host python
+# and perl; a later phase moves them into the flake too.
+
+# Run before every commit (rule 5). The gate runs generated-file drift, the ruff
+# lint and format check, and the whitespace/EOF/commit-trailer checks, all
+# hermetically from the flake.
+style:
+	@nix run .#style
 
 # Fail if a committed generated file no longer matches its generator output.
 generated:
-	@bash scripts/check-generated.sh
+	@nix run .#generated
 
-# Lint and check formatting of all Python: the repo tooling under scripts/ and
-# the hand-authored Windmill step scripts under f/. ruff is the single authority;
-# its config lives in pyproject.toml.
+# Lint and check formatting of all Python (scripts/ and the f/ step scripts).
 lint:
-	@ruff check scripts f
-	@ruff format --check scripts f
+	@nix run .#lint
 
 # Apply ruff's lint fixes (import order) and formatting in place. Run after
 # editing Python, then `wmill sync push` to store any f/ changes.
 format:
-	@ruff check --fix scripts f
-	@ruff format scripts f
+	@nix run .#format
 
-# Type-check with pyright (basic, f/ relaxed; see pyproject.toml). Advisory until
-# a lint devshell ships pyright; the editor LSP and CI run the same config.
+# Type-check with pyright (basic, f/ relaxed; see pyproject.toml). Advisory: it
+# is not part of `make style`.
 typecheck:
-	@pyright
+	@nix run .#typecheck
 
 # Rewrap wmill description fields so wmill keeps them as clean literal blocks.
 # Run after editing descriptions (then `wmill sync push` to store the rewrap).
@@ -42,12 +43,9 @@ maintainers:
 
 # Render the documentation locally with the flake's pinned Sphinx toolchain.
 docs:
-	nix develop ./vendor/nixos-flake#docs --command \
-		sphinx-build docs docs/_build/html
-	@echo "docs ready: docs/_build/html/index.html"
+	@nix run .#docs
 
 # Serve the built HTML on 127.0.0.1 for viewing over an SSH tunnel:
 #   ssh -L $(DOCS_PORT):127.0.0.1:$(DOCS_PORT) <host>
 serve: docs
-	python3 -m http.server $(DOCS_PORT) --bind 127.0.0.1 \
-		--directory docs/_build/html
+	@nix run .#serve -- $(DOCS_PORT)
