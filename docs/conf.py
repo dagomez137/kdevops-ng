@@ -9,6 +9,11 @@ extensions = [
     "sphinx_copybutton",
 ]
 
+# Show the "$ " prompt but strip it (and follow "\" continuations) on copy.
+copybutton_prompt_text = r"\$ "
+copybutton_prompt_is_regexp = True
+copybutton_line_continuation_character = "\\"
+
 exclude_patterns = [
     "_build",
 ]
