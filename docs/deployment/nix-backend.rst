@@ -193,13 +193,17 @@ Deactivate
 ----------
 
 ``nix run .#windmill-deactivate`` stops and disables the services and any worker
-instances, then drops the linger. ``disable --now`` disables the ``[Install]``
-symlinks and stops in one step:
+instances. ``disable --now`` disables the ``[Install]`` symlinks and stops in
+one step:
 
 .. code-block:: shell
 
    systemctl --user disable --now 'windmill*'
-   loginctl disable-linger "$USER"
+
+Linger is left enabled. It is user-global, not a Windmill setting, so disabling
+it would stop every lingering user service, the workbench mirrors included. Drop
+it explicitly, only when nothing else needs it, with the ``disable-linger`` app
+(``loginctl disable-linger "$USER"``).
 
 Uninstall
 ---------

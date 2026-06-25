@@ -79,11 +79,12 @@ let
   # The teardown stages mirror deploy in reverse.
   #
   # deactivate: stop and disable the services and any worker instances (`disable
-  # --now` disables the [Install] symlinks and stops in one step), then drop the
-  # linger. The glob also catches worker instances beyond @0 and @1.
+  # --now` disables the [Install] symlinks and stops in one step). The glob also
+  # catches worker instances beyond @0 and @1. Linger is NOT dropped here: it is
+  # user-global, so disabling it would stop every other lingering user service,
+  # the workbench mirrors included. The separate disable-linger app does that.
   windmillDeactivate = ''
     systemctl --user disable --now 'windmill*'
-    loginctl disable-linger "$USER"
   '';
 
   # uninstall: remove the installed units and the Caddyfile, then reload.
@@ -132,6 +133,7 @@ let
           nix run .#windmill-uninstall       remove its units + Caddyfile
           nix run .#windmill-wipe            delete its data (database, out-links)
           nix run .#windmill-teardown        deactivate, uninstall, and wipe at once
+          nix run .#disable-linger           drop user linger (user-global; opt-in)
 
         Details: docs/contributing/development.rst   Outputs: nix flake show
         MENU
@@ -253,5 +255,18 @@ in
       ${windmillWipe}
       echo "windmill torn down and wiped"
     '';
+  };
+
+  # Not a Windmill operation: linger is per-user and user-global. Windmill
+  # teardown deliberately leaves it on because other lingering services (the
+  # workbench mirrors) depend on it; this opt-in target turns it off explicitly.
+  # No repo cwd, so it is a plain app rather than going through mkApp.
+  disable-linger = {
+    type = "app";
+    program = lib.getExe (writeShellApplication {
+      name = "kdevops-disable-linger";
+      text = ''loginctl disable-linger "$USER"'';
+    });
+    meta.description = "Disable user linger (user-global: stops all lingering services)";
   };
 }
