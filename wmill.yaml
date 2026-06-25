@@ -13,5 +13,5 @@ includeSchedules: true
 includeTriggers: true
 workspaces:
   kdevops:
-    baseUrl: http://localhost:8000/
+    baseUrl: http://localhost:8002/
     gitBranch: main
