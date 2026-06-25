@@ -4,9 +4,9 @@
 Development commands
 ====================
 
-kdevops-ng does all of its tooling in Nix, so there is no Makefile. Every
-command below runs from a pinned toolchain and behaves the same on any host and
-in CI. Run them from anywhere inside the checkout.
+kdevops-ng does all of its tooling in Nix. Every command below runs from a
+pinned toolchain and behaves the same on any host and in CI. Run them from
+anywhere inside the checkout.
 
 The quickest way to see what is available is to ask Nix:
 

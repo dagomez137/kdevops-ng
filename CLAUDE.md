@@ -15,8 +15,8 @@ backends. `podman/` works today; `distro/` and `nix/` are planned. See
 `deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
 and resources, no secrets, single `kdevops` workspace on branch `main`). `f/`
 holds the workspace content and is machine-managed by `wmill`. The root
-`flake.nix` and `scripts/` provide the checks, run with `nix flake check`; there
-is no Makefile (see `docs/contributing/development.rst`).
+`flake.nix` and `scripts/` provide the checks, run with `nix flake check` (see
+`docs/contributing/development.rst`).
 
 ## Conventions
 

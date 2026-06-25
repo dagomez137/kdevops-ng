@@ -47,7 +47,7 @@ let
       name = "kdevops-help";
       text = ''
         cat <<'MENU'
-        kdevops-ng development commands (nix-based; there is no Makefile)
+        kdevops-ng development commands
 
           nix flake check                    verify: lint, formatting, generated drift
           nix develop .#checks -c bash scripts/check-style.sh
