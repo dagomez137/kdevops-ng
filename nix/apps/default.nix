@@ -100,9 +100,10 @@ in
 
   serve = mkApp {
     name = "kdevops-serve";
-    description = "Serve the built HTML on 127.0.0.1 (arg: port, default 8001)";
+    description = "Render the docs, then serve them on 127.0.0.1 (arg: port)";
     runtimeInputs = [ toolsets.docsPython ];
     text = ''
+      sphinx-build docs docs/_build/html
       port="''${1:-8001}"
       python3 -m http.server "$port" --bind 127.0.0.1 --directory docs/_build/html
     '';
