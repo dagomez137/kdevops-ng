@@ -94,18 +94,10 @@ View the served HTML over an SSH tunnel:
 Deploying the Windmill stack
 ============================
 
-The self-hosted Windmill instance is built and deployed from the same flake.
-``nix run .#windmill-build`` builds the server, database, proxy, and LSP gateway
-to the out-links the systemd units read; ``nix run .#windmill-deploy`` does that
-and then installs the ``systemd --user`` units and the Caddyfile and enables the
-services. The server build is heavy (around 10 GB). See
-:doc:`/deployment/nix-backend` for what each service is, configuration, TLS,
-workers, and teardown.
-
-.. code-block:: console
-
-   $ nix run .#windmill-build    # build the stack to its out-links
-   $ nix run .#windmill-deploy   # build, install the units, enable the services
+The self-hosted Windmill instance builds and deploys from this flake too, with
+``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. See
+:doc:`/deployment/nix-backend` for the full procedure, what each service is,
+configuration, TLS, workers, and teardown.
 
 Other
 =====

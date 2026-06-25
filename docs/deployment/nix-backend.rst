@@ -9,38 +9,42 @@ with Nix and runs the whole stack under ``systemd --user``, with no container
 runtime. A Nix-built binary links ``/nix/store`` and runs natively on the host,
 so the thing that ruled Nix out for the container image is the natural fit here.
 
-There is no install script. Deployment is three moves: build the components,
-drop the units in, and enable them. Everything else is sane defaults plus the
+Build and deploy run from the repository root as two flake apps:
+``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. There is no
+install script; the apps run the steps shown below, so you can equally build a
+single component or install by hand. Everything else is sane defaults plus the
 ordinary ``systemd`` override mechanisms.
 
 Build
 =====
 
-Build each component to a GC-rooted out-link under the user state directory. The
-out-link is a stable path that always points at the current build and survives
-``nix store gc``; the units reach the binary through it with the ``%S`` (state
-directory) specifier, because ``systemd`` expands specifiers in the executable
-path but not environment variables.
+``nix run .#windmill-build`` builds every component to a GC-rooted out-link
+under the user state directory. The out-link is a stable path that always points
+at the current build and survives ``nix store gc``; the units reach the binary
+through it with the ``%S`` (state directory) specifier, because ``systemd``
+expands specifiers in the executable path but not environment variables. It
+runs:
 
 .. code-block:: shell
 
    sw=~/.local/state/windmill/sw
-   nix build .#windmill       --out-link "$sw/windmill"
-   nix build .#postgresql     --out-link "$sw/postgresql"
-   nix build .#db-setup       --out-link "$sw/db-setup"
-   nix build .#caddy          --out-link "$sw/caddy"
-   nix build .#windmill-extra --out-link "$sw/windmill-extra"
+   nix build ./deploy/nix#windmill       --out-link "$sw/windmill"
+   nix build ./deploy/nix#postgresql     --out-link "$sw/postgresql"
+   nix build ./deploy/nix#db-setup       --out-link "$sw/db-setup"
+   nix build ./deploy/nix#caddy          --out-link "$sw/caddy"
+   nix build ./deploy/nix#windmill-extra --out-link "$sw/windmill-extra"
 
 The server build is heavy (around 10 GB and a clean compile of about 18
-minutes). ``.#windmill-oracle`` is the same server with the fourteenth language,
-Oracle, which pulls the unfree Oracle Instant Client.
+minutes). ``./deploy/nix#windmill-oracle`` is the same server with the
+fourteenth language, Oracle, which pulls the unfree Oracle Instant Client.
 
 Deploy
 ======
 
-Copy the units into the user unit directory and the Caddyfile to where the proxy
-reads it, then enable the services. ``enable-linger`` lets them run without an
-active login session.
+``nix run .#windmill-deploy`` builds the stack and then installs the units into
+the user unit directory and the Caddyfile where the proxy reads it, and enables
+the services. ``enable-linger`` lets them run without an active login session.
+On top of the build it runs:
 
 .. code-block:: shell
 
