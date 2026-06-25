@@ -92,6 +92,7 @@ let
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     rm --force "$config/systemd/user/"windmill*.service
+    rm --recursive --force "$config/systemd/user/windmill-worker@.service.d"
     rm --force "$state/Caddyfile"
     systemctl --user daemon-reload
   '';
@@ -103,6 +104,16 @@ let
   windmillWipe = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     rm --recursive --force "$state/pgdata" "$state/sw" "$state/env"
+  '';
+
+  # Drop-in for the worker template on a host that runs workers only: there is no
+  # local database to order against, so clear the dependency the co-located
+  # worker unit declares. The worker reaches the server's database through
+  # DATABASE_URL in env/database.env.
+  workerRemoteDropIn = pkgs.writeText "windmill-worker-remote.conf" ''
+    [Unit]
+    Requires=
+    After=
   '';
 
   # A plain menu printer (no repo cwd needed): `nix run` lists the commands.
@@ -133,6 +144,7 @@ let
           nix run .#windmill-uninstall       remove its units + Caddyfile
           nix run .#windmill-wipe            delete its data (database, out-links)
           nix run .#windmill-teardown        deactivate, uninstall, and wipe at once
+          nix run .#windmill-worker-deploy   join a server: N workers only (arg: N)
           nix run .#disable-linger           drop user linger (user-global; opt-in)
 
         Details: docs/contributing/development.rst   Outputs: nix flake show
@@ -254,6 +266,45 @@ in
       ${windmillUninstall}
       ${windmillWipe}
       echo "windmill torn down and wiped"
+    '';
+  };
+
+  # A worker-only host that joins an existing server: build just the worker
+  # binary, install only the worker unit plus the drop-in that clears its
+  # local-database dependency, and enable N instances. The worker reaches the
+  # server's database through DATABASE_URL, which the operator writes to
+  # env/database.env before running this (there is no local db-setup here).
+  windmill-worker-deploy = mkApp {
+    name = "kdevops-windmill-worker-deploy";
+    description = "Deploy and enable N workers against an existing server (arg: count)";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      count="''${1:-1}"
+      case "$count" in
+      "" | *[!0-9]*)
+        echo "usage: nix run .#windmill-worker-deploy -- <count>" >&2
+        exit 1
+        ;;
+      esac
+      state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
+      config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      units="$config/systemd/user"
+      if [ ! -f "$state/env/database.env" ]; then
+        echo "error: missing $state/env/database.env" >&2
+        echo "write it first, e.g. DATABASE_URL=postgres://user:pw@server:5432/windmill" >&2
+        exit 1
+      fi
+      nix build ./deploy/nix#windmill --out-link "$state/sw/windmill"
+      mkdir --parents "$units/windmill-worker@.service.d"
+      cp deploy/nix/systemd/windmill-worker@.service "$units/"
+      cp --no-preserve=mode ${workerRemoteDropIn} \
+        "$units/windmill-worker@.service.d/remote-server.conf"
+      systemctl --user daemon-reload
+      loginctl enable-linger "$USER"
+      for ((i = 0; i < count; i++)); do
+        systemctl --user enable --now "windmill-worker@$i"
+      done
+      echo "enabled $count worker(s) against the server in $state/env/database.env"
     '';
   };
 

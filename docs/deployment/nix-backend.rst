@@ -145,6 +145,31 @@ Use ``WORKER_TAGS=vm-run`` on the instances that run the poll, then enable each
 with ``systemctl --user enable --now windmill-worker@2``. The vm group needs the
 :term:`System workbench` provisioned and the host ``vhost_vsock`` module loaded.
 
+On a separate host
+~~~~~~~~~~~~~~~~~~~
+
+A second machine can run workers for an existing server without the rest of the
+stack. ``nix run .#windmill-worker-deploy -- N`` builds only the worker binary,
+installs only the worker unit with a drop-in that clears its local-database
+dependency, and enables ``windmill-worker@0`` through ``windmill-worker@`` N
+minus one. Re-run it with a larger count to add more.
+
+The worker reaches the server's database directly, so before deploying write
+``DATABASE_URL`` to the env file the unit reads. There is no ``db-setup`` here
+to generate it:
+
+.. code-block:: shell
+
+   mkdir --parents ~/.local/state/windmill/env
+   echo 'DATABASE_URL=postgres://user:pw@server:5432/windmill' \
+       > ~/.local/state/windmill/env/database.env
+   nix run .#windmill-worker-deploy -- 4
+
+The server's PostgreSQL must be reachable from this host: it binds
+``127.0.0.1`` by default, so expose it or tunnel. Build-pool workers also need
+the :term:`System workbench` provisioned here, the same ``f/workbench`` init
+flow as on any worker host.
+
 TLS and the base URL
 --------------------
 
