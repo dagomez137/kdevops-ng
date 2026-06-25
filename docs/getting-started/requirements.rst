@@ -31,7 +31,8 @@ enabled once:
 .. code-block:: console
 
    $ mkdir --parents ~/.config/nix
-   $ echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+   $ echo 'experimental-features = nix-command flakes' \
+       | tee --append ~/.config/nix/nix.conf
 
 Host access for guests
 ======================
@@ -50,17 +51,21 @@ PCI passthrough (VFIO)
 ======================
 
 Passing a host PCI device (an NVMe drive, say) into a guest needs VFIO, set up
-once with sudo; afterwards the passthrough runs in user mode. Bind the driver
-and reload udev:
+once with sudo; afterwards the passthrough runs in user mode. Load the driver,
+install the udev rule that lets the ``kvm`` group open the VFIO nodes, and
+reload udev:
 
 .. code-block:: console
 
    $ sudo cp vendor/qemu-system-units/files/vfio-pci.conf \
        /etc/modules-load.d/vfio-pci.conf
    $ sudo modprobe vfio-pci
+   $ minijinja-cli --trim-blocks \
+       vendor/qemu-system-units/templates/vfio-udev.rules.j2 <vm>.yaml \
+       | sudo tee /etc/udev/rules.d/10-vfio-kvm.rules
    $ sudo udevadm control --reload-rules
    $ sudo udevadm trigger --subsystem-match=pci
 
-It also needs a udev rule, rendered from the vendored ``qsu`` templates, that
-lets the ``kvm`` group open the ``/dev/vfio`` nodes. Skip this section unless a
-flow uses device passthrough.
+The rule sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"`` so the ``kvm``
+group can open ``/dev/vfio``, with a per-device block for each address in the
+VM's ``pci_passthrough``. Skip this section unless a flow uses passthrough.
