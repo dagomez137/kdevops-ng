@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-# Python toolchain for kdevops-ng. ruff is the single linter and formatter for
+# Python toolchain for kdevops-ng. Ruff is the single linter and formatter for
 # both the repo tooling under scripts/ and the hand-authored Windmill step
-# scripts under f/. pyright type-checks both leniently for the editor LSP and a
+# scripts under f/. Pyright type-checks both leniently for the editor LSP and a
 # future CI gate. See docs/reference/step-code-style.rst and CLAUDE.md.
 
 [tool.ruff]
@@ -11,8 +11,8 @@ extend-exclude = ["vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-# ruff format is the single authority on line length. The E501 long-line lint
-# disagrees with it on the comments, strings, and URLs the formatter leaves
+# Ruff's formatter is the single authority on line length. The E501 long-line
+# lint disagrees with it on the comments, strings, and URLs the formatter leaves
 # unwrapped by design, so disable E501 rather than fight the formatter.
 ignore = ["E501"]
 
