@@ -8,8 +8,9 @@ kdevops-ng is a Linux kernel development and test-automation framework. It
 self-hosts a Windmill workflow engine and uses Nix for reproducible build and
 guest environments. The flows, steps and apps that drive the work are kept as
 code in git, which is the source of truth; ``wmill`` moves them between the
-repository and the running instance. The instance runs locally and is reached
-on ``127.0.0.1:8000`` (SSH-forward to use the UI).
+repository and the running instance. The instance binds ``127.0.0.1:8000``;
+open it in a browser on the host, or forward the port over SSH if the host is
+remote.
 
 .. _project-status:
 

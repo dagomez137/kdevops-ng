@@ -100,8 +100,8 @@ Documentation
    $ nix run .#docs           # render reStructuredText to docs/_build/html
    $ nix run .#serve -- 8001  # serve the built HTML on 127.0.0.1:8001
 
-View the served HTML over an SSH tunnel:
-``ssh -L 8001:127.0.0.1:8001 <host>``.
+Open it at ``http://127.0.0.1:8001``; if the host is remote, forward the port
+first with ``ssh -L 8001:127.0.0.1:8001 <host>``.
 
 Deploying the Windmill stack
 ============================

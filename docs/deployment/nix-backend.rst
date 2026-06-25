@@ -29,12 +29,13 @@ this backend is built around.
 Quick start
 ===========
 
-Deploy the whole stack, then reach the UI over an SSH forward:
+Deploy the whole stack, then open ``https://localhost:8000`` in a browser on
+the host. If the host is remote, forward the port over SSH first:
 
 .. code-block:: console
 
    $ nix run .#windmill-deploy                  # build, install, activate
-   $ ssh -L 8000:localhost:8000 <user>@<host>   # then https://localhost:8000
+   $ ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
 
 The browser warns once on caddy's internal certificate; trust it with
 ``nix run .#windmill-trust``. The sections below expand each step: what is
@@ -103,19 +104,19 @@ the cluster under the state directory, rotates the role password off the shared
 default to a generated secret, creates the ``windmill`` database, and writes the
 ``DATABASE_URL`` the rest read. The server then listens on ``127.0.0.1:8002``,
 the LSP gateway on ``127.0.0.1:3001``, and caddy fronts both on
-``127.0.0.1:8000``. Reach the UI over an SSH forward:
+``127.0.0.1:8000``. Open ``https://localhost:8000`` in a browser on the host. If
+the host is remote, forward the port over SSH first:
 
 .. code-block:: shell
 
-   ssh -L 8000:localhost:8000 <user>@<host>   # then https://localhost:8000
+   ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
 
 The default is HTTPS with caddy's internal CA, so the browser warns once on the
-untrusted certificate. The browser runs on the client that opens the forward,
-not on the host, so the certificate has to be trusted there. ``nix run
-.#windmill-trust`` prints the root CA path and the steps to copy and trust it on
-the client; ``nix run .#windmill-untrust`` removes it again. Host-side
-``caddy trust`` does not apply here: the Caddyfile disables the admin API it
-reads from, and a headless host has no browser store to install into.
+untrusted certificate. Trust it where the browser runs: on the host for a local
+browser, or on the machine that opened the forward for a remote one. ``nix run
+.#windmill-trust`` prints the root CA path and the steps to trust it; ``nix run
+.#windmill-untrust`` removes it again. Host-side ``caddy trust`` does not apply
+here: the Caddyfile disables the admin API it reads from.
 
 Configure
 =========
