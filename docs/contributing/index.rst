@@ -9,4 +9,5 @@ How to work on kdevops-ng and its documentation.
 .. toctree::
    :maxdepth: 1
 
+   development
    doc-guide
