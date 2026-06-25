@@ -8,12 +8,14 @@ kdevops-ng does all of its tooling in Nix. Every command below runs from a
 pinned toolchain and behaves the same on any host and in CI. Run them from
 anywhere inside the checkout.
 
-The quickest way to see what is available is to ask Nix:
+``nix flake show`` lists the runnable apps with their descriptions, and a bare
+``nix run`` prints a short pointer to the essentials. This page is the full
+reference.
 
 .. code-block:: console
 
-   $ nix run                  # print the menu of development commands
-   $ nix flake show           # the raw flake outputs (checks, apps, devShells)
+   $ nix flake show           # the apps (nix run .#<name>), checks, and shells
+   $ nix run                  # a short pointer to the gate, formatter, and list
 
 Each kind of task uses the Nix command that fits its purpose: read-only
 verification is a flake *check*, programs that change, build, serve, or query

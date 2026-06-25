@@ -124,49 +124,11 @@ let
         cat <<'MENU'
         kdevops-ng development commands
 
-        check
-          nix flake check                    lint, formatting, generated drift
-          nix develop .#checks -c bash scripts/check-style.sh
-                                             whitespace, end-of-file, commit trailers
-          nix develop .#checks -c pyright    type-check (advisory)
+          nix flake check   the pre-commit gate
+          nix fmt           format the tree
+          nix flake show    list the runnable apps (nix run .#<name>)
 
-        format
-          nix fmt                            format the tree (nixfmt + ruff)
-          nix run .#format                   ruff lint-fix and format Python
-          nix run .#reflow                   rewrap wmill description fields
-
-        docs
-          nix run .#docs                     render docs to docs/_build/html
-          nix run .#serve -- PORT            serve the HTML on 127.0.0.1 (default 8001)
-
-        shell & misc
-          nix develop .#checks               shell with all tooling on PATH
-          nix run .#maintainers -- FILE      who to Cc for a change
-
-        windmill: deploy
-          nix run .#windmill-build           build the Windmill deploy stack
-          nix run .#windmill-install         install its systemd units + Caddyfile
-          nix run .#windmill-activate        enable and start its services
-          nix run .#windmill-deploy          build, install, and activate at once
-
-        windmill: teardown
-          nix run .#windmill-deactivate      stop and disable its services
-          nix run .#windmill-uninstall       remove its units + Caddyfile
-          nix run .#windmill-wipe            delete its data (database, out-links)
-          nix run .#windmill-teardown        deactivate, uninstall, and wipe at once
-
-        windmill: tls
-          nix run .#windmill-trust           show the caddy root CA to trust on the client
-          nix run .#windmill-untrust         untrust the caddy root CA on this host
-
-        windmill: remote worker
-          nix run .#windmill-worker-install  set up this host as a worker for a server
-          nix run .#windmill-worker-activate enable N worker instances (arg: N)
-
-        linger
-          nix run .#disable-linger           drop user linger (user-global; opt-in)
-
-        Details: docs/contributing/development.rst   Outputs: nix flake show
+        Full guide: docs/contributing/development.rst
         MENU
       '';
     });
