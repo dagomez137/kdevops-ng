@@ -128,17 +128,63 @@ built-in default, so set one to use your editor:
 
 Export ``SYSTEMD_EDITOR`` from your shell profile to make it the default.
 
-The knobs:
+The knobs, grouped by the unit that carries each. Every one has a working
+default, so the stack runs untouched; override any by editing that unit's
+``.env`` file or with a drop-in, as above.
 
-* The server port (``PORT``, default ``8002``) and base URL (``BASE_URL``,
-  default ``https://localhost:8000``) live on ``windmill.service``.
-* The public port (``WINDMILL_CADDY_PORT``, default ``8000``) lives on
-  ``windmill-caddy.service``; the Caddyfile reads it.
-* Workers are ``windmill-worker@`` instances; ``WORKER_GROUP`` and
-  ``WORKER_TAGS`` select the jobs each pulls. See `Workers`_ for the build pool
-  and the vm workers the kdevops workspace needs.
-* The build-area paths (``WORKBENCH_DIR`` and friends) live on the worker units;
-  see `The workbench`_ below.
+``windmill.service`` (the server):
+
+* ``PORT`` (``8002``): the HTTP port caddy proxies to.
+* ``BASE_URL`` (``https://localhost:8000``): the public base URL. It must agree
+  with the scheme caddy serves; see `TLS and the base URL`_.
+* ``DATABASE_URL`` (generated): the PostgreSQL DSN. The database service writes
+  it for the co-located stack; set it by hand only on a worker-only host (see
+  `On a separate host`_).
+
+``windmill-caddy.service`` (the public proxy):
+
+* ``WINDMILL_CADDY_PORT`` (``8000``): the public port the proxy serves; the
+  Caddyfile reads it.
+
+``windmill-extra.service`` (the LSP and multiplayer gateway):
+
+* ``PORT`` (``3001``): the gateway's own port.
+* ``WINDMILL_BASE_URL`` (``http://127.0.0.1:8002``): where it reaches the
+  server.
+
+``windmill-db.service`` (PostgreSQL):
+
+* ``PGPORT`` (``5432``): the listen port; a separate host reaches it here.
+* ``PGDATA`` (``%S/windmill/pgdata``): the cluster data directory.
+* ``PGHOST_SOCKET`` (``%t/windmill``): the Unix-socket directory.
+
+``windmill-native.service`` (the native worker):
+
+* ``WORKER_GROUP`` (``native``): the group its jobs pull from.
+* ``SLEEP_QUEUE`` (``200``): the idle queue-poll interval in milliseconds.
+
+``windmill-worker@`` (the build and vm workers):
+
+* ``NUM_WORKERS`` (``1``): worker threads per instance. Leave it at one and
+  scale by enabling more instances; see `Workers`_.
+* ``WORKER_GROUP`` (``default``) and ``WORKER_TAGS`` (unset, so the group's own
+  tags apply): which jobs the instance pulls. The vm and vm-run instances get
+  theirs from install-time drop-ins; see `Workers`_.
+* ``WORKBENCH_DIR``, ``WORKTREES_DIR``, ``SYSTEM_DIR``, ``WORKERS_DIR``,
+  ``VENDOR_DIR``: the build-area paths, each relocatable on its own. See `The
+  workbench`_ for what each roots, how they nest, and their defaults.
+* ``NIX_BIN`` (``/nix/var/nix/profiles/default/bin``): the directory holding
+  ``nix`` on the worker's PATH. The default suits most hosts; point it at a
+  reachable ``bin`` on a NixOS host, whose default profile lives under the
+  store. It is unset in the unit and read by the step code, so to use it add it
+  to ``WHITELIST_ENVS`` (below) as well.
+
+A worker passes only the variables named in ``WHITELIST_ENVS`` into the job's
+environment, so a step sees a build-area path (or ``NIX_BIN``) only because it
+is whitelisted. The shipped list already covers the five build-area paths and
+``WORKER_INDEX``; to expose any further variable to steps, append its name
+there. ``MODE``, ``WORKER_INDEX``, ``DBUS_SESSION_BUS_ADDRESS`` and
+``WHITELIST_ENVS`` itself are wiring the units set for you, not tuning knobs.
 
 Workers
 -------
