@@ -14,10 +14,10 @@ The out-of-tree `build` dir and the `destdir` `--prefix` install target are both
 children of the source checkout (`qemu/build`, `qemu/destdir`), so meson emits paths
 relative to `build`.
 
-Knobs: `wipe_build` rm+recreates the `build` dir first; `clean_destdir` (default
-false) rm+recreates `destdir` first; leave it off so an install never wipes binaries a
-running QEMU/systemd VM still uses. `b4_series` applies a lore series on top of the
-checkout via `b4 shazam` in the devShell.
+The `destdir` install root is rm+recreated every build: it is per-build staging for
+the per-identity install prefixes, and the durable install tree lives in the Store,
+not here. Knobs: `wipe_build` rm+recreates the `build` dir first; `b4_series` applies
+a lore series on top of the checkout via `b4 shazam` in the devShell.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 
@@ -39,12 +39,9 @@ def main(
     b4_series: str = "",
     recreate_worktree: bool = False,
     wipe_build: bool = False,
-    clean_destdir: bool = False,
 ) -> dict:
     qemu_ref = qemu_ref or "v11.0.0"
-    wipe_dirs = (("build",) if wipe_build else ()) + (
-        ("destdir",) if clean_destdir else ()
-    )
+    wipe_dirs = ("destdir",) + (("build",) if wipe_build else ())
     result = prepare(
         project="qemu",
         developer=False,

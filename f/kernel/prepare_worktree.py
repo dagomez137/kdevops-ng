@@ -14,10 +14,10 @@ The out-of-tree `build` dir and the `destdir` install target are both children o
 source checkout (`linux/build`, `linux/destdir`), so kbuild emits paths relative to
 `build`.
 
-Knobs: `wipe_build` rm+recreates the `build` dir first; `clean_destdir` (default
-false) rm+recreates the `destdir` install dir first; leave it off so an install
-never wipes modules a running QEMU/systemd VM has mounted over virtiofs; `b4_series`
-applies a lore series on top of the checkout via `b4 shazam` in the devShell.
+The `destdir` install dir is rm+recreated every build: it is per-build staging for
+the install steps, and the durable run layer lives in the Store, not here. Knobs:
+`wipe_build` rm+recreates the `build` dir first; `b4_series` applies a lore series
+on top of the checkout via `b4 shazam` in the devShell.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 
@@ -39,12 +39,9 @@ def main(
     b4_series: str = "",
     recreate_build_worktree: bool = False,
     wipe_build: bool = False,
-    clean_destdir: bool = False,
 ) -> dict:
     git_ref = git_ref or "v7.1-rc7"
-    wipe_dirs = (("build",) if wipe_build else ()) + (
-        ("destdir",) if clean_destdir else ()
-    )
+    wipe_dirs = ("destdir",) + (("build",) if wipe_build else ())
     result = prepare(
         project="linux",
         developer=False,

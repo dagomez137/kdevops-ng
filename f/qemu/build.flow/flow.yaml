@@ -36,9 +36,6 @@ value:
           b4_series:
             type: javascript
             expr: flow_input.worktree?.b4_series
-          clean_destdir:
-            type: javascript
-            expr: flow_input.installation?.clean_destdir
           qemu_ref:
             type: javascript
             expr: flow_input.worktree?.qemu_ref
@@ -434,14 +431,7 @@ schema:
       order:
         - reuse
         - install
-        - clean_destdir
       properties:
-        clean_destdir:
-          type: boolean
-          description: |-
-            Wipe the install `destdir` first (default off). Leave off so an
-            install never wipes binaries a running QEMU/systemd VM uses.
-          default: false
         install:
           type: boolean
           description: |-

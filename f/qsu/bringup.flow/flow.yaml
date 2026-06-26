@@ -595,16 +595,7 @@ schema:
       - install
       - modules_install
       - source_symlink
-      - clean_destdir
       properties:
-        clean_destdir:
-          type: boolean
-          description: 'Wipe the install `destdir` (`<worktree>/destdir`) first (default
-
-            off). Leave off so an install never wipes modules a running
-
-            QEMU/systemd VM has mounted over virtiofs.'
-          default: false
         install:
           type: boolean
           description: 'Install the built kernel image into the slot `destdir` (`make
@@ -1014,14 +1005,7 @@ schema:
       order:
       - reuse
       - install
-      - clean_destdir
       properties:
-        clean_destdir:
-          type: boolean
-          description: 'Wipe the install `destdir` first (default off). Leave off so an
-
-            install never wipes binaries a running QEMU/systemd VM uses.'
-          default: false
         install:
           type: boolean
           description: 'Install the built emulator into destdir (make install). Off = build

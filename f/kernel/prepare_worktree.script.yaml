@@ -21,7 +21,6 @@ schema:
     - b4_series
     - recreate_build_worktree
     - wipe_build
-    - clean_destdir
   properties:
     b4_series:
       type: string
@@ -29,12 +28,6 @@ schema:
         Optional lore series (message-id/URL) to apply on top via `b4 shazam`.
       default: ''
       title: b4 Series
-    clean_destdir:
-      type: boolean
-      description: |-
-        Wipe the install destdir first (default off). Leave off so an install
-        never wipes modules a running QEMU/systemd VM has mounted over virtiofs.
-      default: false
     git_ref:
       type: string
       description: |-
