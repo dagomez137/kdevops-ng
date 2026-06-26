@@ -109,6 +109,29 @@ def local_path(name: str) -> str | None:
     return None
 
 
+def list_index(prefix: str) -> list[str]:
+    """Index entry names under `prefix` that resolve to a live store path (pure read).
+
+    Backs the bringup dynselect pickers (`kernel-`, `qemu-`). Like `local_path` it
+    creates nothing and returns `[]` when the env cannot resolve the index; a dangling
+    entry (its store path GC'd) is skipped so it never reaches a dropdown. Local index
+    only: a peer's artifact is already registered here by `fetch_identity` ->
+    `link_local`, and the dynselect runtime has no host bus or peer ssh.
+    """
+    try:
+        d = store_index_dir()
+    except KeyError:
+        return []
+    if not d.is_dir():
+        return []
+    names = []
+    for entry in sorted(d.iterdir()):
+        if entry.name.startswith(prefix) and entry.is_symlink():
+            if Path(os.path.realpath(entry)).exists():
+                names.append(entry.name)
+    return names
+
+
 def peer_path(workers: Path, remote: str, remote_index: str, name: str) -> str | None:
     """The store path the peer indexes under `name`, read over ssh, else None."""
     out = (
