@@ -29,7 +29,18 @@ import os
 from pathlib import Path
 
 from f.common.devshell import Git, Systemd, _resolve_git, mirrors_dir
-from f.workbench.fetch import DEFAULT_MIRROR_PROJECTS, build_mirrors, remote_url
+from f.workbench.fetch import (
+    DEFAULT_MIRROR_PROJECTS,
+    build_mirrors,
+    qemu_source_options,
+    remote_url,
+)
+
+
+def list_qemu_sources(filterText: str = "", **_: object) -> list[dict]:
+    """`dynselect-list_qemu_sources` entrypoint for the qemu `source` field."""
+    return qemu_source_options(filterText)
+
 
 _SERVICE = """\
 [Unit]

@@ -70,6 +70,8 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
+  x-windmill-dyn-select-code: "def list_qemu_sources(filterText: str = \"\", **_: object) -> list:\n    from f.workbench.fetch import qemu_source_options\n    return qemu_source_options(filterText)\n"
+  x-windmill-dyn-select-lang: python3
   order:
     - projects
     - linux
@@ -214,10 +216,8 @@ schema:
           description: |-
             Upstream host: GitLab (the canonical QEMU project repo) or GitHub
             (its read-only mirror, for when GitLab is unreachable).
-          default: GitLab
-          enum:
-            - GitLab
-            - GitHub
+          default: gitlab
+          format: dynselect-list_qemu_sources
           title: Source
         protocol:
           type: string
@@ -228,7 +228,7 @@ schema:
           enum:
             - https
             - git
-          showExpr: fields.source !== 'GitHub'
+          showExpr: fields.source !== 'github'
           title: Transport
         on_boot:
           type: string

@@ -99,17 +99,23 @@ DEFAULT_KERNEL_TREES = ["torvalds", "linux-next", "linux-stable", "modules", "ax
 
 # Curated upstream hosts for the QEMU mirror's origin: source -> clone URL per
 # transport. GitLab is the canonical QEMU project repo (https or git://); GitHub is
-# its read-only mirror, https only. Extend freely.
+# its read-only mirror, https only. The key is the stable lowercase value the step
+# keys on; QEMU_SOURCE_LABELS carries the canonical display name for the form. Extend
+# freely.
 QEMU_SOURCES = {
-    "GitLab": {
+    "gitlab": {
         "https": "https://gitlab.com/qemu-project/qemu.git",
         "git": "git://gitlab.com/qemu-project/qemu.git",
     },
-    "GitHub": {
+    "github": {
         "https": "https://github.com/qemu/qemu.git",
     },
 }
-DEFAULT_QEMU_SOURCE = "GitLab"
+DEFAULT_QEMU_SOURCE = "gitlab"
+
+# Canonical display labels for the qemu source dropdown, keyed by the stable value, so
+# the form reads GitLab/GitHub while a saved selection survives the relabel.
+QEMU_SOURCE_LABELS = {"gitlab": "GitLab", "github": "GitHub"}
 
 # The curated projects a workbench can mirror, each its own merged bare mirror. The
 # form offers these as a checklist; selecting one reveals its deploy options (linux:
@@ -124,11 +130,24 @@ def remote_url(remote: dict) -> str:
     return remote["url"]
 
 
+def qemu_source_options(filter_text: str = "") -> list[dict]:
+    """`[{label, value}]` for the qemu source dropdown: the canonical platform label
+    (GitLab/GitHub) over the stable lowercase value, so a saved choice survives a label
+    change and the step keys on a clean identifier."""
+    options = [{"label": QEMU_SOURCE_LABELS[k], "value": k} for k in QEMU_SOURCES]
+    return [o for o in options if filter_text.lower() in o["label"].lower()]
+
+
+def list_qemu_sources(filterText: str = "", **_: object) -> list[dict]:
+    """`dynselect-list_qemu_sources` entrypoint for the qemu `source` field."""
+    return qemu_source_options(filterText)
+
+
 def _effective_protocol(sources: dict, source: str, protocol: str) -> str:
     """The transport to use for `source`: the requested `protocol` when it offers it,
-    else its preferred (first) one, with a note. A curated source (kernel.org, GitLab)
-    may not serve every transport (googlesource and GitHub are https only), so a `git`
-    pick degrades to `https` rather than failing."""
+    else its preferred (first) one, with a note. A curated host may not serve every
+    transport (the googlesource and GitHub mirrors are https only), so a `git` pick
+    degrades to `https` rather than failing."""
     if source not in sources:
         raise ValueError(f"unknown source {source!r} (curated: {', '.join(sources)})")
     schemes = sources[source]

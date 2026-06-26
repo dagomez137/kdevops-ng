@@ -117,10 +117,8 @@ schema:
           description: |-
             Upstream host: GitLab (the canonical QEMU project repo) or GitHub
             (its read-only mirror, for when GitLab is unreachable).
-          default: GitLab
-          enum:
-            - GitLab
-            - GitHub
+          default: gitlab
+          format: dynselect-list_qemu_sources
           title: Source
         protocol:
           type: string
@@ -131,7 +129,7 @@ schema:
           enum:
             - https
             - git
-          showExpr: fields.source !== 'GitHub'
+          showExpr: fields.source !== 'github'
           title: Transport
       showExpr: fields.projects.includes('qemu')
       title: QEMU
