@@ -25,7 +25,6 @@ schema:
     - extra_trees
     - on_boot
     - on_inactive
-    - mirror_dir
     - mirrors
   properties:
     extra_trees:
@@ -70,12 +69,6 @@ schema:
           - cxl
           - xfs
       title: Kernel trees
-    mirror_dir:
-      type: string
-      description: |-
-        Directory holding the `<repo>.git` mirrors. Empty = `SYSTEM_DIR/mirror`.
-      default: ''
-      title: Mirror Dir
     mirrors:
       type: array
       description: |-

@@ -97,9 +97,10 @@ accepted
   independently-configurable paths so each piece relocates on its own: the
   worktree-group root (`WORKTREES_DIR`, default the Workbench `WORKBENCH_DIR`,
   so the groups stay its direct children until pointed elsewhere), `system/`
-  (`SYSTEM_DIR`, default `workbench/system`), and the worker sandboxes
-  (`WORKERS_DIR`, default `workbench/workers`). `VENDOR_DIR` (ADR-0006) is
-  unchanged.
+  (`SYSTEM_DIR`, default `workbench/system`), the git mirrors (`MIRRORS_DIR`,
+  default `system/mirror`, the bulky shared object store a host may park on its
+  own volume), and the worker sandboxes (`WORKERS_DIR`, default
+  `workbench/workers`). `VENDOR_DIR` (ADR-0006) is unchanged.
 - `system/bare/<canonical>.git` replaces the namespaced bare path; Store reuse
   keys by `(worktree-group, canonical)` rather than `(workbench, namespace)`.
 - Worker worktree addressing in `f/common/worktree.py` is rewritten: a build

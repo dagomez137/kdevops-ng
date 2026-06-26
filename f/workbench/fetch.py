@@ -31,8 +31,9 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirr
     git config --global --add safe.directory '*'        # once per container
     mkdir --parents "$(dirname "$bare")"
     git init --bare "$bare"
-    # borrow the ONE merged mirror's objects (every tree shares it) instead of copying:
-    printf '%s\n' "$SYSTEM_DIR"/mirror/linux.git/objects >> "$bare/objects/info/alternates"
+    # borrow the ONE merged mirror's objects (every tree shares it) instead of
+    # copying ($MIRRORS_DIR defaults to $SYSTEM_DIR/mirror); rewritten, not appended:
+    printf '%s\n' "$MIRRORS_DIR"/linux.git/objects > "$bare/objects/info/alternates"
     # origin = the primary tree's upstream, only for an explicit human `git fetch origin`:
     git -C "$bare" remote add origin git://git.kernel.org/.../torvalds/linux.git
     # one mirror remote, per-tree refspecs: primary heads -> refs/remotes/mirror/*,
@@ -50,7 +51,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from f.common.devshell import Git, system_dir
+from f.common.devshell import Git, mirrors_dir, system_dir
 
 # A git tree at git.kernel.org by protocol. The `path` is the FULL path after the
 # host (so fs/ trees sit beside kernel/git/ ones). git is fastest but often
@@ -187,11 +188,12 @@ def main(
     refresh: bool = True,
 ) -> dict:
     system = system_dir()
+    mdir = mirrors_dir()
     mirrors = mirrors or build_mirrors(
         DEFAULT_KERNEL_TREES if kernel_trees is None else kernel_trees,
         protocol,
         extra_trees or [],
-        system / "mirror",
+        mdir,
     )
     peers = [p.strip() for p in (peers or []) if p and p.strip()]
 
@@ -359,17 +361,20 @@ def _validate_peer(peer: str) -> None:
 
 
 def _reconcile_alternates(bare: Path, mirrors: list[str]) -> None:
-    """Append each mirror's `objects` dir to the bare repo's alternates file, deduped."""
+    """Point the bare repo's alternates at exactly the given mirrors' `objects` dirs.
+
+    Authoritative, not append-only: any stale entry is dropped, so the bare ends
+    with exactly these alternates.
+    """
     info = bare / "objects" / "info"
     alternates = info / "alternates"
     present = alternates.read_text().splitlines() if alternates.exists() else []
-    wanted = [str(Path(m) / "objects") for m in mirrors]
-    missing = [p for p in wanted if p not in present]
-    if not missing:
+    wanted = list(dict.fromkeys(str(Path(m) / "objects") for m in mirrors))
+    if present == wanted:
         return
     info.mkdir(parents=True, exist_ok=True)
-    lines = present + missing
-    alternates.write_text("\n".join(lines) + "\n")
+    alternates.write_text("".join(line + "\n" for line in wanted))
+    print(f"wrote {alternates}: {' '.join(wanted)}", flush=True)
 
 
 def _progress(action: str, refresh: bool) -> str:

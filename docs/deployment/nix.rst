@@ -174,9 +174,10 @@ default, so the stack runs untouched; override any by editing that unit's
 * ``WORKER_GROUP`` (``default``) and ``WORKER_TAGS`` (unset, so the group's own
   tags apply): which jobs the instance pulls. The vm and vm-run instances get
   theirs from install-time drop-ins; see `Workers`_.
-* ``WORKBENCH_DIR``, ``WORKTREES_DIR``, ``SYSTEM_DIR``, ``WORKERS_DIR``,
-  ``VENDOR_DIR``: the build-area paths, each relocatable on its own. See `The
-  workbench`_ for what each roots, how they nest, and their defaults.
+* ``WORKBENCH_DIR``, ``WORKTREES_DIR``, ``SYSTEM_DIR``, ``MIRRORS_DIR``,
+  ``WORKERS_DIR``, ``VENDOR_DIR``: the build-area paths, each relocatable on its
+  own. See `The workbench`_ for what each roots, how they nest, and their
+  defaults.
 * ``NIX_BIN`` (``/nix/var/nix/profiles/default/bin``): the directory holding
   ``nix`` on the worker's PATH. The default suits most hosts; point it at a
   reachable ``bin`` on a NixOS host, whose default profile lives under the
@@ -185,7 +186,7 @@ default, so the stack runs untouched; override any by editing that unit's
 
 A worker passes only the variables named in ``WHITELIST_ENVS`` into the job's
 environment, so a step sees a build-area path (or ``NIX_BIN``) only because it
-is whitelisted. The shipped list already covers the five build-area paths and
+is whitelisted. The shipped list already covers the six build-area paths and
 ``WORKER_INDEX``; to expose any further variable to steps, append its name
 there. ``MODE``, ``WORKER_INDEX``, ``DBUS_SESSION_BUS_ADDRESS`` and
 ``WHITELIST_ENVS`` itself are wiring the units set for you, not tuning knobs.
@@ -299,8 +300,10 @@ where you want them, a directory in ``$HOME`` such as ``$HOME/src`` or one
 nested in the repository such as ``kdevops-ng/workbench``; ``WORKTREES_DIR``
 roots the worktree-groups alone (default ``WORKBENCH_DIR``), to move the groups
 apart from the rest of the area; ``SYSTEM_DIR`` and ``WORKERS_DIR`` default
-inside it but move out independently. Override any of them with a drop-in or the
-``windmill-worker.env`` file.
+inside it but move out independently; and ``MIRRORS_DIR`` roots the bulky git
+mirrors alone (default ``SYSTEM_DIR/mirror``), so you can park the expensive
+object store on a separate volume while the bares, ssh key and store stay put.
+Override any of them with a drop-in or the ``windmill-worker.env`` file.
 
 Run the ``f/workbench`` init flow from Windmill to provision the System
 workbench (the bare mirrors and the ssh key); the workers fill their sandboxes
@@ -320,11 +323,15 @@ To reuse work you already have (from an earlier workbench, or when relocating
 ``WORKBENCH_DIR``), move ``system/mirror`` (the expensive clones) and
 ``system/ssh`` (so the guest key is kept, not regenerated) into the new
 ``SYSTEM_DIR`` before running the flow; on one filesystem the move is instant.
-``f/workbench/fetch`` then cuts fresh bares from the moved mirrors, ``ssh_key``
-rewrites the ssh config for the new path, and ``f/workbench/mirror`` installs
-the ``git-mirror@`` timers, so the clones are refreshed in place rather than
-re-cloned. The bares and worker sandboxes hold absolute paths, so let the flow
-regenerate those rather than moving them.
+Or, to leave the mirror where it already sits, point ``MIRRORS_DIR`` at it
+instead of moving it. ``f/workbench/fetch`` then cuts fresh bares from the
+mirrors, ``ssh_key`` rewrites the ssh config for the new path, and
+``f/workbench/mirror`` installs the ``git-mirror@`` timers, so the clones are
+refreshed in place rather than re-cloned. The bares borrow the mirror through an
+alternate that ``fetch`` rewrites authoritatively, so a moved or repointed
+mirror leaves one valid alternate, not a dangling one. The bares and worker
+sandboxes hold absolute paths, so let the flow regenerate those rather than
+moving them.
 
 Tear down
 =========

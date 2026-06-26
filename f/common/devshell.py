@@ -193,6 +193,18 @@ def system_dir() -> Path:
     return workbench_dir() / "system"
 
 
+def mirrors_dir() -> Path:
+    """Root holding the System workbench's git mirrors (ADR-0008).
+
+    Exposed to workers as MIRRORS_DIR; defaults to `mirror/` under the System
+    workbench, so it relocates with SYSTEM_DIR unless pointed elsewhere on its
+    own.
+    """
+    if os.environ.get("MIRRORS_DIR"):
+        return Path(os.environ["MIRRORS_DIR"])
+    return system_dir() / "mirror"
+
+
 def vendor_dir(workers: Path | str | None = None) -> Path:
     """Top-level `vendor/` of the pinned vendored projects (ADR-0006).
 

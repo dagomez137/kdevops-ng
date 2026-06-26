@@ -103,8 +103,10 @@ Places
    System workbench
       The host-local infrastructure singleton: the :term:`Mirrors <Mirror>`,
       :term:`Bares <Bare>`, SSH key, and :term:`Store`. It defaults to
-      ``system/`` under the :term:`Workbench` but relocates on its own. It is
-      user-scoped and sudo-less in steady state.
+      ``system/`` under the :term:`Workbench` but relocates on its own, and its
+      :term:`Mirrors <Mirror>` (the bulky shared object store, default
+      ``system/mirror``) relocate apart from it again. It is user-scoped and
+      sudo-less in steady state.
 
       Avoid: *service workbench*.
 
@@ -149,7 +151,8 @@ Source and artifacts
    Mirror
       A *disposable* local cache of an upstream, force-refreshed on a timer. A
       pure ref and object source: it never holds :term:`Worktrees <Worktree>`
-      or development branches.
+      or development branches. It lives at ``system/mirror`` by default and,
+      being the bulky shared object store, relocates on its own.
 
       Avoid: *cache*, *clone*.
 
