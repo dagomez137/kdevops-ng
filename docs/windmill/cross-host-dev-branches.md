@@ -56,7 +56,7 @@ workflow and a peer may be empty or unreachable. List peer hosts, not self.
 
    B's `prepare()` resolves `<branch>` locally (it is now a `refs/heads/*` entry in B's
    Bare, no fetch needed), lays its warm `main` worktree at `B`'s
-   `<NNNN>/linux/main`, and builds. The build's run layer can then come **back**
+   `<NNNN>/main/linux`, and builds. The build's run layer can then come **back**
    to A through the Store (`prebuilt` `remote`/`remote_index`), closing the
    "build on B, boot on A" loop.
 

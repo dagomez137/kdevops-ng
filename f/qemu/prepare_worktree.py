@@ -6,7 +6,7 @@ worktree is cut from the durable Bare at `$SYSTEM_DIR/bare/qemu.git`,
 which borrows the local mirror's objects, so checkouts are cheap. Runs `git` on the
 host (NOT in the devShell).
 
-The worktree is this worker's `workers/<WORKER_INDEX>/qemu/main`, reused
+The worktree is this worker's `workers/<WORKER_INDEX>/main/qemu`, reused
 for every ref and across runs (parallel across workers); apply b4 series over and over.
 `recreate_worktree` lays a fresh checkout.
 

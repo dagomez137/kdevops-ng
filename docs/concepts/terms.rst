@@ -32,6 +32,8 @@ The containment of the on-host pieces is:
    workbench/             the Workbench (relocatable; or $HOME/src)
    ├── system/            reserved: bare/ mirror/ ssh/ store/
    ├── workers/<id>/      reserved: per-worker build sandboxes
+   │   └── main/          the worker's fixed group
+   │       └── linux/     the worker worktree (build site)
    ├── vanilla/           the default worktree-group
    │   ├── linux/         a project worktree
    │   │   ├── build/     child of the source
@@ -112,7 +114,9 @@ Places
 
    Worker sandbox
       A :term:`Worker`'s own build area (default ``workers/<id>/``,
-      relocatable on its own). A worker builds here, never in a
+      relocatable on its own). Inside it the worker keeps one worker worktree
+      per project under the fixed ``main`` group
+      (``workers/<id>/main/<project>``). A worker builds here, never in a
       :term:`Developer`'s :term:`Worktree`.
 
       Avoid: *workbench*, *worker dir*.
@@ -133,10 +137,16 @@ Source and artifacts
       A ``git`` checkout of a project within a :term:`Worktree-group`, the
       folder named by its :term:`Project name`, created with
       `git-worktree(1) <https://git-scm.com/docs/git-worktree>`__; the project
-      abbreviates *git-worktree* to *worktree*. A *developer worktree* is
-      developer-owned; a *worker worktree* is worker-owned and synced to a
-      ref. A :term:`Worker` never modifies a :term:`Developer`'s worktree. A
-      project gains several worktrees by appearing in several worktree-groups.
+      abbreviates *git-worktree* to *worktree*. The project keeps two kinds. A
+      *worker worktree* is the build site: it lives in a :term:`Worker sandbox`
+      at ``workers/<id>/main/<project>`` under the worker's fixed ``main``
+      group, is re-synced to the ref on every build, and is tunable only by
+      wipe and reinitialize. A *developer worktree* is developer-owned, under
+      ``WORKTREES_DIR/<group>/<project>``, and is the checkout a developer
+      fetches a build's devel layer into for editor indexing; whether one
+      exists is independent of where the build ran. A :term:`Worker` never
+      modifies a :term:`Developer`'s worktree. A project gains several developer
+      worktrees by appearing in several worktree-groups.
 
       Avoid: *tree*, *checkout*.
 

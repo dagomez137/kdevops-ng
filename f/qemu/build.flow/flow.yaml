@@ -18,7 +18,7 @@ description: |-
   reuse). 6. `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
-  (`workers/<worker>/qemu/main`), synced to `qemu_ref` every run so rebuilds
+  (`workers/<worker>/main/qemu`), synced to `qemu_ref` every run so rebuilds
   stay incremental and isolated builds on different workers run in parallel.
   `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean
   build.

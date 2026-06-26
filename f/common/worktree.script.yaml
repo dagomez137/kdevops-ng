@@ -4,7 +4,7 @@ description: |-
   import prepare`). Not a runnable step on its own. `prepare()` lays down one
   detached worktree of a project off the durable Bare at
   `$SYSTEM_DIR/bare/<project>.git`. A worker build resolves its warm `main`
-  worktree under its sandbox (`workers/<WORKER_INDEX>/<project>/main`); a
+  worktree under its sandbox (`workers/<WORKER_INDEX>/main/<project>`); a
   developer worktree resolves under `<workbench>/<worktree-group>/<project>`
   (default group `vanilla`; `system` and `workers` are reserved). It refreshes
   upstream refs into the Bare first, and can apply a lore series on top via `b4

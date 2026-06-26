@@ -209,7 +209,7 @@ wmill flow run f/kernel/build --data '{"config_method":"make","defconfig":["tiny
   builds on `default`, boots on `vm`) the manifest points at the published run layer
   in `/nix/store`, which every worker mounts; no shared tree needed.
 - **worktree isolation:** each worker builds in its own warm `main` worktree
-  `workers/<WORKER_INDEX>/<project>/main`, cut from the durable Bare
+  `workers/<WORKER_INDEX>/main/<project>`, cut from the durable Bare
   (`$SYSTEM_DIR/bare/<project>.git`) and synced to the requested ref
   every build: parallel across workers, incremental across runs. See
   [`CONTEXT.md`](../../CONTEXT.md) and

@@ -69,7 +69,7 @@ one warm worktree per worker (ADR-0001). The chain:
    nixos-flake + config fragments for now.)
 3. **Warm worktree** (`f/kernel/prepare_worktree.py`): off the Bare,
    `git worktree add --force --detach <worktree> <ref>` into this worker's one
-   warm `main` worktree `WORKERS_DIR/<WORKER_INDEX>/linux/main`, re-synced to the ref
+   warm `main` worktree `WORKERS_DIR/<WORKER_INDEX>/main/linux`, re-synced to the ref
    every build so rebuilds stay incremental and builds on different workers run in
    parallel. `build/` and `destdir/` are children of the source checkout. All of it
    lives under `WORKERS_DIR`, bind-mounted at **identical host paths**, so a
@@ -102,7 +102,7 @@ prepare_worktree → configure → compile → devtools → install → collect
 | `collect` | write `result.json` and return it as the flow result | host |
 
 Warm-tree layout (worker scope): the source at
-`WORKERS_DIR/<WORKER_INDEX>/qemu/main`, with `build/` and `destdir/` as
+`WORKERS_DIR/<WORKER_INDEX>/main/qemu`, with `build/` and `destdir/` as
 children of it. `--prefix={destdir}` makes `make install` populate `destdir/bin` and
 `destdir/share/qemu`; QEMU resolves its data dir relative to that prefix, which
 is stable because the slot path is stable.
