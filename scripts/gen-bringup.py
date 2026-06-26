@@ -114,7 +114,9 @@ def add_component(
     if picker:
         gprops[picker["key"]] = {
             "title": picker["title"],
-            "type": "string",
+            # A dynselect field is type:object (what the dropdown widget binds to); the
+            # selected value still resolves to the picked index-name string.
+            "type": "object",
             "format": picker["format"],
             "description": picker["desc"],
             "default": "",
@@ -261,7 +263,7 @@ props["vm"] = {
         },
         "refresh_vm": {
             "title": "Refresh VM",
-            "type": "string",
+            "type": "object",
             "format": "dynselect-list_deployed_vms",
             "description": "Deployed VM to refresh (the render-sidecar registry).",
             "default": "",
