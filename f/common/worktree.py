@@ -10,11 +10,13 @@ same trees. Its `git` comes from the flake (`nixos-flake#git`, resolved once), s
 the worker needs only `nix` on PATH; the optional `b4 shazam` step runs in the
 `nixos-flake#build` devShell.
 
-A worker build resolves its own warm `main` worktree under its sandbox at
-`workers/<WORKER_INDEX>/<project>/main`; a developer worktree (`developer=True`)
-resolves under `$WORKTREES_DIR/<worktree-group>/<project>` (the worktree-group
-root, default the Workbench; default group `vanilla`; `system` and `workers` are
-reserved). The worktree is reused for every ref and
+A worker build resolves its own warm worktree under its sandbox at
+`workers/<WORKER_INDEX>/main/<project>` (the fixed `main` group, since a worker
+has no developer groups); a developer worktree (`developer=True`) resolves under
+`$WORKTREES_DIR/<worktree-group>/<project>` (the worktree-group root, default the
+Workbench; default group `vanilla`; `system` and `workers` are reserved). Both
+share the one `<root>/<group>/<project>` shape. The worktree is reused for every
+ref and
 across runs. `build` and `destdir` are children of the worktree, so
 `recreate_worktree=True` (which rm's the worktree and lays a fresh detached
 checkout) discards them both; the durable run layer lives in the Store, not
@@ -107,13 +109,13 @@ def prepare(
     workers = Path(os.environ["WORKERS_DIR"])
     bare = system_dir() / "bare" / f"{project}.git"
     if developer:
-        # A developer-owned checkout, one per project within a worktree-group.
-        location = worktree_group
-        worktree = worktrees_dir() / worktree_group / project
+        # Developer checkout under the chosen worktree-group.
+        root, group, location = worktrees_dir(), worktree_group, worktree_group
     else:
-        # A worker builds in its own sandbox: one warm detached `main` per project.
-        location = os.environ["WORKER_INDEX"]
-        worktree = workers / location / project / "main"
+        # Worker sandbox under the fixed `main` group; one checkout per project.
+        index = os.environ["WORKER_INDEX"]
+        root, group, location = workers / index, "main", index
+    worktree = root / group / project
     build_dir = worktree / "build"
 
     if not (bare / "objects").is_dir():
