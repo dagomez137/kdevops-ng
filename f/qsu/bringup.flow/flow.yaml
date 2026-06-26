@@ -112,10 +112,10 @@ value:
           expr: '({...flow_input.boot_qemu, qemu_source: (flow_input.qemu?.mode === "build" || flow_input.qemu?.mode === "reuse") ? "qemu-build" : "nixpkgs", qemu_binary: flow_input.qemu?.mode === "build" ? results.build_qemu?.qemu_binary : (flow_input.qemu?.mode === "reuse" ? results.resolve?.qemu_binary : null)})'
         sharing:
           type: javascript
-          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing, modules_dir: flow_input.kernel?.modules_dir }) : ({ ...flow_input.boot_sharing, modules_dir: flow_input.kernel?.modules_dir, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
+          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
         kernel_boot:
           type: javascript
-          expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_image: flow_input.kernel?.kernel_image, kernel_initrd: flow_input.kernel?.kernel_initrd, kernel_append: flow_input.kernel?.kernel_append})'
+          expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure})'
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -139,10 +139,6 @@ schema:
       order:
       - mode
       - kernel_pick
-      - kernel_image
-      - kernel_initrd
-      - kernel_append
-      - modules_dir
       - worktree
       - configuration
       - build
@@ -153,7 +149,7 @@ schema:
         mode:
           title: Kernel
           type: string
-          description: '`build` runs `f/kernel/build`; `reuse` boots a kernel (image + modules) picked from this host''s Nix-store index, else the explicit Reuse paths.'
+          description: '`build` runs `f/kernel/build`; `reuse` selects a built kernel (image + modules together) from this host''s Nix-store index. The initrd and kernel cmdline are not set here: they come from the closure.'
           default: build
           enum:
           - build
@@ -162,31 +158,7 @@ schema:
           title: Reuse kernel
           type: string
           format: dynselect-list_kernel_index
-          description: Published kernel run layer to boot (`kernel-<release>` in the store index, local or fetched from a peer).
-          default: ''
-          showExpr: fields.mode === "reuse"
-        kernel_image:
-          type: string
-          description: Override the `-kernel` image (else from `kernel`).
-          default: ''
-          showExpr: fields.mode === "reuse"
-        kernel_initrd:
-          type: string
-          description: Override the `-initrd` (else from `closure`).
-          default: ''
-          showExpr: fields.mode === "reuse"
-        kernel_append:
-          type: string
-          description: 'Override the kernel cmdline (`-append`; else `root=tmpfs ...
-
-            init=<closure.init>`).'
-          default: ''
-          showExpr: fields.mode === "reuse"
-        modules_dir:
-          type: string
-          description: 'Override the host modules tree shared at `/lib/modules` (else from
-
-            `kernel`).'
+          description: Built kernel run layer to boot (`kernel-<release>` in the store index, local or fetched from a peer).
           default: ''
           showExpr: fields.mode === "reuse"
         worktree:

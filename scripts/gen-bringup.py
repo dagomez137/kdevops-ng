@@ -144,12 +144,14 @@ def add_component(
     return transforms
 
 
-# Explicit reuse-path overrides for the kernel, absorbed from the boot subflow's
-# kernel_boot group (+ modules_dir, popped from the boot sharing group below).
+# The Kernel component is the kernel artifact only (build it, or pick a built one). The
+# boot-time fields (image path, initrd, cmdline, modules dir) are not kernel config: the
+# run layer carries the modules with the image, and the initrd/cmdline come from the
+# closure. So drop modules_dir from the File-sharing group too; it is reconstructed from
+# the kernel manifest at boot.
 bsch = boot["schema"]["properties"]
-kb = bsch["kernel_boot"]["properties"]
 boot_sharing = copy.deepcopy(bsch["sharing"])
-modules_dir_def = boot_sharing["properties"].pop("modules_dir", None)
+boot_sharing["properties"].pop("modules_dir", None)
 if "modules_dir" in boot_sharing.get("order", []):
     boot_sharing["order"].remove("modules_dir")
 
@@ -159,19 +161,14 @@ kt = add_component(
     "Kernel",
     ["build", "reuse"],
     "build",
-    "`build` runs `f/kernel/build`; `reuse` boots a kernel (image + modules) picked from this host's Nix-store index, else the explicit Reuse paths.",
+    "`build` runs `f/kernel/build`; `reuse` selects a built kernel (image + modules together) from this host's Nix-store index. The initrd and kernel cmdline are not set here: they come from the closure.",
     {
         "key": "kernel_pick",
         "title": "Reuse kernel",
         "format": "dynselect-list_kernel_index",
-        "desc": "Published kernel run layer to boot (`kernel-<release>` in the store index, local or fetched from a peer).",
+        "desc": "Built kernel run layer to boot (`kernel-<release>` in the store index, local or fetched from a peer).",
     },
-    {
-        "kernel_image": kb["kernel_image"],
-        "kernel_initrd": kb["kernel_initrd"],
-        "kernel_append": kb["kernel_append"],
-        "modules_dir": modules_dir_def,
-    },
+    None,
 )
 ct = add_component(
     nix,
@@ -278,7 +275,7 @@ order.append("vm")
 
 # --- boot step input_transforms: pick each artifact by its component mode -----------
 # build -> the build subflow's result; reuse -> the resolve step (store kernel/qemu,
-# sidecar closure); explicit Reuse kernel paths still override; qemu nixpkgs -> no binary.
+# sidecar closure); qemu nixpkgs -> no binary (boot resolves the store qemu).
 boot_transforms = {
     "vm": jx(
         '({vm_name: (flow_input.vm?.vm_target === "refresh" ? flow_input.vm?.refresh_vm : flow_input.vm?.vm_name), '
@@ -299,17 +296,15 @@ boot_transforms = {
     # so shares are reconstructed from the closure inputs rather than dropped.
     "sharing": jx(
         '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 '
-        "? ({ ...results.resolve.sharing, ...flow_input.boot_sharing, modules_dir: flow_input.kernel?.modules_dir }) "
-        ": ({ ...flow_input.boot_sharing, modules_dir: flow_input.kernel?.modules_dir, "
+        "? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) "
+        ": ({ ...flow_input.boot_sharing, "
         'fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), '
         "home_share: (flow_input.closure?.guest?.home === true), "
         "home_share_readwrite: (flow_input.closure?.guest?.home === true) }))"
     ),
     "kernel_boot": jx(
         '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, '
-        'closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, '
-        "kernel_image: flow_input.kernel?.kernel_image, kernel_initrd: flow_input.kernel?.kernel_initrd, "
-        "kernel_append: flow_input.kernel?.kernel_append})"
+        'closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure})'
     ),
 }
 
