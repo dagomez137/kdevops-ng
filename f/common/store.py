@@ -34,9 +34,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.common.devshell import DevShell, Nix
+from f.common.devshell import DevShell, Nix, system_dir
 
 _INDEX_SUBDIR = "shared/store-index"
+
+# Default-layout path to a peer's store-index, used when a peers-registry line names
+# only a host. ssh runs `readlink` in the peer's shell, which expands the leading `~`.
+DEFAULT_PEER_INDEX = "~/.local/state/windmill/workbench/workers/shared/store-index"
 
 
 def main():
@@ -49,6 +53,28 @@ def index_dir() -> Path:
     path = Path(os.environ["WORKERS_DIR"]) / _INDEX_SUBDIR
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def registered_peers() -> list[dict]:
+    """Registered peers from `$SYSTEM_DIR/peers`: one `<host> [<store_index_dir>]` per line.
+
+    The single source of truth for the peer registry, written by f/workbench/fetch and
+    read by every consumer (peer auto-discovery in `fetch_identity`, qsu VM discovery).
+    The first token is the ssh host; an optional second token is that peer's store-index
+    dir (its `WORKERS_DIR/shared/store-index`), defaulting to the default-layout path when
+    a legacy host-only line omits it. A missing or empty file means no peers.
+    """
+    f = system_dir() / "peers"
+    if not f.is_file():
+        return []
+    peers = []
+    for line in f.read_text().splitlines():
+        toks = line.split()
+        if not toks:
+            continue
+        index = toks[1] if len(toks) > 1 else DEFAULT_PEER_INDEX
+        peers.append({"host": toks[0], "index": index})
+    return peers
 
 
 def publish(name: str, tree: str) -> str:

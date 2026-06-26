@@ -138,14 +138,34 @@ schema:
     peers:
       type: array
       description: |-
-        ssh-host aliases of other workbench hosts. Each becomes a <peer> remote
-        on every Bare (ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git, same
-        layout), so a developer can `git push <peer> <branch>` a dev branch
-        cross-host for that host's worker to build. List peer hosts, not self;
-        empty = single-host.
+        Other workbench hosts. Each host becomes a <peer> remote on every Bare
+        (ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git, same layout), so a
+        developer can `git push <peer> <branch>` a dev branch cross-host for
+        that host's worker to build, and its store-index lets a build fetch a
+        prebuilt identity from it. List peer hosts, not self; empty =
+        single-host.
       default: []
       items:
-        type: string
+        type: object
+        order:
+          - host
+          - store_index
+        properties:
+          host:
+            type: string
+            description: |-
+              SSH host alias of the peer workbench host.
+            title: SSH Host
+          store_index:
+            type: string
+            description: |-
+              The peer's `WORKERS_DIR/shared/store-index` directory, read over
+              ssh to resolve a prebuilt build identity. The default assumes the
+              peer uses the default build-area layout.
+            default: ~/.local/state/windmill/workbench/workers/shared/store-index
+            title: Store Index Dir
+        required:
+          - host
     refresh:
       type: boolean
       description: |-

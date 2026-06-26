@@ -630,34 +630,26 @@ schema:
       showExpr: fields.kernel_source === "build"
     kernel_prebuilt:
       type: object
-      description: 'Cross-host build host to pull a prebuilt identity from before building.
+      description: 'Reuse a prebuilt identity from a registered peer before building. When a
 
-        When a peer already published this build identity to the Nix store, its
+        peer already published this build identity to its Nix store, its run
 
-        run layer (image + modules) is fetched into the destdir so the build is
+        layer (image + modules) is fetched into the local store so the build is
 
         reused instead of repeated.'
       default: {}
       order:
-      - remote
-      - remote_index
+      - use_peers
       properties:
-        remote:
-          type: string
-          description: 'SSH host of the peer builder to fetch this build identity''s run
+        use_peers:
+          type: boolean
+          description: 'Fetch this build identity''s run layer from a registered peer''s Nix
 
-            layer from. Empty (default) builds locally with no fetch.'
-          default: ''
-        remote_index:
-          type: string
-          description: 'The peer builder''s `store-index` directory (its
+            store before building, when one already published it (the peers
 
-            `WORKERS_DIR/shared/store-index`), read over ssh to learn the run
-
-            layer''s Nix store path. Empty (default) builds locally with no
-
-            fetch.'
-          default: ''
+            registry at `$SYSTEM_DIR/peers`). Off builds locally only.'
+          default: true
+          title: Use Peers
       title: 'Kernel: Prebuilt'
       showExpr: fields.kernel_source === "build"
     nix_guest:
@@ -1024,34 +1016,26 @@ schema:
       showExpr: fields.qemu_source === "build"
     qemu_prebuilt:
       type: object
-      description: 'Cross-host build host to pull a prebuilt identity from before building.
+      description: 'Reuse a prebuilt identity from a registered peer before building. When a
 
-        When a peer already published this build identity to the Nix store, its
+        peer already published this build identity to its Nix store, its whole
 
-        whole install tree is fetched into the per-identity prefix so the build
+        install tree is fetched into the local store so the build is reused
 
-        is reused instead of repeated.'
+        instead of repeated.'
       default: {}
       order:
-      - remote
-      - remote_index
+      - use_peers
       properties:
-        remote:
-          type: string
-          description: 'SSH host of the peer QEMU builder to fetch this build identity''s
+        use_peers:
+          type: boolean
+          description: 'Fetch this build identity''s install tree from a registered peer''s
 
-            install tree from. Empty (default) builds locally with no fetch.'
-          default: ''
-        remote_index:
-          type: string
-          description: 'The peer builder''s `store-index` directory (its
+            Nix store before building, when one already published it (the peers
 
-            `WORKERS_DIR/shared/store-index`), read over ssh to learn the
-
-            install tree''s Nix store path. Empty (default) builds locally with
-
-            no fetch.'
-          default: ''
+            registry at `$SYSTEM_DIR/peers`). Off builds locally only.'
+          default: true
+          title: Use Peers
       title: 'QEMU build: Prebuilt'
       showExpr: fields.qemu_source === "build"
     boot_vm:

@@ -17,6 +17,7 @@ from pathlib import Path
 import jinja2
 import yaml
 
+from f.common import store
 from f.common.devshell import DevShell, Systemd, system_dir, vendor_dir
 from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
@@ -124,12 +125,10 @@ def _running_vms(out: str) -> set[str]:
 
 
 def _peer_hosts() -> list[str]:
-    """Registered peer ssh-host aliases (one per line in `$SYSTEM_DIR/peers`, written by
-    f/workbench/fetch). Missing/empty file means no peers, so discovery stays local."""
-    f = system_dir() / "peers"
-    if not f.is_file():
-        return []
-    return [h.strip() for h in f.read_text().splitlines() if h.strip()]
+    """Registered peer ssh-host aliases, the `host` field of each `store.registered_peers()`
+    entry (the `$SYSTEM_DIR/peers` registry, written by f/workbench/fetch). Missing/empty
+    file means no peers, so discovery stays local."""
+    return [p["host"] for p in store.registered_peers()]
 
 
 def vm_options(filter_text: str = "") -> list[dict]:

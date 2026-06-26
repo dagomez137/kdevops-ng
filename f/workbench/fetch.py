@@ -18,9 +18,9 @@ provisioned by `f/workbench/mirror`; `build_mirrors()`/`remote_url()` here are t
 shared source of truth for both. The entry's primary remote (the canonical tree, e.g.
 `torvalds/linux`) supplies the Bare's `origin` URL.
 
-`peers` is a list of ssh-host aliases of other workbench hosts. Each becomes a
-`<peer>` remote on every Bare, its URL the peer's Bare under the same SYSTEM_DIR
-layout (`ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git`), with a
+`peers` is a list of `{host, store_index}` objects, one per other workbench host.
+Each host becomes a `<peer>` remote on every Bare, its URL the peer's Bare under the
+same SYSTEM_DIR layout (`ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git`), with a
 `+refs/heads/*:refs/remotes/<peer>/*` refspec. A developer publishes a branch
 cross-host with `git -C <worktree> push <peer> <branch>`, and the peer's worker builds
 it as a local `refs/heads/*` ref (ADR-0001's per-host ref channel). Not fetched here.
@@ -51,6 +51,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from f.common import store
 from f.common.devshell import Git, mirrors_dir, system_dir
 
 # Curated upstream hosts for the Linux mirror: source -> clone-URL template per
@@ -220,7 +221,7 @@ def main(
     projects: list[str] | None = None,
     linux: dict | None = None,
     qemu: dict | None = None,
-    peers: list[str] | None = None,
+    peers: list[dict] | None = None,
     refresh: bool = True,
 ) -> dict:
     system = system_dir()
@@ -230,7 +231,8 @@ def main(
         qemu,
         mirrors_dir(),
     )
-    peers = [p.strip() for p in (peers or []) if p and p.strip()]
+    peers = _normalize_peers(peers)
+    peer_hosts = [p["host"] for p in peers]
 
     git = Git()
     existing = git.capture(
@@ -248,7 +250,7 @@ def main(
         bare = system / "bare" / f"{project}.git"
         origin = remote_url(_primary(entry))
         action = _ensure(git, mirror, bare, origin, trees, refresh)
-        peer_results = _ensure_peers(git, bare, peers, system, project)
+        peer_results = _ensure_peers(git, bare, peer_hosts, system, project)
         head = (
             git.capture("-C", str(bare), "rev-parse", "HEAD", check=False).strip()
             or None
@@ -271,10 +273,30 @@ def main(
     # the qsu VM discovery (f.qsu.common.vm_options) sweeps these hosts over ssh.
     peers_file = system / "peers"
     peers_file.parent.mkdir(parents=True, exist_ok=True)
-    peers_file.write_text("".join(f"{p}\n" for p in peers))
+    peers_file.write_text("".join(f"{p['host']}\t{p['store_index']}\n" for p in peers))
     print(f"wrote {peers_file} ({len(peers)} peer(s))", flush=True)
 
     return {"system_dir": str(system), "mirrors": results, "peers": peers}
+
+
+def _normalize_peers(peers: list[dict] | None) -> list[dict]:
+    """Normalize the `peers` input to `[{host, store_index}]`, dropping empty entries.
+
+    A bare string entry (legacy) is read as a host with the default-layout store-index;
+    an object supplies an explicit `store_index`, falling back to that same default.
+    """
+    out = []
+    for p in peers or []:
+        if isinstance(p, str):
+            host, index = p.strip(), store.DEFAULT_PEER_INDEX
+        elif isinstance(p, dict):
+            host = (p.get("host") or "").strip()
+            index = (p.get("store_index") or "").strip() or store.DEFAULT_PEER_INDEX
+        else:
+            continue
+        if host:
+            out.append({"host": host, "store_index": index})
+    return out
 
 
 def _require_str(entry: dict, key: str) -> str:

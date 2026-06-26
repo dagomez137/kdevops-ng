@@ -1,12 +1,13 @@
 summary: Fetch an install tree from a peer
 description: |-
-  Pull a build identity's whole install tree from a peer host into the Nix
+  Pull a build identity's whole install tree from a registered peer into the Nix
   store, before the expensive compile, so the following `reuse_check` reports
-  `present` and the build is skipped. Reads the peer's `store-index` entry over
-  ssh to learn the install tree's Nix store path, pulls it with `nix copy` over
-  the `transfer` devShell, and indexes it locally. The tree is consumed in place
-  from the store, with no copy. Same-host (no remote) is a no-op. Returns
-  `fetched` plus the resolved `prefix`.
+  `present` and the build is skipped. Sweeps the registered peers
+  (`$SYSTEM_DIR/peers`) and, for the first that carries the identity, reads its
+  `store-index` entry over ssh to learn the install tree's Nix store path, pulls
+  it with `nix copy` over the `transfer` devShell, and indexes it locally. The
+  tree is consumed in place from the store, with no copy. `use_peers` off, or no
+  peer carrying it, is a no-op. Returns `fetched` plus the resolved `prefix`.
 lock: '!inline f/qemu/fetch_identity.script.lock'
 kind: script
 schema:
@@ -14,23 +15,18 @@ schema:
   type: object
   order:
     - prefix
-    - remote
-    - remote_index
+    - use_peers
   properties:
     prefix:
       type: string
       description: |-
         Local per-identity install prefix to populate (`destdir/<identity>`).
-    remote:
-      type: string
+    use_peers:
+      type: boolean
       description: |-
-        SSH host of the peer builder; empty fetches nothing (same-host).
-      default: ''
-    remote_index:
-      type: string
-      description: |-
-        The peer builder's `store-index` directory, read over ssh to learn the
-        install tree's store path; empty fetches nothing.
-      default: ''
+        Sweep the registered peers (`$SYSTEM_DIR/peers`) and fetch this install
+        tree from the first that published it. Off builds locally with no fetch.
+      default: true
+      title: Use Peers
   required:
     - prefix
