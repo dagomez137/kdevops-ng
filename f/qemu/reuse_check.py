@@ -19,19 +19,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from f.common import store
-
-
-def _emulators(root: str) -> list[Path]:
-    bindir = Path(root) / "bin"
-    return sorted(bindir.glob("qemu-system-*")) if bindir.is_dir() else []
+from f.common import run_layer, store
 
 
 def main(prefix: str) -> dict:
-    binaries = _emulators(prefix)
+    binaries = run_layer.qemu_emulators(prefix)
     if not binaries:
         sp = store.local_path(f"qemu-{Path(prefix).name}")
-        binaries = _emulators(sp) if sp else []
+        binaries = run_layer.qemu_emulators(sp) if sp else []
     qemu_binary = str(binaries[0]) if binaries else None
     present = bool(binaries)
     print(f"identity {prefix}: present={present} qemu_binary={qemu_binary}", flush=True)

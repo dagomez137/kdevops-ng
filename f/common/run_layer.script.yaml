@@ -1,0 +1,15 @@
+summary: Resolve a build's run layer from an install root
+description: |-
+  Library module imported by the build and resolve steps (`from f.common import
+  run_layer`). Not a runnable step on its own. `kernel_run_layer` resolves a
+  kernel's boot image and the presence of its modules for a release, and
+  `qemu_emulators` the installed `qemu-system-*` binaries, from an install root
+  that is either a worker destdir or a `/nix/store` path.
+lock: '!inline f/common/run_layer.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

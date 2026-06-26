@@ -18,32 +18,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from f.common import store
-
-
-def _run_layer(root: str, uts_release: str) -> tuple[str | None, bool]:
-    boot = Path(root) / "boot"
-    images = (
-        [
-            p
-            for p in sorted(boot.glob(f"*-{uts_release}"))
-            if not p.name.startswith(("System.map", "config"))
-        ]
-        if boot.is_dir()
-        else []
-    )
-    image = str(images[0]) if images else None
-    has_modules = (Path(root) / "lib/modules" / uts_release).is_dir()
-    return image, has_modules
+from f.common import run_layer, store
 
 
 def main(destdir: str, uts_release: str) -> dict:
     root = destdir
-    image, has_modules = _run_layer(destdir, uts_release)
+    image, has_modules = run_layer.kernel_run_layer(destdir, uts_release)
     if not (image and has_modules):
         sp = store.local_path(f"kernel-{uts_release}")
         if sp:
-            sp_image, sp_modules = _run_layer(sp, uts_release)
+            sp_image, sp_modules = run_layer.kernel_run_layer(sp, uts_release)
             if sp_image and sp_modules:
                 root, image, has_modules = sp, sp_image, sp_modules
     present = bool(image and has_modules)
