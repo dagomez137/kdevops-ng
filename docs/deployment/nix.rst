@@ -132,6 +132,18 @@ built-in default, so set one to use your editor:
 
 Export ``SYSTEMD_EDITOR`` from your shell profile to make it the default.
 
+The two routes refresh differently. An ``.env`` file is re-read on every start,
+so a change there needs only a restart of the affected units
+(``systemctl --user restart 'windmill-worker@*'`` for the worker pool), not a
+``daemon-reload``. A unit or drop-in change instead alters what the manager
+itself runs, so it needs a configuration reload: ``systemctl --user edit``
+writes the drop-in and runs ``daemon-reload`` for you, while a hand-edited unit
+file needs an explicit ``systemctl --user daemon-reload``. Either way, restart
+the unit afterward for the new value to reach the running process. A
+template-level drop-in (``systemctl --user edit windmill-worker@``) overrides
+every worker instance at once, the drop-in counterpart of the shared
+``windmill-worker.env``.
+
 The knobs, grouped by the unit that carries each. Every one has a working
 default, so the stack runs untouched; override any by editing that unit's
 ``.env`` file or with a drop-in, as above.
