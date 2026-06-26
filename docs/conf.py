@@ -34,6 +34,16 @@ html_theme_options = {
             "url": "https://bit.ly/linux-kdevops-chat",
             "icon": "fa-brands fa-discord",
         },
+        {
+            "name": "IRC: #kdevops on OFTC",
+            "url": "https://webchat.oftc.net/?channels=kdevops",
+            "icon": "fa-solid fa-comments",
+        },
+        {
+            "name": "Mailing list: kdevops@lists.linux.dev",
+            "url": "mailto:kdevops@lists.linux.dev",
+            "icon": "fa-solid fa-envelope",
+        },
     ],
 }
 html_context = {
