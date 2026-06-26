@@ -8,7 +8,7 @@ host (NOT in the devShell).
 
 The worktree is this worker's `workers/<WORKER_INDEX>/main/linux`, reused for
 every ref and across runs (parallel across workers); apply b4 series over and over.
-`recreate_worktree` lays a fresh checkout.
+`recreate_build_worktree` lays a fresh checkout.
 
 The out-of-tree `build` dir and the `destdir` install target are both children of the
 source checkout (`linux/build`, `linux/destdir`), so kbuild emits paths relative to
@@ -36,9 +36,8 @@ from f.common.worktree import prepare
 
 def main(
     git_ref: str = "v7.1-rc7",
-    worktree_group: str = "vanilla",
     b4_series: str = "",
-    recreate_worktree: bool = False,
+    recreate_build_worktree: bool = False,
     wipe_build: bool = False,
     clean_destdir: bool = False,
 ) -> dict:
@@ -48,11 +47,10 @@ def main(
     )
     result = prepare(
         project="linux",
-        worktree_group=worktree_group,
         developer=False,
         ref=git_ref,
         b4_series=b4_series,
-        recreate_worktree=recreate_worktree,
+        recreate_worktree=recreate_build_worktree,
         extra_dirs=("build", "destdir"),
         wipe_dirs=wipe_dirs,
     )

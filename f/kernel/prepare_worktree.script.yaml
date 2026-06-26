@@ -5,12 +5,12 @@ description: |-
   durable Bare at `$SYSTEM_DIR/bare/linux.git` and refreshed from the mirror
   first so newly-mirrored refs/tags are usable. Thin wrapper over
   `f/common/worktree`. The same tree is reused for every ref and across runs
-  (parallel across workers); `recreate_worktree` lays a fresh checkout. `build`
-  and `destdir` are children of the source checkout.
+  (parallel across workers); `recreate_build_worktree` lays a fresh checkout.
+  `build` and `destdir` are children of the source checkout.
 
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `worker`, `project`,
-  `worktree_group`, `git_ref`, and `b4_branch` (the `b4/<slug>` branch published
-  to the Bare when `b4_series` is set, else null).
+  `git_ref`, and `b4_branch` (the `b4/<slug>` branch published to the Bare when
+  `b4_series` is set, else null).
 lock: '!inline f/kernel/prepare_worktree.script.lock'
 kind: script
 schema:
@@ -18,9 +18,8 @@ schema:
   type: object
   order:
     - git_ref
-    - worktree_group
     - b4_series
-    - recreate_worktree
+    - recreate_build_worktree
     - wipe_build
     - clean_destdir
   properties:
@@ -42,24 +41,18 @@ schema:
         Branch, tag or commit in the Bare to check out (a tag, an upstream ref
         via the mirror, or a developer branch).
       default: v7.1-rc7
-    recreate_worktree:
+    recreate_build_worktree:
       type: boolean
       description: |-
-        Lay a fresh detached checkout (rm the warm tree, its build dir and
-        destdir too, first) instead of reusing it. Default off keeps the warm
-        tree for incremental rebuilds.
+        Re-cut the worker's build-site checkout (rm the warm tree, its build dir
+        and destdir too, first) instead of reusing it. This hits only the worker
+        sandbox and never a developer worktree. Default off keeps the warm tree
+        for incremental rebuilds.
       default: false
-      title: Recreate Worktree
+      title: Recreate Build Worktree
     wipe_build:
       type: boolean
       description: |-
         Wipe the build dir before building (default off = incremental reuse).
       default: false
-    worktree_group:
-      type: string
-      description: |-
-        Worktree-group this build belongs to (default vanilla; system/workers
-        are reserved).
-      default: vanilla
-      title: Worktree group
   required: []

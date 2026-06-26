@@ -32,7 +32,7 @@ description: |-
   Each worker builds in its own warm `main` worktree
   (`workers/<worker>/main/linux`), synced to `git_ref` every run so rebuilds
   stay incremental and isolated builds on different workers run in parallel.
-  `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean
+  `recreate_build_worktree` forces a fresh checkout; `wipe_build` forces a clean
   build.
 
   Returns a manifest (`commit`, `uts_release`, `bzImage`, `build_dir`, `config`,
@@ -56,15 +56,12 @@ value:
           git_ref:
             type: javascript
             expr: flow_input.worktree?.git_ref
-          recreate_worktree:
+          recreate_build_worktree:
             type: javascript
-            expr: flow_input.worktree?.recreate_worktree
+            expr: flow_input.worktree?.recreate_build_worktree
           wipe_build:
             type: javascript
             expr: flow_input.worktree?.wipe_build
-          worktree_group:
-            type: javascript
-            expr: flow_input.worktree?.worktree_group
         path: f/kernel/prepare_worktree
       retry:
         constant:
@@ -400,6 +397,44 @@ value:
       timeout:
         type: static
         value: 600
+    - id: deploy_worktree
+      summary: lay the developer group worktree at the built ref
+      value:
+        type: script
+        input_transforms:
+          projects:
+            type: javascript
+            expr: '[{ project: "linux", git_ref: results.prepare_worktree.b4_branch
+              || flow_input.worktree?.git_ref, b4_series: "" }]'
+          recreate_worktree:
+            type: javascript
+            expr: flow_input.worktree?.recreate_developer_worktree
+          worktree_group:
+            type: javascript
+            expr: flow_input.worktree?.worktree_group
+        path: f/workbench/worktree/init
+      skip_if:
+        expr: flow_input.worktree?.deploy_developer_worktree !== true
+      timeout:
+        type: static
+        value: 300
+    - id: fetch_devel
+      summary: fetch this build's devel layer into the developer worktree
+      value:
+        type: script
+        input_transforms:
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+          worktree:
+            type: javascript
+            expr: results.deploy_worktree.worktrees[0].worktree
+        path: f/kernel/fetch_devel
+      skip_if:
+        expr: flow_input.worktree?.deploy_developer_worktree !== true
+      timeout:
+        type: static
+        value: 1800
     - id: collect
       summary: Merge step results into one manifest
       value:
@@ -855,10 +890,12 @@ schema:
       default: {}
       order:
         - git_ref
-        - worktree_group
-        - b4_series
-        - recreate_worktree
+        - recreate_build_worktree
         - wipe_build
+        - b4_series
+        - deploy_developer_worktree
+        - worktree_group
+        - recreate_developer_worktree
       properties:
         b4_series:
           type: string
@@ -867,20 +904,39 @@ schema:
             checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
           default: ''
           title: b4 Series
+        deploy_developer_worktree:
+          type: boolean
+          description: |-
+            After the build, lay or refresh a developer group worktree under
+            WORKTREES_DIR and fetch this build's devel layer into it for clangd,
+            rust-analyzer and GDB indexing. The build itself is unaffected by
+            this toggle.
+          default: false
+          title: Deploy Developer Worktree
         git_ref:
           type: string
           description: |-
             Branch, tag or commit in the Bare to build (a tag, an upstream ref
             via the mirror, or a developer branch).
           default: v7.1-rc7
-        recreate_worktree:
+        recreate_build_worktree:
           type: boolean
           description: |-
-            Lay a fresh detached checkout (rm the warm tree, its build dir and
-            destdir too, first) instead of reusing it. Default off keeps the
-            warm tree for incremental rebuilds.
+            Re-cut the worker's build-site checkout (rm the warm tree, its build
+            dir and destdir too, first) instead of reusing it. This hits only
+            the worker sandbox and never a developer worktree. Default off keeps
+            the warm tree for incremental rebuilds.
           default: false
-          title: Recreate Worktree
+          title: Recreate Build Worktree
+        recreate_developer_worktree:
+          type: boolean
+          description: |-
+            Re-cut the developer group worktree (rm the existing checkout first)
+            instead of reusing it. This hits only the developer worktree and
+            never the worker build site.
+          default: false
+          showExpr: fields.deploy_developer_worktree === true
+          title: Recreate Developer Worktree
         wipe_build:
           type: boolean
           description: |-
@@ -890,9 +946,10 @@ schema:
         worktree_group:
           type: string
           description: |-
-            Worktree-group this build belongs to (default vanilla;
-            system/workers are reserved).
+            Developer group to deploy into, at WORKTREES_DIR/<group>/linux. Used
+            only when Deploy Developer Worktree is on.
           default: vanilla
-          title: Worktree group
+          showExpr: fields.deploy_developer_worktree === true
+          title: Developer Group
       title: Worktree
   required: []

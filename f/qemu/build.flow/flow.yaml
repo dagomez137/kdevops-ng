@@ -48,9 +48,6 @@ value:
           wipe_build:
             type: javascript
             expr: flow_input.worktree?.wipe_build
-          worktree_group:
-            type: javascript
-            expr: flow_input.worktree?.worktree_group
         path: f/qemu/prepare_worktree
       retry:
         constant:
@@ -492,7 +489,6 @@ schema:
       default: {}
       order:
         - qemu_ref
-        - worktree_group
         - b4_series
         - recreate_worktree
         - wipe_build
@@ -525,12 +521,5 @@ schema:
             Wipe the build dir before building (default off = incremental
             reuse).
           default: false
-        worktree_group:
-          type: string
-          description: |-
-            Worktree-group this build belongs to (default vanilla;
-            system/workers are reserved).
-          default: vanilla
-          title: Worktree group
       title: Worktree
   required: []

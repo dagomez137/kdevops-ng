@@ -36,7 +36,6 @@ from f.common.worktree import prepare
 
 def main(
     qemu_ref: str = "v11.0.0",
-    worktree_group: str = "vanilla",
     b4_series: str = "",
     recreate_worktree: bool = False,
     wipe_build: bool = False,
@@ -48,7 +47,6 @@ def main(
     )
     result = prepare(
         project="qemu",
-        worktree_group=worktree_group,
         developer=False,
         ref=qemu_ref,
         b4_series=b4_series,

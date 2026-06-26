@@ -9,8 +9,8 @@ description: |-
   (out-of-tree) and `destdir` (`--prefix`) are children of the source checkout.
 
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `version`, `project`,
-  `worktree_group`, `qemu_ref`, and `b4_branch` (the `b4/<slug>` branch
-  published to the Bare when `b4_series` is set, else null).
+  `qemu_ref`, and `b4_branch` (the `b4/<slug>` branch published to the Bare when
+  `b4_series` is set, else null).
 lock: '!inline f/qemu/prepare_worktree.script.lock'
 kind: script
 schema:
@@ -18,7 +18,6 @@ schema:
   type: object
   order:
     - qemu_ref
-    - worktree_group
     - b4_series
     - recreate_worktree
     - wipe_build
@@ -56,11 +55,4 @@ schema:
       description: |-
         Wipe the build dir before building (default off = incremental reuse).
       default: false
-    worktree_group:
-      type: string
-      description: |-
-        Worktree-group this build belongs to (default vanilla; system/workers
-        are reserved).
-      default: vanilla
-      title: Worktree group
   required: []
