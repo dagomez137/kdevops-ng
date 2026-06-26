@@ -23,6 +23,18 @@ html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
 html_theme_options = {
     "navigation_with_keys": False,
     "navbar_align": "left",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/dagomez137/kdevops-ng",
+            "icon": "fa-brands fa-github",
+        },
+        {
+            "name": "Discord",
+            "url": "https://bit.ly/linux-kdevops-chat",
+            "icon": "fa-brands fa-discord",
+        },
+    ],
 }
 html_context = {
     "default_mode": "light",
