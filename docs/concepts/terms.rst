@@ -30,7 +30,7 @@ The containment of the on-host pieces is:
 ::
 
    workbench/             the Workbench (relocatable; or $HOME/src)
-   ├── system/            reserved: bare/ mirror/ ssh/ store/
+   ├── system/            reserved: bare/ mirror/ ssh/ store/ ccache/
    ├── workers/<id>/      reserved: per-worker build sandboxes
    │   └── main/          the worker's fixed group
    │       └── linux/     the worker worktree (build site)
@@ -104,10 +104,11 @@ Places
 
    System workbench
       The host-local infrastructure singleton: the :term:`Mirrors <Mirror>`,
-      :term:`Bares <Bare>`, SSH key, and :term:`Store`. It defaults to
-      ``system/`` under the :term:`Workbench` but relocates on its own, and its
-      :term:`Mirrors <Mirror>` (the bulky shared object store, default
-      ``system/mirror``) relocate apart from it again. It is user-scoped and
+      :term:`Bares <Bare>`, SSH key, :term:`Store`, and the shared compiler
+      cache. It defaults to ``system/`` under the :term:`Workbench` but
+      relocates on its own, and its :term:`Mirrors <Mirror>` (the bulky shared
+      object store, default ``system/mirror``) and compiler cache (default
+      ``system/ccache``) relocate apart from it again. It is user-scoped and
       sudo-less in steady state.
 
       Avoid: *service workbench*.

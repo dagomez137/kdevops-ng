@@ -187,9 +187,9 @@ default, so the stack runs untouched; override any by editing that unit's
   tags apply): which jobs the instance pulls. The vm and vm-run instances get
   theirs from install-time drop-ins; see `Workers`_.
 * ``WORKBENCH_DIR``, ``WORKTREES_DIR``, ``SYSTEM_DIR``, ``MIRRORS_DIR``,
-  ``WORKERS_DIR``, ``VENDOR_DIR``: the build-area paths, each relocatable on its
-  own. See `The workbench`_ for what each roots, how they nest, and their
-  defaults.
+  ``CCACHE_DIR``, ``WORKERS_DIR``, ``VENDOR_DIR``: the build-area paths, each
+  relocatable on its own. See `The workbench`_ for what each roots, how they
+  nest, and their defaults.
 * ``NIX_BIN`` (``/nix/var/nix/profiles/default/bin``): the directory holding
   ``nix`` on the worker's PATH. The default suits most hosts; point it at a
   reachable ``bin`` on a NixOS host, whose default profile lives under the
@@ -198,7 +198,7 @@ default, so the stack runs untouched; override any by editing that unit's
 
 A worker passes only the variables named in ``WHITELIST_ENVS`` into the job's
 environment, so a step sees a build-area path (or ``NIX_BIN``) only because it
-is whitelisted. The shipped list already covers the six build-area paths and
+is whitelisted. The shipped list already covers the seven build-area paths and
 ``WORKER_INDEX``; to expose any further variable to steps, append its name
 there. ``MODE``, ``WORKER_INDEX``, ``DBUS_SESSION_BUS_ADDRESS`` and
 ``WHITELIST_ENVS`` itself are wiring the units set for you, not tuning knobs.
@@ -299,8 +299,9 @@ The worker build-area paths point at a :term:`Workbench`: a directory
 containing the :term:`Developer`'s :term:`Worktree-groups <Worktree-group>` and
 the kdevops-ng infrastructure that defaults under it. It is not a Windmill
 workspace. The infrastructure is the :term:`System workbench` (``system/``,
-``SYSTEM_DIR``), the host-local singleton holding the mirrors, bares, ssh key
-and store, and the :term:`Worker sandboxes <Worker sandbox>` (``workers/<id>/``,
+``SYSTEM_DIR``), the host-local singleton holding the mirrors, bares, ssh key,
+store and compiler cache, and the :term:`Worker sandboxes <Worker sandbox>`
+(``workers/<id>/``,
 ``WORKERS_DIR``), where each worker builds in its own worktree, never in a
 developer's worktree.
 
@@ -312,10 +313,13 @@ where you want them, a directory in ``$HOME`` such as ``$HOME/src`` or one
 nested in the repository such as ``kdevops-ng/workbench``; ``WORKTREES_DIR``
 roots the worktree-groups alone (default ``WORKBENCH_DIR``), to move the groups
 apart from the rest of the area; ``SYSTEM_DIR`` and ``WORKERS_DIR`` default
-inside it but move out independently; and ``MIRRORS_DIR`` roots the bulky git
+inside it but move out independently; ``MIRRORS_DIR`` roots the bulky git
 mirrors alone (default ``SYSTEM_DIR/mirror``), so you can park the expensive
-object store on a separate volume while the bares, ssh key and store stay put.
-Override any of them with a drop-in or the ``windmill-worker.env`` file.
+object store on a separate volume while the bares, ssh key and store stay put;
+and ``CCACHE_DIR`` roots the shared compiler cache alone (default
+``SYSTEM_DIR/ccache``), so you can keep a warm cache on a fast disk, or point it
+at an existing cache, independently of the rest. Override any of them with a
+drop-in or the ``windmill-worker.env`` file.
 
 Run the ``f/workbench`` init flow from Windmill to provision the System
 workbench (the bare mirrors and the ssh key); the workers fill their sandboxes

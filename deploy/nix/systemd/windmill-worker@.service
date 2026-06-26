@@ -45,11 +45,12 @@ Environment=WORKBENCH_DIR=%S/windmill/workbench
 Environment=SYSTEM_DIR=%S/windmill/workbench/system
 Environment=WORKERS_DIR=%S/windmill/workbench/workers
 Environment=VENDOR_DIR=%S/windmill/vendor
-# WORKTREES_DIR and MIRRORS_DIR are intentionally left unset: the step code
-# defaults them to WORKBENCH_DIR (the worktree-group root) and SYSTEM_DIR/mirror
-# (the git mirrors), so each tracks its parent on a move. Both are whitelisted so
-# a drop-in can relocate the groups, or the bulky mirror, on their own.
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,MIRRORS_DIR,WORKERS_DIR,VENDOR_DIR
+# WORKTREES_DIR, MIRRORS_DIR and CCACHE_DIR are intentionally left unset: the
+# step code defaults them to WORKBENCH_DIR (the worktree-group root),
+# SYSTEM_DIR/mirror (the git mirrors) and SYSTEM_DIR/ccache (the compiler cache),
+# so each tracks its parent on a move. All are whitelisted so a drop-in can
+# relocate the groups, the bulky mirror, or the cache on their own.
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,MIRRORS_DIR,CCACHE_DIR,WORKERS_DIR,VENDOR_DIR
 EnvironmentFile=%S/windmill/env/database.env
 EnvironmentFile=-%E/windmill/windmill-worker.env
 ExecStart=%S/windmill/pkgs/windmill/bin/windmill

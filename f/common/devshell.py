@@ -98,15 +98,16 @@ def write_ccache_conf(max_size_gib: int) -> str:
 
     The config file is the single source of truth (the devShell points
     CCACHE_CONFIGPATH at it). It lists only the settings that differ from
-    ccache's defaults: cache_dir (the shared cache), max_size (ccache's 5 GiB
-    default thrashes on a full kernel tree), and base_dir (the workers root, so
-    absolute source/build paths under it hash CWD-relative and per-worker trees
-    share the cache). Everything else is the ccache default and left unset.
+    ccache's defaults: cache_dir (the shared cache in the System workbench),
+    max_size (ccache's 5 GiB default thrashes on a full kernel tree), and
+    base_dir (the workers root, so absolute source/build paths under it hash
+    CWD-relative and per-worker trees share the cache). Everything else is the
+    ccache default and left unset.
     """
     if max_size_gib < 1:
         raise ValueError(f"ccache_max_size must be >= 1 GiB, got {max_size_gib}")
-    base = Path(os.environ["WORKERS_DIR"]).resolve()
-    cache = base / "shared/ccache"
+    workers = Path(os.environ["WORKERS_DIR"]).resolve()
+    cache = ccache_dir()
     cache.mkdir(parents=True, exist_ok=True)
     conf = cache / "ccache.conf"
     conf.write_text(
@@ -114,7 +115,7 @@ def write_ccache_conf(max_size_gib: int) -> str:
         "# Only the settings that differ from ccache's defaults are listed.\n"
         f"cache_dir = {cache}\n"
         f"max_size = {max_size_gib}.0 GiB\n"
-        f"base_dir = {base}\n"
+        f"base_dir = {workers}\n"
     )
     return str(conf)
 
@@ -205,6 +206,19 @@ def mirrors_dir() -> Path:
     return system_dir() / "mirror"
 
 
+def ccache_dir() -> Path:
+    """Root of the shared compiler cache (ADR-0008).
+
+    Exposed to workers as CCACHE_DIR; defaults to `ccache/` under the System
+    workbench, so it relocates with SYSTEM_DIR unless pointed elsewhere. The
+    cache is a durable host-local shared asset, like the mirror, so it lives in
+    the System workbench rather than under the ephemeral worker sandboxes.
+    """
+    if os.environ.get("CCACHE_DIR"):
+        return Path(os.environ["CCACHE_DIR"])
+    return system_dir() / "ccache"
+
+
 def vendor_dir(workers: Path | str | None = None) -> Path:
     """Top-level `vendor/` of the pinned vendored projects (ADR-0006).
 
@@ -236,7 +250,7 @@ class DevShell:
         # only points at it. Harmless when a build does not set CC="ccache ...".
         self._env = {
             **_nix_env(),
-            "CCACHE_CONFIGPATH": f"{workers}/shared/ccache/ccache.conf",
+            "CCACHE_CONFIGPATH": str(ccache_dir() / "ccache.conf"),
         }
 
     def _argv(self, command: str, *args: str) -> list[str]:
