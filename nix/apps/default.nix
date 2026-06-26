@@ -41,10 +41,17 @@ let
   '';
 
   windmillInstall = ''
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
     mkdir --parents "$config/systemd/user" "$config/windmill"
     cp deploy/nix/systemd/*.service "$config/systemd/user/"
     cp deploy/nix/Caddyfile "$config/windmill/Caddyfile"
+    # The vendor tree the workers resolve via VENDOR_DIR (the nixos-flake's
+    # `#git` and build devShells, the qemu-system-units templates). Copy it in,
+    # so it is decoupled from the checkout location and a separate host has it.
+    rm --recursive --force "$state/vendor"
+    mkdir --parents "$state/vendor"
+    cp --recursive --no-preserve=mode vendor/. "$state/vendor/"
     # Default worker mix: @0000-0001 build, @0002 vm, @0003 vm-run.
     mkdir --parents \
       "$config/systemd/user/windmill-worker@0002.service.d" \
@@ -78,10 +85,12 @@ let
   '';
 
   windmillUninstall = ''
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
     rm --force "$config/systemd/user/"windmill*.service
     rm --recursive --force "$config/systemd/user/"windmill-worker@*.service.d
     rm --force "$config/windmill/Caddyfile"
+    rm --recursive --force "$state/vendor"
     systemctl --user daemon-reload
   '';
 

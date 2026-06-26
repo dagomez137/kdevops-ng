@@ -62,13 +62,17 @@ installed units (``systemctl --user edit``) between them.
 Install
 -------
 
-``nix run .#windmill-install`` places the units in the user unit directory and
-the Caddyfile where the proxy reads it:
+``nix run .#windmill-install`` places the units in the user unit directory, the
+Caddyfile where the proxy reads it, and the vendor tree where the workers find
+it through ``VENDOR_DIR``. The vendor copy is what lets the workers resolve the
+nixos-flake's ``git`` and build shells and the QEMU/systemd templates without
+the source checkout, so a worker-only host needs only the state directory:
 
 .. code-block:: shell
 
    cp deploy/nix/systemd/*.service ~/.config/systemd/user/
    cp deploy/nix/Caddyfile ~/.config/windmill/Caddyfile
+   cp --recursive vendor/. ~/.local/state/windmill/vendor/
 
 Activate
 --------
