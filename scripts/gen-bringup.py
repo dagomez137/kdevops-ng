@@ -266,7 +266,7 @@ modules = [
 ]
 
 bringup = {
-    "summary": "QEMU/systemd VM Bringup",
+    "summary": "Bring up a VM",
     "description": (
         "Build and/or reuse a kernel, a NixOS closure and QEMU, then boot a VM from them. "
         "Each component has a source: kernel/closure are build|reuse, QEMU is build|reuse|nixpkgs. "

@@ -1,4 +1,4 @@
-summary: 'xfstests: wipe the test/scratch devices (per-section, before prepare)'
+summary: Wipe the test and scratch devices
 description: |-
   Per-section device prep for an xfstests run, against a booted guest over
   vsock-SSH: runs at the start of each section, before `prepare` creates the

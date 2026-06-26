@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: create the per-VM NVMe qcow2 backing files'
+summary: Create the per-VM NVMe backing files
 description: |-
   Create the per-VM NVMe qcow2 backing files (`qemu-img create --format qcow2
   <state_dir>/nvme<i>.qcow2 <size>G`) under the VM's systemd `StateDirectory`

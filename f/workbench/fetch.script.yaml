@@ -1,4 +1,4 @@
-summary: 'Workbench fetch: provision the durable Bare repos from local mirrors'
+summary: Provision the Bare repos from mirrors
 description: |-
   Provision the durable **Bare** main repos every build worktree is cut from.
   Each Bare at `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that

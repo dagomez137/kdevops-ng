@@ -1,4 +1,4 @@
-summary: 'QEMU: compute a build identity and key the install prefix on it'
+summary: Compute a QEMU build identity
 description: |-
   Hash the inputs that fix a QEMU build's bytes (the target list, the configure
   flags, the compiler, the toolchain, which is the `build-qemu` devShell's

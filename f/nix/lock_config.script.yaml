@@ -1,4 +1,4 @@
-summary: 'Nix: lock a per-VM imageless config (flake.lock)'
+summary: Lock a per-VM imageless config
 description: |-
   Materialise `flake.lock` for a per-VM imageless config so the closure builds
   reproducibly: `nix flake lock path:<config_dir>` pins the vendored

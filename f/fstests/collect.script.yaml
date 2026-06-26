@@ -1,4 +1,4 @@
-summary: "xfstests: collect one section's results from the share (xunit)"
+summary: 'Collect a section''s results from the share'
 description: |-
   Read one xfstests section's `-R xunit` report back from the `fstests` virtiofs
   share. The guest's `./check -s <section>` writes

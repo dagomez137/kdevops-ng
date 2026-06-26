@@ -1,4 +1,4 @@
-summary: 'QEMU: install into destdir'
+summary: Install QEMU into a destdir
 description: |-
   Install the built QEMU inside the `nixos-flake#build` devShell with `make
   --directory=<build_dir> install`, honoring the `--prefix=<destdir>` set at

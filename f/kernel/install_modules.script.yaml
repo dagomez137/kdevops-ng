@@ -1,4 +1,4 @@
-summary: 'Kernel: install modules into a destdir'
+summary: Install the kernel modules into a destdir
 description: |-
   `modules_install` the built kernel modules into a separate `destdir`, inside
   the `nixos-flake#build` devShell: `make INSTALL_MOD_PATH=<destdir>

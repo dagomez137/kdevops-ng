@@ -1,4 +1,4 @@
-summary: "QEMU: fetch a build identity's install tree from a peer builder"
+summary: Fetch an install tree from a peer
 description: |-
   Pull a build identity's whole install tree from a peer host into the Nix
   store, before the expensive compile, so the following `reuse_check` reports

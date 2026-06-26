@@ -1,4 +1,4 @@
-summary: 'Workbench: initialize a developer worktree-group'
+summary: Initialize a developer worktree-group
 description: |-
   Stand up a developer worktree-group in one call: for each project in
   `projects` (a `project` plus a `git_ref` and an optional `b4_series`), cut a

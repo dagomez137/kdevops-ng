@@ -1,4 +1,4 @@
-summary: 'Kernel: generate dev-tooling artifacts (clangd, GDB, rust-analyzer)'
+summary: Generate kernel dev-tooling artifacts
 description: |-
   Generate developer-tooling artifacts from an already-built kernel worktree,
   inside the `nixos-flake#build` devShell. Each is independently toggled and on

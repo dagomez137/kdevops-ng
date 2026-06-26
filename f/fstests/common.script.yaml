@@ -1,4 +1,4 @@
-summary: 'xfstests shared helpers: host-side share config + xunit results'
+summary: xfstests share config and result helpers
 description: |-
   Library module imported by the `f/fstests/*` steps (`from f.fstests.common
   import share_dir, render_local_config, parse_sections, ...`). Not a runnable

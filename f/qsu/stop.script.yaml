@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: stop a VM'
+summary: Stop a VM
 description: |-
   `systemctl --user stop qemu-system@<vm>`, which runs the unit's graceful
   `ExecStop=` (QMP `system_powerdown`, then SIGKILL after

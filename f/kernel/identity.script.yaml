@@ -1,4 +1,4 @@
-summary: 'Shared helper: bake a build identity into kernelrelease'
+summary: Bake a build identity into kernelrelease
 description: |-
   Library module imported by the configure steps (`from f.kernel.identity import
   bake_identity`). Not a runnable step on its own. `bake_identity()` hashes the

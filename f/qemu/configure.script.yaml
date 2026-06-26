@@ -1,4 +1,4 @@
-summary: 'QEMU: configure (out-of-tree)'
+summary: Configure QEMU out-of-tree
 description: |-
   Configure an out-of-tree QEMU build inside the `nixos-flake#build` devShell.
   First `meson subprojects download` (run in the source) fetches QEMU's vendored

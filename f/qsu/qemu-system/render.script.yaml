@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: render the qemu-system unit, per-VM env + drop-in'
+summary: Render the qemu-system unit and env
 description: |-
   Render the **qemu-system** component of the QEMU-in-systemd unit set into the
   host user manager's search path (`$HOME/.config/systemd`):

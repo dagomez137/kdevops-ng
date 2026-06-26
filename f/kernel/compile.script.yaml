@@ -1,4 +1,4 @@
-summary: 'Kernel: compile targets'
+summary: Compile the kernel
 description: |-
   Build one or more make targets (default `bzImage`) for an already-configured
   worktree inside the `nixos-flake#build` devShell, with `make --jobs=$(nproc)`

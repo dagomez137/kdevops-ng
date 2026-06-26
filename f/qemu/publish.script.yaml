@@ -1,4 +1,4 @@
-summary: "QEMU: publish a build identity's install tree to the Nix store"
+summary: Publish an install tree to the Nix store
 description: |-
   Add the per-identity install prefix (`destdir/<identity>`) to the Nix store
   under `qemu-<identity>`, indexed as a GC root. The prefix IS the identity, so

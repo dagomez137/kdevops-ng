@@ -1,4 +1,4 @@
-summary: QEMU Build
+summary: Build QEMU
 description: |-
   Build a custom QEMU from source, reproducibly, inside the `nixos-flake#build`
   devShell over this worker's warm `main` worktree cut from the durable Bare.

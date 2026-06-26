@@ -1,4 +1,4 @@
-summary: "xfstests: prepare a section's mount points and format TEST_DEV"
+summary: 'Prepare a section''s mounts and format TEST_DEV'
 description: |-
   Make an xfstests run self-contained on a booted guest over vsock-SSH. From the
   section's resolved `local.config` vars, (re)create the xfstests mount points

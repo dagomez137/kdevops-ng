@@ -1,4 +1,4 @@
-summary: "Kernel: fetch a build identity's run layer from a peer builder"
+summary: Fetch a run layer from a peer
 description: |-
   Pull a build identity's run layer (the artifacts named by the baked
   kernelrelease) from a peer host into the Nix store, before the expensive

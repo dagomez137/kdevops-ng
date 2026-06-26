@@ -1,4 +1,4 @@
-summary: 'Shared helper: resolve /nix store paths and qemu/virtiofsd binaries'
+summary: Resolve QEMU and virtiofsd store paths
 description: |-
   Library module imported by the qsu steps (`from f.qsu.binaries import ...`).
   Not a runnable step on its own. Resolves nixos-flake packages to their

@@ -1,4 +1,4 @@
-summary: 'Nix: render a per-VM imageless config (flake.nix + default.nix)'
+summary: Render a per-VM imageless config
 description: |-
   Render a per-VM imageless NixOS configuration under
   `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`: the Windmill equivalent of

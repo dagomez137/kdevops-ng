@@ -1,4 +1,4 @@
-summary: 'xfstests: start one section on a booted guest (fire-and-forget)'
+summary: Start a section on a guest
 description: |-
   Start `xfstests@<section>.service` on a booted guest over vsock-SSH with
   `--no-block`. The unit is `Type=oneshot`, so a blocking `start` would not

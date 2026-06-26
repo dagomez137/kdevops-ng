@@ -1,4 +1,4 @@
-summary: 'Store: inspect and prune the build identity catalog'
+summary: Inspect and prune the build catalog
 description: |-
   Read and maintain the build Store's catalog: the
   `WORKERS_DIR/shared/store-index/` symlinks (`kernel-<release>`,

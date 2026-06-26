@@ -1,4 +1,4 @@
-summary: "Kernel: publish a build identity's devel layer to the Nix store"
+summary: Publish a devel layer to the Nix store
 description: |-
   Stage the build dir's developer subset, the `.cmd` files, generated headers,
   `Module.symvers`, `scripts/` and GDB helpers, but none of the object or image

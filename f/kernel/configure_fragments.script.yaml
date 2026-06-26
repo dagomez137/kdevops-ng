@@ -1,4 +1,4 @@
-summary: 'Kernel: configure via curated fragments'
+summary: Configure via curated fragments
 description: |-
   Configure method **fragments**: generate a `.config` by selecting from the
   curated `linux-config-fragments` library and merging the picks with the kernel

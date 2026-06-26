@@ -1,4 +1,4 @@
-summary: NixOS Build
+summary: Build the NixOS closure
 description: |-
   Build a NixOS system with Nix: the `build` flow for the nix side, the way
   `f/kernel/build` builds a kernel and `f/qemu/build` builds an emulator. Today

@@ -1,4 +1,4 @@
-summary: 'Kernel: reuse if the build identity is already installed'
+summary: Reuse if already built
 description: |-
   Probe for the artifacts named by this build identity (the baked
   kernelrelease): `boot/<image>-<release>` and `lib/modules/<release>`, first in

@@ -1,4 +1,4 @@
-summary: 'xfstests: wait for one section to finish (with crash detection)'
+summary: Wait for a section to finish
 description: |-
   Poll `xfstests@<section>.service` on a booted guest over vsock-SSH until its
   `ActiveState` settles to `inactive` (the `Type=oneshot` success terminus) or

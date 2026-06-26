@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: render the VFIO passthrough component (DEFERRED)'
+summary: Render the VFIO passthrough (deferred)
 description: |-
   **Deferred scaffold.** Will render the VFIO templates
   (`vfio-bind@.service.j2`, which binds a host PCI device to `vfio-pci` before

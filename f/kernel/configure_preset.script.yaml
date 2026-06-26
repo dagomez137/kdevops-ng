@@ -1,4 +1,4 @@
-summary: 'Kernel: configure from a predefined preset'
+summary: Configure from a preset
 description: |-
   Configure method **preset**: generate a `.config` from a complete, predefined
   config that kdevops-ng ships in the `linux-config-fragments` library

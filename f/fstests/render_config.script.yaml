@@ -1,4 +1,4 @@
-summary: 'xfstests: render the host-side run config (local.config + check.env)'
+summary: Render the xfstests run config
 description: |-
   Write the xfstests run's host-side config onto the VM's `fstests` virtiofs
   share (`$WORKERS_DIR/shared/fstests/<vm>/`), the files the guest's

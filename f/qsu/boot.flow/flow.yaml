@@ -1,4 +1,4 @@
-summary: QEMU/systemd VM Boot
+summary: Boot a VM
 description: |-
   Boot a QEMU-in-systemd VM: the orchestrate half that pairs an `f/kernel/build`
   kernel and an `f/nix/build` imageless closure into a running,

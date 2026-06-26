@@ -1,4 +1,4 @@
-summary: Workbench Init
+summary: Initialize the workbench
 description: |-
   One-time (idempotent) bootstrap, run from the UI after Windmill is up.
   Provisions the durable Bares (default `$SYSTEM_DIR/bare/linux.git` and

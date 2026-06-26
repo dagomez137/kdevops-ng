@@ -1,4 +1,4 @@
-summary: 'Kernel: resolve make flags (toolchain / reproducible / ccache)'
+summary: Resolve the kernel make flags
 description: |-
   Resolve the toolchain, reproducible-build and ccache knobs into one make-flags
   string that every later make step consumes, so the toolchain stays consistent

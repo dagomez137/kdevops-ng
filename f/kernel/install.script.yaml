@@ -1,4 +1,4 @@
-summary: 'Kernel: install image into a destdir'
+summary: Install the kernel image into a destdir
 description: |-
   Install the built kernel image into a separate `destdir`, inside the
   `nixos-flake#build` devShell: `make INSTALL_PATH=<destdir>/boot install`

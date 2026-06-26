@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: destroy a VM (stop + remove per-VM artefacts)'
+summary: Destroy a VM
 description: |-
   Stop `qemu-system@<vm>`, then remove every per-VM artefact:
 

@@ -1,4 +1,4 @@
-summary: "Kernel: publish a build identity's run layer to the Nix store"
+summary: Publish a run layer to the Nix store
 description: |-
   Stage just this release's run layer, the boot artifacts
   (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`) and the

@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: render the virtiofsd units + per-share env/drop-in'
+summary: Render the virtiofsd units and env
 description: |-
   Render the **virtiofsd** component of the QEMU-in-systemd unit set into the
   host user manager's search path (`$HOME/.config/systemd`):

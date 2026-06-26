@@ -1,4 +1,4 @@
-summary: 'xfstests: aggregate per-section results into one run verdict'
+summary: Aggregate section results into a verdict
 description: |-
   Fold the list of `f/fstests/collect` results (one per `[section]`) into one
   rollup, with a `status` of `failed` if any section reported a failure or a

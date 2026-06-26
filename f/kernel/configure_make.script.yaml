@@ -1,4 +1,4 @@
-summary: 'Kernel: configure via make goals'
+summary: Configure via make goals
 description: |-
   Configure method **make**: generate a `.config` by running one or more config
   make goals. Covers a single existing target (`defconfig`, `x86_64_defconfig`,

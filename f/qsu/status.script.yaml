@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: status (is-active + machined + access lines)'
+summary: 'Show a VM''s status'
 description: |-
   Report one VM's status against the host `systemd --user` manager: `systemctl
   --user is-active qemu-system@<vm>` for liveness, a best-effort `machinectl

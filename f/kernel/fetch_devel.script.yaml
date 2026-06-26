@@ -1,4 +1,4 @@
-summary: "Kernel: fetch a release's devel layer from the Nix store onto a worktree"
+summary: Fetch the devel layer from the Nix store
 description: |-
   Index a worktree against a build identity's devel layer without rebuilding.
   Resolve the `kernel-devel-<release>` store path (from the local index, or

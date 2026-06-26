@@ -1,4 +1,4 @@
-summary: 'xfstests: cold power-cycle a guest and wait for it to come back'
+summary: Cold power-cycle a guest and wait
 description: |-
   Run-global startup step: cold power-cycle a guest by restarting its host
   `qemu-system@<vm>.service` unit, then block until a fresh boot reaches

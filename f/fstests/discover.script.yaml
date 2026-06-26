@@ -1,4 +1,4 @@
-summary: "xfstests: discover a booted guest's readiness over vsock-SSH"
+summary: 'Discover a guest''s readiness over SSH'
 description: |-
   Reach a booted guest over vsock-SSH and report whether it is ready to run
   xfstests, and on what. Checks `systemctl --host <vm> is-system-running` is

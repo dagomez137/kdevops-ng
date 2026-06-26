@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: boot a VM (daemon-reload, restart, wait for SSH)'
+summary: Boot a VM
 description: |-
   Boot one QEMU-in-systemd VM against the host `systemd --user` manager:
 

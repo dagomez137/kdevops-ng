@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd shared helpers: vars dict + jinja2 render + host systemd'
+summary: VM vars, render, and systemd helpers
 description: |-
   Library module imported by the `f/qsu/*` steps (`from f.qsu.common import
   build_vars, render, store_out, ...`). Not a runnable step on its own. Builds

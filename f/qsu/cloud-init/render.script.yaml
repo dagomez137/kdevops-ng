@@ -1,4 +1,4 @@
-summary: 'QEMU/systemd: render the cloud-init seed (DEFERRED)'
+summary: Render the cloud-init seed (deferred)
 description: |-
   **Deferred scaffold.** Will render the cloud-init templates (`user-data.j2`,
   `meta-data.j2`, and the `files/network-config` seed) into a NoCloud seed image

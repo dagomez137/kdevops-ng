@@ -1,4 +1,4 @@
-summary: "Shared helper: prepare this worker's warm main worktree off the Bare"
+summary: 'Prepare the worker''s warm main worktree'
 description: |-
   Library module imported by the build-prepare steps (`from f.common.worktree
   import prepare`). Not a runnable step on its own. `prepare()` lays down one

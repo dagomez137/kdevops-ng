@@ -1,4 +1,4 @@
-summary: 'Workbench mirror: provision git-mirror@ refresh timers'
+summary: Provision git-mirror refresh timers
 description: |-
   Install the `git-mirror@.{service,timer}` template pair into the host `systemd
   --user` manager and enable one instance per mirror repo, so each local

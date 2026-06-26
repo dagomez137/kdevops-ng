@@ -1,4 +1,4 @@
-summary: 'Nix: build the imageless toplevel closure + read bootspec'
+summary: Build the imageless closure and read bootspec
 description: |-
   Build the imageless NixOS system closure (`nix build
   path:<config_dir>#toplevel --out-link <config_dir>/result`) and read its

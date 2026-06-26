@@ -1,4 +1,4 @@
-summary: 'QEMU: compile'
+summary: Compile QEMU
 description: |-
   Build an already-configured QEMU inside the `nixos-flake#build` devShell with
   `make --directory=<build_dir> --jobs=$(nproc)`, which drives ninja, so the

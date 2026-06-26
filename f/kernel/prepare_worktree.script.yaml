@@ -1,4 +1,4 @@
-summary: 'Kernel: prepare a build worktree'
+summary: Prepare a kernel build worktree
 description: |-
   Lay down this worker's warm `main` kernel worktree
   (`workers/<WORKER_INDEX>/linux/main`) detached at `git_ref`, cut from the

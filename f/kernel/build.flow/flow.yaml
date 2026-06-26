@@ -1,4 +1,4 @@
-summary: Linux Kernel Build
+summary: Build the Linux kernel
 description: |-
   First-class kernel build, composed from reusable step-scripts so each unit is
   independently runnable and testable. Builds inside the `nixos-flake#build`

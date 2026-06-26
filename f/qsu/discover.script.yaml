@@ -1,4 +1,4 @@
-summary: "QEMU/systemd: discover a VM's reuse artifacts"
+summary: 'Discover a VM''s reuse artifacts'
 description: |-
   Read `WORKERS_DIR/shared/vm/<vm_name>.vars.json` (written by the render step)
   to recover the kernel + closure manifests and the QEMU binary a deployed VM

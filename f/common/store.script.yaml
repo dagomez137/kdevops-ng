@@ -1,4 +1,4 @@
-summary: 'Shared helpers: Nix-store transport for build identities'
+summary: Nix-store transport for build identities
 description: |-
   Library module imported by the build steps (`from f.common import store`). Not
   a runnable step on its own. Moves a built identity's run layer between hosts

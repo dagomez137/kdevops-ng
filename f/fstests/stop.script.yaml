@@ -1,4 +1,4 @@
-summary: "xfstests: stop a section's systemd unit on a booted guest"
+summary: Stop a section on a guest
 description: |-
   Stop `xfstests@<section>.service` on the guest over vsock-SSH (plus
   `reset-failed` to clear any latched state). Wired as the `check.flow`

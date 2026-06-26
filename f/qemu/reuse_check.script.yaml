@@ -1,4 +1,4 @@
-summary: 'QEMU: reuse if the build identity is already installed'
+summary: Reuse if already built
 description: |-
   Probe for an installed QEMU (`bin/qemu-system-*`), first in the per-identity
   prefix (`destdir/<identity>`), then in the Nix store via the `store-index`

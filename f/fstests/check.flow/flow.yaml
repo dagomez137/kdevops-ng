@@ -1,4 +1,4 @@
-summary: xfstests check
+summary: Run an xfstests check
 description: |-
   Run xfstests `./check` against an already-booted, fstests-ready guest: the
   Windmill equivalent of an xfstests `./check` run. The guest is produced
