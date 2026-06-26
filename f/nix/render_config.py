@@ -120,7 +120,7 @@ def main(
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
     #    in your home (writable via the root->operator virtiofsd uid-map, with no extra
     #    guest user and no sandbox change). A flow transform can't read the filesystem, so
-    #    the path is resolved here; bringup passes /home/<host_user> from discover.
+    #    the path is resolved here; bringup passes /home/<host_user> from resolve.
     home_dir = (home_dir or "").strip()
     if home and not home_dir:
         h = os.environ.get("HOME", "")

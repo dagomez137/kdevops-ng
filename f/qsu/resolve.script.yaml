@@ -1,0 +1,45 @@
+summary: Resolve a bringup's reuse artifacts
+description: |-
+  Map a bringup's reuse picks to the boot manifest: a store-index
+  `kernel-<release>` / `qemu-<identity>` back to the image + modules / the
+  `qemu-system-*` binary, and a closure `reuse` to the `init`/`initrd` and share
+  contract a refreshed VM recorded in its render sidecar. Always returns the
+  host operator (the closure build's `home_dir` default). An unresolvable pick
+  raises.
+lock: '!inline f/qsu/resolve.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - kernel_index
+    - qemu_index
+    - closure_reuse
+    - vm_name
+  properties:
+    kernel_index:
+      type: string
+      description: |-
+        Store-index `kernel-<release>` name to reuse (empty = no kernel reuse).
+      default: ''
+      title: Kernel Index
+    qemu_index:
+      type: string
+      description: |-
+        Store-index `qemu-<identity>` name to reuse (empty = no QEMU reuse).
+      default: ''
+      title: QEMU Index
+    closure_reuse:
+      type: boolean
+      description: |-
+        Replay the `init`/`initrd` and shares the refresh VM recorded in its
+        render sidecar instead of building a closure.
+      default: false
+      title: Closure Reuse
+    vm_name:
+      type: string
+      description: |-
+        Refresh VM whose sidecar holds the reused closure (closure reuse only).
+      default: ''
+      title: VM Name
+  required: []

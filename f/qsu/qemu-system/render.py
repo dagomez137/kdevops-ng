@@ -17,7 +17,7 @@ Equivalent: write the rendered units into the host user-manager search path:
     ~/.config/systemd/qemu-system/<vm>.env
     ~/.config/systemd/user/qemu-system@<vm>.service.d/override.conf
     ~/.config/systemd/qemu-system/qmp-powerdown
-    $WORKERS_DIR/shared/vm/<vm>.vars.json    # reuse sidecar (kernel/closure/qemu) for f/qsu/discover
+    $WORKERS_DIR/shared/vm/<vm>.vars.json    # deployed-VM registry + closure reuse for f/qsu/resolve
 """
 
 from __future__ import annotations
@@ -202,8 +202,8 @@ def main(
     dropin = user / f"qemu-system@{vm_name}.service.d/override.conf"
     write_unit(dropin, render("qemu-system-override.conf.j2", v, workers))
 
-    # Reuse sidecar: the artifacts this VM booted with, so f/qsu/discover can feed a
-    # later reconfigure (per-component build/reuse) without rebuilding. Lives under
+    # Reuse sidecar: the deployed-VM registry (the bringup refresh-VM dropdown) and the
+    # closure init/initrd a refresh reuses (f/qsu/resolve reads it). Lives under
     # WORKERS_DIR/shared (every worker + the host can read it), unlike the systemd
     # config dir which only the vm worker mounts.
     sidecar = workers / "shared/vm" / f"{vm_name}.vars.json"
@@ -241,7 +241,7 @@ def main(
         )
         + "\n"
     )
-    # Atomic: a concurrent reader (discover, or the dropdown's *.vars.json glob) never
+    # Atomic: a concurrent reader (resolve, or the refresh-VM dropdown's *.vars.json glob) never
     # sees a half-written sidecar.
     tmp = sidecar.parent / (sidecar.name + ".tmp")
     tmp.write_text(data)
