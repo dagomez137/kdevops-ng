@@ -42,7 +42,7 @@ layer's composition and the allowlist that builds it are documented in
 
 ## The catalog
 
-Every published identity is a symlink under `WORKERS_DIR/shared/store-index/`:
+Every published identity is a symlink under `SYSTEM_DIR/store-index/`:
 
 ```
 kernel-7.1.0-rc7-b9e826508b1e        -> /nix/store/<hash>-kernel-7.1.0-rc7-b9e826508b1e
@@ -84,7 +84,7 @@ The kernel and QEMU build flows expose a **Prebuilt** input group:
 
 - `remote`: the ssh host of a peer builder.
 - `remote_index`: that peer's `store-index` directory (its
-  `WORKERS_DIR/shared/store-index`).
+  `SYSTEM_DIR/store-index`).
 
 With both set, `fetch_identity` learns the peer's store path from
 `ssh <remote> readlink <remote_index>/<name>` and pulls it with `nix copy --from
@@ -113,8 +113,8 @@ the other way, by git: see [cross-host dev branches](cross-host-dev-branches.md)
 By hand the same is:
 
 ```sh
-ls -l "$WORKERS_DIR"/shared/store-index/                                   # list
+ls -l "$STORE_INDEX_DIR"/                                                   # list
 nix path-info --closure-size --human-readable "$(readlink .../<name>)"     # inspect
-rm "$WORKERS_DIR"/shared/store-index/<name> && nix store gc                # forget + reclaim
-ssh <host> ls "$WORKERS_DIR"/shared/store-index/                           # a peer's catalog
+rm "$STORE_INDEX_DIR"/<name> && nix store gc                               # forget + reclaim
+ssh <host> ls "$STORE_INDEX_DIR"/                                          # a peer's catalog
 ```

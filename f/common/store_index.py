@@ -2,7 +2,7 @@
 """Inspect and prune the build Store's identity catalog.
 
 Runnable step. The build Store indexes every published identity as a symlink
-under `WORKERS_DIR/shared/store-index/<name>` -> its `/nix/store` path, and each
+under `SYSTEM_DIR/store-index/<name>` -> its `/nix/store` path, and each
 symlink is also an indirect Nix GC root (so the path survives
 `nix store gc`). Names are `kernel-<release>`, `kernel-devel-<release>`,
 or `qemu-<identity>`. This step reads and maintains that catalog through four
@@ -20,10 +20,10 @@ actions:
 
 Equivalent command:
 
-    ls -l "$WORKERS_DIR/shared/store-index/"
+    ls -l "$STORE_INDEX_DIR/"
     nix path-info --closure-size --human-readable \\
-        "$(readlink "$WORKERS_DIR/shared/store-index/<name>")"
-    rm "$WORKERS_DIR/shared/store-index/<name>" && nix store gc
+        "$(readlink "$STORE_INDEX_DIR/<name>")"
+    rm "$STORE_INDEX_DIR/<name>" && nix store gc
 """
 
 from __future__ import annotations

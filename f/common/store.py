@@ -6,7 +6,7 @@ Imported with:  from f.common import store
 Moves a built identity's run layer between hosts through the Nix store instead of
 rsync. A builder publishes the tree with `nix store add-path` (its bytes land at a
 content-addressed `/nix/store/...` path identical on every host) and registers an
-identity->store-path index entry under `WORKERS_DIR/shared/store-index/<name>`; the
+identity->store-path index entry under `SYSTEM_DIR/store-index/<name>`; the
 same entry is an indirect GC root, so the path survives `nix store gc`. A
 fetcher reads the peer's index entry over ssh to learn the store path, pulls it with
 `nix copy --from ssh://<remote>`, and registers the path under its own index so it
@@ -34,13 +34,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.common.devshell import DevShell, Nix, system_dir
-
-_INDEX_SUBDIR = "shared/store-index"
+from f.common.devshell import DevShell, Nix, store_index_dir, system_dir
 
 # Default-layout path to a peer's store-index, used when a peers-registry line names
 # only a host. ssh runs `readlink` in the peer's shell, which expands the leading `~`.
-DEFAULT_PEER_INDEX = "~/.local/state/windmill/workbench/workers/shared/store-index"
+DEFAULT_PEER_INDEX = "~/.local/state/windmill/workbench/system/store-index"
 
 
 def main():
@@ -50,7 +48,7 @@ def main():
 
 def index_dir() -> Path:
     """The local identity->store-path index (also the GC-root directory), created."""
-    path = Path(os.environ["WORKERS_DIR"]) / _INDEX_SUBDIR
+    path = store_index_dir()
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -61,8 +59,8 @@ def registered_peers() -> list[dict]:
     The single source of truth for the peer registry, written by f/workbench/fetch and
     read by every consumer (peer auto-discovery in `fetch_identity`, qsu VM discovery).
     The first token is the ssh host; an optional second token is that peer's store-index
-    dir (its `WORKERS_DIR/shared/store-index`), defaulting to the default-layout path when
-    a legacy host-only line omits it. A missing or empty file means no peers.
+    dir (its `SYSTEM_DIR/store-index`), defaulting to the default-layout path when a
+    legacy host-only line omits it. A missing or empty file means no peers.
     """
     f = system_dir() / "peers"
     if not f.is_file():
@@ -97,13 +95,13 @@ def local_path(name: str) -> str | None:
     """The store path indexed under `name` here, if the entry resolves to a real path.
 
     A pure read (no index-directory creation), so a probe step can call it before
-    anything has been published and with `WORKERS_DIR` unset, getting `None` rather
-    than a side effect or an error.
+    anything has been published. It resolves the System-workbench index and returns
+    `None` rather than a side effect or an error when the env cannot resolve it.
     """
-    base = os.environ.get("WORKERS_DIR")
-    if not base:
+    try:
+        entry = store_index_dir() / name
+    except KeyError:
         return None
-    entry = Path(base) / _INDEX_SUBDIR / name
     if entry.is_symlink():
         target = os.path.realpath(entry)
         if Path(target).exists():

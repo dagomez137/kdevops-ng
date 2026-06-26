@@ -219,6 +219,20 @@ def ccache_dir() -> Path:
     return system_dir() / "ccache"
 
 
+def store_index_dir() -> Path:
+    """Root of the Store's identity->store-path index and its GC roots (ADR-0008).
+
+    Exposed to workers as STORE_INDEX_DIR; defaults to `store-index/` under the
+    System workbench, so it relocates with SYSTEM_DIR unless pointed elsewhere.
+    The index is a durable host-local asset: each entry is an indirect Nix GC root
+    that protects a published store path from `nix store gc`, so it lives in the
+    System workbench rather than under the ephemeral worker sandboxes.
+    """
+    if os.environ.get("STORE_INDEX_DIR"):
+        return Path(os.environ["STORE_INDEX_DIR"])
+    return system_dir() / "store-index"
+
+
 def vendor_dir(workers: Path | str | None = None) -> Path:
     """Top-level `vendor/` of the pinned vendored projects (ADR-0006).
 
@@ -299,12 +313,12 @@ def _resolve_git(workers: Path | str | None = None) -> str:
 
     The worker only needs `nix` on `NIX_BIN`; `git` itself comes from the flake
     (its pinned nixpkgs + overlays). The first call builds the `#git` output and
-    pins it at `WORKERS_DIR/shared/gitbin` via `nix build --out-link` (a GC root),
+    pins it at `SYSTEM_DIR/gitbin` via `nix build --out-link` (a GC root),
     so later steps and other workers on the host reuse the same store path with a
     bare stat, no re-evaluation.
     """
     base = Path(workers) if workers else Path(os.environ["WORKERS_DIR"])
-    link = base / "shared" / "gitbin"
+    link = system_dir() / "gitbin"
     git = link / "bin" / "git"
     if not git.exists():
         Nix().run(

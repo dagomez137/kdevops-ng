@@ -19,7 +19,7 @@ Equivalent bash, run inside the nixos-flake transfer devShell, for each register
 
     sp=$(ssh "$host" readlink "$index"/kernel-"$uts_release")
     nix copy --from ssh://"$host" "$sp" --no-check-sigs
-    nix build "$sp" --out-link "$WORKERS_DIR/shared/store-index"/kernel-"$uts_release"
+    nix build "$sp" --out-link "$STORE_INDEX_DIR"/kernel-"$uts_release"
 """
 
 from __future__ import annotations

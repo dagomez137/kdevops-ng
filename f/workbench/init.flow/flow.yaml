@@ -180,10 +180,10 @@ schema:
           store_index:
             type: string
             description: |-
-              The peer's `WORKERS_DIR/shared/store-index` directory, read over
-              ssh to resolve a prebuilt build identity. The default assumes the
-              peer uses the default build-area layout.
-            default: ~/.local/state/windmill/workbench/workers/shared/store-index
+              The peer's `SYSTEM_DIR/store-index` directory, read over ssh to
+              resolve a prebuilt build identity. The default assumes the peer
+              uses the default build-area layout.
+            default: ~/.local/state/windmill/workbench/system/store-index
             title: Store Index Dir
         required:
           - host

@@ -1,7 +1,7 @@
 summary: Inspect and prune the build catalog
 description: |-
   Read and maintain the build Store's catalog: the
-  `WORKERS_DIR/shared/store-index/` symlinks (`kernel-<release>`,
+  `SYSTEM_DIR/store-index/` symlinks (`kernel-<release>`,
   `kernel-devel-<release>`, `qemu-<identity>`) that point at each published
   identity's Nix store path and double as its GC root. `list` shows the local
   catalog (and a peer's when `remote`/`remote_index` are set) with sizes and

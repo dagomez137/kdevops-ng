@@ -17,7 +17,7 @@ Equivalent bash, run inside the nixos-flake transfer devShell, for each register
 
     sp=$(ssh "$host" readlink "$index"/qemu-"$(basename "$prefix")")
     nix copy --from ssh://"$host" "$sp" --no-check-sigs
-    nix build "$sp" --out-link "$WORKERS_DIR/shared/store-index"/qemu-"$(basename "$prefix")"
+    nix build "$sp" --out-link "$STORE_INDEX_DIR"/qemu-"$(basename "$prefix")"
 """
 
 from __future__ import annotations

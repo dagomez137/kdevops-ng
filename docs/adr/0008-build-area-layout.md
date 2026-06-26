@@ -11,7 +11,7 @@ one agreed shape.
 ```
 workbench/                 the Workbench: a relocatable directory (default dir;
                            a developer may point it at $HOME/src instead)
-  system/                  reserved: bare/  mirror/  ssh/  store/  ccache/   (relocatable on its own)
+  system/                  reserved: bare/  mirror/  ssh/  store-index/  ccache/  gitbin/   (relocatable on its own)
   workers/                 reserved: per-worker build sandboxes <id>/ (relocatable on its own)
   vanilla/                 the default worktree-group (a topic)
     linux/                 a project worktree, named by canonical name
@@ -99,8 +99,10 @@ accepted
   so the groups stay its direct children until pointed elsewhere), `system/`
   (`SYSTEM_DIR`, default `workbench/system`), the git mirrors (`MIRRORS_DIR`,
   default `system/mirror`, the bulky shared object store a host may park on its
-  own volume), the compiler cache (`CCACHE_DIR`, default `system/ccache`), and
-  the worker sandboxes (`WORKERS_DIR`, default `workbench/workers`). `VENDOR_DIR`
+  own volume), the compiler cache (`CCACHE_DIR`, default `system/ccache`), the
+  Store index (`STORE_INDEX_DIR`, default `system/store-index`, the GC-root
+  registry that protects published artifacts from collection), and the worker
+  sandboxes (`WORKERS_DIR`, default `workbench/workers`). `VENDOR_DIR`
   (ADR-0006) is unchanged.
 - `system/bare/<canonical>.git` replaces the namespaced bare path; Store reuse
   keys by `(worktree-group, canonical)` rather than `(workbench, namespace)`.
