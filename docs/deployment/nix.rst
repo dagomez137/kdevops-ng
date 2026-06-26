@@ -246,9 +246,11 @@ systemd state directory (``%S`` is ``$XDG_STATE_HOME``), the recommended place
 for persistent service state. Each piece relocates on its own: ``WORKBENCH_DIR``
 moves the whole area, the worktree-groups included, so set it to put the groups
 where you want them, a directory in ``$HOME`` such as ``$HOME/src`` or one
-nested in the repository such as ``kdevops-ng/workbench``; ``SYSTEM_DIR`` and
-``WORKERS_DIR`` default inside it but move out independently. Override any of
-them with a drop-in or the ``windmill-worker.env`` file.
+nested in the repository such as ``kdevops-ng/workbench``; ``WORKTREES_DIR``
+roots the worktree-groups alone (default ``WORKBENCH_DIR``), to move the groups
+apart from the rest of the area; ``SYSTEM_DIR`` and ``WORKERS_DIR`` default
+inside it but move out independently. Override any of them with a drop-in or the
+``windmill-worker.env`` file.
 
 Run the ``f/workbench`` init flow from Windmill to provision the System
 workbench (the bare mirrors and the ssh key); the workers fill their sandboxes

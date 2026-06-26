@@ -12,8 +12,9 @@ the worker needs only `nix` on PATH; the optional `b4 shazam` step runs in the
 
 A worker build resolves its own warm `main` worktree under its sandbox at
 `workers/<WORKER_INDEX>/<project>/main`; a developer worktree (`developer=True`)
-resolves under `<workbench>/<worktree-group>/<project>` (default group `vanilla`;
-`system` and `workers` are reserved). The worktree is reused for every ref and
+resolves under `$WORKTREES_DIR/<worktree-group>/<project>` (the worktree-group
+root, default the Workbench; default group `vanilla`; `system` and `workers` are
+reserved). The worktree is reused for every ref and
 across runs. `build` and `destdir` are children of the worktree, so
 `recreate_worktree=True` (which rm's the worktree and lays a fresh detached
 checkout) discards them both; the durable run layer lives in the Store, not
@@ -46,10 +47,12 @@ import re
 import shutil
 from pathlib import Path
 
-from f.common.devshell import DevShell, Git, system_dir, vendor_dir, workbench_dir
+from f.common.devshell import DevShell, Git, system_dir, vendor_dir, worktrees_dir
 
-# Worktree-groups are directories directly under the Workbench; these names are
-# reserved for the build-area infrastructure siblings and may not be a group.
+# Worktree-groups are directories directly under the worktree-group root
+# (WORKTREES_DIR, default the Workbench); these names are reserved for the
+# build-area infrastructure siblings (`system/`, `workers/`) of the default
+# layout and may not be a group.
 _RESERVED_GROUPS = ("system", "workers")
 
 
@@ -106,7 +109,7 @@ def prepare(
     if developer:
         # A developer-owned checkout, one per project within a worktree-group.
         location = worktree_group
-        worktree = workbench_dir() / worktree_group / project
+        worktree = worktrees_dir() / worktree_group / project
     else:
         # A worker builds in its own sandbox: one warm detached `main` per project.
         location = os.environ["WORKER_INDEX"]

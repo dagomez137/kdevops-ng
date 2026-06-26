@@ -168,6 +168,20 @@ def workbench_dir() -> Path:
     return Path(os.environ["WORKERS_DIR"]).parent
 
 
+def worktrees_dir() -> Path:
+    """Root that holds the worktree-groups (ADR-0008).
+
+    Exposed to workers as WORKTREES_DIR; defaults to the Workbench itself, so the
+    worktree-groups (`vanilla`, ...) stay its direct children unless pointed
+    elsewhere on their own. When set, every group roots here instead
+    (`$WORKTREES_DIR/<group>/<project>`), the way SYSTEM_DIR and WORKERS_DIR
+    relocate the other build-area pieces.
+    """
+    if os.environ.get("WORKTREES_DIR"):
+        return Path(os.environ["WORKTREES_DIR"])
+    return workbench_dir()
+
+
 def system_dir() -> Path:
     """The System workbench: host-local `bare/ mirror/ ssh/ store/` (ADR-0008).
 

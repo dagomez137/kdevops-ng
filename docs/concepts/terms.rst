@@ -42,11 +42,13 @@ The containment of the on-host pieces is:
    └── largeio/           a further worktree-group
    vendor/                pinned upstream projects
 
-The whole ``workbench/`` relocates as a unit, and ``system/`` and ``workers/``
-each relocate on their own, since they are infrastructure rather than developer
-content. A workbench need not sit inside this project: point it at any
-directory such as ``$HOME/src``, and that directory becomes the workbench, with
-worktree-groups directly under it (so ``$HOME/src/vanilla``). The names
+The whole ``workbench/`` relocates as a unit; ``system/`` and ``workers/`` each
+relocate on their own, since they are infrastructure rather than developer
+content, and the worktree-groups likewise relocate as a set, defaulting as the
+Workbench's direct children but pointable elsewhere together. A workbench need
+not sit inside this project: point it at any directory such as ``$HOME/src``,
+and that directory becomes the workbench, with worktree-groups directly under
+it (so ``$HOME/src/vanilla``). The names
 ``system`` and ``workers`` are reserved, so a worktree-group may not take them.
 ``vendor/`` holds the pinned upstream projects and stays a top-level sibling.
 
@@ -93,7 +95,8 @@ Places
       A topic or chain of work within a :term:`Workbench` (default name
       ``vanilla``; many may exist, such as ``largeio``). It holds one
       :term:`Worktree` per project the topic involves, and the developer
-      switches between groups.
+      switches between groups. The groups are the Workbench's direct children
+      by default and relocate as a set on their own.
 
       Avoid: *workbench*, *default*.
 

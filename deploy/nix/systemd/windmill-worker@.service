@@ -45,7 +45,10 @@ Environment=WORKBENCH_DIR=%S/windmill/workbench
 Environment=SYSTEM_DIR=%S/windmill/workbench/system
 Environment=WORKERS_DIR=%S/windmill/workbench/workers
 Environment=VENDOR_DIR=%S/windmill/vendor
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
+# WORKTREES_DIR (the worktree-group root) is intentionally left unset: the step
+# code defaults it to WORKBENCH_DIR, so moving WORKBENCH_DIR carries the groups
+# with it. It is whitelisted so a drop-in can root the groups elsewhere alone.
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,WORKERS_DIR,VENDOR_DIR
 EnvironmentFile=%S/windmill/env/database.env
 EnvironmentFile=-%E/windmill/windmill-worker.env
 ExecStart=%S/windmill/pkgs/windmill/bin/windmill
