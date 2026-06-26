@@ -519,7 +519,9 @@ schema:
           type: boolean
           description: |-
             Wipe the build dir before building (default off = incremental
-            reuse).
+            reuse). Hidden when Recreate Worktree is on, which already removes
+            the build dir as a child of the worktree.
           default: false
+          showExpr: fields.recreate_worktree !== true
       title: Worktree
   required: []

@@ -233,8 +233,11 @@ schema:
           type: boolean
           description: 'Wipe the build dir before building (default off = incremental
 
-            reuse).'
+            reuse). Hidden when Recreate Build Worktree is on, which already
+
+            removes the build dir as a child of the worktree.'
           default: false
+          showExpr: fields.recreate_build_worktree !== true
         worktree_group:
           type: string
           description: 'Developer group to deploy into, at WORKTREES_DIR/<group>/linux. Used
@@ -616,11 +619,15 @@ schema:
           default: true
         reuse:
           type: boolean
-          description: 'Skip compile/install when this build identity is already in the
+          description: 'Skip compile and install when this build identity is already built
 
-            destdir (reuse the prior build). Off forces a rebuild without wiping
+            and present: in the worker destdir, or in this host''s Nix store
 
-            the destdir.'
+            (where a local build published it, or `fetch_identity` left a
+
+            peer''s). This is the Store transport''s local hit, not a binary
+
+            cache. Reuse points the manifest at that copy; off forces a rebuild.'
           default: true
         source_symlink:
           type: boolean
@@ -839,8 +846,11 @@ schema:
           type: boolean
           description: 'Wipe the build dir before building (default off = incremental
 
-            reuse).'
+            reuse). Hidden when Recreate Worktree is on, which already removes
+
+            the build dir as a child of the worktree.'
           default: false
+          showExpr: fields.recreate_worktree !== true
       title: 'QEMU build: Worktree'
       showExpr: fields.qemu_source === "build"
     qemu_configuration:
