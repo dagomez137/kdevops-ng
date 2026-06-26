@@ -254,6 +254,15 @@ Run the ``f/workbench`` init flow from Windmill to provision the System
 workbench (the bare mirrors and the ssh key); the workers fill their sandboxes
 as jobs run.
 
+To reuse mirror clones you already have (from an earlier workbench, or when
+relocating ``WORKBENCH_DIR``), move the bare ``<name>.git`` repos into
+``SYSTEM_DIR/mirror`` before running the flow; on one filesystem the move is
+instant. ``f/workbench/fetch`` then cuts the bares from them and
+``f/workbench/mirror`` installs the ``git-mirror@`` refresh timers, so the
+clones are refreshed in place rather than re-cloned. The bares and worker
+sandboxes hold absolute paths, so let the flow regenerate those rather than
+moving them.
+
 Tear down
 =========
 
