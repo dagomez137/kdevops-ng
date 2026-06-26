@@ -1,92 +1,140 @@
 summary: Provision the Bare repos from mirrors
 description: |-
-  Provision the durable **Bare** main repos every build worktree is cut from.
-  Each Bare at `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that
-  **borrows** the local bare **mirror**'s objects via its alternates file (no
-  objects copied, no upstream network). A `mirror` remote fetches the mirror's
-  heads into `refs/remotes/mirror/*`; `refs/heads/*` is left empty, reserved for
-  developer pushes. `origin`'s URL is set to the **preferred upstream** for an
-  explicit `git fetch origin` (ADR-0001: the Bare is the working repo).
+  Provision the durable **Bare** main repos every build worktree is cut from,
+  one per selected mirror **project** (`linux`, `qemu`). Each Bare at
+  `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that **borrows**
+  the local merged **mirror**'s objects via its alternates file (no objects
+  copied, no upstream network). A `mirror` remote copies the mirror's heads into
+  `refs/remotes/mirror/*` and each extra tree through unchanged; `refs/heads/*`
+  is left empty, reserved for developer pushes. `origin`'s URL is the project's
+  primary upstream, for an explicit `git fetch origin` (ADR-0001: the Bare is
+  the working repo).
 
-  `upstreams` is a **list** of candidate clone URLs (git / https / googlesource
-  / github); the first is preferred. Many servers block `git://`, so for a
-  kernel.org mirror the list auto-derives `https://git.kernel.org/…` then
-  `https://kernel.googlesource.com/…` then the raw `git://…`; set `upstreams`
-  (or the single `upstream`) explicitly to add e.g. a github URL. Idempotent.
+  Pick the projects to mirror, then each one's deploy options in its own group:
+  for `linux`, the curated **Trees** to integrate into the merged linux.git plus
+  a **Source** host and **Transport**; for `qemu`, a **Source** host and
+  **Transport**. `peers` lists other workbench hosts to wire as cross-host push
+  remotes. Idempotent.
 
-  An entry may carry extra `remotes`: each its own upstream, borrowing objects
-  from its own local mirror and fetched into `refs/remotes/<name>/*` (the
-  default kernel Bare carries `linux-next`, `linux-stable`, `linux-modules`);
-  works on preexisting Bares too (alternates are reconciled).
-
-  Returns a manifest of each Bare (`bare`, `upstreams`, `origin`, `action`,
-  `head`, `remotes`).
+  Returns a manifest of each Bare (`bare`, `origin`, `trees`, `action`, `head`,
+  `peers`).
 lock: '!inline f/workbench/fetch.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - kernel_trees
-    - protocol
-    - extra_trees
+    - projects
+    - linux
+    - qemu
     - peers
     - refresh
-    - mirrors
   properties:
-    extra_trees:
+    projects:
       type: array
       description: |-
-        Additional git.kernel.org tree paths not in the curated list (e.g.
-        pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The
-        remote name derives from the path.
-      default: []
-      items:
-        type: string
-      title: Extra trees
-    kernel_trees:
-      type: array
-      description: |-
-        Linux trees to mirror as remotes on the merged linux.git (Mainline is
-        always the base). torvalds=Mainline · linux-next · linux-stable ·
-        linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis ·
-        axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever
-        (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add anything
-        else under Extra trees.
+        Which projects to mirror, each its own merged bare under `MIRRORS_DIR`.
+        Selecting one reveals its deploy options below.
       default:
-        - torvalds
-        - linux-next
-        - linux-stable
-        - modules
-        - axboe
+        - linux
+        - qemu
       items:
         type: string
         enum:
-          - torvalds
-          - linux-next
-          - linux-stable
-          - linux-stable-rc
-          - modules
-          - mcgrof
-          - mcgrof-next
-          - axboe
-          - vfs
-          - cel
-          - jlayton
-          - cxl
-          - xfs
-      title: Kernel trees
-    mirrors:
-      type: array
-      description: |-
-        Power-user override of the whole mirror layout: `[{name, mirror,
-        project, remotes:[{name, path|url, protocol, primary}]}]`, for per-tree
-        protocols, a custom QEMU URL, extra projects, etc. When non-empty it
-        REPLACES the trees/protocol fields above. Empty = use the form.
-      default: []
-      items:
-        type: object
-      title: 'Advanced: full mirror config'
+          - linux
+          - qemu
+      title: Projects
+    linux:
+      type: object
+      description: How to deploy the Linux kernel mirror.
+      default: {}
+      order:
+        - trees
+        - source
+        - protocol
+      properties:
+        trees:
+          type: array
+          description: |-
+            Trees to integrate into the merged linux.git as remotes (torvalds is
+            always the base).
+          default:
+            - torvalds
+            - linux-next
+            - linux-stable
+            - modules
+            - axboe
+          items:
+            type: string
+            enum:
+              - torvalds
+              - linux-next
+              - linux-stable
+              - linux-stable-rc
+              - modules
+              - mcgrof
+              - mcgrof-next
+              - axboe
+              - vfs
+              - cel
+              - jlayton
+              - cxl
+              - xfs
+          title: Trees
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+      showExpr: fields.projects.includes('linux')
+      title: Linux
+    qemu:
+      type: object
+      description: How to deploy the QEMU mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitLab (the canonical QEMU project repo) or GitHub
+            (its read-only mirror, for when GitLab is unreachable).
+          default: GitLab
+          enum:
+            - GitLab
+            - GitHub
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitLab: https (the safe default) or git (faster, but
+            often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'GitHub'
+          title: Transport
+      showExpr: fields.projects.includes('qemu')
+      title: QEMU
     peers:
       type: array
       description: |-
@@ -98,18 +146,6 @@ schema:
       default: []
       items:
         type: string
-    protocol:
-      type: string
-      description: |-
-        How to reach git.kernel.org: https (default), git (faster, often
-        firewalled), or https-googlesource (the Google mirror when kernel.org is
-        down). Per-tree overrides live in the advanced mirrors config.
-      default: https
-      enum:
-        - https
-        - git
-        - https-googlesource
-      title: Protocol
     refresh:
       type: boolean
       description: |-

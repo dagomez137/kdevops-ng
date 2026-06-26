@@ -4,9 +4,9 @@ description: |-
   Provisions the durable Bares (default `$SYSTEM_DIR/bare/linux.git` and
   `$SYSTEM_DIR/bare/qemu.git`) that every worker cuts cheap detached worktrees
   off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream but
-  borrows objects from the local mirror (`$SYSTEM_DIR/mirror`), and keeps
-  `refs/heads/*` for developer pushes. Thin flow over `f/workbench/fetch`:
-  override or extend the source list there; re-run it any time to refresh.
+  borrows objects from the local mirror (`$MIRRORS_DIR`), and keeps
+  `refs/heads/*` for developer pushes. Thin flow over `f/workbench/fetch`: pick
+  the projects and their deploy options; re-run it any time to refresh.
 
   Also provisions the kdevops-managed VM SSH key (`f/workbench/ssh_key`): one
   keypair under `$SYSTEM_DIR/ssh/` that every guest trusts, so after a one-time
@@ -22,21 +22,18 @@ value:
       value:
         type: script
         input_transforms:
-          extra_trees:
+          linux:
             type: javascript
-            expr: flow_input.extra_trees
-          kernel_trees:
-            type: javascript
-            expr: flow_input.kernel_trees
-          mirrors:
-            type: javascript
-            expr: flow_input.mirrors
+            expr: flow_input.linux
           peers:
             type: javascript
             expr: flow_input.peers
-          protocol:
+          projects:
             type: javascript
-            expr: flow_input.protocol
+            expr: flow_input.projects
+          qemu:
+            type: javascript
+            expr: flow_input.qemu
           refresh:
             type: javascript
             expr: flow_input.refresh
@@ -57,24 +54,15 @@ value:
       value:
         type: script
         input_transforms:
-          extra_trees:
+          linux:
             type: javascript
-            expr: flow_input.extra_trees
-          kernel_trees:
+            expr: flow_input.linux
+          projects:
             type: javascript
-            expr: flow_input.kernel_trees
-          mirrors:
+            expr: flow_input.projects
+          qemu:
             type: javascript
-            expr: flow_input.mirrors
-          on_boot:
-            type: javascript
-            expr: flow_input.mirror_on_boot
-          on_inactive:
-            type: javascript
-            expr: flow_input.mirror_on_inactive
-          protocol:
-            type: javascript
-            expr: flow_input.protocol
+            expr: flow_input.qemu
         path: f/workbench/mirror
         tag_override: vm
       skip_if:
@@ -83,83 +71,91 @@ schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - kernel_trees
-    - protocol
-    - extra_trees
+    - projects
+    - linux
+    - qemu
     - peers
     - refresh
     - setup_ssh
     - regenerate_ssh_key
     - setup_mirrors
-    - mirror_on_boot
-    - mirror_on_inactive
-    - mirrors
   properties:
-    extra_trees:
-      type: array
-      description: |-
-        Additional git.kernel.org tree paths not in the curated list (e.g.
-        pub/scm/linux/kernel/git/kdave/linux, pub/scm/fs/xfs/xfs-linux). The
-        remote name derives from the path.
-      default: []
-      items:
-        type: string
-      title: Extra trees
-    kernel_trees:
-      type: array
-      description: |-
-        Linux trees to mirror as remotes on the merged linux.git (Mainline
-        always the base). torvalds=Mainline · linux-next · linux-stable ·
-        linux-stable-rc · modules=Luis Chamberlain · mcgrof/mcgrof-next=Luis ·
-        axboe=block/io_uring/NVMe · vfs=Christian Brauner · cel=Chuck Lever
-        (NFSD) · jlayton=Jeff Layton (NFS) · cxl=CXL · xfs=XFS. Add others under
-        Extra trees.
-      default:
-        - torvalds
-        - linux-next
-        - linux-stable
-        - modules
-        - axboe
-      items:
-        type: string
-        enum:
-          - torvalds
-          - linux-next
-          - linux-stable
-          - linux-stable-rc
-          - modules
-          - mcgrof
-          - mcgrof-next
-          - axboe
-          - vfs
-          - cel
-          - jlayton
-          - cxl
-          - xfs
-      title: Kernel trees
-    mirror_on_boot:
-      type: string
-      description: |-
-        First mirror refresh this long after boot (systemd `OnBootSec`).
-      default: 10m
-      title: Mirror On Boot
-    mirror_on_inactive:
-      type: string
-      description: |-
-        Next mirror refresh this long after the previous one finishes (systemd
-        `OnUnitInactiveSec`).
-      default: 10m
-      title: Mirror On Inactive
-    mirrors:
-      type: array
-      description: |-
-        Power-user override of the whole mirror layout (per-tree protocols,
-        custom QEMU URL, extra projects). When non-empty it REPLACES the
-        trees/protocol fields above. Empty = use the form.
-      default: []
-      items:
-        type: object
-      title: 'Advanced: full mirror config'
+    linux:
+      type: object
+      description: How to deploy and refresh the Linux kernel mirror.
+      default: {}
+      order:
+        - trees
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        trees:
+          type: array
+          description: |-
+            Trees to integrate into the merged linux.git as remotes (torvalds is
+            always the base).
+          default:
+            - torvalds
+            - linux-next
+            - linux-stable
+            - modules
+            - axboe
+          items:
+            type: string
+            enum:
+              - torvalds
+              - linux-next
+              - linux-stable
+              - linux-stable-rc
+              - modules
+              - mcgrof
+              - mcgrof-next
+              - axboe
+              - vfs
+              - cel
+              - jlayton
+              - cxl
+              - xfs
+          title: Trees
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('linux')
+      title: Linux
     peers:
       type: array
       description: |-
@@ -169,18 +165,67 @@ schema:
       default: []
       items:
         type: string
-    protocol:
-      type: string
+    projects:
+      type: array
       description: |-
-        How to reach git.kernel.org: https (default), git (faster, often
-        firewalled), or https-googlesource (the Google mirror). Per-tree
-        overrides live in the advanced mirrors config.
-      default: https
-      enum:
-        - https
-        - git
-        - https-googlesource
-      title: Protocol
+        Which projects to mirror, each its own merged bare under `MIRRORS_DIR`.
+        Selecting one reveals its deploy options below.
+      default:
+        - linux
+        - qemu
+      items:
+        type: string
+        enum:
+          - linux
+          - qemu
+      title: Projects
+    qemu:
+      type: object
+      description: How to deploy and refresh the QEMU mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitLab (the canonical QEMU project repo) or GitHub
+            (its read-only mirror, for when GitLab is unreachable).
+          default: GitLab
+          enum:
+            - GitLab
+            - GitHub
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitLab: https (the safe default) or git (faster, but
+            often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'GitHub'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('qemu')
+      title: QEMU
     refresh:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on).
