@@ -145,6 +145,10 @@ XFS_MIN_CRC_BLOCKSIZE = 1024
 # (crc=1) carries large-block support and has no such limit. x86_64 guests are 4 KiB.
 GUEST_PAGE_SIZE = 4096
 
+# mkfs.xfs rejects a realtime extent size below this; an rtx<mult> variant is only
+# emitted for blocks where mult*block clears it.
+XFS_MIN_RTEXTSIZE = 4096
+
 # Single-knob XFS feature variants, each orthogonal to geometry. `v4` marks the
 # V4 (nocrc) layout, which alone reaches block size 512. Insertion order is the
 # feature order in the generated matrix.
@@ -187,6 +191,23 @@ XFS_FEATURES: dict[str, dict] = {
     # block >= XFS_MIN_RTEXTSIZE (4096) or mkfs silently drops reflink.
     "logdev": {"mkfs": "", "mount": "", "v4": False, "needs": "logdev"},
     "realtime": {"mkfs": "-m reflink=0", "mount": "", "v4": False, "needs": "rtdev"},
+    # Realtime extent-size variants: a realtime device with `-r extsize=<mult>*block`,
+    # emitted only for blocks where mult*block clears XFS_MIN_RTEXTSIZE (rtx2 from block
+    # 2k, rtx4 from 1k). The matrix loop appends the per-block extsize.
+    "realtime_rtx2": {
+        "mkfs": "",
+        "mount": "",
+        "v4": False,
+        "needs": "rtdev",
+        "rt_extsize_mult": 2,
+    },
+    "realtime_rtx4": {
+        "mkfs": "",
+        "mount": "",
+        "v4": False,
+        "needs": "rtdev",
+        "rt_extsize_mult": 4,
+    },
     "realtime_reflink": {
         "mkfs": "-m metadir=1",
         "mount": "",
@@ -253,6 +274,7 @@ def xfs_profiles_matrix(
             matrix[name] = value
             continue
         min_block = feature_def.get("min_block")
+        rt_extsize_mult = feature_def.get("rt_extsize_mult")
         for block in XFS_BLOCK_SIZES:
             if not feature_def["v4"] and block < XFS_MIN_CRC_BLOCKSIZE:
                 continue
@@ -263,6 +285,8 @@ def xfs_profiles_matrix(
                 continue
             if min_block is not None and block < min_block:
                 continue
+            if rt_extsize_mult and rt_extsize_mult * block < XFS_MIN_RTEXTSIZE:
+                continue
             for sector in XFS_SECTOR_SIZES:
                 if sector > block:
                     continue
@@ -272,6 +296,8 @@ def xfs_profiles_matrix(
                     + f"bs{_size_tag(block)}_ss{_size_tag(sector)}"
                 )
                 parts = [feature_def["mkfs"], f"-b size={block}", f"-s size={sector}"]
+                if rt_extsize_mult:
+                    parts.append(f"-r extsize={rt_extsize_mult * block}")
                 value: dict[str, str] = {
                     "mkfs": " ".join(p for p in parts if p),
                     "mount": feature_def["mount"],
