@@ -8,4 +8,7 @@
 set -o errexit -o nounset -o pipefail
 
 python3 scripts/gen-bringup.py --check
+# gen-fstests-config imports f.fstests.common (the XFS catalog); the others only
+# read files, so only this one needs the repo root on the import path.
+PYTHONPATH="$PWD" python3 scripts/gen-fstests-config.py --check
 python3 scripts/reflow-descriptions.py --check
