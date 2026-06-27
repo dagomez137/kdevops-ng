@@ -114,12 +114,12 @@ def add_component(
     if picker:
         gprops[picker["key"]] = {
             "title": picker["title"],
-            # A dynselect field is type:object (what the dropdown widget binds to); the
-            # selected value still resolves to the picked index-name string.
+            # type:object is what the dynselect widget binds to; the selected value still
+            # resolves to the picked index-name string. No default: an unselectable "" that
+            # is never a valid option loops the widget's value-reconciliation effect.
             "type": "object",
             "format": picker["format"],
             "description": picker["desc"],
-            "default": "",
             "showExpr": 'fields.mode === "reuse"',
         }
         gorder.append(picker["key"])
@@ -266,7 +266,6 @@ props["vm"] = {
             "type": "object",
             "format": "dynselect-list_deployed_vms",
             "description": "Deployed VM to refresh (the render-sidecar registry).",
-            "default": "",
             "showExpr": 'fields.vm_target === "refresh"',
         },
         "auto_vm_name": auto_vm_name,

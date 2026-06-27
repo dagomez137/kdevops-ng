@@ -159,7 +159,6 @@ schema:
           type: object
           format: dynselect-list_kernel_index
           description: Built kernel run layer to boot (`kernel-<release>` in the store index, local or fetched from a peer).
-          default: ''
           showExpr: fields.mode === "reuse"
         worktree:
           type: object
@@ -828,7 +827,6 @@ schema:
           type: object
           format: dynselect-list_qemu_index
           description: Published QEMU install tree to boot (`qemu-<identity>` in the store index, local or fetched from a peer).
-          default: ''
           showExpr: fields.mode === "reuse"
         worktree:
           type: object
@@ -1779,7 +1777,6 @@ schema:
           type: object
           format: dynselect-list_deployed_vms
           description: Deployed VM to refresh (the render-sidecar registry).
-          default: ''
           showExpr: fields.vm_target === "refresh"
         auto_vm_name:
           type: boolean
