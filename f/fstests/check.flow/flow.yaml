@@ -4646,6 +4646,732 @@ schema:
             # external=rtdev
 
 
+            [xfs_realtime_rtx2_bs2k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=2048 -s size=512 -r extsize=4096"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs2k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=2048 -s size=1024 -r extsize=4096"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs2k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=2048 -s size=2048 -r extsize=4096"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs4k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=512 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs4k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=1024 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs4k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=2048 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs4k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=4096 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs8k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=512 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs8k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=1024 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs8k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=2048 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs8k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=4096 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs8k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=8192 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs16k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=512 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs16k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=1024 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs16k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=2048 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs16k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=4096 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs16k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=8192 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs16k_ss16k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=16384 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=512 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=1024 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=2048 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=4096 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=8192 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss16k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=16384 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs32k_ss32k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=32768 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=512 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=1024 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=2048 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=4096 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=8192 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss16k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=16384 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx2_bs64k_ss32k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=32768 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs1k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=1024 -s size=512 -r extsize=4096"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs1k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=1024 -s size=1024 -r extsize=4096"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs2k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=2048 -s size=512 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs2k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=2048 -s size=1024 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs2k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=2048 -s size=2048 -r extsize=8192"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs4k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=512 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs4k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=1024 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs4k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=2048 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs4k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=4096 -s size=4096 -r extsize=16384"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs8k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=512 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs8k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=1024 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs8k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=2048 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs8k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=4096 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs8k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=8192 -s size=8192 -r extsize=32768"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs16k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=512 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs16k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=1024 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs16k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=2048 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs16k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=4096 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs16k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=8192 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs16k_ss16k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=16384 -s size=16384 -r extsize=65536"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=512 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=1024 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=2048 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=4096 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=8192 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss16k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=16384 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs32k_ss32k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=32768 -s size=32768 -r extsize=131072"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss512]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=512 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss1k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=1024 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss2k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=2048 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss4k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=4096 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss8k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=8192 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss16k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=16384 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
+            [xfs_realtime_rtx4_bs64k_ss32k]
+
+            FSTYP=xfs
+
+            MKFS_OPTIONS="-b size=65536 -s size=32768 -r extsize=262144"
+
+            USE_EXTERNAL=yes
+
+            # external=rtdev
+
+
             [xfs_realtime_reflink_bs4k_ss512]
 
             FSTYP=xfs
