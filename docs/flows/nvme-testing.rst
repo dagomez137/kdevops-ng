@@ -8,12 +8,12 @@ Testing NVMe CMB and PMR
 
 This is a how-to for exercising an emulated NVMe Controller Memory Buffer
 (CMB) and Persistent Memory Region (PMR) inside a guest VM. It covers two
-mutually exclusive paths: the SPDK userspace driver (the primary path) and
+mutually exclusive paths: the `SPDK`_ userspace driver (the primary path) and
 the in-kernel ``nvme`` driver (the no-SPDK alternative).
 
 The guests are produced by the QEMU/systemd boot flow; see
-:doc:`/flows/guests` for how to inspect a running guest. QEMU emits the CMB on
-PCI BAR 2 and the PMR on BAR 4/5, controlled by the NVMe knobs in the boot
+:doc:`/flows/guests` for how to inspect a running guest. `QEMU`_ emits the CMB
+on PCI BAR 2 and the PMR on BAR 4/5, controlled by the NVMe knobs in the boot
 flow (``f/qsu/boot``).
 
 SPDK versus the kernel nvme driver
@@ -165,8 +165,8 @@ it. This needs ``CONFIG_PCI_P2PDMA=y``, which the imageless preset sets:
    $ dd if=/dev/nvme0n1 of=/dev/null bs=1M count=8   # exercise the CMB SQ path
 
 An ``available`` below ``size`` is the kernel having allocated SQs out of the
-CMB. If ``PCI_P2PDMA`` were off, ``dmesg`` would show ``failed to register the
-CMB`` and ``p2pmem/`` would be absent.
+CMB. If ``PCI_P2PDMA`` were off, :cmd:`dmesg` would show ``failed to register
+the CMB`` and ``p2pmem/`` would be absent.
 
 PMR via MMIO
 ------------
@@ -227,3 +227,5 @@ References
   CMB/PMR mechanics are in the ``qemu-system-units`` ``nvme.env.j2`` macros.
 
 .. _SPDK: https://spdk.io/
+
+.. _QEMU: https://www.qemu.org/

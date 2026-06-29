@@ -8,8 +8,8 @@ Kernel toolchains
 
 Building the kernel needs a toolchain that satisfies the kernel's own
 requirements, and on Nix that takes more care than passing a single flag. Two
-toolchains have non-obvious wiring: Clang/LLVM, where the nixpkgs cc-wrapper
-fights the kernel's include handling, and Rust, where the supported version
+toolchains have non-obvious wiring: `Clang/LLVM`_, where the nixpkgs cc-wrapper
+fights the kernel's include handling, and `Rust`_, where the supported version
 window moves with the kernel version. This page records the durable recipe for
 each. The Clang/LLVM recipe is implemented in the ``build-kernel`` devShell of
 ``vendor/nixos-flake`` and consumed by ``f/kernel/build_flags.py``; the Rust
@@ -256,3 +256,6 @@ This was in place briefly for kernel 6.18 before the project moved to modern
 kernels. Selecting the pin automatically from the kernel version range, rather
 than editing the flake by hand, is the goal of the planned per-kernel Rust
 requirements work.
+
+.. _Clang/LLVM: https://llvm.org/
+.. _Rust: https://www.rust-lang.org/

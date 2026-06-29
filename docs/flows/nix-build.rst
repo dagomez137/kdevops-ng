@@ -6,7 +6,7 @@
 Build the NixOS closure
 =======================
 
-The `f/nix/build`_ flow builds a NixOS system with Nix, the way
+The `f/nix/build`_ flow builds a NixOS system with `Nix`_, the way
 `f/kernel/build`_ builds a kernel and `f/qemu/build`_ builds an emulator. Today
 it builds the *imageless* product: a ``toplevel`` system whose closure (every
 store path it references) a VM boots over virtiofs, with a tmpfs root and
@@ -184,3 +184,5 @@ exists.
    https://github.com/dagomez137/kdevops-ng/tree/main/f/kernel/build.flow
 .. _f/qemu/build:
    https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/build.flow
+
+.. _Nix: https://nixos.org/

@@ -31,7 +31,7 @@ Peer remotes
 ============
 
 A peer is named by its SSH-host alias, the same alias the developer would type
-to ``ssh`` into the other host. Provisioning registers each alias as a remote
+to :cmd:`ssh` into the other host. Provisioning registers each alias as a remote
 on every Bare on this host, with the remote's URL derived from the shared
 :term:`System workbench` layout:
 
@@ -59,8 +59,8 @@ the *other* hosts as peers, never the host itself.
 SSH prerequisite
 ----------------
 
-A peer alias resolves through ``~/.ssh/config``, and the transfer uses the same
-passwordless SSH the Store uses (the ``transfer`` devShell's OpenSSH). Keep
+A peer alias resolves through :cmd:`~/.ssh/config`, and the transfer uses the
+same passwordless SSH the Store uses (the ``transfer`` devShell's OpenSSH). Keep
 ``~/.ssh/config`` at mode ``0600``.
 
 Provisioning

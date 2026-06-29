@@ -6,10 +6,10 @@
 The build Store
 ===============
 
-The Store lets an identical kernel or QEMU build be reused or fetched instead
+The Store lets an identical kernel or `QEMU`_ build be reused or fetched instead
 of rebuilt, whether on a single host or across a fleet. Every build is keyed by
-a reproducible build identity. That identity is published to the Nix store and
-indexed, so a later build with the same identity skips compilation, and a
+a reproducible build identity. That identity is published to the `Nix`_ store
+and indexed, so a later build with the same identity skips compilation, and a
 peer's build can be pulled over the network. Each build follows one decision
 rule: reuse a local build, else fetch a peer's, else build from source. Fetch
 beats build.
@@ -164,3 +164,6 @@ The same operations by hand are::
    nix path-info --closure-size --human-readable "$(readlink .../<name>)"
    rm "$STORE_INDEX_DIR"/<name> && nix store gc
    ssh <host> ls "$STORE_INDEX_DIR"/
+
+.. _Nix: https://nixos.org/
+.. _QEMU: https://www.qemu.org/

@@ -6,7 +6,7 @@
 Build QEMU
 ==========
 
-The `f/qemu/build`_ flow builds a custom QEMU from source, reproducibly, for
+The `f/qemu/build`_ flow builds a custom `QEMU`_ from source, reproducibly, for
 the QEMU/systemd guest layer to consume. It is the Windmill equivalent of an
 out-of-tree ``configure`` plus ``make`` of upstream QEMU at a pinned ref. The
 flow deliberately mirrors `f/kernel/build`_: a mirror-backed git worktree built
@@ -258,3 +258,5 @@ first, and the derivation method follows.
    https://github.com/dagomez137/kdevops-ng/tree/main/f/kernel/build.flow
 .. _f/workbench/fetch:
    https://github.com/dagomez137/kdevops-ng/tree/main/f/workbench/fetch.flow
+
+.. _QEMU: https://www.qemu.org/

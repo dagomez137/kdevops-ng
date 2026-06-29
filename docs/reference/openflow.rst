@@ -6,14 +6,15 @@
 OpenFlow object model
 =====================
 
-OpenFlow is the object model Windmill uses to describe a flow: the steps, how
-they are wired together, and the controls (loops, branches, approvals, retries)
-that surround them. This page is the authoritative reference for the model as
-this project uses it. It is distilled from the upstream OpenFlow schema and the
-Windmill worker source, not from the public documentation page, which is
-simplified and lists fewer module types and languages than the real model. The
-real model has nine module types and supports many languages; the durable
-details below come straight from the upstream source.
+`OpenFlow`_ is the object model `Windmill`_ uses to describe a flow: the
+steps, how they are wired together, and the controls (loops, branches,
+approvals, retries) that surround them. This page is the authoritative
+reference for the model as this project uses it. It is distilled from the
+upstream OpenFlow schema and the Windmill worker source, not from the public
+documentation page, which is simplified and lists fewer module types and
+languages than the real model. The real model has nine module types and
+supports many languages; the durable details below come straight from the
+upstream source.
 
 A flow lives in a ``.flow/flow.yaml`` file under ``f/`` and is stored in the
 canonical workspace YAML form (see :doc:`/reference/wmill-yaml`).
@@ -323,3 +324,6 @@ The edit-check-deploy-run loop for a flow, keeping git as the source of truth::
 
 ``wmill.yaml`` syncs only ``f/**``, so ``docs/`` stays git-only. Keep secrets
 as ``$var:`` or ``$res:`` references, never literals.
+
+.. _OpenFlow: https://www.windmill.dev/docs/openflow
+.. _Windmill: https://www.windmill.dev/
