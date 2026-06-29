@@ -6,10 +6,11 @@
 # is owned by wmill, the vendored git subtrees under vendor/ are upstream-owned, the
 # verbatim license texts under LICENSES/ must stay byte-for-byte,
 # scripts/get_maintainer.pl is vendored from the kernel and tracked verbatim, and
-# screenshots/ holds binary image artifacts (no text style applies); all exempt.
+# screenshots/ and docs/_static/ hold binary image artifacts (no text style
+# applies); all exempt.
 set -o errexit -o nounset -o pipefail
 
-scope=(-- . ':!f' ':!workers' ':!vendor' ':!LICENSES' ':!wmill-lock.yaml' ':!scripts/get_maintainer.pl' ':!screenshots')
+scope=(-- . ':!f' ':!workers' ':!vendor' ':!LICENSES' ':!wmill-lock.yaml' ':!scripts/get_maintainer.pl' ':!screenshots' ':!docs/_static')
 status=0
 
 # 1. Trailing whitespace.

@@ -22,7 +22,13 @@ exclude_patterns = [
 
 html_theme = "pydata_sphinx_theme"
 html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
+html_static_path = ["_static"]
 html_theme_options = {
+    "logo": {
+        "image_light": "_static/logo.png",
+        "image_dark": "_static/logo.png",
+        "alt_text": "kdevops-ng",
+    },
     "navigation_with_keys": False,
     "navbar_align": "left",
     "icon_links": [
