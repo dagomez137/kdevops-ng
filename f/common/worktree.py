@@ -144,6 +144,7 @@ def prepare(
         shutil.rmtree(worktree, ignore_errors=True)
         git.run("-C", str(bare), "worktree", "prune")
     if git.ok("-C", str(worktree), "rev-parse", "--git-dir"):
+        _sanitize_worktree(git, worktree, clean=not developer)
         git.run("-C", str(worktree), "checkout", "--detach", "--force", target)
     else:
         shutil.rmtree(worktree, ignore_errors=True)
@@ -162,7 +163,11 @@ def prepare(
         # b4 shazam's `git am` needs a committer identity the worker container lacks.
         git.run("-C", str(worktree), "config", "user.name", "kdevops")
         git.run("-C", str(worktree), "config", "user.email", "kdevops@kdevops")
-        DevShell(workers).run("b4", "shazam", b4_series, cwd=str(worktree))
+        try:
+            DevShell(workers).run("b4", "shazam", b4_series, cwd=str(worktree))
+        except Exception:
+            _sanitize_worktree(git, worktree, clean=False)
+            raise
         # Publish the applied series to the Bare so a developer can check it out and
         # iterate (same host shares the Bare; the branch also keeps the commits alive
         # once `main` advances to the next ref). update-ref, not `branch --force`,
@@ -204,6 +209,48 @@ def prepare(
     if version_file:
         result["version"] = _read_version(worktree, version_file)
     return result
+
+
+def _sanitize_worktree(git: Git, worktree: Path, *, clean: bool) -> None:
+    """Make a reused worktree pristine before a fresh detached checkout.
+
+    `git checkout --detach --force` does not clear an interrupted `git am` or
+    rebase, so a killed `b4 shazam` leaves a sequencer dir behind and every later
+    build wedges. Detect the in-progress operation by inspecting the git-dir the
+    same way git itself does, then abort it best-effort.
+    """
+    gitdir_text = git.capture("-C", str(worktree), "rev-parse", "--git-dir").strip()
+    if not gitdir_text:
+        return
+    # A linked worktree reports an absolute git-dir; resolve a relative one against
+    # the worktree so the markers below are found wherever the step runs.
+    gitdir = Path(gitdir_text)
+    if not gitdir.is_absolute():
+        gitdir = worktree / gitdir
+
+    if (gitdir / "rebase-apply").is_dir():
+        if (gitdir / "rebase-apply" / "applying").exists():
+            print(f"worktree {worktree}: aborting in-progress git am", flush=True)
+            git.ok("-C", str(worktree), "am", "--abort")
+        else:
+            print(f"worktree {worktree}: aborting in-progress rebase", flush=True)
+            git.ok("-C", str(worktree), "rebase", "--abort")
+    elif (gitdir / "rebase-merge").is_dir():
+        print(f"worktree {worktree}: aborting in-progress rebase", flush=True)
+        git.ok("-C", str(worktree), "rebase", "--abort")
+
+    if (gitdir / "CHERRY_PICK_HEAD").exists():
+        print(f"worktree {worktree}: aborting in-progress cherry-pick", flush=True)
+        git.ok("-C", str(worktree), "cherry-pick", "--abort")
+    if (gitdir / "REVERT_HEAD").exists():
+        print(f"worktree {worktree}: aborting in-progress revert", flush=True)
+        git.ok("-C", str(worktree), "revert", "--abort")
+    if (gitdir / "MERGE_HEAD").exists():
+        print(f"worktree {worktree}: aborting in-progress merge", flush=True)
+        git.ok("-C", str(worktree), "merge", "--abort")
+
+    if clean:
+        git.ok("-C", str(worktree), "clean", "--force", "-d")
 
 
 def _resolve_ref(git: Git, bare: Path, ref: str) -> str:
