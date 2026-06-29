@@ -30,6 +30,7 @@ These are linked from the icons in the top navigation bar too.
 
    getting-started/index
    concepts/index
+   flows/index
    reference/index
    deployment/index
    contributing/index
