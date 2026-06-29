@@ -39,14 +39,14 @@ through it with the ``%S`` (state directory) specifier, because ``systemd``
 expands specifiers in the executable path but not environment variables. It
 runs:
 
-.. code-block:: shell
+.. code-block:: console
 
-   pkgs=~/.local/state/windmill/pkgs
-   nix build .#windmill       --out-link "$pkgs/windmill"
-   nix build .#postgresql     --out-link "$pkgs/postgresql"
-   nix build .#db-setup       --out-link "$pkgs/db-setup"
-   nix build .#caddy          --out-link "$pkgs/caddy"
-   nix build .#windmill-extra --out-link "$pkgs/windmill-extra"
+   $ pkgs=~/.local/state/windmill/pkgs
+   $ nix build .#windmill       --out-link "$pkgs/windmill"
+   $ nix build .#postgresql     --out-link "$pkgs/postgresql"
+   $ nix build .#db-setup       --out-link "$pkgs/db-setup"
+   $ nix build .#caddy          --out-link "$pkgs/caddy"
+   $ nix build .#windmill-extra --out-link "$pkgs/windmill-extra"
 
 The server build is heavy (around 10 GB and a clean compile of about 18
 minutes). ``.#windmill-oracle`` is the same server with the
@@ -68,11 +68,11 @@ it through ``VENDOR_DIR``. The vendor copy is what lets the workers resolve the
 nixos-flake's ``git`` and build shells and the QEMU/systemd templates without
 the source checkout, so a worker-only host needs only the state directory:
 
-.. code-block:: shell
+.. code-block:: console
 
-   cp deploy/nix/systemd/*.service ~/.config/systemd/user/
-   cp deploy/nix/Caddyfile ~/.config/windmill/Caddyfile
-   cp --recursive vendor/. ~/.local/state/windmill/vendor/
+   $ cp deploy/nix/systemd/*.service ~/.config/systemd/user/
+   $ cp deploy/nix/Caddyfile ~/.config/windmill/Caddyfile
+   $ cp --recursive vendor/. ~/.local/state/windmill/vendor/
 
 Activate
 --------
@@ -82,13 +82,13 @@ lingers the user so the services run without an active login session, then
 enables and starts them. ``enable --now`` enables (creates the ``[Install]``
 symlinks so they start at login) and starts in one step:
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --user daemon-reload
-   loginctl enable-linger "$USER"
-   systemctl --user enable --now \
+   $ systemctl --user daemon-reload
+   $ loginctl enable-linger "$USER"
+   $ systemctl --user enable --now \
        windmill-db windmill windmill-extra windmill-native windmill-caddy
-   systemctl --user enable --now windmill-worker@0000 windmill-worker@0001 \
+   $ systemctl --user enable --now windmill-worker@0000 windmill-worker@0001 \
        windmill-worker@0002 windmill-worker@0003
 
 The database service runs ``windmill-db-setup`` on first boot: it initialises
@@ -99,9 +99,9 @@ the LSP gateway on ``127.0.0.1:3001``, and caddy fronts both on
 ``127.0.0.1:8000``. Open ``https://localhost:8000`` in a browser on the host. If
 the host is remote, forward the port over SSH first:
 
-.. code-block:: shell
+.. code-block:: console
 
-   ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
+   $ ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
 
 The default is HTTPS with caddy's internal CA, so the browser warns once on the
 untrusted certificate. Trust it where the browser runs: on the host for a local
@@ -126,9 +126,9 @@ Override either by editing that file or with a drop-in. ``systemctl edit`` opens
 ``$SYSTEMD_EDITOR``, then ``$EDITOR``, then ``$VISUAL``, falling back to a
 built-in default, so set one to use your editor:
 
-.. code-block:: shell
+.. code-block:: console
 
-   SYSTEMD_EDITOR=hx systemctl --user edit windmill.service
+   $ SYSTEMD_EDITOR=hx systemctl --user edit windmill.service
 
 Export ``SYSTEMD_EDITOR`` from your shell profile to make it the default.
 
@@ -230,9 +230,9 @@ Scale a role by enabling more instances: add ``default`` instances to widen
 build concurrency, or ``vm-run`` instances to raise the test-run cap. Drop a
 per-instance override in, then enable it:
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --user edit windmill-worker@0004   # then in the drop-in:
+   $ systemctl --user edit windmill-worker@0004   # then in the drop-in:
 
 .. code-block:: ini
 
@@ -256,11 +256,11 @@ server-written ``database.env`` optional. It bakes in no ``DATABASE_URL``,
 because a worker-only host has no local database to default to; set it, then
 enable as many instances as you want:
 
-.. code-block:: shell
+.. code-block:: console
 
-   nix run .#windmill-worker-install
-   systemctl --user edit windmill-worker@
-   nix run .#windmill-worker-activate -- 4
+   $ nix run .#windmill-worker-install
+   $ systemctl --user edit windmill-worker@
+   $ nix run .#windmill-worker-activate -- 4
 
 In the editor ``systemctl edit`` opens, set the server's database for every
 instance:
@@ -367,12 +367,12 @@ instances. ``systemctl stop`` accepts a glob but ``disable`` does not, so it
 stops everything by glob, then disables each unit that has an install symlink
 (the worker template instances included):
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --user stop 'windmill*'
-   for link in ~/.config/systemd/user/default.target.wants/windmill*; do
-       systemctl --user disable "${link##*/}"
-   done
+   $ systemctl --user stop 'windmill*'
+   $ for link in ~/.config/systemd/user/default.target.wants/windmill*; do
+   $     systemctl --user disable "${link##*/}"
+   $ done
 
 Linger is left enabled. It is user-global, not a Windmill setting, so disabling
 it would stop every lingering user service, the workbench mirrors included. Drop
@@ -385,12 +385,12 @@ Uninstall
 ``nix run .#windmill-uninstall`` removes the installed units, any worker
 drop-ins, and the Caddyfile, then reloads the manager:
 
-.. code-block:: shell
+.. code-block:: console
 
-   rm --force ~/.config/systemd/user/windmill*.service
-   rm --recursive --force ~/.config/systemd/user/windmill-worker@.service.d
-   rm --force ~/.config/windmill/Caddyfile
-   systemctl --user daemon-reload
+   $ rm --force ~/.config/systemd/user/windmill*.service
+   $ rm --recursive --force ~/.config/systemd/user/windmill-worker@.service.d
+   $ rm --force ~/.config/windmill/Caddyfile
+   $ systemctl --user daemon-reload
 
 Wipe
 ----
@@ -400,10 +400,10 @@ the database cluster, the build out-links, and the generated env. It leaves the
 build-area workbench (also under the state directory) alone. Run it after
 deactivate so the cluster is stopped:
 
-.. code-block:: shell
+.. code-block:: console
 
-   state=~/.local/state/windmill
-   rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"
+   $ state=~/.local/state/windmill
+   $ rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"
 
 Switching from Podman
 =====================

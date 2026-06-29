@@ -57,24 +57,24 @@ Querying section status and logs
 List the sections currently running on a guest, and the per-test scope inside
 the live section:
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --host <vm> list-units 'xfstests@*'
-   systemctl --host <vm> list-units --type=scope    # the fstests-<test>.scope
+   $ systemctl --host <vm> list-units 'xfstests@*'
+   $ systemctl --host <vm> list-units --type=scope    # the fstests-<test>.scope
 
 Full status of one section (the cgroup line shows the running ``./check`` and
 the current test's helper processes):
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --host <vm> status xfstests@<section>.service
+   $ systemctl --host <vm> status xfstests@<section>.service
 
 The three properties the ``wait`` step polls to decide a section is done are
 ``Result``, ``ExecMainStatus`` and ``ActiveState``; read them the same way:
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --host <vm> show xfstests@<section>.service \
+   $ systemctl --host <vm> show xfstests@<section>.service \
        --property=Result --property=ExecMainStatus --property=ActiveState
 
 ``ActiveState=activating`` means the section is still running, ``active`` or
@@ -82,9 +82,9 @@ The three properties the ``wait`` step polls to decide a section is done are
 (``success`` / ``exit-code`` / ``signal`` / ``timeout`` / ...). Follow the live
 journal of a section, the same stream the job log shows:
 
-.. code-block:: shell
+.. code-block:: console
 
-   ssh <vm> journalctl --unit=xfstests@<section>.service --follow
+   $ ssh <vm> journalctl --unit=xfstests@<section>.service --follow
 
 Each test's progress line (``generic/310``, then its elapsed seconds), its
 ``[failed, ...]`` verdict, and the ``.out.bad`` path on a mismatch all appear
@@ -111,9 +111,9 @@ The symptom is a section that makes no progress: its journal stops emitting new
 longer than the test should take. Find the in-flight scope and confirm which
 test it is:
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --host <vm> list-units --type=scope
+   $ systemctl --host <vm> list-units --type=scope
 
 .. code-block:: text
 
@@ -122,9 +122,9 @@ test it is:
 
 Kill that scope:
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --host <vm> kill --signal=SIGKILL fstests-generic-310.scope
+   $ systemctl --host <vm> kill --signal=SIGKILL fstests-generic-310.scope
 
 ``check`` sees the test killed, records it as a failure, and proceeds to the
 next test. The failure surfaces as an output mismatch with exit status 137
@@ -141,10 +141,10 @@ To abort the **whole** section instead of skipping one test, stop its unit (this
 is the documented fallback in `f/fstests/stop.py`_, and also what the flow's
 ``failure_module`` runs when you cancel the Windmill job):
 
-.. code-block:: shell
+.. code-block:: console
 
-   systemctl --host <vm> stop         xfstests@<section>.service
-   systemctl --host <vm> reset-failed xfstests@<section>.service
+   $ systemctl --host <vm> stop         xfstests@<section>.service
+   $ systemctl --host <vm> reset-failed xfstests@<section>.service
 
 The ``wait`` step observes the unit go inactive and the run ends that section.
 Cancelling the Windmill job (a clean cancel, not a force-kill of the worker)
