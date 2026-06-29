@@ -134,6 +134,41 @@ edit the source subflow schema and/or `gen-bringup.py`, then run
 `nix flake check`) enforces this; it fails if the committed flow drifts from the
 generator output.
 
+## Documentation
+
+The prose docs under `docs/` are reStructuredText rendered by Sphinx (locally
+through the `docs` devShell, and on Read the Docs). The `toctree` rooted at
+`docs/index.rst` is the published tree; the `docs/windmill/*.md` notes are
+developer scratch outside it. Build and verify with
+`nix develop .#docs --command sphinx-build -b html -W docs <out>` (warnings are
+errors); `nix run .#docs` renders and `nix run .#serve` live-renders. Every
+`.rst` carries an SPDX identifier on line one, and prose wraps at 80 columns; a
+line containing a URL is exempt. Both are enforced by `scripts/check-style.sh`.
+The em/en-dash and project-name-versus-command rules in Conventions apply to
+docs too.
+
+Hyperlink on first mention. The first time a file's prose names an upstream
+project, tool, service, systemd unit or directive, or any man-page-documented
+command, link it to its canonical manual or source; later mentions in the same
+file stay plain text. Link an internal concept (a flow, a step) to its concept
+or reference page with `:doc:`, and link an `f/` flow or step path to its
+source.
+
+A command, tool, or systemd directive reads as code, so link it with the
+`:cmd:` role: ``:cmd:`ssh``` renders ``ssh`` (a monospaced literal) hyperlinked
+to its manual. The role resolves the name through the one `cmd_links` table in
+`docs/conf.py`, the single source for those URLs, so add a name there once and
+every page links it the same way; an unregistered name fails the build. For
+everything else (a project name, an `f/` path, any prose-worded link) use the
+named-target style, the inline `` `Name`_ `` reference with its `.. _Name: URL`
+definition collected at the foot of the file, matching `docs/concepts/flows.rst`.
+
+Document each flow on its own page under `docs/flows/`. Anything common to
+every flow that drives a guest (the job log being the primary view, reaching a
+guest over the SSH transport, querying machine and VM status) belongs in the
+shared `docs/flows/guests.rst`, linked from the per-flow pages, never copied
+into each one.
+
 ## Commit rules
 
 All commits must follow these six rules.
