@@ -13,7 +13,7 @@ description: |-
 
   Returns `{vm_name, ssh_port, vsock_cid, active, ssh_ready, state_dir}`. Run on
   a `vm`-tagged worker; the unit forks on the host (see
-  `docs/windmill/qsu-execution-model.md`).
+  `notes/windmill/qsu-execution-model.md`).
 lock: '!inline f/qsu/boot.script.lock'
 kind: script
 schema:

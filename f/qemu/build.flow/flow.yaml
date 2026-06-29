@@ -25,7 +25,8 @@ description: |-
 
   Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
   `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the
-  same way it consumes `f/kernel/build`. See `docs/windmill/qemu-build-flow.md`.
+  same way it consumes `f/kernel/build`. See
+  `notes/windmill/qemu-build-flow.md`.
 value:
   modules:
     - id: prepare_worktree

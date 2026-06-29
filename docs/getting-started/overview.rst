@@ -69,8 +69,10 @@ The big pieces:
 - ``deploy/`` deploys the Windmill instance; the ``nix`` deployment is the
   current default, with ``podman`` retired and ``distro`` planned.
 - ``vendor/`` carries pinned upstream projects the flows build against.
-- ``docs/`` is this site, together with the architecture decision records
-  under ``docs/adr/``.
+- ``docs/`` is this Sphinx site.
+- ``notes/`` keeps working research and design notes that are not part of the
+  rendered site, including the architecture decision records under
+  ``notes/adr/``.
 
 The on-disk area where kernels and QEMU are actually built is the *workbench*,
 which is runtime and not tracked in git; see :doc:`/concepts/terms`.

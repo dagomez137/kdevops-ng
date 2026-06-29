@@ -9,7 +9,7 @@ building via distinct commands (Documentation/kbuild/llvm.rst).
   - compiler=clang -> `LLVM=1` plus the unwrapped `CC` and its resource `-I`
     (`CFLAGS_KERNEL`/`CFLAGS_MODULE`) the build-kernel devShell exports; the
     cc-wrapper's `-nostdlibinc` breaks the kernel's `-nostdinc`, so `LLVM=1` alone
-    is not enough (docs/windmill/clang-kernel-build-findings.md).
+    is not enough (notes/windmill/clang-kernel-build-findings.md).
   - reproducible   -> `KBUILD_BUILD_TIMESTAMP` + `KBUILD_BUILD_USER=kdevops` +
     `KBUILD_BUILD_HOST=kdevops` + `LOCALVERSION=` (Documentation/kbuild/reproducible-builds.rst),
     plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS` and `KAFLAGS`, `<prefix>`

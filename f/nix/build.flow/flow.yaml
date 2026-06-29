@@ -7,7 +7,7 @@ description: |-
   `/nix/store` and `/lib/modules` shared from the host). Other products (e.g. a
   disk-image `libvirt` system) could be added under this same flow later. This
   is the Windmill reimplementation of kdevops's `nixosfi` role; booting the
-  closure is the qsu half (parked: see docs/windmill/qsu-execution-model.md).
+  closure is the qsu half (parked: see notes/windmill/qsu-execution-model.md).
 
   Steps (pinned to one worker via `same_worker`, so each sees the previous
   step's per-VM config directory under

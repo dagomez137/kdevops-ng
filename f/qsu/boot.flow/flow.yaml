@@ -4,7 +4,7 @@ description: |-
   kernel and an `f/nix/build` imageless closure into a running,
   machined-registered guest. The Windmill reimplementation of kdevops's `qsu`
   role (render-units + render-per-vm + bringup); see
-  `docs/windmill/qsu-execution-model.md`.
+  `notes/windmill/qsu-execution-model.md`.
 
   Every step is `tag_override: vm`, so it runs on the dedicated `vm` worker (the
   only one mounting the host `~/.config/systemd` + `~/.local/state/qemu-system`
