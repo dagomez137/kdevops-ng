@@ -34,6 +34,7 @@ These are linked from the icons in the top navigation bar too.
    reference/index
    deployment/index
    contributing/index
+   roadmap
 
 .. toctree::
    :maxdepth: 1

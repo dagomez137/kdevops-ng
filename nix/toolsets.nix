@@ -9,6 +9,7 @@ let
     ps.sphinx
     ps.sphinx-autobuild
     ps.sphinx-copybutton
+    ps.sphinx-design
     (ps.pydata-sphinx-theme.overridePythonAttrs (_: rec {
       version = "0.19.0";
       src = ps.fetchPypi {

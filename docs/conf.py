@@ -9,6 +9,7 @@ author = "kdevops-ng authors"
 
 extensions = [
     "sphinx_copybutton",
+    "sphinx_design",
 ]
 
 # Show the "$ " prompt but strip it (and follow "\" continuations) on copy.
