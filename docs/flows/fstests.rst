@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: copyleft-next-0.3.1
 
-==============
-fstests check
-==============
+=====================
+Run an xfstests check
+=====================
 
 The `f/fstests/check`_ flow runs an `xfstests`_ ``./check`` against an
 already-booted, fstests-ready guest: the Windmill equivalent of an xfstests
