@@ -31,6 +31,7 @@ html_theme_options = {
     },
     "navigation_with_keys": False,
     "navbar_align": "left",
+    "header_links_before_dropdown": 8,
     "icon_links": [
         {
             "name": "GitHub",
