@@ -24,6 +24,7 @@ exclude_patterns = [
 html_theme = "pydata_sphinx_theme"
 html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
 html_static_path = ["_static"]
+html_favicon = "_static/favicon.ico"
 html_theme_options = {
     "logo": {
         "image_light": "_static/logo.png",
