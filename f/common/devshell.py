@@ -156,7 +156,7 @@ def main():
 
 
 def workbench_dir() -> Path:
-    """Root of the Workbench: the relocatable build area (ADR-0008).
+    """Root of the Workbench: the relocatable build area.
 
     Exposed to workers as WORKBENCH_DIR; falls back to the parent of the
     worker-sandbox root (WORKERS_DIR sits at `<workbench>/workers`) so a local
@@ -170,7 +170,7 @@ def workbench_dir() -> Path:
 
 
 def worktrees_dir() -> Path:
-    """Root that holds the worktree-groups (ADR-0008).
+    """Root that holds the worktree-groups.
 
     Exposed to workers as WORKTREES_DIR; defaults to the Workbench itself, so the
     worktree-groups (`vanilla`, ...) stay its direct children unless pointed
@@ -184,7 +184,7 @@ def worktrees_dir() -> Path:
 
 
 def system_dir() -> Path:
-    """The System workbench: host-local `bare/ mirror/ ssh/ store/` (ADR-0008).
+    """The System workbench: host-local `bare/ mirror/ ssh/ store/`.
 
     Exposed to workers as SYSTEM_DIR; defaults to `system/` under the Workbench,
     so it relocates with the build area unless pointed elsewhere on its own.
@@ -195,7 +195,7 @@ def system_dir() -> Path:
 
 
 def mirrors_dir() -> Path:
-    """Root holding the System workbench's git mirrors (ADR-0008).
+    """Root holding the System workbench's git mirrors.
 
     Exposed to workers as MIRRORS_DIR; defaults to `mirror/` under the System
     workbench, so it relocates with SYSTEM_DIR unless pointed elsewhere on its
@@ -207,7 +207,7 @@ def mirrors_dir() -> Path:
 
 
 def ccache_dir() -> Path:
-    """Root of the shared compiler cache (ADR-0008).
+    """Root of the shared compiler cache.
 
     Exposed to workers as CCACHE_DIR; defaults to `ccache/` under the System
     workbench, so it relocates with SYSTEM_DIR unless pointed elsewhere. The
@@ -220,7 +220,7 @@ def ccache_dir() -> Path:
 
 
 def store_index_dir() -> Path:
-    """Root of the Store's identity->store-path index and its GC roots (ADR-0008).
+    """Root of the Store's identity->store-path index and its GC roots.
 
     Exposed to workers as STORE_INDEX_DIR; defaults to `store-index/` under the
     System workbench, so it relocates with SYSTEM_DIR unless pointed elsewhere.
@@ -234,7 +234,7 @@ def store_index_dir() -> Path:
 
 
 def vendor_dir(workers: Path | str | None = None) -> Path:
-    """Top-level `vendor/` of the pinned vendored projects (ADR-0006).
+    """Top-level `vendor/` of the pinned vendored projects.
 
     Exposed to workers as VENDOR_DIR (a sibling of the Workbench, bind-mounted
     read-only at the same absolute path); falls back to that sibling so a local

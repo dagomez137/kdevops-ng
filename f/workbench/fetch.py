@@ -10,7 +10,7 @@ local merged mirror with per-tree refspecs: the mirror's primary heads land in
 mirror carries (`refs/remotes/<tree>/*`, e.g. `linux-next`, `axboe`) is copied through
 unchanged, so a build can resolve `axboe/for-next` and friends. `origin` is set to the
 primary remote's upstream URL purely so a human `git fetch origin` works. `refs/heads/*`
-is left empty, reserved for developer pushes. Idempotent (ADR-0001: the Bare is the
+is left empty, reserved for developer pushes. Idempotent (the Bare is the
 working repo).
 
 The mirror's own remotes (which upstream trees it carries and over which protocol) are
@@ -23,7 +23,7 @@ Each host becomes a `<peer>` remote on every Bare, its URL the peer's Bare under
 same SYSTEM_DIR layout (`ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git`), with a
 `+refs/heads/*:refs/remotes/<peer>/*` refspec. A developer publishes a branch
 cross-host with `git -C <worktree> push <peer> <branch>`, and the peer's worker builds
-it as a local `refs/heads/*` ref (ADR-0001's per-host ref channel). Not fetched here.
+it as a local `refs/heads/*` ref (the per-host ref channel). Not fetched here.
 List peer hosts, not self.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirror:

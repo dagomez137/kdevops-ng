@@ -7,8 +7,8 @@ description: |-
   copied, no upstream network). A `mirror` remote copies the mirror's heads into
   `refs/remotes/mirror/*` and each extra tree through unchanged; `refs/heads/*`
   is left empty, reserved for developer pushes. `origin`'s URL is the project's
-  primary upstream, for an explicit `git fetch origin` (ADR-0001: the Bare is
-  the working repo).
+  primary upstream, for an explicit `git fetch origin` (the Bare is the working
+  repo).
 
   Pick the projects to mirror, then each one's deploy options in its own group:
   for `linux`, the curated **Trees** to integrate into the merged linux.git plus
