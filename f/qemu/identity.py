@@ -5,7 +5,7 @@ QEMU has no kernelrelease/LOCALVERSION to bake the identity into, so the build
 identity keys the install prefix instead: a 12-hex hash over the inputs that fix a
 QEMU build's bytes (the target list, the configure flags, the compiler, the
 toolchain, which is the `build-qemu` devShell's derivation path, and the source
-commit) names the per-identity install root. The QEMU version (from
+tree) names the per-identity install root. The QEMU version (from
 `<worktree>/VERSION`, e.g. `11.0.0`, the analog of the kernel's `make
 kernelversion`) leads it and a readable label follows when present, giving
 `destdir/<version>-<label>-<identity>` (else `destdir/<version>-<identity>`), and
@@ -27,9 +27,9 @@ hash, so two configs of one ref share the label and differ only in the identity.
 Equivalent bash:
 
     toolchain=$(nix eval --raw "path:$flake#devShells.$system.build-qemu.drvPath")
-    commit=$(git -C "$worktree" rev-parse HEAD)
+    tree=$(git -C "$worktree" rev-parse "HEAD^{tree}")
     identity=$(printf '%s\\0%s\\0%s\\0%s\\0%s' \\
-        "$target_list" "$configure_args" "$compiler" "$toolchain" "$commit" \\
+        "$target_list" "$configure_args" "$compiler" "$toolchain" "$tree" \\
         | sha256sum | cut -c1-12)
     version=$(cat "$worktree/VERSION")            # e.g. 11.0.0
     prefix="$destdir/$version-${label:+$label-}$identity"
@@ -54,8 +54,8 @@ def main(
     label: str = "",
 ) -> dict:
     targets = ",".join(target_list or [])
-    commit = Git().capture("-C", worktree, "rev-parse", "HEAD").strip()
-    blob = "\0".join([targets, configure_args, compiler, _toolchain(), commit]).encode()
+    tree = Git().capture("-C", worktree, "rev-parse", "HEAD^{tree}").strip()
+    blob = "\0".join([targets, configure_args, compiler, _toolchain(), tree]).encode()
     identity = hashlib.sha256(blob).hexdigest()[:12]
     version = _read_version(worktree)
     prefix = str(Path(destdir) / _prefix_basename(version, label, identity))

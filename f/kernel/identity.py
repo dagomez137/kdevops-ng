@@ -5,17 +5,17 @@ Imported with:  from f.kernel.identity import bake_identity
 
 A build's identity is a short hash over the inputs that fix its bytes: the `.config`,
 the toolchain (the `build-kernel` devShell's derivation path), the make flags, and the
-source commit. A readable label precedes that digest in CONFIG_LOCALVERSION, so
+source tree. A readable label precedes that digest in CONFIG_LOCALVERSION, so
 `make kernelrelease` (and the booted `uname -r`) self-report a legible identity:
 `7.1.0-vanilla-<hash>`, or `7.1.0-iomap-consolidate-bio-submission-<hash>` for a
 series. The label comes from `f.common.worktree.prepare` (a user override, the b4
 series subject, `vanilla` for an upstream tag, or a slug of the dev ref) and is
 truncated to fit the 64-char release. `CONFIG_LOCALVERSION_AUTO` is forced off to
 drop the kernel's own `-<count>-g<sha>` describe suffix (this kernel has no
-`.scmversion` mechanism) and free that budget; the commit it encodes survives in the
-manifest and the digest. Same identity then means same bytes, so the image and
-modules install under one release and a built identity can be fetched or reused
-instead of rebuilt.
+`.scmversion` mechanism) and free that budget; the resolved commit survives in the
+manifest, and the tree that commit produces is what feeds the digest. Same identity
+then means same bytes, so the image and modules install under one release and a
+built identity can be fetched or reused instead of rebuilt.
 
 The hash excludes the CONFIG_LOCALVERSION line and the host-specific
 `-fdebug-prefix-map` value from the make flags, so the identity (and thus the digest)
@@ -119,8 +119,8 @@ def _digest(config_text: str, worktree: str, make_flags: str) -> str:
         if not line.startswith("CONFIG_LOCALVERSION=")
     )
     flags = re.sub(r"-fdebug-prefix-map=\S*", "-fdebug-prefix-map=", make_flags)
-    commit = Git().capture("-C", worktree, "rev-parse", "HEAD").strip()
-    blob = "\0".join([config, _toolchain(), flags, commit]).encode()
+    tree = Git().capture("-C", worktree, "rev-parse", "HEAD^{tree}").strip()
+    blob = "\0".join([config, _toolchain(), flags, tree]).encode()
     return hashlib.sha256(blob).hexdigest()[:12]
 
 
