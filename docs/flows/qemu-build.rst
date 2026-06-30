@@ -137,6 +137,14 @@ The form surfaces the choices a maintainer actually makes:
    The tag, branch, or SHA to check out from the Bare. Default ``v11.0.0``,
    configurable exactly like the kernel flow's ``git_ref``.
 
+``custom_label`` and ``label``
+   The build identity's name is inferred from the ref and any series (see
+   `The output contract`_), so naming is left off by default. Turn on
+   ``custom_label`` to name the build yourself: ``label`` then replaces the
+   auto-derived ``vanilla``/series name in the install prefix and store key. It
+   is bounded to 40 characters. Use it to tag a one-off experiment whose ref or
+   series would not yield a meaningful name.
+
 ``target_list``
    A multiselect of QEMU's emulator targets, passed as ``--target-list`` and
    enumerated from the source's ``configs/targets/*.mak`` (``*-softmmu`` for
@@ -223,6 +231,24 @@ This is a provider-agnostic contract: anything that produces a ``qemu_binary``
 path (this flow, or the future Nix-derivation variant) satisfies it, so the
 guest layer consumes the manifest without knowing how QEMU was built.
 
+Like the kernel build, every QEMU build is content-addressed by a 12-hex
+**build identity**: a hash over the target list, configure flags, compiler,
+toolchain store path, and source commit. QEMU has no ``kernelrelease`` to bake
+it into, so the identity keys the install prefix instead:
+``destdir/<identity>``, which `f/qemu/publish`_ stores as ``qemu-<identity>``.
+A readable **label** prefixes that hash, the same inferred name the kernel
+build uses, with the same precedence: a ``custom_label`` override; else the
+``b4`` series subject as a slug (with ``-v<N>`` for v2 and later); else
+``vanilla`` for an upstream tag checked out with no series; else a slug of the
+``qemu_ref``. So a stock tag build reads ``qemu-vanilla-<identity>`` and a
+series build ``qemu-<series-subject>-<identity>``. The QEMU difference is that
+the label prefixes the install prefix and store key rather than
+``kernelrelease``, and because there is no 64-character ``uname -r`` to fit, it
+takes a flat length cap with no release-budget math. The 12-hex identity still
+disambiguates configs: two builds of one ref with different configure flags or
+compilers share the label and differ only in the identity, so they never
+collide in the prefix or the store key.
+
 How the guest layer consumes this
 =================================
 
@@ -254,6 +280,8 @@ first, and the derivation method follows.
 
 .. _f/qemu/build:
    https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/build.flow
+.. _f/qemu/publish:
+   https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/publish.py
 .. _f/kernel/build:
    https://github.com/dagomez137/kdevops-ng/tree/main/f/kernel/build.flow
 .. _f/workbench/fetch:
