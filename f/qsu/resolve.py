@@ -12,7 +12,8 @@ VM recorded in its render sidecar. Always probes the host operator (the closure 
 `home_dir` default).
 
 A `reuse` pick that no longer resolves raises, so the render never boots a kernelless or
-closureless VM (it refuses one anyway).
+closureless VM (it refuses one anyway). Selecting a reuse mode with no pick also raises
+early, at this step.
 
 Equivalent command:
 
@@ -91,10 +92,22 @@ def _closure(reuse: bool, vm_name: str) -> tuple[dict, dict]:
 
 def main(
     kernel_index: str = "",
+    kernel_reuse: bool = False,
     qemu_index: str = "",
+    qemu_reuse: bool = False,
     closure_reuse: bool = False,
     vm_name: str = "",
 ) -> dict:
+    if qemu_reuse and not qemu_index:
+        raise ValueError(
+            "QEMU mode is reuse but no QEMU was picked: choose one under Reuse "
+            "QEMU, or set the QEMU mode to build or nixpkgs."
+        )
+    if kernel_reuse and not kernel_index:
+        raise ValueError(
+            "Kernel mode is reuse but no kernel was picked: choose one under "
+            "Reuse kernel, or set the Kernel mode to build."
+        )
     closure, sharing = _closure(closure_reuse, vm_name)
     out = {
         "kernel": _kernel(kernel_index),

@@ -13,7 +13,9 @@ schema:
   type: object
   order:
     - kernel_index
+    - kernel_reuse
     - qemu_index
+    - qemu_reuse
     - closure_reuse
     - vm_name
   properties:
@@ -23,12 +25,24 @@ schema:
         Store-index `kernel-<release>` name to reuse (empty = no kernel reuse).
       default: ''
       title: Kernel Index
+    kernel_reuse:
+      type: boolean
+      description: |-
+        Kernel mode is reuse: an empty `kernel_index` then raises early.
+      default: false
+      title: Kernel Reuse
     qemu_index:
       type: string
       description: |-
         Store-index `qemu-<identity>` name to reuse (empty = no QEMU reuse).
       default: ''
       title: QEMU Index
+    qemu_reuse:
+      type: boolean
+      description: |-
+        QEMU mode is reuse: an empty `qemu_index` then raises early.
+      default: false
+      title: QEMU Reuse
     closure_reuse:
       type: boolean
       description: |-

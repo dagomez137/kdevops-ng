@@ -57,8 +57,9 @@ def resolve_qemu_binary(fi: dict, workers: Path | None = None) -> str:
     if fi.get("qemu_source", "nixpkgs") == "qemu-build":
         if not fi.get("qemu_binary"):
             raise ValueError(
-                "qemu_source is qemu-build but no qemu_binary: reuse needs a Reuse from VM "
-                "whose sidecar has a built qemu; build supplies it from the build result"
+                "qemu_source is 'qemu-build' but qemu_binary is empty: provide a "
+                "qemu_binary from f/qemu/build, or in bringup pick one under Reuse "
+                "QEMU, or set the QEMU source to nixpkgs."
             )
         return fi["qemu_binary"]
     return f"{store_out('qemu', workers)}/bin/qemu-system-x86_64"

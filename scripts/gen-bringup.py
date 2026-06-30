@@ -320,9 +320,11 @@ modules = [
                 "kernel_index": jx(
                     'flow_input.kernel?.mode === "reuse" ? (flow_input.kernel?.kernel_pick || "") : ""'
                 ),
+                "kernel_reuse": jx('flow_input.kernel?.mode === "reuse"'),
                 "qemu_index": jx(
                     'flow_input.qemu?.mode === "reuse" ? (flow_input.qemu?.qemu_pick || "") : ""'
                 ),
+                "qemu_reuse": jx('flow_input.qemu?.mode === "reuse"'),
                 "closure_reuse": jx('flow_input.closure?.mode === "reuse"'),
                 "vm_name": jx(
                     'flow_input.vm?.vm_target === "refresh" ? flow_input.vm?.refresh_vm : flow_input.vm?.vm_name'

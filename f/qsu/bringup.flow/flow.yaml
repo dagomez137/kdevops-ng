@@ -11,9 +11,15 @@ value:
         kernel_index:
           type: javascript
           expr: 'flow_input.kernel?.mode === "reuse" ? (flow_input.kernel?.kernel_pick || "") : ""'
+        kernel_reuse:
+          type: javascript
+          expr: flow_input.kernel?.mode === "reuse"
         qemu_index:
           type: javascript
           expr: 'flow_input.qemu?.mode === "reuse" ? (flow_input.qemu?.qemu_pick || "") : ""'
+        qemu_reuse:
+          type: javascript
+          expr: flow_input.qemu?.mode === "reuse"
         closure_reuse:
           type: javascript
           expr: flow_input.closure?.mode === "reuse"
