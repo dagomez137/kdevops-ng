@@ -68,7 +68,10 @@ Usability
 
       Make flows and scripts zero-config on the common path and gate the rest
       behind "Advanced options". A kernel build should take a ref and a series
-      and infer the rest (checkout, push refs, targets, configuration). Extends
+      and infer the rest (checkout, push refs, targets, configuration). The
+      bringup form is the first target: gate its kernel, QEMU and NixOS-closure
+      knobs behind an Advanced mode with sane defaults, which then makes room to
+      embed the test step so one flow builds, boots and tests a kernel. Extends
       the "curated forms, not empty boxes" principle.
 
 Cloud and infrastructure
