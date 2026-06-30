@@ -7,8 +7,8 @@ Roadmap
 This page records the direction for kdevops-ng. It is a living list of intended
 work grouped by theme, not a set of dated commitments; see
 :doc:`getting-started/overview` for the current project status. Each card
-carries a status, :bdg-primary:`planned` or :bdg-warning:`research`, and an
-entry that extends an existing foundation names it.
+carries a status, :bdg-primary:`planned`, :bdg-warning:`research`, or
+:bdg-info:`staging`, and an entry that extends an existing foundation names it.
 
 Documentation and presentation
 ==============================
@@ -49,11 +49,12 @@ Documentation and presentation
 
    .. grid-item-card:: Build-identity explainer
 
-      :bdg-primary:`planned`
+      :bdg-info:`staging`
 
       Explain how a :term:`Build identity` keys ``/nix/store``, on one host and
       across peers. Documents the mechanism behind ADR 0002 and the build
-      Store.
+      Store. A draft is staged in :doc:`/flows/kernel-build` (the "Build
+      identity and reuse" section); review it there.
 
 Usability
 =========
