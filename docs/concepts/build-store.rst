@@ -6,20 +6,22 @@
 The build Store
 ===============
 
-The Store lets an identical kernel or `QEMU`_ build be reused or fetched instead
-of rebuilt, whether on a single host or across a fleet. Every build is keyed by
-a reproducible build identity. That identity is published to the `Nix`_ store
-and indexed, so a later build with the same identity skips compilation, and a
-peer's build can be pulled over the network. Each build follows one decision
-rule: reuse a local build, else fetch a peer's, else build from source. Fetch
-beats build.
+The Store lets an identical `Linux kernel`_ or `QEMU`_ build be reused or
+fetched instead of rebuilt, whether on a single host or across a fleet. Every
+build is keyed by a reproducible build identity. That identity is published to
+the `Nix store`_ and indexed, so a later build with the same identity skips
+compilation, and a peer's build can be pulled over the network. Each build
+follows one decision rule: reuse a local build, else fetch a peer's, else build
+from source. Fetch beats build.
 
-The Store relies on the Nix store rather than a bespoke artifact server; see
-ADR 0005 (custom-store-not-nix-store). The toolchain is already a pinned Nix
-devShell, so two hosts building from one ``flake.lock`` get a byte-identical
-toolchain closure. Publishing the build outputs to that same store and moving
-them with ``nix copy`` reuses the Nix machinery rather than reinventing a
-transport on top of ``rsync``.
+The Store moves build outputs through the Nix store rather than ``rsync``. ADR
+0005 first chose a custom identity-keyed destdir with an ``rsync`` fetch and
+recorded the Nix-store transport (``nix store add-path`` plus ``nix copy``) as
+the expected evolution; that evolution is what runs today. The toolchain is
+already a pinned `Nix`_ devShell, so two hosts building from one ``flake.lock``
+get a byte-identical toolchain closure, and publishing the outputs to that same
+store and moving them with ``nix copy`` reuses the Nix machinery rather than
+reinventing a transport.
 
 Build identity
 ==============
@@ -27,17 +29,19 @@ Build identity
 The build identity is a short content hash over the inputs that fix a build's
 bytes: the ``.config`` (minus its localversion), the ``build-kernel`` or
 ``build-qemu`` devShell derivation path (the toolchain), the make flags (with
-host paths normalized), and the source commit. The same identity implies the
-same bytes. See ADR 0002 (build-identity-in-kernelrelease).
+host paths normalized), and the source tree (the worktree's ``HEAD`` tree
+object, so a ``b4`` series re-applied with ``git am`` keeps one identity over
+identical content even though each commit's SHA changes). The same identity
+implies the same bytes. See ADR 0002 (build-identity-in-kernelrelease).
 
 Where it can, a project bakes the identity into its own artifact so the result
 self-reports it:
 
 * The kernel bakes the identity into ``CONFIG_LOCALVERSION``, so ``uname -r``
-  reports it directly, as in ``7.1.0-rc7-<hash>``. The same identity yields one
-  release name.
-* QEMU has no release string, so the identity instead keys the install prefix
-  ``destdir/<identity>``.
+  reports it directly as ``<version>-<label>-<digest>``, for example
+  ``7.1.0-vanilla-<hash>``. The same identity yields one release name.
+* QEMU has no release string, so the identity instead keys the install prefix,
+  ``destdir/<version>-<label>-<identity>``.
 
 Two layers per identity
 =======================
@@ -53,7 +57,7 @@ consumer fetches only what it needs.
      - Contents
      - Consumer
    * - run
-     - ``kernel-<release>`` / ``qemu-<identity>``
+     - ``kernel-<release>`` / ``qemu-<version>-<label>-<identity>``
      - boot image plus ``lib/modules/<release>``, or the QEMU install tree
      - booting a VM (``f/qsu``)
    * - devel
@@ -72,9 +76,9 @@ The catalog
 Every published identity is recorded as a symlink under the Store index at
 ``SYSTEM_DIR/store-index/``::
 
-   kernel-7.1.0-rc7-b9e826508b1e        -> /nix/store/<hash>-<name>
-   kernel-devel-7.1.0-rc7-b9e826508b1e  -> /nix/store/<hash>-<name>
-   qemu-<identity>                      -> /nix/store/<hash>-<name>
+   kernel-7.1.0-vanilla-b9e826508b1e        -> /nix/store/<hash>-<name>
+   kernel-devel-7.1.0-vanilla-b9e826508b1e  -> /nix/store/<hash>-<name>
+   qemu-11.0.0-vanilla-3f2a1c8e9d04         -> /nix/store/<hash>-<name>
 
 Each symlink is also a Nix GC root, created with ``nix build --out-link``, so
 the store path survives ``nix store gc`` until the entry is removed. The catalog
@@ -93,18 +97,19 @@ reuse_check
 
 ``reuse_check`` runs before the compile and reports whether the identity is
 already available. It checks the local destdir or prefix first, then the Store
-catalog, where a fetched build lives. When the identity is present, configure,
-compile, and install are skipped and the manifest points at the existing
-artifacts. It is store-aware, so a fetched identity is consumed in place from
-``/nix/store`` with no local copy.
+catalog, where a fetched build lives. Configure has already run to bake the
+identity; when it is present the compile, install, and publish steps are skipped
+and the manifest points at the existing artifacts. It is store-aware, so a
+fetched identity is consumed in place from ``/nix/store`` with no local copy.
 
 fetch_identity
 --------------
 
-``fetch_identity`` runs before ``reuse_check``. With a peer configured, it reads
-the peer's catalog entry over SSH, pulls the store path with ``nix copy``, and
-indexes it locally, leaving the run layer in the store for ``reuse_check`` to
-resolve.
+``fetch_identity`` runs before ``reuse_check``. With ``use_peers`` on it sweeps
+the registered peers (the ``SYSTEM_DIR/peers`` registry) and, for the first that
+already published this identity, reads its catalog entry over SSH, pulls the
+store path with ``nix copy``, and indexes it locally, leaving the run layer in
+the store for ``reuse_check`` to resolve.
 
 publish and publish_devel
 -------------------------
@@ -123,18 +128,21 @@ so the index points at that worktree's own source.
 Cross-host fetch
 ================
 
-The kernel and QEMU build flows expose a Prebuilt input group with two knobs:
+The build flows' run-layer auto-fetch is driven by the ``use_peers`` toggle in
+the Reuse group and the peers registry at ``SYSTEM_DIR/peers`` (one
+``<host> [<store-index>]`` per line, written by `f/workbench/fetch`_). With
+``use_peers`` on, ``fetch_identity`` sweeps the registered peers and, for the
+first that already published this identity, learns the peer's store path from
+``ssh <host> readlink <index>/<name>`` and pulls it with
+``nix copy --from ssh://<host>``. Because the two hosts share one toolchain
+closure, a transported QEMU binary runs with no missing dependencies.
 
-* ``remote``: the SSH host of a peer builder.
-* ``remote_index``: that peer's ``store-index`` directory (its
-  ``SYSTEM_DIR/store-index``).
-
-With both set, ``fetch_identity`` learns the peer's store path from
-``ssh <remote> readlink <remote_index>/<name>`` and pulls it with ``nix copy
---from ssh://<remote>``. Because the two hosts share one toolchain closure, a
-transported QEMU binary runs with no missing dependencies. All cross-host I/O
-happens inside the ``transfer`` devShell (Nix plus OpenSSH); nothing uses
-``rsync``.
+The explicit ``remote``/``remote_index`` knobs are the manual path, used by the
+standalone steps rather than the build flows: the ``fetch_devel`` step and the
+``store_index`` inspector take an ssh host and that peer's ``store-index``
+directory to target one named peer directly instead of sweeping the registry.
+All cross-host I/O happens inside the ``transfer`` devShell (Nix plus OpenSSH);
+nothing uses ``rsync``.
 
 This moves build outputs across hosts. Build inputs, such as a developer's
 branch, cross the other way by git; see :doc:`/concepts/cross-host-development`.
@@ -165,5 +173,9 @@ The same operations by hand are::
    rm "$STORE_INDEX_DIR"/<name> && nix store gc
    ssh <host> ls "$STORE_INDEX_DIR"/
 
+.. _Linux kernel: https://www.kernel.org/
 .. _Nix: https://nixos.org/
+.. _Nix store: https://nix.dev/manual/nix/2.24/store/
 .. _QEMU: https://www.qemu.org/
+.. _f/workbench/fetch:
+   https://github.com/dagomez137/kdevops-ng/tree/main/f/workbench/fetch.flow
