@@ -120,9 +120,18 @@ Worktree
 
 ``b4_series``
    An optional `b4`_ message-id or lore URL. When set, ``prepare_worktree``
-   runs ``b4 shazam`` to apply the mailed series on top of ``git_ref`` and
-   publishes it to the Bare as ``refs/heads/b4/<slug>`` for a developer to
-   review.
+   downloads the mailed series with ``b4 am`` and applies it on top of
+   ``git_ref`` with ``git am``, publishing it to the Bare as
+   ``refs/heads/b4/<slug>`` for a developer to review.
+
+``custom_label`` and ``label``
+   The build identity's name is inferred from the ref and any series (see
+   `Build identity and reuse`_), so naming is left off by default. Turn on
+   ``custom_label`` to name the build yourself: ``label`` then replaces the
+   auto-derived ``vanilla``/series name with your own. It is bounded to 40
+   characters and truncated further if the release string would overflow. Use it
+   to tag a one-off experiment whose ref or series would not yield a meaningful
+   name.
 
 ``recreate_build_worktree``
    Lay a fresh detached checkout instead of re-syncing the warm tree, discarding
@@ -247,26 +256,37 @@ Whichever method runs, it ends by baking the build identity into
 Build identity and reuse
 ========================
 
-Every build is content-addressed by a **build identity**: a 12-hex hash over
-the inputs that fix its bytes, the ``.config`` (with the ``LOCALVERSION`` line
-excluded), the ``.#build`` devShell's toolchain store path, the make flags (with
-the host-specific ``-fdebug-prefix-map`` value stripped), and the source commit.
-``configure`` bakes that hash into ``kernelrelease`` through
-``CONFIG_LOCALVERSION``, so the running ``uname -r`` self-reports it, for
-example
+Every build is content-addressed by a **build identity** that ``configure``
+bakes into ``kernelrelease`` through ``CONFIG_LOCALVERSION``, so the running
+``uname -r`` self-reports it as ``<version>-<label>-<digest>``, for example
 
 ::
 
-   7.1.0-c0bee73009a8-13178-g04686f64d1ed
-   \____/ \__________/ \_________________/
-   version  identity     setlocalversion
+   7.1.0-vanilla-c0bee73009a8
+   \___/ \_____/ \__________/
+   version label    digest
 
-where the middle field is the identity and the trailing field is the kernel's
-own ``setlocalversion`` describe of the commit. Two builds of one commit with
-different configs (KASAN on or off, GCC or clang) therefore get distinct
-releases and never collide in the Store key or in ``/lib/modules/<release>``
-inside the booted guest. The identity is the same on every host, so a peer's
-build is provably the one requested.
+The **digest** is a 12-hex hash over the inputs that fix the build's bytes:
+the ``.config`` (with the ``LOCALVERSION`` line excluded), the ``.#build``
+devShell's toolchain store path, the make flags (with the host-specific
+``-fdebug-prefix-map`` value stripped), and the source commit. It is the same
+on every host, so a peer's build is provably the one requested, and it is the
+field that tells configs apart: two builds of one series with different configs
+(KASAN on or off, GCC or clang) share the **label** but differ in the digest,
+so they never collide in the Store key or in ``/lib/modules/<release>`` inside
+the booted guest (the ADR-0002 identity scheme is intact).
+
+The **label** is the readable name baked in front of the digest. It is
+inferred, in this precedence: a ``custom_label`` override; else the ``b4``
+series subject as a slug (with ``-v<N>`` appended for v2 and later); else
+``vanilla`` for an upstream tag checked out with no series; else a slug of the
+``git_ref`` (a branch or SHA). The label is truncated to fit the 64-character
+``uname -r``; the digest is never shortened.
+
+The kernel's own ``setlocalversion`` describe suffix (``-<count>-g<sha>``) is
+suppressed by an empty ``.scmversion`` written into the worktree, which frees
+that length for the label. The commit it would have named is not lost: it stays
+in the manifest ``commit`` field and is folded into the digest.
 
 Because the identity hashes the produced ``.config``, ``configure`` must run
 before the build can be matched: ``fetch_identity`` then ``reuse_check`` run
@@ -287,7 +307,7 @@ The output contract
 
    {
      "commit": "<resolved sha>",
-     "uts_release": "7.1.0-<identity>-<describe>",
+     "uts_release": "7.1.0-<label>-<digest>",
      "bzImage": "<destdir-or-store>/boot/<image>-<release>",
      "build_dir": "WORKERS_DIR/<slot>/main/linux/build",
      "config": ".../build/.config",
