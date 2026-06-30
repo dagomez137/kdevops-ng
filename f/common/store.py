@@ -132,6 +132,30 @@ def list_index(prefix: str) -> list[str]:
     return names
 
 
+def latest_index(prefix: str) -> str | None:
+    """The most recently indexed live entry under `prefix`, by GC-root mtime, else None.
+
+    Lets a reuse with no explicit pick fall back to the freshly built or fetched
+    artifact. A pure read like `list_index`; skips dangling entries.
+    """
+    try:
+        d = store_index_dir()
+    except KeyError:
+        return None
+    if not d.is_dir():
+        return None
+    best, best_mtime = None, -1.0
+    for entry in d.iterdir():
+        if not (entry.name.startswith(prefix) and entry.is_symlink()):
+            continue
+        if not Path(os.path.realpath(entry)).exists():
+            continue
+        mtime = entry.lstat().st_mtime
+        if mtime > best_mtime:
+            best, best_mtime = entry.name, mtime
+    return best
+
+
 def peer_path(workers: Path, remote: str, remote_index: str, name: str) -> str | None:
     """The store path the peer indexes under `name`, read over ssh, else None."""
     out = (

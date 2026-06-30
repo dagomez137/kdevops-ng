@@ -12,8 +12,8 @@ VM recorded in its render sidecar. Always probes the host operator (the closure 
 `home_dir` default).
 
 A `reuse` pick that no longer resolves raises, so the render never boots a kernelless or
-closureless VM (it refuses one anyway). Selecting a reuse mode with no pick also raises
-early, at this step.
+closureless VM (it refuses one anyway). A QEMU reuse with no pick falls back to the most
+recently indexed QEMU; a kernel reuse with no pick raises early, at this step.
 
 Equivalent command:
 
@@ -99,10 +99,13 @@ def main(
     vm_name: str = "",
 ) -> dict:
     if qemu_reuse and not qemu_index:
-        raise ValueError(
-            "QEMU mode is reuse but no QEMU was picked: choose one under Reuse "
-            "QEMU, or set the QEMU mode to build or nixpkgs."
-        )
+        qemu_index = store.latest_index("qemu-")
+        if not qemu_index:
+            raise ValueError(
+                "QEMU mode is reuse but no QEMU is in the store index: build one "
+                "with f/qemu/build, or set the QEMU mode to nixpkgs."
+            )
+        print(f"resolve: qemu reuse auto-picked latest {qemu_index}", flush=True)
     if kernel_reuse and not kernel_index:
         raise ValueError(
             "Kernel mode is reuse but no kernel was picked: choose one under "
