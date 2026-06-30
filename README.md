@@ -8,3 +8,8 @@ self-hosts a Windmill workflow engine, uses Nix for reproducible build and guest
 environments, and runs guests and test suites as systemd services.
 
 Documentation: https://kdevops-ng.readthedocs.io/en/latest/getting-started/index.html
+
+## Demos
+
+- [kdevops-ng: Build the Linux kernel](https://vimeo.com/1205939333)
+- [kdevops-ng: Run an xfstests check](https://vimeo.com/1205942093)

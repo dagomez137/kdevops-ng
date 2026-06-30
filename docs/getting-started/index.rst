@@ -13,3 +13,4 @@ Orientation and first steps: what kdevops-ng is, and how to drive it.
    requirements
    quickstart
    wmill
+   demos
