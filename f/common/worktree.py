@@ -320,18 +320,31 @@ def _slug(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip()).strip("-._").lower()
 
 
+def _split_trailing_version(slug: str) -> tuple[str, str]:
+    """Split a trailing `-v<N>` revision suffix off a label slug.
+
+    Returns `(head, suffix)` where `suffix` is the trailing `-v\\d+` (including
+    its leading dash) when the slug carries one, else `(slug, "")`. The identity
+    modules use it to carry a matched series revision through truncation."""
+    match = re.search(r"-v\d+$", slug)
+    if match:
+        return slug[: match.start()], match.group(0)
+    return slug, ""
+
+
 def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) -> str:
     """Download the lore series with `b4 am`, apply its mbox with `git am`, and
-    return a label slug from the series subject.
+    return a label slug derived from the series-root (cover) subject.
 
-    `b4 am` writes the patch mbox (and a cover letter when the series carries one) to
-    an output dir; `git am` of that mbox is exactly what `b4 shazam` runs internally,
-    so the applied result is identical. The midmask override makes message-id
-    resolution robust regardless of the worker's ambient b4 config. The cover, when
-    present, holds the series title and version, so it feeds the label but is never
-    passed to `git am`. A failed apply leaves a half-applied state, so it is
-    sanitized (the abort path `_sanitize_worktree` handles) before the error
-    re-raises.
+    `b4 am` writes the patch mbox to an output dir; `git am` of that mbox is
+    exactly what `b4 shazam` runs internally, so the applied result is identical.
+    The midmask override makes message-id resolution robust regardless of the
+    worker's ambient b4 config. `b4 am` does not save the cover letter, which is
+    where a series like `... v3` carries its title and revision, so the label
+    comes from a separate `b4 mbox --single-message` fetch of the series-root
+    message; that fetch is best-effort and falls back to the first patch subject.
+    A failed apply leaves a half-applied state, so it is sanitized (the abort
+    path `_sanitize_worktree` handles) before the error re-raises.
     """
     with tempfile.TemporaryDirectory(dir=os.environ.get("TMPDIR")) as tmp:
         DevShell(workers).run(
@@ -349,14 +362,48 @@ def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) ->
         if not mboxes:
             raise FileNotFoundError(f"b4 am produced no patch mbox in {out}")
         mbox = mboxes[0]
-        covers = sorted(out.glob("*.cover"))
-        label = _subject_label(_first_subject(covers[0] if covers else mbox))
+        cover_subject = _cover_subject(workers, worktree, b4_series)
+        if cover_subject:
+            label = _subject_label(cover_subject)
+        else:
+            label = _subject_label(_first_subject(mbox))
+            print(
+                "note: no series-root subject; fell back to the patch subject",
+                flush=True,
+            )
         try:
             git.run("-C", str(worktree), "am", str(mbox))
         except Exception:
             _sanitize_worktree(git, worktree, clean=False)
             raise
     return label
+
+
+def _cover_subject(workers: Path, worktree: Path, b4_series: str) -> str:
+    """Fetch the series-root message and return its `Subject:` (best-effort).
+
+    `b4 mbox --single-message` saves exactly the one series-root message,
+    normally the cover, whose subject carries the series title and revision that
+    `b4 am`'s patch mbox lacks. Returns an empty string when the fetch fails or
+    saves no message, so the caller falls back to the patch subject.
+    """
+    with tempfile.TemporaryDirectory(dir=os.environ.get("TMPDIR")) as tmp:
+        try:
+            DevShell(workers).run(
+                "b4",
+                "-c",
+                "b4.midmask=https://lore.kernel.org/all/%s",
+                "mbox",
+                "--single-message",
+                "--outdir",
+                tmp,
+                b4_series,
+                cwd=str(worktree),
+            )
+        except Exception:
+            return ""
+        mboxes = sorted(Path(tmp).glob("*.mbx"))
+        return _first_subject(mboxes[0]) if mboxes else ""
 
 
 def _first_subject(path: Path) -> str:
@@ -368,21 +415,32 @@ def _first_subject(path: Path) -> str:
 
 
 def _subject_label(subject: str) -> str:
-    """Slug a patch subject `[PATCH[ RFC][ vN][ M/K]] <summary>` into a label.
+    """Slug a patch or cover subject into a build-identity label.
 
-    The version `N` (default 1) is read from a `vN` token inside the bracket and
-    appended as `-v<N>` only for v2 and later; the summary is the text after the
-    final `]`.
+    Accepts `[PATCH[ RFC][ vN][ M/K]] <summary>`, a bracket-less cover
+    `<summary> vN`, or a plain `<summary>` with no version. The version `N` is
+    read from a `vN` token inside the leading bracket, else from a standalone
+    trailing `vN` at the very end of the summary (the `... v3` cover
+    convention). A `-v<N>` suffix is appended only when a version token is
+    actually matched and is v2 or later; no match means no suffix and no
+    invented version. The summary is the text after the final `]` when a bracket
+    is present, else the whole subject, with the trailing version token stripped
+    so it does not also slug into the title.
     """
-    version = 1
+    version = None
     bracket = re.match(r"\s*\[(.*?)\]", subject)
     if bracket:
         match = re.search(r"\bv(\d+)\b", bracket.group(1))
         if match:
             version = int(match.group(1))
     summary = subject.rsplit("]", 1)[1] if "]" in subject else subject
+    if version is None:
+        trailing = re.search(r"(?:^|\s)v(\d+)\s*$", summary)
+        if trailing:
+            version = int(trailing.group(1))
+            summary = summary[: trailing.start()]
     slug = _slug(summary)
-    if version >= 2:
+    if version is not None and version >= 2:
         slug = f"{slug}-v{version}" if slug else f"v{version}"
     return slug
 

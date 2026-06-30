@@ -37,6 +37,7 @@ import shlex
 from pathlib import Path
 
 from f.common.devshell import Git, Nix, vendor_dir
+from f.common.worktree import _split_trailing_version
 
 
 def main():
@@ -77,12 +78,31 @@ def bake_identity(
 
 def _fit_label(label: str, budget: int) -> str:
     """Truncate a label to `budget` chars, preferring to cut at the last `-` within
-    budget so it never ends on a dash; an empty budget drops the label."""
+    budget so it never ends on a dash; an empty budget drops the label.
+
+    A matched `-v<N>` revision suffix always survives: it is split off, the head
+    is fit to the remaining budget, and the suffix is re-appended, so truncation
+    never drops the series revision. When not even the head fits, the version
+    alone is returned without its leading dash (e.g. `v3`)."""
     if budget <= 0:
         return ""
-    if len(label) <= budget:
-        return label
-    cut = label[:budget]
+    head, suffix = _split_trailing_version(label)
+    if not suffix:
+        return _fit_head(label, budget)
+    fitted = _fit_head(head, budget - len(suffix))
+    if fitted:
+        return f"{fitted}{suffix}"
+    return suffix.lstrip("-")
+
+
+def _fit_head(text: str, budget: int) -> str:
+    """Truncate `text` to `budget` chars, cutting at the last `-` within budget so
+    it never ends on a dash; a non-positive budget drops it."""
+    if budget <= 0:
+        return ""
+    if len(text) <= budget:
+        return text
+    cut = text[:budget]
     if "-" in cut:
         cut = cut[: cut.rindex("-")]
     return cut.rstrip("-._")

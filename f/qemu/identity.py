@@ -42,7 +42,7 @@ import os
 from pathlib import Path
 
 from f.common.devshell import Git, Nix, vendor_dir
-from f.common.worktree import _slug
+from f.common.worktree import _slug, _split_trailing_version
 
 
 def main(
@@ -74,8 +74,10 @@ def _prefix_basename(version: str, label: str, identity: str) -> str:
     """Lead the install prefix with the QEMU version, mirroring the kernel's
     version-first release: `<version>-<label>-<identity>` with a label,
     `<version>-<identity>` without. The label slug takes a flat 64-char sanity cap
-    (no uname budget here). A missing VERSION falls back to the label-only form."""
-    slug = _slug(label)[:64].rstrip("-._")
+    (no uname budget here), but a matched `-v<N>` revision suffix is preserved
+    through that cap. A missing VERSION falls back to the label-only form."""
+    head, suffix = _split_trailing_version(_slug(label))
+    slug = head[: 64 - len(suffix)].rstrip("-._") + suffix
     parts = [p for p in (version, slug) if p]
     parts.append(identity)
     return "-".join(parts)
