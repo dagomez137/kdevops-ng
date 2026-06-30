@@ -89,13 +89,6 @@ Build identity and artifact storage
 .. grid:: 1 1 2 2
    :gutter: 3
 
-   .. grid-item-card:: Identifiable vanilla-kernel identities
-
-      :bdg-primary:`planned`
-
-      Make the build identity of vanilla (upstream) kernels easy to recognize,
-      so a stored or fetched build is obvious at a glance. Builds on ADR 0002.
-
    .. grid-item-card:: Nix-store result archival
 
       :bdg-warning:`research`
