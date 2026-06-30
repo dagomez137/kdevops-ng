@@ -5,9 +5,9 @@ description: |-
   `kernel-devel-<release>`, `qemu-<identity>`) that point at each published
   identity's Nix store path and double as its GC root. `list` shows the local
   catalog (and a peer's when `remote`/`remote_index` are set) with sizes and
-  validity; `inspect` reports one identity; `forget` drops one entry's GC root
-  so `nix store gc` can reclaim it (needs `confirm`); `prune` drops every entry
-  whose store path was already collected.
+  validity; `inspect` reports the selected identities; `forget` drops their GC
+  roots so `nix store gc` can reclaim them (needs `confirm`); `prune` drops
+  every entry whose store path was already collected.
 lock: '!inline f/common/store_index.script.lock'
 kind: script
 schema:
@@ -15,7 +15,7 @@ schema:
   type: object
   order:
     - action
-    - name
+    - names
     - remote
     - remote_index
     - confirm
@@ -29,12 +29,17 @@ schema:
         - inspect
         - forget
         - prune
-    name:
-      type: string
+    names:
+      type: object
+      format: dynmultiselect-list_catalog
+      title: Catalog Entries
+      default: []
       description: |-
-        The catalog entry to act on (required for `inspect` and `forget`), e.g.
-        `kernel-7.1.0-rc7-<hash>`.
-      default: ''
+        The catalog entries to act on (required for `inspect` and `forget`).
+        `forget` removes every selected entry at once. The dropdown lists the
+        live entries (`kernel-`, `kernel-devel-`, `qemu-`); values are the plain
+        entry names, so a script may still pass any names. The single `name`
+        string is also accepted, so earlier callers keep working.
     confirm:
       type: boolean
       description: "Required for `forget`: removing an identity's GC root."

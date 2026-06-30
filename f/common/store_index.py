@@ -11,10 +11,10 @@ actions:
 - `list` (default) enumerates the local catalog, sizing each entry by its
   closure, and prints a count/total summary; with `remote` and `remote_index`
   set it also reports the peer's entry names over one cheap ssh.
-- `inspect` resolves a single `name` to its store path and closure size, and the
-  peer's store path for it when a remote is given.
-- `forget` removes one local index entry (its GC root), guarded by `confirm`, so
-  the store path becomes reclaimable on the next collection.
+- `inspect` resolves the selected `names` to their store paths and closure
+  sizes, and the peer's store path for each when a remote is given.
+- `forget` removes the selected local index entries (their GC roots), guarded by
+  `confirm`, so the store paths become reclaimable on the next collection.
 - `prune` removes every local entry whose store path is already gone (dangling),
   needing no confirmation.
 
@@ -102,45 +102,54 @@ def _list(workers: Path, remote: str, remote_index: str) -> dict:
     return {"action": "list", "local": entries, "total_bytes": total, "peer": peer}
 
 
-def _inspect(workers: Path, name: str, remote: str, remote_index: str) -> dict:
-    if not name:
-        raise ValueError("inspect requires a name")
-    sp = store.local_path(name)
-    size_bytes = None
-    if sp:
-        size_bytes = _closure_sizes([sp]).get(sp)
-    peer_store_path = None
-    if remote and remote_index:
-        peer_store_path = store.peer_path(workers, remote, remote_index, name)
-    print(
-        f"inspect {name}: store_path={sp} size_bytes={size_bytes} "
-        f"peer={peer_store_path}",
-        flush=True,
-    )
-    return {
-        "action": "inspect",
-        "name": name,
-        "store_path": sp,
-        "valid": sp is not None,
-        "size_bytes": size_bytes,
-        "peer_store_path": peer_store_path,
-    }
+def _inspect(workers: Path, names: list[str], remote: str, remote_index: str) -> dict:
+    if not names:
+        raise ValueError("inspect requires at least one name")
+    entries = []
+    for name in names:
+        sp = store.local_path(name)
+        size_bytes = _closure_sizes([sp]).get(sp) if sp else None
+        peer_store_path = None
+        if remote and remote_index:
+            peer_store_path = store.peer_path(workers, remote, remote_index, name)
+        print(
+            f"inspect {name}: store_path={sp} size_bytes={size_bytes} "
+            f"peer={peer_store_path}",
+            flush=True,
+        )
+        entries.append(
+            {
+                "name": name,
+                "store_path": sp,
+                "valid": sp is not None,
+                "size_bytes": size_bytes,
+                "peer_store_path": peer_store_path,
+            }
+        )
+    return {"action": "inspect", "entries": entries}
 
 
-def _forget(name: str, confirm: bool) -> dict:
-    if not name:
-        raise ValueError("forget requires a name")
+def _forget(names: list[str], confirm: bool) -> dict:
+    if not names:
+        raise ValueError("forget requires at least one name")
     if not confirm:
         return {
             "action": "forget",
-            "removed": False,
-            "reason": "set confirm=true to remove the GC root",
+            "removed": [],
+            "reason": "set confirm=true to remove the GC root(s)",
         }
-    entry = store.index_dir() / name
-    store_path = os.path.realpath(entry) if entry.is_symlink() else None
-    entry.unlink(missing_ok=True)
-    print(f"forgot {name} (store path reclaimable on next nix store gc)", flush=True)
-    return {"action": "forget", "name": name, "removed": True, "store_path": store_path}
+    removed = []
+    for name in names:
+        entry = store.index_dir() / name
+        store_path = os.path.realpath(entry) if entry.is_symlink() else None
+        entry.unlink(missing_ok=True)
+        print(
+            f"forgot {name} (store path reclaimable on next nix store gc)",
+            flush=True,
+        )
+        removed.append({"name": name, "store_path": store_path})
+    print(f"forgot {len(removed)} entries", flush=True)
+    return {"action": "forget", "removed": removed, "count": len(removed)}
 
 
 def _prune() -> dict:
@@ -157,20 +166,33 @@ def _prune() -> dict:
     return {"action": "prune", "removed": removed, "count": len(removed)}
 
 
+def list_catalog(filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_catalog` entrypoint for `names`: live catalog entries."""
+    names = store.list_index("")
+    if filterText:
+        names = [n for n in names if filterText.lower() in n.lower()]
+    return [{"label": n, "value": n} for n in names]
+
+
 def main(
     action: str = "list",
+    names: list[str] | None = None,
     name: str = "",
     remote: str = "",
     remote_index: str = "",
     confirm: bool = False,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
+    selected: list[str] = []
+    for entry in ([name] if name else []) + list(names or []):
+        if entry and entry not in selected:
+            selected.append(entry)
     if action == "list":
         return _list(workers, remote, remote_index)
     if action == "inspect":
-        return _inspect(workers, name, remote, remote_index)
+        return _inspect(workers, selected, remote, remote_index)
     if action == "forget":
-        return _forget(name, confirm)
+        return _forget(selected, confirm)
     if action == "prune":
         return _prune()
     raise ValueError(f"unknown action {action!r} (list|inspect|forget|prune)")
