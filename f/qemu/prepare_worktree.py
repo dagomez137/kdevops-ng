@@ -17,7 +17,8 @@ relative to `build`.
 The `destdir` install root is rm+recreated every build: it is per-build staging for
 the per-identity install prefixes, and the durable install tree lives in the Store,
 not here. Knobs: `wipe_build` rm+recreates the `build` dir first; `b4_series` applies
-a lore series on top of the checkout via `b4 shazam` in the devShell.
+a lore series on top of the checkout (`b4 am` downloads it in the devShell, `git am`
+applies its mbox).
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 
@@ -37,6 +38,7 @@ from f.common.worktree import prepare
 def main(
     qemu_ref: str = "v11.0.0",
     b4_series: str = "",
+    label: str = "",
     recreate_worktree: bool = False,
     wipe_build: bool = False,
 ) -> dict:
@@ -47,6 +49,7 @@ def main(
         developer=False,
         ref=qemu_ref,
         b4_series=b4_series,
+        label=label,
         recreate_worktree=recreate_worktree,
         extra_dirs=("build", "destdir"),
         wipe_dirs=wipe_dirs,

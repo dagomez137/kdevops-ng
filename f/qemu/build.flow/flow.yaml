@@ -36,6 +36,10 @@ value:
           b4_series:
             type: javascript
             expr: flow_input.worktree?.b4_series
+          label:
+            type: javascript
+            expr: 'flow_input.worktree?.custom_label ? (flow_input.worktree?.label ??
+              "") : ""'
           qemu_ref:
             type: javascript
             expr: flow_input.worktree?.qemu_ref
@@ -67,6 +71,9 @@ value:
           destdir:
             type: javascript
             expr: results.prepare_worktree.destdir
+          label:
+            type: javascript
+            expr: results.prepare_worktree.label
           target_list:
             type: javascript
             expr: flow_input.configuration?.target_list
@@ -475,6 +482,8 @@ schema:
       order:
         - qemu_ref
         - b4_series
+        - custom_label
+        - label
         - recreate_worktree
         - wipe_build
       properties:
@@ -482,9 +491,24 @@ schema:
           type: string
           description: |-
             Optional lore series (message-id/URL) to apply on top of the
-            checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.
+            checkout via `b4 am`, published to the Bare as `b4/<slug>`.
           default: ''
           title: b4 Series
+        custom_label:
+          type: boolean
+          description: |-
+            Set a custom build-identity name instead of the auto-derived
+            vanilla/series name.
+          default: false
+          title: Custom Label
+        label:
+          type: string
+          description: |-
+            Custom build-identity name (replaces the auto-derived vanilla/series
+            name in the install prefix and store key).
+          default: ''
+          maxLength: 40
+          showExpr: fields.custom_label === true
         qemu_ref:
           type: string
           description: |-

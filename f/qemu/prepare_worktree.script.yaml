@@ -9,8 +9,9 @@ description: |-
   (out-of-tree) and `destdir` (`--prefix`) are children of the source checkout.
 
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `version`, `project`,
-  `qemu_ref`, and `b4_branch` (the `b4/<slug>` branch published to the Bare when
-  `b4_series` is set, else null).
+  `qemu_ref`, `label` (the readable build-identity label derived from the ref
+  and any series, or the override), and `b4_branch` (the `b4/<slug>` branch
+  published to the Bare when `b4_series` is set, else null).
 lock: '!inline f/qemu/prepare_worktree.script.lock'
 kind: script
 schema:
@@ -19,15 +20,22 @@ schema:
   order:
     - qemu_ref
     - b4_series
+    - label
     - recreate_worktree
     - wipe_build
   properties:
     b4_series:
       type: string
       description: |-
-        Optional lore series (message-id/URL) to apply on top via `b4 shazam`.
+        Optional lore series (message-id/URL) to apply on top via `b4 am`.
       default: ''
       title: b4 Series
+    label:
+      type: string
+      description: |-
+        Custom build-identity name; auto-derived from the ref and any series
+        when left empty.
+      default: ''
     qemu_ref:
       type: string
       description: |-
