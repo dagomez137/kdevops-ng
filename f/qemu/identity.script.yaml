@@ -3,13 +3,15 @@ description: |-
   Hash the inputs that fix a QEMU build's bytes (the target list, the configure
   flags, the compiler, the toolchain, which is the `build-qemu` devShell's
   derivation path, and the source commit) into a 12-hex identity, and return the
-  per-identity install root as `prefix`: `destdir/<label>-<identity>` when a
-  readable label is given (the `qemu-<label>-<identity>` store key follows),
-  else `destdir/<identity>`. The configure and install steps use that prefix as
-  `--prefix`, so identical inputs install under one prefix and a built identity
-  can be fetched or reused instead of rebuilt. Host-independent: only the input
-  strings are hashed, never a host path. The label is cosmetic, so the returned
-  `identity` stays the bare hash. Returns `identity`/`prefix`/`destdir`.
+  per-identity install root as `prefix`, version-first (the version from
+  `<worktree>/VERSION`): `destdir/<version>-<label>-<identity>` when a readable
+  label is given (the `qemu-<version>-<label>-<identity>` store key follows),
+  else `destdir/<version>-<identity>`. The configure and install steps use that
+  prefix as `--prefix`, so identical inputs install under one prefix and a built
+  identity can be fetched or reused instead of rebuilt. Host-independent: only
+  the input strings are hashed, never a host path. The label is cosmetic, so the
+  returned `identity` stays the bare hash. Returns
+  `identity`/`prefix`/`destdir`.
 lock: '!inline f/qemu/identity.script.lock'
 kind: script
 schema:
@@ -35,7 +37,8 @@ schema:
     destdir:
       type: string
       description: |-
-        Slot install root; the per-identity prefix is `destdir/<identity>`.
+        Slot install root; the per-identity prefix is
+        `destdir/<version>-<identity>`.
     label:
       type: string
       description: |-

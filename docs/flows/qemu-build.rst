@@ -234,20 +234,23 @@ guest layer consumes the manifest without knowing how QEMU was built.
 Like the kernel build, every QEMU build is content-addressed by a 12-hex
 **build identity**: a hash over the target list, configure flags, compiler,
 toolchain store path, and source commit. QEMU has no ``kernelrelease`` to bake
-it into, so the identity keys the install prefix instead:
-``destdir/<identity>``, which `f/qemu/publish`_ stores as ``qemu-<identity>``.
-A readable **label** prefixes that hash, the same inferred name the kernel
-build uses, with the same precedence: a ``custom_label`` override; else the
-``b4`` series subject as a slug (with ``-v<N>`` for v2 and later); else
+it into, so the identity keys the install prefix instead. The prefix leads with
+the QEMU version (from the source's ``VERSION`` file, the analog of the kernel
+version) and a readable **label** follows:
+``destdir/<version>-<label>-<identity>``, which `f/qemu/publish`_ stores as
+``qemu-<version>-<label>-<identity>``. The label is the same inferred name the
+kernel build uses, with the same precedence: a ``custom_label`` override; else
+the ``b4`` series subject as a slug (with ``-v<N>`` for v2 and later); else
 ``vanilla`` for an upstream tag checked out with no series; else a slug of the
-``qemu_ref``. So a stock tag build reads ``qemu-vanilla-<identity>`` and a
-series build ``qemu-<series-subject>-<identity>``. The QEMU difference is that
-the label prefixes the install prefix and store key rather than
-``kernelrelease``, and because there is no 64-character ``uname -r`` to fit, it
-takes a flat length cap with no release-budget math. The 12-hex identity still
-disambiguates configs: two builds of one ref with different configure flags or
-compilers share the label and differ only in the identity, so they never
-collide in the prefix or the store key.
+``qemu_ref``. So a stock v11.0.0 tag build reads
+``qemu-11.0.0-vanilla-<identity>`` and a series build
+``qemu-11.0.0-<series-subject>-<identity>``. The QEMU difference is that the
+label prefixes the install prefix and store key rather than ``kernelrelease``,
+and because there is no 64-character ``uname -r`` to fit, it takes a flat length
+cap with no release-budget math. The 12-hex identity still disambiguates
+configs: two builds of one ref with different configure flags or compilers share
+the label and differ only in the identity, so they never collide in the prefix
+or the store key.
 
 How the guest layer consumes this
 =================================

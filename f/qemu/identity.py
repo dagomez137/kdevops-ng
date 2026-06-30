@@ -5,13 +5,15 @@ QEMU has no kernelrelease/LOCALVERSION to bake the identity into, so the build
 identity keys the install prefix instead: a 12-hex hash over the inputs that fix a
 QEMU build's bytes (the target list, the configure flags, the compiler, the
 toolchain, which is the `build-qemu` devShell's derivation path, and the source
-commit) names the per-identity install root `destdir/<identity>`. A readable label
-prefixes that hash when present, giving `destdir/<label>-<identity>` (and the
-`qemu-<label>-<identity>` store key `f/qemu/publish` derives from the prefix name),
-so a stock tag build reads `qemu-vanilla-<identity>` instead of a bare hash. The
-configure and install steps then use that prefix as `--prefix`, so identical inputs
-install under one prefix and a built identity can be fetched or reused instead of
-rebuilt.
+commit) names the per-identity install root. The QEMU version (from
+`<worktree>/VERSION`, e.g. `11.0.0`, the analog of the kernel's `make
+kernelversion`) leads it and a readable label follows when present, giving
+`destdir/<version>-<label>-<identity>` (else `destdir/<version>-<identity>`), and
+the matching `qemu-<version>-<label>-<identity>` store key `f/qemu/publish` derives
+from the prefix name, so a stock v11.0.0 tag build reads `qemu-11.0.0-vanilla-<identity>`
+instead of a bare hash. The configure and install steps then use that prefix as
+`--prefix`, so identical inputs install under one prefix and a built identity can be
+fetched or reused instead of rebuilt.
 
 The digest hashes only those input strings (no host path), so the identity is the
 same on every host. `configure_args` is hashed verbatim; the host-specific
@@ -29,7 +31,8 @@ Equivalent bash:
     identity=$(printf '%s\\0%s\\0%s\\0%s\\0%s' \\
         "$target_list" "$configure_args" "$compiler" "$toolchain" "$commit" \\
         | sha256sum | cut -c1-12)
-    prefix="$destdir/${label:+$label-}$identity"
+    version=$(cat "$worktree/VERSION")            # e.g. 11.0.0
+    prefix="$destdir/$version-${label:+$label-}$identity"
 """
 
 from __future__ import annotations
@@ -54,17 +57,28 @@ def main(
     commit = Git().capture("-C", worktree, "rev-parse", "HEAD").strip()
     blob = "\0".join([targets, configure_args, compiler, _toolchain(), commit]).encode()
     identity = hashlib.sha256(blob).hexdigest()[:12]
-    prefix = str(Path(destdir) / _prefix_basename(label, identity))
+    version = _read_version(worktree)
+    prefix = str(Path(destdir) / _prefix_basename(version, label, identity))
     print(f"build identity {identity} -> prefix {prefix}", flush=True)
     return {"identity": identity, "prefix": prefix, "destdir": destdir}
 
 
-def _prefix_basename(label: str, identity: str) -> str:
-    """Name the install prefix `<label>-<identity>`, or the bare identity when the
-    label is empty. There is no uname budget here, so the label takes a flat 64-char
-    sanity cap (the same slug rule as the kernel) rather than release-budget math."""
+def _read_version(worktree: str) -> str:
+    """The QEMU version from `<worktree>/VERSION` (e.g. `11.0.0`, no `v`), the analog
+    of the kernel's `make kernelversion`; empty when the file is absent."""
+    path = Path(worktree) / "VERSION"
+    return path.read_text().strip() if path.is_file() else ""
+
+
+def _prefix_basename(version: str, label: str, identity: str) -> str:
+    """Lead the install prefix with the QEMU version, mirroring the kernel's
+    version-first release: `<version>-<label>-<identity>` with a label,
+    `<version>-<identity>` without. The label slug takes a flat 64-char sanity cap
+    (no uname budget here). A missing VERSION falls back to the label-only form."""
     slug = _slug(label)[:64].rstrip("-._")
-    return f"{slug}-{identity}" if slug else identity
+    parts = [p for p in (version, slug) if p]
+    parts.append(identity)
+    return "-".join(parts)
 
 
 def _toolchain() -> str:
