@@ -34,6 +34,9 @@ value:
         configuration:
           type: javascript
           expr: flow_input.kernel?.configuration
+        reuse:
+          type: javascript
+          expr: flow_input.kernel?.reuse
         build:
           type: javascript
           expr: flow_input.kernel?.build
@@ -43,9 +46,6 @@ value:
         installation:
           type: javascript
           expr: flow_input.kernel?.installation
-        prebuilt:
-          type: javascript
-          expr: flow_input.kernel?.prebuilt
   - id: build_nix
     summary: Build the NixOS closure (f/nix/build)
     skip_if:
@@ -77,6 +77,9 @@ value:
         configuration:
           type: javascript
           expr: flow_input.qemu?.configuration
+        reuse:
+          type: javascript
+          expr: flow_input.qemu?.reuse
         build:
           type: javascript
           expr: flow_input.qemu?.build
@@ -86,9 +89,6 @@ value:
         installation:
           type: javascript
           expr: flow_input.qemu?.installation
-        prebuilt:
-          type: javascript
-          expr: flow_input.qemu?.prebuilt
   - id: boot
     summary: Render + boot the VM (f/qsu/boot)
     value:
@@ -141,10 +141,10 @@ schema:
       - kernel_pick
       - worktree
       - configuration
+      - reuse
       - build
       - devtools
       - installation
-      - prebuilt
       properties:
         mode:
           title: Kernel
@@ -247,7 +247,6 @@ schema:
           - defconfig
           - fragments
           - allnoconfig_base
-          - build_identity
           properties:
             allnoconfig_base:
               type: boolean
@@ -256,16 +255,6 @@ schema:
                 a minimal, explicit config.'
               default: true
               showExpr: fields.config_method === 'fragments'
-            build_identity:
-              type: boolean
-              description: 'Bake a hash of the build inputs (config, toolchain, make flags,
-
-                source commit) into kernelrelease, so the image and modules install
-
-                under a unique release and an identical build can be fetched or
-
-                reused instead of rebuilt.'
-              default: true
             config_method:
               type: string
               description: 'How to generate .config: preset (a predefined whole-kernel config),
@@ -490,6 +479,49 @@ schema:
               showExpr: fields.config_method === 'preset'
           title: Configuration
           showExpr: fields.mode === "build"
+        reuse:
+          type: object
+          description: 'Where a finished build of this identity may come from instead of
+
+            recompiling: a local hit (this worker''s destdir or this host''s Nix
+
+            store) or a registered peer''s published run layer. The identity is
+
+            always computed, so an identical build can be fetched or reused
+
+            instead of rebuilt.'
+          default: {}
+          order:
+          - reuse
+          - use_peers
+          properties:
+            reuse:
+              type: boolean
+              description: 'Skip compile and install when this build identity is already built
+
+                and present: in the worker destdir, or in this host''s Nix store
+
+                (where a local build published it, or `fetch_identity` left a
+
+                peer''s). This is the Store transport''s local hit, not a binary
+
+                cache. Reuse points the manifest at that copy; off forces a rebuild.'
+              default: true
+            use_peers:
+              type: boolean
+              description: 'Before building, fetch this build identity''s run layer (image and
+
+                modules) from a registered peer''s Nix store when one already
+
+                published it (the peers registry at `$SYSTEM_DIR/peers`), so the
+
+                local reuse hit lands. Takes effect only with Reuse on; off builds
+
+                from this host alone.'
+              default: true
+              title: Use Peers
+          title: Reuse
+          showExpr: fields.mode === "build"
         build:
           type: object
           description: 'Compile knobs: targets, toolchain, reproducibility, ccache.'
@@ -580,7 +612,6 @@ schema:
           description: Optional install steps and their destination.
           default: {}
           order:
-          - reuse
           - install
           - modules_install
           - source_symlink
@@ -597,18 +628,6 @@ schema:
 
                 modules_install). Skip for an all-built-in kernel.'
               default: true
-            reuse:
-              type: boolean
-              description: 'Skip compile and install when this build identity is already built
-
-                and present: in the worker destdir, or in this host''s Nix store
-
-                (where a local build published it, or `fetch_identity` left a
-
-                peer''s). This is the Store transport''s local hit, not a binary
-
-                cache. Reuse points the manifest at that copy; off forces a rebuild.'
-              default: true
             source_symlink:
               type: boolean
               description: 'Add the canonical /lib/modules/<release>/source symlink after
@@ -616,30 +635,6 @@ schema:
                 modules_install.'
               default: true
           title: Install
-          showExpr: fields.mode === "build"
-        prebuilt:
-          type: object
-          description: 'Reuse a prebuilt identity from a registered peer before building. When a
-
-            peer already published this build identity to its Nix store, its run
-
-            layer (image + modules) is fetched into the local store so the build is
-
-            reused instead of repeated.'
-          default: {}
-          order:
-          - use_peers
-          properties:
-            use_peers:
-              type: boolean
-              description: 'Fetch this build identity''s run layer from a registered peer''s Nix
-
-                store before building, when one already published it (the peers
-
-                registry at `$SYSTEM_DIR/peers`). Off builds locally only.'
-              default: true
-              title: Use Peers
-          title: Prebuilt
           showExpr: fields.mode === "build"
     closure:
       type: object
@@ -808,10 +803,10 @@ schema:
       - qemu_pick
       - worktree
       - configuration
+      - reuse
       - build
       - devtools
       - installation
-      - prebuilt
       properties:
         mode:
           title: QEMU
@@ -971,6 +966,49 @@ schema:
                 - xtensa-softmmu
           title: Configuration
           showExpr: fields.mode === "build"
+        reuse:
+          type: object
+          description: 'Where a finished build of this identity may come from instead of
+
+            recompiling: a local hit (this build identity''s install prefix or this
+
+            host''s Nix store) or a registered peer''s published install tree. The
+
+            identity is always computed, so an identical build can be fetched or
+
+            reused instead of repeated.'
+          default: {}
+          order:
+          - reuse
+          - use_peers
+          properties:
+            reuse:
+              type: boolean
+              description: 'Skip configure, compile and install when this build identity is
+
+                already installed under its prefix, or present in this host''s Nix
+
+                store (where a local build published it, or `fetch_identity` left a
+
+                peer''s). This is the Store transport''s local hit, not a binary
+
+                cache. Reuse points at that copy; off forces a rebuild without
+
+                wiping the destdir.'
+              default: true
+            use_peers:
+              type: boolean
+              description: 'Before building, fetch this build identity''s install tree from a
+
+                registered peer''s Nix store when one already published it (the peers
+
+                registry at `$SYSTEM_DIR/peers`), so the local reuse hit lands.
+
+                Takes effect only with Reuse on; off builds from this host alone.'
+              default: true
+              title: Use Peers
+          title: Reuse
+          showExpr: fields.mode === "build"
         build:
           type: object
           description: 'Compile knobs: toolchain, reproducibility and ccache.'
@@ -1031,7 +1069,6 @@ schema:
           description: Install the emulator and manage the destdir.
           default: {}
           order:
-          - reuse
           - install
           properties:
             install:
@@ -1040,39 +1077,7 @@ schema:
 
                 only (e.g. a dev worktree).'
               default: true
-            reuse:
-              type: boolean
-              description: 'Skip configure/compile/install when this build identity is already
-
-                installed under its prefix (reuse the prior build). Off forces a
-
-                rebuild without wiping the destdir.'
-              default: true
           title: Install
-          showExpr: fields.mode === "build"
-        prebuilt:
-          type: object
-          description: 'Reuse a prebuilt identity from a registered peer before building. When a
-
-            peer already published this build identity to its Nix store, its whole
-
-            install tree is fetched into the local store so the build is reused
-
-            instead of repeated.'
-          default: {}
-          order:
-          - use_peers
-          properties:
-            use_peers:
-              type: boolean
-              description: 'Fetch this build identity''s install tree from a registered peer''s
-
-                Nix store before building, when one already published it (the peers
-
-                registry at `$SYSTEM_DIR/peers`). Off builds locally only.'
-              default: true
-              title: Use Peers
-          title: Prebuilt
           showExpr: fields.mode === "build"
     boot_qemu:
       type: object

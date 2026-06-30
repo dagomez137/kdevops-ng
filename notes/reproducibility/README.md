@@ -94,8 +94,9 @@ is injected), and it **reaches `uname -r` and modules**: two configs of the same
 commit install as `/lib/modules/7.1.0-rc7-<hashA>` and `…-<hashB>`, no collision; the
 image and modules share one identity.
 
-Shipped in `f/kernel/identity` (`bake_identity`), called by the three configure steps
-behind a `build_identity` knob (on by default). Two refinements over the R1 prototype:
+Shipped in `f/kernel/identity` (`bake_identity`), always called by the three configure
+steps (the identity is a Store-correctness invariant, not a toggle). Two refinements
+over the R1 prototype:
 
 - The **toolchain** id is the `build-kernel` devShell's `drvPath`: the literal
   "devShell store hash". It tracks the compiler, the reproducible `shellHook` and the

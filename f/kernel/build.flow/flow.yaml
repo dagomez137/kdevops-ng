@@ -120,9 +120,6 @@ value:
                     build_dir:
                       type: javascript
                       expr: results.prepare_worktree.build_dir
-                    build_identity:
-                      type: javascript
-                      expr: flow_input.configuration?.build_identity
                     fragments:
                       type: javascript
                       expr: flow_input.configuration?.fragments
@@ -152,9 +149,6 @@ value:
                     build_dir:
                       type: javascript
                       expr: results.prepare_worktree.build_dir
-                    build_identity:
-                      type: javascript
-                      expr: flow_input.configuration?.build_identity
                     defconfig:
                       type: javascript
                       expr: flow_input.configuration?.defconfig
@@ -183,9 +177,6 @@ value:
                 build_dir:
                   type: javascript
                   expr: results.prepare_worktree.build_dir
-                build_identity:
-                  type: javascript
-                  expr: flow_input.configuration?.build_identity
                 make_flags:
                   type: javascript
                   expr: results.build_flags.make_flags
@@ -215,13 +206,13 @@ value:
             expr: results.prepare_worktree.destdir
           use_peers:
             type: javascript
-            expr: flow_input.prebuilt?.use_peers
+            expr: flow_input.reuse?.use_peers
           uts_release:
             type: javascript
             expr: results.configure.kernelrelease
         path: f/kernel/fetch_identity
       skip_if:
-        expr: flow_input.prebuilt?.use_peers === false
+        expr: flow_input.reuse?.use_peers === false
       timeout:
         type: static
         value: 1800
@@ -263,7 +254,7 @@ value:
           attempts: 2
           seconds: 10
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.installation?.reuse
+        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
           !== false
       timeout:
         type: static
@@ -297,7 +288,7 @@ value:
           flow_input.devtools?.scripts_gdb === false &&
           flow_input.devtools?.rust_analyzer === false) ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 900
@@ -322,7 +313,7 @@ value:
       skip_if:
         expr: flow_input.installation?.install === false ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 600
@@ -350,7 +341,7 @@ value:
       skip_if:
         expr: flow_input.installation?.modules_install === false ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 1800
@@ -369,7 +360,7 @@ value:
       skip_if:
         expr: flow_input.installation?.install === false ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 600
@@ -386,7 +377,7 @@ value:
             expr: results.configure.kernelrelease
         path: f/kernel/publish_devel
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.installation?.reuse
+        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
           !== false
       timeout:
         type: static
@@ -468,10 +459,10 @@ schema:
   order:
     - worktree
     - configuration
+    - reuse
     - build
     - devtools
     - installation
-    - prebuilt
   properties:
     build:
       type: object
@@ -541,7 +532,6 @@ schema:
         - defconfig
         - fragments
         - allnoconfig_base
-        - build_identity
       properties:
         allnoconfig_base:
           type: boolean
@@ -550,14 +540,6 @@ schema:
             a minimal, explicit config.
           default: true
           showExpr: fields.config_method === 'fragments'
-        build_identity:
-          type: boolean
-          description: |-
-            Bake a hash of the build inputs (config, toolchain, make flags,
-            source commit) into kernelrelease, so the image and modules install
-            under a unique release and an identical build can be fetched or
-            reused instead of rebuilt.
-          default: true
         config_method:
           type: string
           description: |-
@@ -812,7 +794,6 @@ schema:
       description: Optional install steps and their destination.
       default: {}
       order:
-        - reuse
         - install
         - modules_install
         - source_symlink
@@ -829,6 +810,26 @@ schema:
             Install kernel modules into the slot `destdir` (make
             modules_install). Skip for an all-built-in kernel.
           default: true
+        source_symlink:
+          type: boolean
+          description: |-
+            Add the canonical /lib/modules/<release>/source symlink after
+            modules_install.
+          default: true
+      title: Install
+    reuse:
+      type: object
+      description: |-
+        Where a finished build of this identity may come from instead of
+        recompiling: a local hit (this worker's destdir or this host's Nix
+        store) or a registered peer's published run layer. The identity is
+        always computed, so an identical build can be fetched or reused
+        instead of rebuilt.
+      default: {}
+      order:
+        - reuse
+        - use_peers
+      properties:
         reuse:
           type: boolean
           description: |-
@@ -838,33 +839,17 @@ schema:
             peer's). This is the Store transport's local hit, not a binary
             cache. Reuse points the manifest at that copy; off forces a rebuild.
           default: true
-        source_symlink:
-          type: boolean
-          description: |-
-            Add the canonical /lib/modules/<release>/source symlink after
-            modules_install.
-          default: true
-      title: Install
-    prebuilt:
-      type: object
-      description: |-
-        Reuse a prebuilt identity from a registered peer before building. When a
-        peer already published this build identity to its Nix store, its run
-        layer (image + modules) is fetched into the local store so the build is
-        reused instead of repeated.
-      default: {}
-      order:
-        - use_peers
-      properties:
         use_peers:
           type: boolean
           description: |-
-            Fetch this build identity's run layer from a registered peer's Nix
-            store before building, when one already published it (the peers
-            registry at `$SYSTEM_DIR/peers`). Off builds locally only.
+            Before building, fetch this build identity's run layer (image and
+            modules) from a registered peer's Nix store when one already
+            published it (the peers registry at `$SYSTEM_DIR/peers`), so the
+            local reuse hit lands. Takes effect only with Reuse on; off builds
+            from this host alone.
           default: true
           title: Use Peers
-      title: Prebuilt
+      title: Reuse
     worktree:
       type: object
       description: Source ref, optional patch series, and warm-tree lifecycle.

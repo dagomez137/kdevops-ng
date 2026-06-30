@@ -33,7 +33,6 @@ schema:
     - fragments
     - allnoconfig_base
     - make_flags
-    - build_identity
   properties:
     allnoconfig_base:
       type: boolean
@@ -45,13 +44,6 @@ schema:
       type: string
       description: |-
         Out-of-tree build directory, passed as make O= (from prepare_worktree).
-    build_identity:
-      type: boolean
-      description: |-
-        Bake a hash of the build inputs into kernelrelease (unique per
-        config/toolchain/flags) so identical builds can be fetched or reused
-        instead of rebuilt.
-      default: true
     fragments:
       type: array
       description: |-

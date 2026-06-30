@@ -5,10 +5,12 @@ Covers a single existing target (`defconfig`, `x86_64_defconfig`, `tinyconfig`, 
 and ordered lists where `*.config` fragments merge onto a base, e.g.
 `["defconfig", "kvm_guest.config"]`. Goals run in order.
 
+The build identity is always baked into kernelrelease (see f/kernel/identity).
+
 Equivalent bash, run inside the nixos-flake build devShell:
 
     make --directory="$worktree" O="$build_dir" --jobs="$(nproc)" $make_flags $config_goals
-    make --silent --directory="$worktree" O="$build_dir" kernelrelease
+    # then bake the build identity into kernelrelease (see f/kernel/identity)
 """
 
 from __future__ import annotations
@@ -26,7 +28,6 @@ def main(
     build_dir: str,
     defconfig: list[str] | None = None,
     make_flags: str = "",
-    build_identity: bool = True,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
@@ -50,12 +51,7 @@ def main(
         *flag_args,
         *config_goals,
     )
-    if build_identity:
-        kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
-    else:
-        kernelrelease = shell.capture(
-            "make", "--silent", *base, *flag_args, "kernelrelease"
-        ).strip()
+    kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
 
     print(
         f"configured [{' '.join(config_goals)}] -> {kernelrelease or 'unknown'}",

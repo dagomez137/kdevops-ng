@@ -7,10 +7,12 @@ selection order: core structural fragments first, then by category, with builtin
 (`=y`) overrides last (last-wins promotes the feature to built-in). Merging uses the
 kernel tree's own `scripts/kconfig/merge_config.sh`.
 
+The build identity is always baked into kernelrelease (see f/kernel/identity).
+
 Equivalent bash, run inside the nixos-flake build devShell (cwd = worktree):
 
     ./scripts/kconfig/merge_config.sh $nflag -O "$build_dir" $ordered_fragment_paths
-    make --silent O="$build_dir" kernelrelease
+    # then bake the build identity into kernelrelease (see f/kernel/identity)
 
 `nflag` is `-n` when `allnoconfig_base` (default true): unset symbols default to n.
 """
@@ -18,7 +20,6 @@ Equivalent bash, run inside the nixos-flake build devShell (cwd = worktree):
 from __future__ import annotations
 
 import os
-import shlex
 from pathlib import Path
 
 from f.common.devshell import DevShell, flags_to_env, vendor_dir
@@ -59,7 +60,6 @@ def main(
     fragments: list[str] | None = None,
     allnoconfig_base: bool = True,
     make_flags: str = "",
-    build_identity: bool = True,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
@@ -93,7 +93,6 @@ def main(
     merge_args = (["-n"] if allnoconfig_base else []) + ["-O", str(build)]
     # merge_config.sh invokes make relative to cwd, so run it from the worktree.
     # It takes no command-line make vars, so toolchain flags (LLVM=1) go via env.
-    flag_args = shlex.split(make_flags)
     shell.run(
         merge,
         *merge_args,
@@ -101,17 +100,7 @@ def main(
         cwd=worktree,
         env=flags_to_env(make_flags),
     )
-    if build_identity:
-        kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
-    else:
-        kernelrelease = shell.capture(
-            "make",
-            "--silent",
-            f"--directory={worktree}",
-            f"O={build}",
-            *flag_args,
-            "kernelrelease",
-        ).strip()
+    kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
 
     print(
         f"configured {len(fragments)} fragment(s) -> {kernelrelease or 'unknown'}",

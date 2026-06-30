@@ -6,10 +6,12 @@ A preset is a whole-kernel config shipped in the linux-config-fragments library
 (Documentation/kbuild/kconfig.rst): it forces the preset's symbols on top of the
 defaults and resolves the rest, with no copy into the kernel tree.
 
+The build identity is always baked into kernelrelease (see f/kernel/identity).
+
 Equivalent bash, run inside the nixos-flake build devShell:
 
     make --directory="$worktree" O="$build_dir" KCONFIG_ALLCONFIG="$preset_file" alldefconfig
-    make --silent --directory="$worktree" O="$build_dir" kernelrelease
+    # then bake the build identity into kernelrelease (see f/kernel/identity)
 """
 
 from __future__ import annotations
@@ -27,7 +29,6 @@ def main(
     build_dir: str,
     preset: str = "imageless_defconfig",
     make_flags: str = "",
-    build_identity: bool = True,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     preset_file = _resolve_preset(workers, preset)
@@ -42,12 +43,7 @@ def main(
     shell.run(
         "make", *base, *flag_args, f"KCONFIG_ALLCONFIG={preset_file}", "alldefconfig"
     )
-    if build_identity:
-        kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
-    else:
-        kernelrelease = shell.capture(
-            "make", "--silent", *base, *flag_args, "kernelrelease"
-        ).strip()
+    kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
 
     return {
         "kernelrelease": kernelrelease,

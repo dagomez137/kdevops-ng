@@ -28,19 +28,11 @@ schema:
     - build_dir
     - preset
     - make_flags
-    - build_identity
   properties:
     build_dir:
       type: string
       description: |-
         Out-of-tree build directory, passed as make O= (from prepare_worktree).
-    build_identity:
-      type: boolean
-      description: |-
-        Bake a hash of the build inputs into kernelrelease (unique per
-        config/toolchain/flags) so identical builds can be fetched or reused
-        instead of rebuilt.
-      default: true
     make_flags:
       type: string
       description: |-

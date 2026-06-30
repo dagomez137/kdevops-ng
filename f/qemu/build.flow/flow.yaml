@@ -87,10 +87,10 @@ value:
             expr: results.identity.prefix
           use_peers:
             type: javascript
-            expr: flow_input.prebuilt?.use_peers
+            expr: flow_input.reuse?.use_peers
         path: f/qemu/fetch_identity
       skip_if:
-        expr: flow_input.prebuilt?.use_peers === false
+        expr: flow_input.reuse?.use_peers === false
       timeout:
         type: static
         value: 1800
@@ -146,7 +146,7 @@ value:
       skip_if:
         expr: (flow_input.configuration?.skip_configure === true) ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 900
@@ -164,7 +164,7 @@ value:
           attempts: 2
           seconds: 10
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.installation?.reuse
+        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
           !== false
       timeout:
         type: static
@@ -187,7 +187,7 @@ value:
       skip_if:
         expr: (flow_input.devtools?.compile_commands === false) ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 60
@@ -209,7 +209,7 @@ value:
       skip_if:
         expr: (flow_input.installation?.install === false) ||
           (results.reuse_check?.present === true &&
-          flow_input.installation?.reuse !== false)
+          flow_input.reuse?.reuse !== false)
       timeout:
         type: static
         value: 900
@@ -223,7 +223,7 @@ value:
             expr: results.identity.prefix
         path: f/qemu/publish
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.installation?.reuse
+        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
           !== false
       timeout:
         type: static
@@ -264,10 +264,10 @@ schema:
   order:
     - worktree
     - configuration
+    - reuse
     - build
     - devtools
     - installation
-    - prebuilt
   properties:
     build:
       type: object
@@ -426,7 +426,6 @@ schema:
       description: Install the emulator and manage the destdir.
       default: {}
       order:
-        - reuse
         - install
       properties:
         install:
@@ -435,34 +434,40 @@ schema:
             Install the built emulator into destdir (make install). Off = build
             only (e.g. a dev worktree).
           default: true
+      title: Install
+    reuse:
+      type: object
+      description: |-
+        Where a finished build of this identity may come from instead of
+        recompiling: a local hit (this build identity's install prefix or this
+        host's Nix store) or a registered peer's published install tree. The
+        identity is always computed, so an identical build can be fetched or
+        reused instead of repeated.
+      default: {}
+      order:
+        - reuse
+        - use_peers
+      properties:
         reuse:
           type: boolean
           description: |-
-            Skip configure/compile/install when this build identity is already
-            installed under its prefix (reuse the prior build). Off forces a
-            rebuild without wiping the destdir.
+            Skip configure, compile and install when this build identity is
+            already installed under its prefix, or present in this host's Nix
+            store (where a local build published it, or `fetch_identity` left a
+            peer's). This is the Store transport's local hit, not a binary
+            cache. Reuse points at that copy; off forces a rebuild without
+            wiping the destdir.
           default: true
-      title: Install
-    prebuilt:
-      type: object
-      description: |-
-        Reuse a prebuilt identity from a registered peer before building. When a
-        peer already published this build identity to its Nix store, its whole
-        install tree is fetched into the local store so the build is reused
-        instead of repeated.
-      default: {}
-      order:
-        - use_peers
-      properties:
         use_peers:
           type: boolean
           description: |-
-            Fetch this build identity's install tree from a registered peer's
-            Nix store before building, when one already published it (the peers
-            registry at `$SYSTEM_DIR/peers`). Off builds locally only.
+            Before building, fetch this build identity's install tree from a
+            registered peer's Nix store when one already published it (the peers
+            registry at `$SYSTEM_DIR/peers`), so the local reuse hit lands.
+            Takes effect only with Reuse on; off builds from this host alone.
           default: true
           title: Use Peers
-      title: Prebuilt
+      title: Reuse
     worktree:
       type: object
       description: Source ref, optional patch series, and warm-tree lifecycle.
