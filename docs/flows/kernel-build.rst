@@ -283,11 +283,25 @@ in the digest, so they never collide in the Store key or in
 is intact).
 
 The **label** is the readable name baked in front of the digest. It is
-inferred, in this precedence: a ``custom_label`` override; else the ``b4``
-series subject as a slug (with ``-v<N>`` appended for v2 and later); else
+inferred, in this precedence: a ``custom_label`` override; else, for a ``b4``
+series, the series-root (cover) subject as a slug, carrying the revision; else
 ``vanilla`` for an upstream tag checked out with no series; else a slug of the
 ``git_ref`` (a branch or SHA). The label is truncated to fit the 64-character
 ``uname -r``; the digest is never shortened.
+
+For a ``b4`` series the cover letter is fetched on its own, with
+``b4 mbox --single-message`` of the message-id, because that subject holds the
+series title and revision that the patch mbox lacks (``b4 am`` does not save the
+cover); a failed fetch falls back to the first patch subject. The revision
+``N`` is read from a ``[PATCH vN M/K]`` bracket, or from a standalone ``vN`` at
+the very end of the subject (the ``... v3`` convention), and appended as
+``-v<N>`` only when a version is actually present and is v2 or later. A series
+with no version token gets no suffix; no revision is invented. A matched
+``-v<N>`` is preserved across truncation, so it is never the part that is cut.
+So an iomap series whose cover reads ``don't build bios/contexts over multiple
+iomaps v3`` builds as
+``7.1.0-don-t-build-bios-contexts-over-multiple-v3-<digest>``, reading apart
+from its v2 at a glance, while the digest already tells them apart by content.
 
 The kernel's own ``setlocalversion`` describe suffix (``-<count>-g<sha>``) is
 dropped by setting ``CONFIG_LOCALVERSION_AUTO=n`` (this kernel has no
