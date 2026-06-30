@@ -1,0 +1,1160 @@
+[ 4702.406324] sysrq: Show State
+[ 4702.406934] task:systemd         state:S stack:0     pid:1     tgid:1     ppid:0      task_flags:0x400100 flags:0x00080000
+[ 4702.408685] Call Trace:
+[ 4702.409014]  <TASK>
+[ 4702.409309]  __schedule+0x35b/0xaa0
+[ 4702.409777]  schedule+0x27/0xe0
+[ 4702.410223]  schedule_hrtimeout_range_clock+0xf3/0x100
+[ 4702.410919]  ? ep_send_events+0x16d/0x1d0
+[ 4702.411473]  do_epoll_wait+0x52d/0x580
+[ 4702.411978]  ? ep_destroy_wakeup_source+0x20/0x20
+[ 4702.412596]  __x64_sys_epoll_wait+0x5f/0x100
+[ 4702.413169]  do_syscall_64+0x7d/0x410
+[ 4702.413662]  ? irqentry_exit+0x264/0x350
+[ 4702.414209]  entry_SYSCALL_64_after_hwframe+0x4b/0x53
+[ 4702.414880] RIP: 0033:0x7feac88c403e
+[ 4702.415375] RSP: 002b:00007fff0d253280 EFLAGS: 00000202 ORIG_RAX: 00000000000000e8
+[ 4702.416400] RAX: ffffffffffffffda RBX: 0000000000000056 RCX: 00007feac88c403e
+[ 4702.417341] RDX: 0000000000000056 RSI: 0000561af4d66300 RDI: 0000000000000004
+[ 4702.418295] RBP: 00007fff0d253290 R08: 0000000000000000 R09: 0000000000000000
+[ 4702.419241] R10: ffffffffffffffff R11: 0000000000000202 R12: 0000000000000000
+[ 4702.420174] R13: 0000000000000004 R14: 0000561af4cc79f0 R15: 000000000000001b
+[ 4702.421090]  </TASK>
+[ 4702.421391] task:kthreadd        state:S stack:0     pid:2     tgid:2     ppid:0      task_flags:0x208040 flags:0x00080000
+[ 4702.422836] Call Trace:
+[ 4702.423179]  <TASK>
+[ 4702.423466]  __schedule+0x35b/0xaa0
+[ 4702.423936]  schedule+0x27/0xe0
+[ 4702.424349]  kthreadd+0x131/0x150
+[ 4702.424794]  ? kthread_is_per_cpu+0x30/0x30
+[ 4702.425332]  ret_from_fork+0x127/0x230
+[ 4702.425817]  ? kthread_is_per_cpu+0x30/0x30
+[ 4702.426387]  ? kthread_is_per_cpu+0x30/0x30
+[ 4702.426925]  ret_from_fork_asm+0x11/0x20
+[ 4702.427451]  </TASK>
+[ 4702.427748] task:pool_workqueue_ state:S stack:0     pid:3     tgid:3     ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.429141] Call Trace:
+[ 4702.429472]  <TASK>
+[ 4702.429762]  __schedule+0x35b/0xaa0
+[ 4702.430243]  schedule+0x27/0xe0
+[ 4702.430659]  kthread_worker_fn+0x197/0x1f0
+[ 4702.431197]  ? put_unbound_pool+0x2b0/0x2b0
+[ 4702.431740]  ? kthread_freezable_should_stop+0x40/0x40
+[ 4702.432405]  kthread+0xf4/0x130
+[ 4702.432822]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.433381]  ret_from_fork+0x127/0x230
+[ 4702.433868]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.434442]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.434998]  ret_from_fork_asm+0x11/0x20
+[ 4702.435516]  </TASK>
+[ 4702.435814] task:kworker/R-rcu_g state:I stack:0     pid:4     tgid:4     ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.437233] Call Trace:
+[ 4702.437560]  <TASK>
+[ 4702.437847]  __schedule+0x35b/0xaa0
+[ 4702.438324]  ? bh_worker+0x1d0/0x1d0
+[ 4702.438789]  schedule+0x27/0xe0
+[ 4702.439210]  rescuer_thread+0x3b6/0x4e0
+[ 4702.439707]  ? bh_worker+0x1d0/0x1d0
+[ 4702.440178]  ? bh_worker+0x1d0/0x1d0
+[ 4702.440649]  kthread+0xf4/0x130
+[ 4702.441068]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.441632]  ret_from_fork+0x127/0x230
+[ 4702.442165]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.442723]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.443325]  ret_from_fork_asm+0x11/0x20
+[ 4702.443835]  </TASK>
+[ 4702.444141] task:kworker/R-sync_ state:I stack:0     pid:5     tgid:5     ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.445546] Call Trace:
+[ 4702.445874]  <TASK>
+[ 4702.446177]  __schedule+0x35b/0xaa0
+[ 4702.446649]  ? bh_worker+0x1d0/0x1d0
+[ 4702.447124]  schedule+0x27/0xe0
+[ 4702.447538]  rescuer_thread+0x3b6/0x4e0
+[ 4702.448059]  ? bh_worker+0x1d0/0x1d0
+[ 4702.448530]  ? bh_worker+0x1d0/0x1d0
+[ 4702.449001]  kthread+0xf4/0x130
+[ 4702.449418]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.449998]  ret_from_fork+0x127/0x230
+[ 4702.450486]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.451046]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.451600]  ret_from_fork_asm+0x11/0x20
+[ 4702.452110]  </TASK>
+[ 4702.452406] task:kworker/R-kvfre state:I stack:0     pid:6     tgid:6     ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.453799] Call Trace:
+[ 4702.454152]  <TASK>
+[ 4702.454444]  __schedule+0x35b/0xaa0
+[ 4702.454902]  ? bh_worker+0x1d0/0x1d0
+[ 4702.455382]  schedule+0x27/0xe0
+[ 4702.455797]  rescuer_thread+0x3b6/0x4e0
+[ 4702.456296]  ? bh_worker+0x1d0/0x1d0
+[ 4702.456764]  ? bh_worker+0x1d0/0x1d0
+[ 4702.457235]  kthread+0xf4/0x130
+[ 4702.457652]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.458226]  ret_from_fork+0x127/0x230
+[ 4702.458747]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.459312]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.459874]  ret_from_fork_asm+0x11/0x20
+[ 4702.460388]  </TASK>
+[ 4702.460685] task:kworker/R-slub_ state:I stack:0     pid:7     tgid:7     ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.462112] Call Trace:
+[ 4702.462438]  <TASK>
+[ 4702.462723]  __schedule+0x35b/0xaa0
+[ 4702.463190]  ? bh_worker+0x1d0/0x1d0
+[ 4702.463662]  schedule+0x27/0xe0
+[ 4702.464077]  rescuer_thread+0x3b6/0x4e0
+[ 4702.464577]  ? bh_worker+0x1d0/0x1d0
+[ 4702.465045]  ? bh_worker+0x1d0/0x1d0
+[ 4702.465513]  kthread+0xf4/0x130
+[ 4702.465932]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.466503]  ret_from_fork+0x127/0x230
+[ 4702.466994]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.467555]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.468112]  ret_from_fork_asm+0x11/0x20
+[ 4702.468624]  </TASK>
+[ 4702.468921] task:kworker/R-netns state:I stack:0     pid:8     tgid:8     ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.470339] Call Trace:
+[ 4702.470665]  <TASK>
+[ 4702.470950]  __schedule+0x35b/0xaa0
+[ 4702.471413]  ? bh_worker+0x1d0/0x1d0
+[ 4702.471879]  schedule+0x27/0xe0
+[ 4702.472293]  rescuer_thread+0x3b6/0x4e0
+[ 4702.472791]  ? bh_worker+0x1d0/0x1d0
+[ 4702.473257]  ? bh_worker+0x1d0/0x1d0
+[ 4702.473724]  kthread+0xf4/0x130
+[ 4702.474158]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.474713]  ret_from_fork+0x127/0x230
+[ 4702.475234]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.475786]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.476337]  ret_from_fork_asm+0x11/0x20
+[ 4702.476848]  </TASK>
+[ 4702.477152] task:kworker/0:0     state:I stack:0     pid:9     tgid:9     ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.478573] Workqueue:  0x0 (events)
+[ 4702.479052] Call Trace:
+[ 4702.479379]  <TASK>
+[ 4702.479667]  __schedule+0x35b/0xaa0
+[ 4702.480125]  schedule+0x27/0xe0
+[ 4702.480539]  worker_thread+0xa4/0x340
+[ 4702.481017]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.481535]  kthread+0xf4/0x130
+[ 4702.481967]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.482522]  ret_from_fork+0x127/0x230
+[ 4702.483010]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.483577]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.484131]  ret_from_fork_asm+0x11/0x20
+[ 4702.484625]  </TASK>
+[ 4702.484921] task:kworker/0:0H    state:I stack:0     pid:10    tgid:10    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.486345] Call Trace:
+[ 4702.486673]  <TASK>
+[ 4702.486960]  __schedule+0x35b/0xaa0
+[ 4702.487435]  schedule+0x27/0xe0
+[ 4702.487849]  worker_thread+0xa4/0x340
+[ 4702.488325]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.488843]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.489362]  kthread+0xf4/0x130
+[ 4702.489777]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.490345]  ret_from_fork+0x127/0x230
+[ 4702.490833]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.491396]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.491980]  ret_from_fork_asm+0x11/0x20
+[ 4702.492489]  </TASK>
+[ 4702.492785] task:kworker/0:1     state:I stack:0     pid:11    tgid:11    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.494189] Workqueue:  0x0 (events)
+[ 4702.494661] Call Trace:
+[ 4702.494987]  <TASK>
+[ 4702.495292]  __schedule+0x35b/0xaa0
+[ 4702.495754]  schedule+0x27/0xe0
+[ 4702.496168]  worker_thread+0xa4/0x340
+[ 4702.496645]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.497163]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.497681]  kthread+0xf4/0x130
+[ 4702.498123]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.498679]  ret_from_fork+0x127/0x230
+[ 4702.499176]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.499731]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.500288]  ret_from_fork_asm+0x11/0x20
+[ 4702.500822]  </TASK>
+[ 4702.501119] task:kworker/u16:0   state:I stack:0     pid:12    tgid:12    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.502777] Workqueue:  0x0 (ipv6_addrconf)
+[ 4702.503329] Call Trace:
+[ 4702.503656]  <TASK>
+[ 4702.503947]  __schedule+0x35b/0xaa0
+[ 4702.504406]  schedule+0x27/0xe0
+[ 4702.504822]  worker_thread+0xa4/0x340
+[ 4702.505302]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.505821]  kthread+0xf4/0x130
+[ 4702.506257]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.506821]  ret_from_fork+0x127/0x230
+[ 4702.507324]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.507888]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.508503]  ret_from_fork_asm+0x11/0x20
+[ 4702.509022]  </TASK>
+[ 4702.509321] task:kworker/R-mm_pe state:I stack:0     pid:13    tgid:13    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.510752] Call Trace:
+[ 4702.511090]  <TASK>
+[ 4702.511382]  __schedule+0x35b/0xaa0
+[ 4702.511861]  ? bh_worker+0x1d0/0x1d0
+[ 4702.512387]  schedule+0x27/0xe0
+[ 4702.512865]  rescuer_thread+0x3b6/0x4e0
+[ 4702.513440]  ? bh_worker+0x1d0/0x1d0
+[ 4702.514009]  ? bh_worker+0x1d0/0x1d0
+[ 4702.514553]  kthread+0xf4/0x130
+[ 4702.515047]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.515614]  ret_from_fork+0x127/0x230
+[ 4702.516113]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.516678]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.517248]  ret_from_fork_asm+0x11/0x20
+[ 4702.517771]  </TASK>
+[ 4702.518088] task:ksoftirqd/0     state:S stack:0     pid:14    tgid:14    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.519532] Call Trace:
+[ 4702.519866]  <TASK>
+[ 4702.520159]  __schedule+0x35b/0xaa0
+[ 4702.520629]  ? sort_range+0x30/0x30
+[ 4702.521105]  schedule+0x27/0xe0
+[ 4702.521535]  smpboot_thread_fn+0x184/0x210
+[ 4702.522110]  kthread+0xf4/0x130
+[ 4702.522537]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.523180]  ret_from_fork+0x127/0x230
+[ 4702.523926]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.524630]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.525208]  ret_from_fork_asm+0x11/0x20
+[ 4702.525720]  </TASK>
+[ 4702.526039] task:rcu_sched       state:I stack:0     pid:15    tgid:15    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.527428] Call Trace:
+[ 4702.527754]  <TASK>
+[ 4702.528046]  __schedule+0x35b/0xaa0
+[ 4702.528508]  ? rcu_gp_cleanup+0x530/0x530
+[ 4702.529028]  schedule+0x27/0xe0
+[ 4702.529442]  rcu_gp_kthread+0xb8/0xf0
+[ 4702.529919]  kthread+0xf4/0x130
+[ 4702.530355]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.530911]  ret_from_fork+0x127/0x230
+[ 4702.531414]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.531967]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.532519]  ret_from_fork_asm+0x11/0x20
+[ 4702.533027]  </TASK>
+[ 4702.533324] task:rcu_exp_par_gp_ state:S stack:0     pid:16    tgid:16    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.534726] Call Trace:
+[ 4702.535057]  <TASK>
+[ 4702.535342]  __schedule+0x35b/0xaa0
+[ 4702.535798]  schedule+0x27/0xe0
+[ 4702.536212]  kthread_worker_fn+0x197/0x1f0
+[ 4702.536739]  ? kthread_freezable_should_stop+0x40/0x40
+[ 4702.537446]  ? kthread_freezable_should_stop+0x40/0x40
+[ 4702.538118]  kthread+0xf4/0x130
+[ 4702.538533]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.539101]  ret_from_fork+0x127/0x230
+[ 4702.539588]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.540142]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.540695]  ret_from_fork_asm+0x11/0x20
+[ 4702.541205]  </TASK>
+[ 4702.541500] task:rcu_exp_gp_kthr state:S stack:0     pid:17    tgid:17    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.542933] Call Trace:
+[ 4702.543267]  <TASK>
+[ 4702.543552]  __schedule+0x35b/0xaa0
+[ 4702.544009]  schedule+0x27/0xe0
+[ 4702.544446]  kthread_worker_fn+0x197/0x1f0
+[ 4702.544975]  ? cond_synchronize_rcu+0x50/0x50
+[ 4702.545539]  ? kthread_freezable_should_stop+0x40/0x40
+[ 4702.546261]  kthread+0xf4/0x130
+[ 4702.546739]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.547404]  ret_from_fork+0x127/0x230
+[ 4702.547972]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.548626]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.549282]  ret_from_fork_asm+0x11/0x20
+[ 4702.549895]  </TASK>
+[ 4702.550266] task:migration/0     state:S stack:0     pid:18    tgid:18    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.551955] Stopper: 0x0 <- 0x0
+[ 4702.552460] Call Trace:
+[ 4702.552859]  <TASK>
+[ 4702.553212]  __schedule+0x35b/0xaa0
+[ 4702.553780]  ? sort_range+0x30/0x30
+[ 4702.554343]  schedule+0x27/0xe0
+[ 4702.554793]  smpboot_thread_fn+0x184/0x210
+[ 4702.555365]  kthread+0xf4/0x130
+[ 4702.555811]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.556396]  ret_from_fork+0x127/0x230
+[ 4702.556911]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.557478]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.558089]  ret_from_fork_asm+0x11/0x20
+[ 4702.558613]  </TASK>
+[ 4702.558911] task:kprobe-optimize state:S stack:0     pid:19    tgid:19    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.560335] Call Trace:
+[ 4702.560661]  <TASK>
+[ 4702.560946]  __schedule+0x35b/0xaa0
+[ 4702.561403]  ? optimize_kprobe+0x50/0x50
+[ 4702.561911]  schedule+0x27/0xe0
+[ 4702.562343]  kprobe_optimizer_thread+0x329/0x4a0
+[ 4702.562947]  ? housekeeping_test_cpu+0x60/0x60
+[ 4702.563536]  ? optimize_kprobe+0x50/0x50
+[ 4702.564047]  kthread+0xf4/0x130
+[ 4702.564464]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.565021]  ret_from_fork+0x127/0x230
+[ 4702.565510]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.566087]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.566649]  ret_from_fork_asm+0x11/0x20
+[ 4702.567181]  </TASK>
+[ 4702.567479] task:cpuhp/0         state:S stack:0     pid:20    tgid:20    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.568879] Call Trace:
+[ 4702.569217]  <TASK>
+[ 4702.569503]  __schedule+0x35b/0xaa0
+[ 4702.569980]  ? sort_range+0x30/0x30
+[ 4702.570439]  schedule+0x27/0xe0
+[ 4702.570861]  smpboot_thread_fn+0x184/0x210
+[ 4702.571410]  kthread+0xf4/0x130
+[ 4702.571827]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.572387]  ret_from_fork+0x127/0x230
+[ 4702.572873]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.573425]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.573996]  ret_from_fork_asm+0x11/0x20
+[ 4702.574505]  </TASK>
+[ 4702.574810] task:cpuhp/1         state:S stack:0     pid:21    tgid:21    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.576196] Call Trace:
+[ 4702.576524]  <TASK>
+[ 4702.576810]  __schedule+0x35b/0xaa0
+[ 4702.577269]  ? sort_range+0x30/0x30
+[ 4702.577727]  schedule+0x27/0xe0
+[ 4702.578166]  smpboot_thread_fn+0x184/0x210
+[ 4702.578709]  kthread+0xf4/0x130
+[ 4702.579138]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.579699]  ret_from_fork+0x127/0x230
+[ 4702.580189]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.580744]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.581299]  ret_from_fork_asm+0x11/0x20
+[ 4702.581810]  </TASK>
+[ 4702.582129] task:migration/1     state:S stack:0     pid:22    tgid:22    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.583540] Stopper: 0x0 <- 0x0
+[ 4702.583957] Call Trace:
+[ 4702.584284]  <TASK>
+[ 4702.584570]  __schedule+0x35b/0xaa0
+[ 4702.585028]  ? sort_range+0x30/0x30
+[ 4702.585486]  schedule+0x27/0xe0
+[ 4702.585907]  smpboot_thread_fn+0x184/0x210
+[ 4702.586446]  kthread+0xf4/0x130
+[ 4702.586869]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.587445]  ret_from_fork+0x127/0x230
+[ 4702.587934]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.588492]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.589047]  ret_from_fork_asm+0x11/0x20
+[ 4702.589558]  </TASK>
+[ 4702.589854] task:ksoftirqd/1     state:S stack:0     pid:23    tgid:23    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.591284] Call Trace:
+[ 4702.591612]  <TASK>
+[ 4702.591898]  __schedule+0x35b/0xaa0
+[ 4702.592357]  ? sort_range+0x30/0x30
+[ 4702.592819]  schedule+0x27/0xe0
+[ 4702.593233]  smpboot_thread_fn+0x184/0x210
+[ 4702.593761]  kthread+0xf4/0x130
+[ 4702.594191]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.594750]  ret_from_fork+0x127/0x230
+[ 4702.595258]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.595813]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.596369]  ret_from_fork_asm+0x11/0x20
+[ 4702.596881]  </TASK>
+[ 4702.597178] task:kworker/1:0H    state:I stack:0     pid:25    tgid:25    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.598593] Call Trace:
+[ 4702.598921]  <TASK>
+[ 4702.599215]  __schedule+0x35b/0xaa0
+[ 4702.599673]  schedule+0x27/0xe0
+[ 4702.600089]  worker_thread+0xa4/0x340
+[ 4702.600568]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.601091]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.601614]  kthread+0xf4/0x130
+[ 4702.602046]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.602614]  ret_from_fork+0x127/0x230
+[ 4702.603109]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.603666]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.604221]  ret_from_fork_asm+0x11/0x20
+[ 4702.604733]  </TASK>
+[ 4702.605055] task:cpuhp/2         state:S stack:0     pid:26    tgid:26    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.606478] Call Trace:
+[ 4702.606811]  <TASK>
+[ 4702.607108]  __schedule+0x35b/0xaa0
+[ 4702.607569]  ? sort_range+0x30/0x30
+[ 4702.608029]  schedule+0x27/0xe0
+[ 4702.608451]  smpboot_thread_fn+0x184/0x210
+[ 4702.608985]  kthread+0xf4/0x130
+[ 4702.609405]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.609985]  ret_from_fork+0x127/0x230
+[ 4702.610481]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.611061]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.611624]  ret_from_fork_asm+0x11/0x20
+[ 4702.612168]  </TASK>
+[ 4702.612500] task:migration/2     state:S stack:0     pid:27    tgid:27    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.614067] Stopper: 0x0 <- 0x0
+[ 4702.614511] Call Trace:
+[ 4702.614870]  <TASK>
+[ 4702.615191]  __schedule+0x35b/0xaa0
+[ 4702.615693]  ? sort_range+0x30/0x30
+[ 4702.616187]  schedule+0x27/0xe0
+[ 4702.616635]  smpboot_thread_fn+0x184/0x210
+[ 4702.617206]  kthread+0xf4/0x130
+[ 4702.617648]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.618255]  ret_from_fork+0x127/0x230
+[ 4702.618772]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.619371]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.619950]  ret_from_fork_asm+0x11/0x20
+[ 4702.620488]  </TASK>
+[ 4702.620795] task:ksoftirqd/2     state:S stack:0     pid:28    tgid:28    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.622254] Call Trace:
+[ 4702.622591]  <TASK>
+[ 4702.622891]  __schedule+0x35b/0xaa0
+[ 4702.623366]  ? sort_range+0x30/0x30
+[ 4702.623832]  schedule+0x27/0xe0
+[ 4702.624254]  smpboot_thread_fn+0x184/0x210
+[ 4702.624784]  kthread+0xf4/0x130
+[ 4702.625199]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.625752]  ret_from_fork+0x127/0x230
+[ 4702.626257]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.626814]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.627377]  ret_from_fork_asm+0x11/0x20
+[ 4702.627899]  </TASK>
+[ 4702.628197] task:kworker/2:0H    state:I stack:0     pid:30    tgid:30    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.629596] Call Trace:
+[ 4702.629924]  <TASK>
+[ 4702.630234]  __schedule+0x35b/0xaa0
+[ 4702.630696]  schedule+0x27/0xe0
+[ 4702.631123]  worker_thread+0xa4/0x340
+[ 4702.631605]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.632124]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.632644]  kthread+0xf4/0x130
+[ 4702.633061]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.633616]  ret_from_fork+0x127/0x230
+[ 4702.634128]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.634687]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.635384]  ret_from_fork_asm+0x11/0x20
+[ 4702.636081]  </TASK>
+[ 4702.636383] task:cpuhp/3         state:S stack:0     pid:31    tgid:31    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.637782] Call Trace:
+[ 4702.638131]  <TASK>
+[ 4702.638415]  __schedule+0x35b/0xaa0
+[ 4702.638876]  ? sort_range+0x30/0x30
+[ 4702.639344]  schedule+0x27/0xe0
+[ 4702.639759]  smpboot_thread_fn+0x184/0x210
+[ 4702.640291]  kthread+0xf4/0x130
+[ 4702.640706]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.641260]  ret_from_fork+0x127/0x230
+[ 4702.641749]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.642332]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.642886]  ret_from_fork_asm+0x11/0x20
+[ 4702.643405]  </TASK>
+[ 4702.643700] task:migration/3     state:S stack:0     pid:32    tgid:32    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.645091] Stopper: 0x0 <- 0x0
+[ 4702.645506] Call Trace:
+[ 4702.645833]  <TASK>
+[ 4702.646140]  __schedule+0x35b/0xaa0
+[ 4702.646598]  ? sort_range+0x30/0x30
+[ 4702.647073]  schedule+0x27/0xe0
+[ 4702.647489]  smpboot_thread_fn+0x184/0x210
+[ 4702.648019]  kthread+0xf4/0x130
+[ 4702.648435]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.648990]  ret_from_fork+0x127/0x230
+[ 4702.649479]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.650058]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.650613]  ret_from_fork_asm+0x11/0x20
+[ 4702.651133]  </TASK>
+[ 4702.651429] task:ksoftirqd/3     state:S stack:0     pid:33    tgid:33    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.652835] Call Trace:
+[ 4702.653164]  <TASK>
+[ 4702.653453]  __schedule+0x35b/0xaa0
+[ 4702.653899]  ? sort_range+0x30/0x30
+[ 4702.654387]  schedule+0x27/0xe0
+[ 4702.654797]  smpboot_thread_fn+0x184/0x210
+[ 4702.655340]  kthread+0xf4/0x130
+[ 4702.655757]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.656311]  ret_from_fork+0x127/0x230
+[ 4702.656799]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.657353]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.657907]  ret_from_fork_asm+0x11/0x20
+[ 4702.658443]  </TASK>
+[ 4702.658738] task:kworker/3:0H    state:I stack:0     pid:35    tgid:35    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.660148] Call Trace:
+[ 4702.660475]  <TASK>
+[ 4702.660760]  __schedule+0x35b/0xaa0
+[ 4702.661217]  schedule+0x27/0xe0
+[ 4702.661631]  worker_thread+0xa4/0x340
+[ 4702.662124]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.662644]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.663172]  kthread+0xf4/0x130
+[ 4702.663588]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.664142]  ret_from_fork+0x127/0x230
+[ 4702.664630]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.665183]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.665737]  ret_from_fork_asm+0x11/0x20
+[ 4702.666267]  </TASK>
+[ 4702.666563] task:kworker/u17:0   state:I stack:0     pid:36    tgid:36    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.667976] Workqueue:  0x0 (events_unbound)
+[ 4702.668532] Call Trace:
+[ 4702.668859]  <TASK>
+[ 4702.669145]  __schedule+0x35b/0xaa0
+[ 4702.669602]  schedule+0x27/0xe0
+[ 4702.670053]  worker_thread+0xa4/0x340
+[ 4702.670535]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.671063]  kthread+0xf4/0x130
+[ 4702.671479]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.672036]  ret_from_fork+0x127/0x230
+[ 4702.672523]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.673078]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.673633]  ret_from_fork_asm+0x11/0x20
+[ 4702.674164]  </TASK>
+[ 4702.674459] task:kworker/u18:0   state:I stack:0     pid:37    tgid:37    ppid:2      task_flags:0x4208160 flags:0x00080000
+[ 4702.675909] Workqueue:  0x0 (events_unbound)
+[ 4702.676467] Call Trace:
+[ 4702.676801]  <TASK>
+[ 4702.677095]  __schedule+0x35b/0xaa0
+[ 4702.677557]  schedule+0x27/0xe0
+[ 4702.678011]  worker_thread+0xa4/0x340
+[ 4702.678491]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.679048]  kthread+0xf4/0x130
+[ 4702.679466]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.680023]  ret_from_fork+0x127/0x230
+[ 4702.680518]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.681077]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.681637]  ret_from_fork_asm+0x11/0x20
+[ 4702.682175]  </TASK>
+[ 4702.682474] task:kworker/u20:0   state:I stack:0     pid:39    tgid:39    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.683890] Workqueue:  0x0 (events_unbound)
+[ 4702.684478] Call Trace:
+[ 4702.684810]  <TASK>
+[ 4702.685099]  __schedule+0x35b/0xaa0
+[ 4702.685563]  schedule+0x27/0xe0
+[ 4702.686012]  worker_thread+0xa4/0x340
+[ 4702.686507]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.687031]  kthread+0xf4/0x130
+[ 4702.687458]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.688024]  ret_from_fork+0x127/0x230
+[ 4702.688521]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.689083]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.689646]  ret_from_fork_asm+0x11/0x20
+[ 4702.690185]  </TASK>
+[ 4702.690485] task:kdevtmpfs       state:S stack:0     pid:40    tgid:40    ppid:2      task_flags:0x208140 flags:0x00080000
+[ 4702.691921] Call Trace:
+[ 4702.692251]  <TASK>
+[ 4702.692542]  __schedule+0x35b/0xaa0
+[ 4702.693003]  schedule+0x27/0xe0
+[ 4702.693419]  devtmpfs_work_loop+0x4c2/0x4c7
+[ 4702.693991]  ? dmar_validate_one_drhd+0xb0/0xb0
+[ 4702.694576]  devtmpfsd+0x26/0x30
+[ 4702.695000]  kthread+0xf4/0x130
+[ 4702.695424]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.695982]  ret_from_fork+0x127/0x230
+[ 4702.696472]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.697029]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.697585]  ret_from_fork_asm+0x11/0x20
+[ 4702.698116]  </TASK>
+[ 4702.698413] task:kworker/R-inet_ state:I stack:0     pid:41    tgid:41    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.699817] Call Trace:
+[ 4702.700143]  <TASK>
+[ 4702.700427]  __schedule+0x35b/0xaa0
+[ 4702.700893]  ? bh_worker+0x1d0/0x1d0
+[ 4702.701368]  schedule+0x27/0xe0
+[ 4702.701782]  rescuer_thread+0x3b6/0x4e0
+[ 4702.702300]  ? bh_worker+0x1d0/0x1d0
+[ 4702.702766]  ? bh_worker+0x1d0/0x1d0
+[ 4702.703243]  kthread+0xf4/0x130
+[ 4702.703660]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.704215]  ret_from_fork+0x127/0x230
+[ 4702.704707]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.705263]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.705820]  ret_from_fork_asm+0x11/0x20
+[ 4702.706345]  </TASK>
+[ 4702.706643] task:rcu_tasks_kthre state:I stack:0     pid:42    tgid:42    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.708036] Call Trace:
+[ 4702.708374]  <TASK>
+[ 4702.708675]  __schedule+0x35b/0xaa0
+[ 4702.709133]  schedule+0x27/0xe0
+[ 4702.709548]  rcu_tasks_one_gp+0x202/0x430
+[ 4702.710093]  ? rcu_tasks_one_gp+0x430/0x430
+[ 4702.710640]  rcu_tasks_kthread+0x9e/0xb0
+[ 4702.711161]  ? rcu_tasks_one_gp+0x430/0x430
+[ 4702.711707]  kthread+0xf4/0x130
+[ 4702.712127]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.712688]  ret_from_fork+0x127/0x230
+[ 4702.713181]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.713742]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.714335]  ret_from_fork_asm+0x11/0x20
+[ 4702.714921]  </TASK>
+[ 4702.715302] task:rcu_tasks_rude_ state:I stack:0     pid:43    tgid:43    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.716744] Call Trace:
+[ 4702.717080]  <TASK>
+[ 4702.717376]  __schedule+0x35b/0xaa0
+[ 4702.717851]  schedule+0x27/0xe0
+[ 4702.718303]  rcu_tasks_one_gp+0x202/0x430
+[ 4702.718848]  ? rcu_tasks_one_gp+0x430/0x430
+[ 4702.719416]  rcu_tasks_kthread+0x9e/0xb0
+[ 4702.719944]  ? rcu_tasks_one_gp+0x430/0x430
+[ 4702.720511]  kthread+0xf4/0x130
+[ 4702.720945]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.721525]  ret_from_fork+0x127/0x230
+[ 4702.722052]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.722629]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.723201]  ret_from_fork_asm+0x11/0x20
+[ 4702.723725]  </TASK>
+[ 4702.724024] task:khungtaskd      state:S stack:0     pid:44    tgid:44    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.725419] Call Trace:
+[ 4702.725746]  <TASK>
+[ 4702.726052]  __schedule+0x35b/0xaa0
+[ 4702.726518]  schedule+0x27/0xe0
+[ 4702.726937]  schedule_timeout+0x78/0x100
+[ 4702.727458]  ? hrtimers_cpu_dying+0x1a0/0x1a0
+[ 4702.728025]  watchdog+0x71/0x450
+[ 4702.728453]  ? __set_cpus_allowed_ptr+0x6f/0x80
+[ 4702.729043]  ? set_cpus_allowed_ptr+0x2a/0x30
+[ 4702.729609]  ? proc_dohung_task_timeout_secs+0x50/0x50
+[ 4702.730287]  kthread+0xf4/0x130
+[ 4702.730705]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.731266]  ret_from_fork+0x127/0x230
+[ 4702.731756]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.732311]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.732867]  ret_from_fork_asm+0x11/0x20
+[ 4702.733382]  </TASK>
+[ 4702.733680] task:oom_reaper      state:S stack:0     pid:45    tgid:45    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.735106] Call Trace:
+[ 4702.735433]  <TASK>
+[ 4702.735730]  __schedule+0x35b/0xaa0
+[ 4702.736210]  ? queue_oom_reaper+0xb0/0xb0
+[ 4702.736732]  schedule+0x27/0xe0
+[ 4702.737148]  oom_reaper+0x1fc/0x3f0
+[ 4702.737607]  ? housekeeping_test_cpu+0x60/0x60
+[ 4702.738208]  ? queue_oom_reaper+0xb0/0xb0
+[ 4702.738732]  kthread+0xf4/0x130
+[ 4702.739155]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.739709]  ret_from_fork+0x127/0x230
+[ 4702.740198]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.740758]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.741325]  ret_from_fork_asm+0x11/0x20
+[ 4702.741839]  </TASK>
+[ 4702.742162] task:kworker/u17:1   state:I stack:0     pid:46    tgid:46    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.743573] Workqueue:  0x0 (events_unbound)
+[ 4702.744154] Call Trace:
+[ 4702.744490]  <TASK>
+[ 4702.744777]  __schedule+0x35b/0xaa0
+[ 4702.745243]  schedule+0x27/0xe0
+[ 4702.745660]  worker_thread+0xa4/0x340
+[ 4702.746173]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.746705]  kthread+0xf4/0x130
+[ 4702.747113]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.747678]  ret_from_fork+0x127/0x230
+[ 4702.748170]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.748734]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.749297]  ret_from_fork_asm+0x11/0x20
+[ 4702.749812]  </TASK>
+[ 4702.750133] task:kworker/R-write state:I stack:0     pid:47    tgid:47    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.751625] Call Trace:
+[ 4702.751953]  <TASK>
+[ 4702.752240]  __schedule+0x35b/0xaa0
+[ 4702.752707]  ? bh_worker+0x1d0/0x1d0
+[ 4702.753176]  schedule+0x27/0xe0
+[ 4702.753595]  rescuer_thread+0x3b6/0x4e0
+[ 4702.754132]  ? bh_worker+0x1d0/0x1d0
+[ 4702.754601]  ? bh_worker+0x1d0/0x1d0
+[ 4702.755081]  kthread+0xf4/0x130
+[ 4702.755496]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.756050]  ret_from_fork+0x127/0x230
+[ 4702.756538]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.757101]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.757655]  ret_from_fork_asm+0x11/0x20
+[ 4702.758191]  </TASK>
+[ 4702.758491] task:kworker/u17:2   state:I stack:0     pid:48    tgid:48    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.759898] Call Trace:
+[ 4702.760226]  <TASK>
+[ 4702.760512]  __schedule+0x35b/0xaa0
+[ 4702.760979]  schedule+0x27/0xe0
+[ 4702.761402]  worker_thread+0xa4/0x340
+[ 4702.761882]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.762452]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.762977]  kthread+0xf4/0x130
+[ 4702.763400]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.763956]  ret_from_fork+0x127/0x230
+[ 4702.764446]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.765002]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.765559]  ret_from_fork_asm+0x11/0x20
+[ 4702.766096]  </TASK>
+[ 4702.766394] task:kcompactd0      state:S stack:0     pid:49    tgid:49    ppid:2      task_flags:0x218040 flags:0x00080000
+[ 4702.767789] Call Trace:
+[ 4702.768120]  <TASK>
+[ 4702.768405]  __schedule+0x35b/0xaa0
+[ 4702.768863]  schedule+0x27/0xe0
+[ 4702.769283]  schedule_timeout+0x78/0x100
+[ 4702.769793]  ? hrtimers_cpu_dying+0x1a0/0x1a0
+[ 4702.770385]  kcompactd+0x3c0/0x410
+[ 4702.770838]  ? housekeeping_test_cpu+0x60/0x60
+[ 4702.771424]  ? kcompactd_do_work+0x270/0x270
+[ 4702.771981]  kthread+0xf4/0x130
+[ 4702.772398]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.772958]  ret_from_fork+0x127/0x230
+[ 4702.773446]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.774021]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.774578]  ret_from_fork_asm+0x11/0x20
+[ 4702.775094]  </TASK>
+[ 4702.775416] task:kworker/3:1     state:I stack:0     pid:50    tgid:50    ppid:2      task_flags:0x4208160 flags:0x00080000
+[ 4702.776836] Workqueue:  0x0 (events)
+[ 4702.777306] Call Trace:
+[ 4702.777638]  <TASK>
+[ 4702.777923]  __schedule+0x35b/0xaa0
+[ 4702.778406]  schedule+0x27/0xe0
+[ 4702.778824]  worker_thread+0xa4/0x340
+[ 4702.779314]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.779832]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.780348]  kthread+0xf4/0x130
+[ 4702.780764]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.781318]  ret_from_fork+0x127/0x230
+[ 4702.781805]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.782389]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.782949]  ret_from_fork_asm+0x11/0x20
+[ 4702.783698]  </TASK>
+[ 4702.784143] task:khugepaged      state:S stack:0     pid:51    tgid:51    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.785728] Call Trace:
+[ 4702.786077]  <TASK>
+[ 4702.786393]  __schedule+0x35b/0xaa0
+[ 4702.786855]  ? collapse_single_pmd+0x14f0/0x14f0
+[ 4702.787463]  schedule+0x27/0xe0
+[ 4702.787890]  khugepaged+0x4fa/0x790
+[ 4702.788349]  ? __set_cpus_allowed_ptr_locked+0xd2/0x1b0
+[ 4702.789021]  ? collapse_single_pmd+0x14f0/0x14f0
+[ 4702.789623]  ? housekeeping_test_cpu+0x60/0x60
+[ 4702.790219]  ? set_cpus_allowed_ptr+0x2a/0x30
+[ 4702.790787]  ? collapse_single_pmd+0x14f0/0x14f0
+[ 4702.791390]  kthread+0xf4/0x130
+[ 4702.791807]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.792365]  ret_from_fork+0x127/0x230
+[ 4702.792853]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.793405]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.793977]  ret_from_fork_asm+0x11/0x20
+[ 4702.794491]  </TASK>
+[ 4702.794785] task:kworker/R-kbloc state:I stack:0     pid:52    tgid:52    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.796225] Call Trace:
+[ 4702.796549]  <TASK>
+[ 4702.796848]  __schedule+0x35b/0xaa0
+[ 4702.797321]  ? bh_worker+0x1d0/0x1d0
+[ 4702.797804]  schedule+0x27/0xe0
+[ 4702.798273]  rescuer_thread+0x3b6/0x4e0
+[ 4702.798808]  ? bh_worker+0x1d0/0x1d0
+[ 4702.799328]  ? bh_worker+0x1d0/0x1d0
+[ 4702.799843]  kthread+0xf4/0x130
+[ 4702.800300]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.800922]  ret_from_fork+0x127/0x230
+[ 4702.801465]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.802101]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.802699]  ret_from_fork_asm+0x11/0x20
+[ 4702.803268]  </TASK>
+[ 4702.803589] task:irq/9-acpi      state:S stack:0     pid:53    tgid:53    ppid:2      task_flags:0x4208040 flags:0x00080000
+[ 4702.805069] Call Trace:
+[ 4702.805543]  <TASK>
+[ 4702.806003]  __schedule+0x35b/0xaa0
+[ 4702.806600]  schedule+0x27/0xe0
+[ 4702.807087]  irq_thread+0xab/0x230
+[ 4702.807596]  ? setup_irq_thread+0xd0/0xd0
+[ 4702.808151]  ? irq_finalize_oneshot.part.0+0xe0/0xe0
+[ 4702.808829]  ? irq_forced_thread_fn+0x40/0x40
+[ 4702.809398]  kthread+0xf4/0x130
+[ 4702.809816]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.810403]  ret_from_fork+0x127/0x230
+[ 4702.810897]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.811487]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.812079]  ret_from_fork_asm+0x11/0x20
+[ 4702.812599]  </TASK>
+[ 4702.812900] task:kworker/1:1     state:I stack:0     pid:54    tgid:54    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.814346] Workqueue:  0x0 (events)
+[ 4702.814835] Call Trace:
+[ 4702.815196]  <TASK>
+[ 4702.815507]  __schedule+0x35b/0xaa0
+[ 4702.816043]  schedule+0x27/0xe0
+[ 4702.816530]  worker_thread+0xa4/0x340
+[ 4702.817090]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.817709]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.818353]  kthread+0xf4/0x130
+[ 4702.818853]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.819522]  ret_from_fork+0x127/0x230
+[ 4702.820107]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.820764]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.821421]  ret_from_fork_asm+0x11/0x20
+[ 4702.822048]  </TASK>
+[ 4702.822395] task:kworker/2:1     state:I stack:0     pid:55    tgid:55    ppid:2      task_flags:0x4208160 flags:0x00080000
+[ 4702.824034] Workqueue:  0x0 (events)
+[ 4702.824581] Call Trace:
+[ 4702.824960]  <TASK>
+[ 4702.825291]  __schedule+0x35b/0xaa0
+[ 4702.825823]  schedule+0x27/0xe0
+[ 4702.826320]  worker_thread+0xa4/0x340
+[ 4702.826872]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.827420]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.827985]  kthread+0xf4/0x130
+[ 4702.828412]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.828973]  ret_from_fork+0x127/0x230
+[ 4702.829473]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.830055]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.830616]  ret_from_fork_asm+0x11/0x20
+[ 4702.831156]  </TASK>
+[ 4702.831453] task:kworker/u18:1   state:I stack:0     pid:56    tgid:56    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.832855] Call Trace:
+[ 4702.833182]  <TASK>
+[ 4702.833469]  __schedule+0x35b/0xaa0
+[ 4702.833928]  schedule+0x27/0xe0
+[ 4702.834364]  worker_thread+0xa4/0x340
+[ 4702.834853]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.835405]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.835926]  kthread+0xf4/0x130
+[ 4702.836343]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.836900]  ret_from_fork+0x127/0x230
+[ 4702.837388]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.837929]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.838502]  ret_from_fork_asm+0x11/0x20
+[ 4702.839017]  </TASK>
+[ 4702.839320] task:kworker/R-quota state:I stack:0     pid:57    tgid:57    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.840700] Call Trace:
+[ 4702.841027]  <TASK>
+[ 4702.841316]  __schedule+0x35b/0xaa0
+[ 4702.841783]  ? bh_worker+0x1d0/0x1d0
+[ 4702.842277]  schedule+0x27/0xe0
+[ 4702.842694]  rescuer_thread+0x3b6/0x4e0
+[ 4702.843200]  ? bh_worker+0x1d0/0x1d0
+[ 4702.843668]  ? bh_worker+0x1d0/0x1d0
+[ 4702.844137]  kthread+0xf4/0x130
+[ 4702.844554]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.845110]  ret_from_fork+0x127/0x230
+[ 4702.845600]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.846175]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.846739]  ret_from_fork_asm+0x11/0x20
+[ 4702.847258]  </TASK>
+[ 4702.847555] task:kswapd0         state:S stack:0     pid:58    tgid:58    ppid:2      task_flags:0x228840 flags:0x00080000
+[ 4702.848942] Call Trace:
+[ 4702.849269]  <TASK>
+[ 4702.849556]  __schedule+0x35b/0xaa0
+[ 4702.850038]  schedule+0x27/0xe0
+[ 4702.850452]  kswapd+0x2bb/0x2f0
+[ 4702.850870]  ? housekeeping_test_cpu+0x60/0x60
+[ 4702.851452]  ? balance_pgdat+0x8a0/0x8a0
+[ 4702.851959]  kthread+0xf4/0x130
+[ 4702.852380]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.852942]  ret_from_fork+0x127/0x230
+[ 4702.853432]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.854012]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.854568]  ret_from_fork_asm+0x11/0x20
+[ 4702.855123]  </TASK>
+[ 4702.855568] task:kdamond.0       state:I stack:0     pid:59    tgid:59    ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.857349] Call Trace:
+[ 4702.857676]  <TASK>
+[ 4702.857990]  __schedule+0x35b/0xaa0
+[ 4702.858467]  schedule+0x27/0xe0
+[ 4702.858891]  schedule_timeout+0x78/0x100
+[ 4702.859411]  ? hrtimers_cpu_dying+0x1a0/0x1a0
+[ 4702.859979]  kdamond_fn+0x4d8/0x1df0
+[ 4702.860452]  ? damon_set_attrs+0x2f0/0x2f0
+[ 4702.860982]  ? damon_set_attrs+0x2f0/0x2f0
+[ 4702.861512]  kthread+0xf4/0x130
+[ 4702.861928]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.862508]  ret_from_fork+0x127/0x230
+[ 4702.862998]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.863565]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.864124]  ret_from_fork_asm+0x11/0x20
+[ 4702.864633]  </TASK>
+[ 4702.864928] task:kworker/R-mld   state:I stack:0     pid:60    tgid:60    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.866348] Call Trace:
+[ 4702.866676]  <TASK>
+[ 4702.866962]  __schedule+0x35b/0xaa0
+[ 4702.867431]  ? bh_worker+0x1d0/0x1d0
+[ 4702.867902]  schedule+0x27/0xe0
+[ 4702.868319]  rescuer_thread+0x3b6/0x4e0
+[ 4702.868819]  ? bh_worker+0x1d0/0x1d0
+[ 4702.869288]  ? bh_worker+0x1d0/0x1d0
+[ 4702.869756]  kthread+0xf4/0x130
+[ 4702.870202]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.870767]  ret_from_fork+0x127/0x230
+[ 4702.871271]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.871824]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.872380]  ret_from_fork_asm+0x11/0x20
+[ 4702.872891]  </TASK>
+[ 4702.873188] task:kworker/1:2     state:I stack:0     pid:61    tgid:61    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.874609] Call Trace:
+[ 4702.874944]  <TASK>
+[ 4702.875366]  __schedule+0x35b/0xaa0
+[ 4702.876039]  schedule+0x27/0xe0
+[ 4702.876456]  worker_thread+0xa4/0x340
+[ 4702.876937]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.877458]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.878008]  kthread+0xf4/0x130
+[ 4702.878011]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.878012]  ret_from_fork+0x127/0x230
+M
+[**[0[ 4702.878017]  ? kthreads_online_cpu+0x20/0x20
+;31m*   ] A [ 4702.878018]  ? kthreads_online_cpu+0x20/0x20
+start job is run[ 4702.878019]  ret_from_fork_asm+0x11/0x20
+ning for NixOS A[ 4702.882449]  </TASK>
+ctivation (1h 18[ 4702.882963] task:kworker/R-ipv6_ state:I stack:0     pid:62    tgid:62    ppid:2      task_flags:0x4208060 flags:0x00080000
+min 19s / no lim[ 4702.885003] Call Trace:
+it)
+[ 4702.885552]  <TASK>
+[ 4702.885964]  __schedule+0x35b/0xaa0
+[ 4702.886444]  ? bh_worker+0x1d0/0x1d0
+[ 4702.886935]  schedule+0x27/0xe0
+[ 4702.887367]  rescuer_thread+0x3b6/0x4e0
+[ 4702.887873]  ? bh_worker+0x1d0/0x1d0
+[ 4702.888348]  ? bh_worker+0x1d0/0x1d0
+[ 4702.888816]  kthread+0xf4/0x130
+[ 4702.889234]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.889792]  ret_from_fork+0x127/0x230
+[ 4702.890310]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.890866]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.891430]  ret_from_fork_asm+0x11/0x20
+[ 4702.891945]  </TASK>
+[ 4702.892241] task:kworker/R-kstrp state:I stack:0     pid:63    tgid:63    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.893641] Call Trace:
+[ 4702.893972]  <TASK>
+[ 4702.894282]  __schedule+0x35b/0xaa0
+[ 4702.894742]  ? bh_worker+0x1d0/0x1d0
+[ 4702.895221]  schedule+0x27/0xe0
+[ 4702.895638]  rescuer_thread+0x3b6/0x4e0
+[ 4702.896138]  ? bh_worker+0x1d0/0x1d0
+[ 4702.896607]  ? bh_worker+0x1d0/0x1d0
+[ 4702.897076]  kthread+0xf4/0x130
+[ 4702.897493]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.898073]  ret_from_fork+0x127/0x230
+[ 4702.898564]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.899133]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.899687]  ret_from_fork_asm+0x11/0x20
+[ 4702.900197]  </TASK>
+[ 4702.900492] task:kworker/u16:1   state:I stack:0     pid:64    tgid:64    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.901892] Workqueue:  0x0 (ipv6_addrconf)
+[ 4702.902458] Call Trace:
+[ 4702.902786]  <TASK>
+[ 4702.903082]  __schedule+0x35b/0xaa0
+[ 4702.903541]  schedule+0x27/0xe0
+[ 4702.903959]  worker_thread+0xa4/0x340
+[ 4702.904438]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.904967]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.905489]  kthread+0xf4/0x130
+[ 4702.905906]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.906486]  ret_from_fork+0x127/0x230
+[ 4702.906984]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.907617]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.908243]  ret_from_fork_asm+0x11/0x20
+[ 4702.908831]  </TASK>
+[ 4702.909168] task:kworker/u20:1   state:I stack:0     pid:65    tgid:65    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.910782] Workqueue:  0x0 (events_unbound)
+[ 4702.911429] Call Trace:
+[ 4702.911802]  <TASK>
+[ 4702.912130]  __schedule+0x35b/0xaa0
+[ 4702.912658]  schedule+0x27/0xe0
+[ 4702.913133]  worker_thread+0xa4/0x340
+[ 4702.913682]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.914299]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.914896]  kthread+0xf4/0x130
+[ 4702.915379]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.916015]  ret_from_fork+0x127/0x230
+[ 4702.916575]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.917215]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.917855]  ret_from_fork_asm+0x11/0x20
+[ 4702.918479]  </TASK>
+[ 4702.918838] task:kworker/u21:0   state:I stack:0     pid:69    tgid:69    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.920467] Call Trace:
+[ 4702.920844]  <TASK>
+[ 4702.921173]  __schedule+0x35b/0xaa0
+[ 4702.921704]  schedule+0x27/0xe0
+[ 4702.922199]  worker_thread+0xa4/0x340
+[ 4702.922751]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.923355]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.923950]  kthread+0xf4/0x130
+[ 4702.924429]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.925061]  ret_from_fork+0x127/0x230
+[ 4702.925618]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.926251]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.926892]  ret_from_fork_asm+0x11/0x20
+[ 4702.927520]  </TASK>
+[ 4702.927865] task:kworker/u22:0   state:I stack:0     pid:70    tgid:70    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.929475] Call Trace:
+[ 4702.929838]  <TASK>
+[ 4702.930174]  __schedule+0x35b/0xaa0
+[ 4702.930703]  schedule+0x27/0xe0
+[ 4702.931197]  worker_thread+0xa4/0x340
+[ 4702.931753]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.932366]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.932966]  kthread+0xf4/0x130
+[ 4702.933446]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.934103]  ret_from_fork+0x127/0x230
+[ 4702.934666]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.935314]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.935950]  ret_from_fork_asm+0x11/0x20
+[ 4702.936533]  </TASK>
+[ 4702.936874] task:kworker/u23:0   state:I stack:0     pid:71    tgid:71    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.938477] Call Trace:
+[ 4702.938853]  <TASK>
+[ 4702.939187]  __schedule+0x35b/0xaa0
+[ 4702.939711]  schedule+0x27/0xe0
+[ 4702.940184]  worker_thread+0xa4/0x340
+[ 4702.940730]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.941326]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.941920]  kthread+0xf4/0x130
+[ 4702.942433]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.943076]  ret_from_fork+0x127/0x230
+[ 4702.943635]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.944264]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.944896]  ret_from_fork_asm+0x11/0x20
+[ 4702.945477]  </TASK>
+[ 4702.945819] task:kworker/u24:0   state:I stack:0     pid:72    tgid:72    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.947422] Call Trace:
+[ 4702.947799]  <TASK>
+[ 4702.948126]  __schedule+0x35b/0xaa0
+[ 4702.948652]  schedule+0x27/0xe0
+[ 4702.949127]  worker_thread+0xa4/0x340
+[ 4702.949675]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.950293]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.950887]  kthread+0xf4/0x130
+[ 4702.951368]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.952004]  ret_from_fork+0x127/0x230
+[ 4702.952570]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.953205]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.953840]  ret_from_fork_asm+0x11/0x20
+[ 4702.954447]  </TASK>
+[ 4702.954787] task:kworker/u25:0   state:I stack:0     pid:73    tgid:73    ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.956388] Call Trace:
+[ 4702.956763]  <TASK>
+[ 4702.957088]  __schedule+0x35b/0xaa0
+[ 4702.957611]  schedule+0x27/0xe0
+[ 4702.958109]  worker_thread+0xa4/0x340
+[ 4702.958655]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.959332]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.959853]  kthread+0xf4/0x130
+[ 4702.960279]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.960836]  ret_from_fork+0x127/0x230
+[ 4702.961330]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.961884]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.962461]  ret_from_fork_asm+0x11/0x20
+[ 4702.962973]  </TASK>
+[ 4702.963277] task:systemd-journal state:S stack:0     pid:131   tgid:131   ppid:1      task_flags:0x400100 flags:0x00080000
+[ 4702.964686] Call Trace:
+[ 4702.965013]  <TASK>
+[ 4702.965299]  __schedule+0x35b/0xaa0
+[ 4702.965758]  schedule+0x27/0xe0
+[ 4702.966201]  schedule_hrtimeout_range_clock+0xf3/0x100
+[ 4702.966864]  ? do_epoll_ctl_file+0x16e/0x6d0
+[ 4702.967434]  do_epoll_wait+0x52d/0x580
+[ 4702.967933]  ? ep_destroy_wakeup_source+0x20/0x20
+[ 4702.968546]  __x64_sys_epoll_wait+0x5f/0x100
+[ 4702.969100]  do_syscall_64+0x7d/0x410
+[ 4702.969582]  entry_SYSCALL_64_after_hwframe+0x4b/0x53
+[ 4702.970254] RIP: 0033:0x7f3b9132703e
+[ 4702.970724] RSP: 002b:00007ffe03918ec0 EFLAGS: 00000202 ORIG_RAX: 00000000000000e8
+[ 4702.971699] RAX: ffffffffffffffda RBX: 0000000000000024 RCX: 00007f3b9132703e
+[ 4702.972607] RDX: 0000000000000024 RSI: 000055d6bd1d7980 RDI: 0000000000000007
+[ 4702.973516] RBP: 00007ffe03918ed0 R08: 0000000000000000 R09: 0000000000000000
+[ 4702.974439] R10: ffffffffffffffff R11: 0000000000000202 R12: 0000000000000000
+[ 4702.975355] R13: 0000000000000007 R14: 000055d6bd1cfac0 R15: 0000000000000013
+[ 4702.976265]  </TASK>
+[ 4702.976563] task:kworker/u20:2   state:I stack:0     pid:172   tgid:172   ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.977975] Workqueue:  0x0 (events_unbound)
+[ 4702.978532] Call Trace:
+[ 4702.978860]  <TASK>
+[ 4702.979157]  __schedule+0x35b/0xaa0
+[ 4702.979627]  schedule+0x27/0xe0
+[ 4702.980045]  worker_thread+0xa4/0x340
+[ 4702.980525]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.981047]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.981568]  kthread+0xf4/0x130
+[ 4702.982000]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.982557]  ret_from_fork+0x127/0x230
+[ 4702.983047]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.983610]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.984170]  ret_from_fork_asm+0x11/0x20
+[ 4702.984680]  </TASK>
+[ 4702.984976] task:kworker/3:2     state:I stack:0     pid:285   tgid:285   ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4702.986378] Workqueue:  0x0 (cgroup_free)
+[ 4702.986898] Call Trace:
+[ 4702.987229]  <TASK>
+[ 4702.987521]  __schedule+0x35b/0xaa0
+[ 4702.987984]  schedule+0x27/0xe0
+[ 4702.988401]  worker_thread+0xa4/0x340
+[ 4702.988884]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.989402]  ? rescuer_thread+0x4e0/0x4e0
+[ 4702.989921]  kthread+0xf4/0x130
+[ 4702.990357]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.990912]  ret_from_fork+0x127/0x230
+[ 4702.991411]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.991966]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.992527]  ret_from_fork_asm+0x11/0x20
+[ 4702.993043]  </TASK>
+[ 4702.993340] task:psimon          state:S stack:0     pid:332   tgid:332   ppid:2      task_flags:0x208040 flags:0x00080000
+[ 4702.994756] Call Trace:
+[ 4702.995102]  <TASK>
+[ 4702.995387]  __schedule+0x35b/0xaa0
+[ 4702.995845]  schedule+0x27/0xe0
+[ 4702.996260]  psi_rtpoll_worker+0x1b0/0x3b0
+[ 4702.996793]  ? housekeeping_test_cpu+0x60/0x60
+[ 4702.997367]  ? collect_percpu_times+0x390/0x390
+[ 4702.997972]  kthread+0xf4/0x130
+[ 4702.998399]  ? kthreads_online_cpu+0x20/0x20
+[ 4702.998970]  ret_from_fork+0x127/0x230
+[ 4702.999468]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.000030]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.000589]  ret_from_fork_asm+0x11/0x20
+[ 4703.001104]  </TASK>
+[ 4703.001403] task:kworker/2:2     state:I stack:0     pid:371   tgid:371   ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4703.002832] Workqueue:  0x0 (events)
+[ 4703.003314] Call Trace:
+[ 4703.003646]  <TASK>
+[ 4703.003935]  __schedule+0x35b/0xaa0
+[ 4703.004403]  schedule+0x27/0xe0
+[ 4703.004825]  worker_thread+0xa4/0x340
+[ 4703.005322]  ? rescuer_thread+0x4e0/0x4e0
+[ 4703.005891]  ? rescuer_thread+0x4e0/0x4e0
+[ 4703.006512]  kthread+0xf4/0x130
+[ 4703.006990]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.007627]  ret_from_fork+0x127/0x230
+[ 4703.008188]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.008824]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.009469]  ret_from_fork_asm+0x11/0x20
+[ 4703.010091]  </TASK>
+[ 4703.010438] task:kworker/u19:1   state:I stack:0     pid:417   tgid:417   ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4703.012085] Call Trace:
+[ 4703.012472]  <TASK>
+[ 4703.012817]  __schedule+0x35b/0xaa0
+[ 4703.013376]  schedule+0x27/0xe0
+[ 4703.013874]  worker_thread+0xa4/0x340
+[ 4703.014471]  ? rescuer_thread+0x4e0/0x4e0
+[ 4703.015109]  kthread+0xf4/0x130
+[ 4703.015615]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.016292]  ret_from_fork+0x127/0x230
+[ 4703.016830]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.017420]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.018035]  ret_from_fork_asm+0x11/0x20
+[ 4703.018603]  </TASK>
+[ 4703.018954] task:chroot          state:D stack:0     pid:441   tgid:441   ppid:1      task_flags:0x400100 flags:0x00080000
+[ 4703.020467] Call Trace:
+[ 4703.020839]  <TASK>
+[ 4703.021134]  __schedule+0x35b/0xaa0
+[ 4703.021640]  schedule+0x27/0xe0
+[ 4703.022170]  io_schedule+0x4c/0x80
+[ 4703.022750]  filemap_update_page+0x3d1/0x470
+[ 4703.023472]  ? filemap_invalidate_unlock_two+0x70/0x70
+[ 4703.024316]  filemap_get_pages+0x3a3/0x440
+[ 4703.024997]  filemap_read+0x103/0x450
+[ 4703.025610]  __kernel_read+0x16b/0x2b0
+[ 4703.026261]  bprm_execve+0x220/0x480
+[ 4703.026861]  do_execveat_common+0x164/0x180
+[ 4703.027537]  ? do_getname.isra.0+0x4d/0x160
+[ 4703.028200]  __x64_sys_execve+0x3a/0x60
+[ 4703.028838]  do_syscall_64+0x7d/0x410
+[ 4703.029445]  entry_SYSCALL_64_after_hwframe+0x4b/0x53
+[ 4703.030302] RIP: 0033:0x7fcc45321edb
+[ 4703.030894] RSP: 002b:00007fff9bf6e6e8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
+[ 4703.032105] RAX: ffffffffffffffda RBX: 00007fff9bf6fd42 RCX: 00007fcc45321edb
+[ 4703.033237] RDX: 00007fff9bf6e9c8 RSI: 00007fff9bf6e9b8 RDI: 00007fff9bf6fd42
+[ 4703.034374] RBP: 00007fff9bf6e760 R08: 0000000000000000 R09: 0000000000000000
+[ 4703.035491] R10: 0000000000000000 R11: 0000000000000206 R12: 0000000000000000
+[ 4703.036526] R13: 00007fff9bf6e9c8 R14: 0000000000000000 R15: 00007fff9bf6e9b8
+[ 4703.037589]  </TASK>
+[ 4703.037961] task:kworker/u19:2   state:I stack:0     pid:443   tgid:443   ppid:2      task_flags:0x4208060 flags:0x00080000
+[ 4703.039493] Workqueue:  0x0 (events_unbound)
+[ 4703.040056] Call Trace:
+[ 4703.040391]  <TASK>
+[ 4703.040678]  __schedule+0x35b/0xaa0
+[ 4703.041140]  schedule+0x27/0xe0
+[ 4703.041559]  worker_thread+0xa4/0x340
+[ 4703.042074]  ? rescuer_thread+0x4e0/0x4e0
+[ 4703.042593]  ? rescuer_thread+0x4e0/0x4e0
+[ 4703.043129]  kthread+0xf4/0x130
+[ 4703.043552]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.044127]  ret_from_fork+0x127/0x230
+[ 4703.044628]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.045197]  ? kthreads_online_cpu+0x20/0x20
+[ 4703.045757]  ret_from_fork_asm+0x11/0x20
+[ 4703.046301]  </TASK>
