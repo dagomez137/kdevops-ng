@@ -11,7 +11,7 @@ This is a how-to for exercising an emulated NVMe Controller Memory Buffer
 mutually exclusive paths: the `SPDK`_ userspace driver (the primary path) and
 the in-kernel ``nvme`` driver (the no-SPDK alternative).
 
-The guests are produced by the boot flow (``f/qsu/boot``); see
+The guests are produced by the boot flow (:src:`f/qsu/boot`); see
 :doc:`/flows/guests` for how to inspect a running guest. `QEMU`_ emits the CMB
 on PCI BAR 2 and the PMR on BAR 4/5, controlled by the NVMe knobs in the boot
 flow (``f/qsu/boot``).
@@ -196,7 +196,7 @@ Confirm on the host that the guest write appears in the backing file:
    $ grep -a PMRTEST ~/.local/state/qemu-system/<vm>/nvme-pmr-1.img
 
 The PMR ``size`` must be a power of two and at least one host page
-(``f/qsu/common`` rejects anything smaller). Here ``00:05.0`` maps to drive
+(:src:`f/qsu/common` rejects anything smaller). Here ``00:05.0`` maps to drive
 index 1, which maps to ``nvme-pmr-1.img``.
 
 Pitfalls

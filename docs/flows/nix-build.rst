@@ -6,12 +6,13 @@
 Build the NixOS closure
 =======================
 
-The `f/nix/build`_ flow builds a NixOS system with `Nix`_, the way
-`f/kernel/build`_ builds a kernel and `f/qemu/build`_ builds an emulator. Today
-it builds the *imageless* product: a ``toplevel`` system whose closure (every
-store path it references) a VM boots over virtiofs, with a tmpfs root and
-``/nix/store`` and ``/lib/modules`` shared from the host. Other products, such
-as a disk-image ``libvirt`` system, could be added under the same flow later.
+The :src:`f/nix/build` flow builds a NixOS system with `Nix`_, the way
+:src:`f/kernel/build` builds a kernel and :src:`f/qemu/build` builds an
+emulator. Today it builds the *imageless* product: a ``toplevel`` system whose
+closure (every store path it references) a VM boots over virtiofs, with a tmpfs
+root and ``/nix/store`` and ``/lib/modules`` shared from the host. Other
+products, such as a disk-image ``libvirt`` system, could be added under the same
+flow later.
 
 The flow is the Windmill reimplementation of kdevops's ``nixosfi`` role. It
 covers only the build half: render, lock, then build the closure. Booting the
@@ -65,7 +66,7 @@ SSH keys) lives in ``default.nix``. The only thing that varies the ``flake.nix``
 is an optional per-package source override input.
 
 The imageless kernel is external (``boot.kernel.enable = false``), so the kernel
-image and ``/lib/modules`` come from `f/kernel/build`_, not from the closure.
+image and ``/lib/modules`` come from ``f/kernel/build``, not from the closure.
 That kernel must have ``CONFIG_VIRTIO_FS=y``, ``CONFIG_VIRTIO_PCI=y`` and
 ``CONFIG_TMPFS=y`` built in, which is exactly what the ``imageless_defconfig``
 preset guarantees. The clean closure path is therefore: preset config, then
@@ -102,7 +103,7 @@ A kernel build is deliberately not a Nix derivation. There, Nix's role is to
 provide a toolchain (GCC, make, bison and friends) and the pipeline decides
 which compiler, flags and targets to use inside the resulting shell:
 ``f/kernel/build`` runs ``nix develop .#build --command make ...``. Generating a
-flake to compile a kernel would be a category error, so ``f/kernel`` stays on
+flake to compile a kernel would be a category error, so :src:`f/kernel` stays on
 ``#build`` and produces no per-build flake.
 
 A NixOS closure is the opposite: the closure is the derivation, so building it
@@ -156,11 +157,11 @@ Why f/nix
 =========
 
 Nix is the umbrella and NixOS is one thing built with it; every operation in
-this flow goes through the ``nix`` CLI. A single ``f/nix`` bucket cleanly holds
-both "run a package" (the existing ``f/nix/hello`` is ``nix run
+this flow goes through the ``nix`` CLI. A single :src:`f/nix` bucket cleanly
+holds both “run a package” (the existing ``f/nix/hello`` is ``nix run
 nixpkgs#hello``) and "build a NixOS system", because both are Nix operations.
 Booting the closure is not a Nix operation (it is host-systemd VM lifecycle), so
-it stays in a separate boot bucket under ``f/qsu/``. This mirrors
+it stays in a separate boot bucket under :src:`f/qsu`. This mirrors
 kdevops's own split, where the ``nixosfi`` role builds the closure and a
 separate role boots it.
 
@@ -177,12 +178,5 @@ the ``toplevel`` closure with the external kernel and modules and starts the
 machine. Because the build half needs no host systemd, the entire render, lock
 and build sequence is runnable and provable on its own, before the boot half
 exists.
-
-.. _f/nix/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/nix/build.flow
-.. _f/kernel/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/kernel/build.flow
-.. _f/qemu/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/build.flow
 
 .. _Nix: https://nixos.org/

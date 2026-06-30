@@ -66,15 +66,15 @@ same passwordless SSH the Store uses (the ``transfer`` devShell's OpenSSH). Keep
 Provisioning
 ============
 
-Run ``f/workbench/init`` (which drives ``f/workbench/fetch``) with a ``peers``
-list of the SSH-host aliases of the other hosts:
+Run :src:`f/workbench/init` (which drives :src:`f/workbench/fetch`) with a
+``peers`` list of the SSH-host aliases of the other hosts:
 
 .. code-block:: console
 
    $ wmill flow run f/workbench/init --data '{"peers": ["hetzie"]}'
 
 The peer wiring is implemented by the ``_ensure_peers`` helper in
-``f/workbench/fetch.py``: it adds (or refreshes) one ``<peer>`` remote per
+:src:`f/workbench/fetch.py`: it adds (or refreshes) one ``<peer>`` remote per
 alias on each Bare and sets the
 ``+refs/heads/*:refs/remotes/<peer>/*`` refspec, printing each remote it
 touches.

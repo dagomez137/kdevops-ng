@@ -205,7 +205,8 @@ those two import diagnostics, ``scripts/`` keeps the basic default.
 Docstrings
 ----------
 
-A step opens with a module docstring in the ``f/kernel`` and ``f/qemu`` style:
+A step opens with a module docstring in the :src:`f/kernel` and :src:`f/qemu`
+style:
 a short prose summary followed by an ``Equivalent command`` (or
 ``Equivalent bash``) block that shows the operation as a copy-pasteable shell
 command. There is no docstring rule in the gate, and none is wanted: requiring

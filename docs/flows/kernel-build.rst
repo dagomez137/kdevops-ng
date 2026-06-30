@@ -6,7 +6,7 @@
 Build the Linux kernel
 ======================
 
-The `f/kernel/build`_ flow builds a custom `Linux kernel`_ from source,
+The :src:`f/kernel/build` flow builds a custom `Linux kernel`_ from source,
 reproducibly, to boot in a QEMU virtual machine run through systemd. It is the
 Windmill equivalent of a ``make`` of an upstream kernel at a pinned ref,
 optionally with a mailed patch series applied on top. The flow runs over a
@@ -14,7 +14,7 @@ mirror-backed git
 worktree inside the ``nixos-flake`` ``.#build`` devShell, with
 ``make --jobs=$(nproc)`` so the container cgroup governs CPU and concurrent
 builds self-balance across workers, and returns a manifest a downstream flow
-reads. `f/qemu/build`_ deliberately mirrors it for QEMU.
+reads. :src:`f/qemu/build` deliberately mirrors it for QEMU.
 
 The flow
 ========
@@ -101,7 +101,7 @@ incremental, and because each worker has its own warm tree, builds on different
 workers run in parallel. Everything lives under ``WORKERS_DIR``, bind-mounted at
 identical host paths, so a host-forked process (the guest's QEMU) reads the
 artifacts directly. For the durable-Bare provisioning model shared with the
-QEMU build, see `f/workbench/fetch`_ and :doc:`/concepts/build-store`.
+QEMU build, see :src:`f/workbench/fetch` and :doc:`/concepts/build-store`.
 
 Schema inputs
 =============
@@ -197,7 +197,7 @@ Build
 ``ccache`` and ``ccache_max_size``
    Compile through ccache (``CC="ccache <cc>"``, a shared ``CCACHE_DIR``), on by
    default with a 10 GiB cache, driven by the shared ``write_ccache_conf``
-   helper in ``f/common/devshell`` that the QEMU build also uses.
+   helper in :src:`f/common/devshell` that the QEMU build also uses.
 
 Reuse
 -----
@@ -236,17 +236,17 @@ Configuration methods
 steps produces ``.config``:
 
 ``preset``
-   ``f/kernel/configure_preset`` applies a predefined whole-kernel config from
-   the library through the kernel's own ``KCONFIG_ALLCONFIG`` mechanism
+   :src:`f/kernel/configure_preset` applies a predefined whole-kernel config
+   from the library through the kernel's own ``KCONFIG_ALLCONFIG`` mechanism
    (``make KCONFIG_ALLCONFIG=<file> alldefconfig``), which forces the preset's
    symbols and defaults the rest. This is the zero-config path.
 
 ``make``
-   ``f/kernel/configure_make`` runs one or more in-tree config goals
+   :src:`f/kernel/configure_make` runs one or more in-tree config goals
    (``defconfig``, ``tinyconfig``, ``kvm_guest.config``, ...) the ordinary way.
 
 ``fragments``
-   ``f/kernel/configure_fragments`` merges curated fragments from
+   :src:`f/kernel/configure_fragments` merges curated fragments from
    `linux-config-fragments`_ with the kernel's ``merge_config.sh``, imposing a
    canonical category order (core, arch, ..., debug) with the ``builtin/``
    ``=y`` overrides last, so the merged ``.config`` is deterministic.
@@ -352,7 +352,7 @@ How the guest layer consumes this
 
 kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit,
 an instance of the ``qemu-system@.service`` template unit, and that unit
-consumes both build flows: ``qemu_binary`` from `f/qemu/build`_ becomes the
+consumes both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the
 unit's ``ExecStart=`` emulator, while ``bzImage`` from this flow becomes
 ``-kernel`` and the ``/lib/modules`` tree becomes a ``virtiofs`` share the guest
 mounts at ``/lib/modules/$(uname -r)``. Because the booted kernel's
@@ -360,13 +360,6 @@ mounts at ``/lib/modules/$(uname -r)``. Because the booted kernel's
 exact release, so module autoload (virtio-vsock, virtiofs, and the rest) lines
 up with the running kernel. For inspecting a running guest see
 :doc:`/flows/guests`.
-
-.. _f/kernel/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/kernel/build.flow
-.. _f/qemu/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/build.flow
-.. _f/workbench/fetch:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/workbench/fetch.flow
 
 .. _Linux kernel: https://www.kernel.org/
 .. _linux-config-fragments: https://github.com/dagomez137/linux-config-fragments

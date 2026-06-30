@@ -7,7 +7,7 @@ Flows and steps
 The `Windmill`_ workspace content lives under ``f/``, managed by ``wmill``. Its
 names follow a convention so the tree reads as a set of actions grouped by
 concern. Each subsystem directory under ``f/`` groups one concern, for
-example ``f/kernel``, ``f/qemu`` or ``f/qsu``.
+example :src:`f/kernel`, :src:`f/qemu` or :src:`f/qsu`.
 
 ::
 

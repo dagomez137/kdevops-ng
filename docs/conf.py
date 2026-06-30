@@ -104,7 +104,40 @@ def _cmd_role(name, rawtext, text, lineno, inliner, options=None, content=None):
     return [nodes.reference(rawtext, "", code, refuri=uri)], []
 
 
+# An f/ path reads as code, so ":src:`f/kernel/build`" renders the path as a
+# monospaced literal hyperlinked to its source. The URL is resolved against the
+# working tree (the path itself, then .flow, then .py), so a flow, a step, a
+# shared module, a subsystem directory, or a concrete file all link correctly
+# with no per-path table. An unresolvable path fails the build.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SRC_BASE = "https://github.com/dagomez137/kdevops-ng"
+
+
+def _src_url(path):
+    for candidate in (path, f"{path}.flow", f"{path}.py"):
+        full = os.path.join(_REPO_ROOT, candidate)
+        if os.path.isdir(full):
+            return f"{_SRC_BASE}/tree/main/{candidate}"
+        if os.path.isfile(full):
+            return f"{_SRC_BASE}/blob/main/{candidate}"
+    return None
+
+
+def _src_role(name, rawtext, text, lineno, inliner, options=None, content=None):
+    uri = _src_url(text)
+    code = nodes.literal(rawtext, text)
+    if uri is None:
+        msg = inliner.reporter.error(
+            f"src: no source found for {text!r} (looked for {text}, "
+            f"{text}.flow, {text}.py under the repo root)",
+            line=lineno,
+        )
+        return [code], [msg]
+    return [nodes.reference(rawtext, "", code, refuri=uri)], []
+
+
 def setup(app):
     app.add_config_value("cmd_links", {}, "env")
     app.add_role("cmd", _cmd_role)
+    app.add_role("src", _src_role)
     return {"parallel_read_safe": True, "parallel_write_safe": True}

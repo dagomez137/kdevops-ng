@@ -152,16 +152,22 @@ project, tool, service, systemd unit or directive, or any man-page-documented
 command, link it to its canonical manual or source; later mentions in the same
 file stay plain text. Link an internal concept (a flow, a step) to its concept
 or reference page with `:doc:`, and link an `f/` flow or step path to its
-source.
+source with the `:src:` role (below).
 
 A command, tool, or systemd directive reads as code, so link it with the
 `:cmd:` role: ``:cmd:`ssh``` renders ``ssh`` (a monospaced literal) hyperlinked
 to its manual. The role resolves the name through the one `cmd_links` table in
 `docs/conf.py`, the single source for those URLs, so add a name there once and
-every page links it the same way; an unregistered name fails the build. For
-everything else (a project name, an `f/` path, any prose-worded link) use the
-named-target style, the inline `` `Name`_ `` reference with its `.. _Name: URL`
-definition collected at the foot of the file, matching `docs/concepts/flows.rst`.
+every page links it the same way; an unregistered name fails the build. An `f/`
+flow, step, module, or file path reads as code too, so link it with the `:src:`
+role: ``:src:`f/kernel/build``` renders ``f/kernel/build`` hyperlinked to its
+source. That role resolves the path against the working tree (the path itself,
+then `.flow`, then `.py`), so a flow, a step, a shared module, a subsystem
+directory, or a concrete file all link with no per-path table; an unresolvable
+path fails the build. For everything else (a project name, any prose-worded
+link) use the named-target style, the inline `` `Name`_ `` reference with its
+`.. _Name: URL` definition collected at the foot of the file, matching
+`docs/concepts/flows.rst`.
 
 Document each flow on its own page under `docs/flows/`. Anything common to
 every flow that drives a guest (the job log being the primary view, reaching a

@@ -25,10 +25,11 @@ Reaching a guest from the command line
 ======================================
 
 Flows reach a guest over vsock-SSH, using the kdevops-managed SSH config that
-`f/workbench/init`_ generates: a ``Host <vm>`` block per booted VM, dialing its
-``vsock/<cid>`` through :cmd:`systemd-ssh-proxy`. Add the one-line ``Include``
-of that config to your :cmd:`~/.ssh/config` (see :doc:`../deployment/nix`) and
-the VM name becomes an ordinary :cmd:`ssh` alias, so ``ssh <vm> …`` works.
+:src:`f/workbench/init` generates: a ``Host <vm>`` block per booted VM, dialing
+its ``vsock/<cid>`` through :cmd:`systemd-ssh-proxy`. Add the one-line
+``Include`` of that config to your :cmd:`~/.ssh/config` (see
+:doc:`../deployment/nix`) and the VM name becomes an ordinary :cmd:`ssh` alias,
+so ``ssh <vm> …`` works.
 
 With that alias in place, systemd's own remote flag reaches the guest's systemd
 over the same ``ssh`` transport. Most systemd client tools (:cmd:`systemctl`,
@@ -124,5 +125,3 @@ its system bus:
 
 .. _Windmill: https://www.windmill.dev/
 .. _qemu-system-units: https://github.com/linux-kdevops/qemu-system-units
-.. _f/workbench/init:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/workbench/init.flow

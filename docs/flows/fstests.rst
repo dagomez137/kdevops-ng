@@ -4,9 +4,9 @@
 Run an xfstests check
 =====================
 
-The `f/fstests/check`_ flow runs an `xfstests`_ ``./check`` against an
+The :src:`f/fstests/check` flow runs an `xfstests`_ ``./check`` against an
 already-booted, fstests-ready guest: the Windmill equivalent of an xfstests
-``./check`` run. The guest is produced separately by `f/qsu/bringup`_ with a
+``./check`` run. The guest is produced separately by :src:`f/qsu/bringup` with a
 writable ``fstests`` virtiofs share mounted at ``/var/lib/xfstests`` and the
 test/scratch NVMe drives attached.
 
@@ -138,7 +138,7 @@ example::
 and the run moves on to ``generic/311``.
 
 To abort the **whole** section instead of skipping one test, stop its unit (this
-is the documented fallback in `f/fstests/stop.py`_, and also what the flow's
+is the documented fallback in :src:`f/fstests/stop.py`, and also what the flow's
 ``failure_module`` runs when you cancel the Windmill job):
 
 .. code-block:: console
@@ -152,10 +152,4 @@ runs the ``failure_module`` for you, so it tears the running section down on the
 guest; a force-kill bypasses that and leaves ``./check`` burning CPU under
 ``TimeoutStartSec=infinity``.
 
-.. _f/fstests/check:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/fstests/check.flow
-.. _f/qsu/bringup:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/qsu/bringup.flow
-.. _f/fstests/stop.py:
-   https://github.com/dagomez137/kdevops-ng/blob/main/f/fstests/stop.py
 .. _xfstests: https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git/

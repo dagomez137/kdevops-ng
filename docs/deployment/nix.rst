@@ -220,9 +220,9 @@ The default deploy ships the full mix, so every flow runs out of the box:
 per-instance drop-ins the install step writes.
 
 The kdevops workspace drives QEMU virtual machines through systemd (the
-``f/qsu`` steps), and those jobs use the ``vm`` group, split across two tags so
-a long job never starves a quick one: the ``vm`` tag is the quick lifecycle and
-control ops (boot, stop, destroy, status), the ``vm-run`` tag is only the
+:src:`f/qsu` steps), and those jobs use the ``vm`` group, split across two tags
+so a long job never starves a quick one: the ``vm`` tag is the quick lifecycle
+and control ops (boot, stop, destroy, status), the ``vm-run`` tag is only the
 long-lived fstests wait poll. The ``vm-run`` instance count is the
 concurrent-test-run cap. The vm group needs the :term:`System workbench`
 provisioned and the host ``vhost_vsock`` module loaded.
@@ -278,8 +278,8 @@ unit file and a single one can also be added with ``systemctl --user enable
 --now windmill-worker@0004`` (no rebuild or reinstall either way). The server's
 PostgreSQL must be reachable from this host: it binds ``127.0.0.1`` by default,
 so expose it or tunnel. Build-pool workers also need the :term:`System
-workbench` provisioned here, the same ``f/workbench`` init flow as on any worker
-host.
+workbench` provisioned here, the same :src:`f/workbench` init flow as on any
+worker host.
 
 TLS and the base URL
 --------------------
@@ -344,9 +344,9 @@ To reuse work you already have (from an earlier workbench, or when relocating
 ``system/ssh`` (so the guest key is kept, not regenerated) into the new
 ``SYSTEM_DIR`` before running the flow; on one filesystem the move is instant.
 Or, to leave the mirror where it already sits, point ``MIRRORS_DIR`` at it
-instead of moving it. ``f/workbench/fetch`` then cuts fresh bares from the
+instead of moving it. :src:`f/workbench/fetch` then cuts fresh bares from the
 mirrors, ``ssh_key`` rewrites the ssh config for the new path, and
-``f/workbench/mirror`` installs the ``git-mirror@`` timers, so the clones are
+:src:`f/workbench/mirror` installs the ``git-mirror@`` timers, so the clones are
 refreshed in place rather than re-cloned. The bares borrow the mirror through an
 alternate that ``fetch`` rewrites authoritatively, so a moved or repointed
 mirror leaves one valid alternate, not a dangling one. The bares and worker

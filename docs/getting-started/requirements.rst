@@ -43,7 +43,7 @@ enabled once:
 Host access for guests
 ======================
 
-Running the guest VMs (the ``f/qsu`` flows) needs kernel-level access granted
+Running the guest VMs (the :src:`f/qsu` flows) needs kernel-level access granted
 once. Add yourself to the ``kvm`` group for ``/dev/kvm`` (QEMU's ``-accel kvm``)
 and ``systemd-journal`` to read service logs without sudo:
 

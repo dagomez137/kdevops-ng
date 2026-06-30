@@ -59,7 +59,7 @@ consumer fetches only what it needs.
    * - run
      - ``kernel-<release>`` / ``qemu-<version>-<label>-<identity>``
      - boot image plus ``lib/modules/<release>``, or the QEMU install tree
-     - booting a VM (``f/qsu``)
+     - booting a VM (:src:`f/qsu`)
    * - devel
      - ``kernel-devel-<release>``
      - the build dir's ``.cmd`` command database and generated headers
@@ -68,7 +68,7 @@ consumer fetches only what it needs.
 Keeping the layers apart means a boot fetch stays lean and never drags the much
 larger devel layer (roughly 190 MB), while a developer fetching an index never
 pulls boot images. The devel layer's composition, and the allowlist that builds
-it, live in ``f/kernel/publish_devel.py``.
+it, live in :src:`f/kernel/publish_devel.py`.
 
 The catalog
 ===========
@@ -130,7 +130,7 @@ Cross-host fetch
 
 The build flows' run-layer auto-fetch is driven by the ``use_peers`` toggle in
 the Reuse group and the peers registry at ``SYSTEM_DIR/peers`` (one
-``<host> [<store-index>]`` per line, written by `f/workbench/fetch`_). With
+``<host> [<store-index>]`` per line, written by :src:`f/workbench/fetch`). With
 ``use_peers`` on, ``fetch_identity`` sweeps the registered peers and, for the
 first that already published this identity, learns the peer's store path from
 ``ssh <host> readlink <index>/<name>`` and pulls it with
@@ -155,7 +155,7 @@ branch, cross the other way by git; see :doc:`/concepts/cross-host-development`.
 Inspecting and pruning
 ======================
 
-The ``f/common/store_index`` step reads and maintains the catalog:
+The :src:`f/common/store_index` step reads and maintains the catalog:
 
 * ``list`` (the default): the local catalog with sizes and validity, plus a
   peer's when ``remote`` and ``remote_index`` are set.
@@ -239,5 +239,3 @@ A peer's catalog is the same directory read over ssh:
 .. _Nix: https://nixos.org/
 .. _Nix store: https://nix.dev/manual/nix/2.24/store/
 .. _QEMU: https://www.qemu.org/
-.. _f/workbench/fetch:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/workbench/fetch.flow

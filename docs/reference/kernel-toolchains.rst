@@ -12,7 +12,7 @@ toolchains have non-obvious wiring: `Clang/LLVM`_, where the nixpkgs cc-wrapper
 fights the kernel's include handling, and `Rust`_, where the supported version
 window moves with the kernel version. This page records the durable recipe for
 each. The Clang/LLVM recipe is implemented in the ``build-kernel`` devShell of
-``vendor/nixos-flake`` and consumed by ``f/kernel/build_flags.py``; the Rust
+``vendor/nixos-flake`` and consumed by :src:`f/kernel/build_flags.py`; the Rust
 requirements drive both that devShell and any per-kernel toolchain selection.
 
 Clang and LLVM
@@ -125,8 +125,8 @@ QEMU under Clang
 QEMU is the easy case and needs no special recipe. It is ordinary userspace and
 does not use ``-nostdinc``, so the wrapped ``clang`` is the correct choice: it
 redirects to Nix's libc, which QEMU links against, and none of the kernel's
-three blockers apply. ``f/qemu/configure.py`` pins ``--cc=clang --cxx=clang++``
-with ``-Qunused-arguments`` to drop the GCC-only
+three blockers apply. :src:`f/qemu/configure.py` pins
+``--cc=clang --cxx=clang++`` with ``-Qunused-arguments`` to drop the GCC-only
 ``-Wa,--compress-debug-sections`` that ``clang`` sees as unused on link.
 
 Rust

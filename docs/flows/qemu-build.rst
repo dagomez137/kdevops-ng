@@ -6,11 +6,11 @@
 Build QEMU
 ==========
 
-The `f/qemu/build`_ flow builds a custom `QEMU`_ from source, reproducibly, to
-provide the emulator each guest's ``qemu-system@<vm>.service`` unit runs. It is
-the Windmill equivalent of an out-of-tree ``configure`` plus ``make`` of
-upstream QEMU at a pinned ref. The
-flow deliberately mirrors `f/kernel/build`_: a mirror-backed git worktree built
+The :src:`f/qemu/build` flow builds a custom `QEMU`_ from source, reproducibly,
+to provide the emulator each guest's ``qemu-system@<vm>.service`` unit runs.
+It is the Windmill equivalent of an out-of-tree ``configure`` plus ``make`` of
+upstream QEMU at a pinned ref. The flow
+deliberately mirrors :src:`f/kernel/build`: a mirror-backed git worktree built
 inside the ``nixos-flake`` ``.#build`` devShell, producing a ``result.json``
 manifest that a downstream flow reads. Most of this page is "do what the kernel
 build does, for QEMU"; the differences are called out where they matter.
@@ -64,13 +64,13 @@ mirror of ``qemu/qemu.git``, refreshed on a timer and sitting alongside the
 kernel mirror ``$SYSTEM_DIR/mirror/linux.git``. It rides the system workbench
 mount that every worker already has, so no separate mount is needed.
 
-The ``f/workbench/init`` flow provisions a durable Bare at
+The :src:`f/workbench/init` flow provisions a durable Bare at
 ``$SYSTEM_DIR/bare/qemu.git`` with ``git init --bare``, borrowing the mirror's
 objects through an alternate and fetching its heads into
 ``refs/remotes/mirror/*``. ``refs/heads/*`` stays reserved for developer
 branches. This step is
-idempotent, run over `f/workbench/fetch`_ from a source list (kernel plus QEMU
-by default).
+idempotent, run over :src:`f/workbench/fetch` from a source list (kernel plus
+QEMU by default).
 
 Off that Bare, ``prepare_worktree`` re-syncs this worker's one warm ``main``
 worktree at ``WORKERS_DIR/<WORKER_INDEX>/qemu`` to the requested ref with
@@ -85,7 +85,7 @@ QEMU) reads the artifacts directly. For the durable-Bare rationale see
 The flow
 ========
 
-The flow is a ``same_worker`` pipeline. It is structurally `f/kernel/build`_
+The flow is a ``same_worker`` pipeline. It is structurally ``f/kernel/build``
 without the config-method branch, because QEMU has a single configure path:
 
 ::
@@ -161,7 +161,7 @@ The form surfaces the choices a maintainer actually makes:
    Compile through ccache the documented QEMU way
    (``--cc="ccache <cc>"``, word-split into the meson compiler array). On by
    default with a 10 GiB cache, driven by the shared ``write_ccache_conf``
-   helper in ``f/common/devshell`` that the kernel build also uses.
+   helper in :src:`f/common/devshell` that the kernel build also uses.
 
 ``compile_commands``
    Copy meson's auto-generated ``compile_commands.json`` into the source root
@@ -240,7 +240,7 @@ QEMU has no ``kernelrelease`` to bake
 it into, so the identity keys the install prefix instead. The prefix leads with
 the QEMU version (from the source's ``VERSION`` file, the analog of the kernel
 version) and a readable **label** follows:
-``destdir/<version>-<label>-<identity>``, which `f/qemu/publish`_ stores as
+``destdir/<version>-<label>-<identity>``, which :src:`f/qemu/publish` stores as
 ``qemu-<version>-<label>-<identity>``. The label is the same inferred name the
 kernel build uses, with the same precedence and the same ``b4`` handling: a
 ``custom_label`` override; else, for a ``b4`` series, the series-root (cover)
@@ -265,9 +265,9 @@ How the guest layer consumes this
 kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit
 (an instance of the ``qemu-system@.service`` template unit) plus its
 ``virtiofsd@.service`` in the per-user service manager, and that unit consumes
-both build flows: ``qemu_binary`` from `f/qemu/build`_ becomes the
+both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the
 unit's ``ExecStart=`` emulator, while the ``bzImage`` and modules from
-`f/kernel/build`_ become ``-kernel`` and the virtiofs ``/lib/modules`` share.
+``f/kernel/build`` become ``-kernel`` and the virtiofs ``/lib/modules`` share.
 Because both manifests' paths live under ``WORKERS_DIR``, bind-mounted at the
 same absolute path on host and container, the host-forked unit resolves them
 directly; the host distro QEMU is never referenced. For inspecting a running
@@ -283,19 +283,11 @@ when no custom version is needed. Building a specific ref as a derivation
 (``pkgs.qemu.overrideAttrs`` with ``src = <ref>``) gives a custom version and a
 hermetic store path at once.
 
-Either route slots in as a second method inside `f/qemu/build`_ through a
+Either route slots in as a second method inside ``f/qemu/build`` through a
 ``branchone``, mirroring how the kernel build offers its config methods. It
 emits the same ``result.json`` (with ``qemu_binary`` as a store path), so the
 guest layer is unchanged. The meson-to-destdir method documented here ships
 first, and the derivation method follows.
 
-.. _f/qemu/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/build.flow
-.. _f/qemu/publish:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/qemu/publish.py
-.. _f/kernel/build:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/kernel/build.flow
-.. _f/workbench/fetch:
-   https://github.com/dagomez137/kdevops-ng/tree/main/f/workbench/fetch.flow
 
 .. _QEMU: https://www.qemu.org/
