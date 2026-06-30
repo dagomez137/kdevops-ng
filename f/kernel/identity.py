@@ -5,15 +5,20 @@ Imported with:  from f.kernel.identity import bake_identity
 
 A build's identity is a short hash over the inputs that fix its bytes: the `.config`,
 the toolchain (the `build-kernel` devShell's derivation path), the make flags, and the
-source commit, appended to any existing CONFIG_LOCALVERSION so `make kernelrelease`
-(and the booted `uname -r`) self-report it: `7.1.0-rc7-<hash>`, or
-`7.1.0-rc7-series-<hash>` when the config already carries a localversion. Same identity
+source commit. A readable label precedes that digest in CONFIG_LOCALVERSION, so
+`make kernelrelease` (and the booted `uname -r`) self-report a legible identity:
+`7.1.0-vanilla-<hash>`, or `7.1.0-iomap-consolidate-bio-submission-<hash>` for a
+series. The label comes from `f.common.worktree.prepare` (a user override, the b4
+series subject, `vanilla` for an upstream tag, or a slug of the dev ref) and is
+truncated to fit the 64-char release. An empty `.scmversion` is written into the
+worktree to drop the kernel's own `-<count>-g<sha>` describe suffix and free that
+budget; the commit it encodes survives in the manifest and the digest. Same identity
 then means same bytes, so the image and modules install under one release and a built
 identity can be fetched or reused instead of rebuilt.
 
 The hash excludes the CONFIG_LOCALVERSION line and the host-specific
-`-fdebug-prefix-map` value from the make flags, so the identity is the same on every
-host.
+`-fdebug-prefix-map` value from the make flags, so the identity (and thus the digest)
+is the same on every host and unaffected by the label.
 
 Equivalent bash, run inside the nixos-flake build devShell:
 
@@ -38,21 +43,60 @@ def main():
     return "f/kernel/identity: build-identity helper"
 
 
-def bake_identity(shell, worktree: str, build_dir: str, make_flags: str = "") -> str:
+def bake_identity(
+    shell, worktree: str, build_dir: str, make_flags: str = "", label: str = ""
+) -> str:
     config = Path(build_dir) / ".config"
     text = config.read_text()
     digest = _digest(text, worktree, make_flags)
-    # strip a prior identity before re-appending.
-    base = re.sub(r"-[0-9a-f]{12}$", "", _localversion(text))
-    _set_localversion(config, f"{base}-{digest}")
 
     base = ["make", f"--directory={worktree}", f"O={build_dir}"]
     flags = shlex.split(make_flags)
+
+    # uts_release = <version>-<label>-<digest>; fit the label into what is left of
+    # the 64-char release after the version, two dashes and the 12-hex digest.
+    version = shell.capture(*base, "--silent", *flags, "kernelversion").strip()
+    label = _fit_label(label, 64 - len(version) - 14)
+
+    # strip a prior identity (label and digest) before re-appending, so re-config
+    # is idempotent; the label goes before the digest.
+    prior = re.sub(r"-[0-9a-f]{12}$", "", _localversion(text))
+    if label and prior.endswith(f"-{label}"):
+        prior = prior[: -len(label) - 1]
+    localversion = f"{prior}-{label}-{digest}" if label else f"{prior}-{digest}"
+    _set_localversion(config, localversion)
+    _write_scmversion(worktree)
+
     # syncconfig regenerates auto.conf.
     shell.run(*base, *flags, "syncconfig")
     release = shell.capture(*base, "--silent", *flags, "kernelrelease").strip()
     print(f"build identity {digest} -> {release}", flush=True)
     return release
+
+
+def _fit_label(label: str, budget: int) -> str:
+    """Truncate a label to `budget` chars, preferring to cut at the last `-` within
+    budget so it never ends on a dash; an empty budget drops the label."""
+    if budget <= 0:
+        return ""
+    if len(label) <= budget:
+        return label
+    cut = label[:budget]
+    if "-" in cut:
+        cut = cut[: cut.rindex("-")]
+    return cut.rstrip("-._")
+
+
+def _write_scmversion(worktree: str) -> None:
+    """Suppress setlocalversion's git-describe suffix with an empty `.scmversion`.
+
+    The file is in the kernel's .gitignore, so the worktree's `git clean -fd`
+    preserves it across rebuilds; setlocalversion short-circuits on it, dropping the
+    `-<count>-g<sha>` describe (and any `+`), which frees the label's length budget.
+    """
+    path = Path(worktree) / ".scmversion"
+    path.write_text("")
+    print(f"wrote {path}  (empty: suppresses setlocalversion describe)", flush=True)
 
 
 def _digest(config_text: str, worktree: str, make_flags: str) -> str:

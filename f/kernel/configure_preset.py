@@ -29,6 +29,7 @@ def main(
     build_dir: str,
     preset: str = "imageless_defconfig",
     make_flags: str = "",
+    label: str = "",
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     preset_file = _resolve_preset(workers, preset)
@@ -43,7 +44,7 @@ def main(
     shell.run(
         "make", *base, *flag_args, f"KCONFIG_ALLCONFIG={preset_file}", "alldefconfig"
     )
-    kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
+    kernelrelease = bake_identity(shell, worktree, str(build), make_flags, label=label)
 
     return {
         "kernelrelease": kernelrelease,

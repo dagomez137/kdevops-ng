@@ -60,6 +60,7 @@ def main(
     fragments: list[str] | None = None,
     allnoconfig_base: bool = True,
     make_flags: str = "",
+    label: str = "",
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
@@ -100,7 +101,7 @@ def main(
         cwd=worktree,
         env=flags_to_env(make_flags),
     )
-    kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
+    kernelrelease = bake_identity(shell, worktree, str(build), make_flags, label=label)
 
     print(
         f"configured {len(fragments)} fragment(s) -> {kernelrelease or 'unknown'}",

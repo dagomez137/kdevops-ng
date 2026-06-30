@@ -7,8 +7,8 @@ Imported with:  from f.common.worktree import prepare
 `$SYSTEM_DIR/bare/<project>.git` (see `f/workbench/fetch.py`). The Bare borrows the
 local mirror's objects, so cutting a worktree is cheap and every worker sees the
 same trees. Its `git` comes from the flake (`nixos-flake#git`, resolved once), so
-the worker needs only `nix` on PATH; the optional `b4 shazam` step runs in the
-`nixos-flake#build` devShell.
+the worker needs only `nix` on PATH; the optional `b4 am` download runs in the
+`nixos-flake#build` devShell and `git am` applies its mbox.
 
 A worker build resolves its own warm worktree under its sandbox at
 `workers/<WORKER_INDEX>/main/<project>` (the fixed `main` group, since a worker
@@ -35,9 +35,11 @@ Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
     git -C "$BARE" worktree prune
     git -C "$WT" checkout --detach --force "$TARGET"
     git -C "$BARE" worktree add --force --detach "$WT" "$TARGET"   # if not a checkout yet
-    git -C "$WT" config user.name kdevops                  # b4 shazam's git am needs a committer
+    git -C "$WT" config user.name kdevops                  # git am needs a committer
     git -C "$WT" config user.email kdevops@kdevops
-    b4 shazam "$b4_series"                                 # optional, in the devShell, cwd=$WT
+    # optional, in the devShell, cwd=$WT: download the series, then apply its mbox
+    b4 -c b4.midmask=https://lore.kernel.org/all/%s am --outdir "$tmp" "$b4_series"
+    git -C "$WT" am "$tmp"/*.mbx
     git -C "$WT" update-ref "refs/heads/b4/$slug" HEAD     # publish the series to the Bare
     git -C "$WT" rev-parse HEAD
 """
@@ -47,6 +49,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import tempfile
 from pathlib import Path
 
 from f.common.devshell import DevShell, Git, system_dir, vendor_dir, worktrees_dir
@@ -90,6 +93,7 @@ def prepare(
     worktree_group: str = "vanilla",
     developer: bool = False,
     b4_series: str = "",
+    label: str = "",
     recreate_worktree: bool = False,
     extra_dirs: tuple = (),
     wipe_dirs: tuple = (),
@@ -138,7 +142,7 @@ def prepare(
     # refs/heads/* on the same host. A failed fetch is non-fatal: fall back to local refs.
     if not git.ok("-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"):
         print(f"note: fetch of {bare} from mirror failed; using local refs", flush=True)
-    target = _resolve_ref(git, bare, ref)
+    target, is_tag = _resolve_ref(git, bare, ref)
     git.run("-C", str(bare), "worktree", "prune")
     if recreate_worktree:
         shutil.rmtree(worktree, ignore_errors=True)
@@ -159,15 +163,12 @@ def prepare(
             target,
         )
     b4_branch = None
+    b4_label = ""
     if b4_series:
-        # b4 shazam's `git am` needs a committer identity the worker container lacks.
+        # git am needs a committer identity the worker container lacks.
         git.run("-C", str(worktree), "config", "user.name", "kdevops")
         git.run("-C", str(worktree), "config", "user.email", "kdevops@kdevops")
-        try:
-            DevShell(workers).run("b4", "shazam", b4_series, cwd=str(worktree))
-        except Exception:
-            _sanitize_worktree(git, worktree, clean=False)
-            raise
+        b4_label = _apply_b4_series(git, workers, worktree, b4_series)
         # Publish the applied series to the Bare so a developer can check it out and
         # iterate (same host shares the Bare; the branch also keeps the commits alive
         # once `main` advances to the next ref). update-ref, not `branch --force`,
@@ -190,6 +191,14 @@ def prepare(
     commit = git.capture("-C", str(worktree), "rev-parse", "HEAD").strip()
     _list_dir(worktree)
 
+    label = _compute_label(
+        user_label=label,
+        b4_series=b4_series,
+        b4_label=b4_label,
+        is_tag=is_tag,
+        ref=ref,
+    )
+
     result = {
         "project": project,
         "worktree_group": worktree_group,
@@ -197,6 +206,7 @@ def prepare(
         "ref": ref,
         "commit": commit,
         "worktree": str(worktree),
+        "label": label,
         "b4_series": b4_series or None,
         "b4_branch": b4_branch,
     }
@@ -253,16 +263,17 @@ def _sanitize_worktree(git: Git, worktree: Path, *, clean: bool) -> None:
         git.ok("-C", str(worktree), "clean", "--force", "-d")
 
 
-def _resolve_ref(git: Git, bare: Path, ref: str) -> str:
-    """Resolve `ref` to a commit SHA: a tag first, then the mirror remote, then the
-    literal ref (a commit, or a developer branch in refs/heads/*).
+def _resolve_ref(git: Git, bare: Path, ref: str) -> tuple[str, bool]:
+    """Resolve `ref` to a commit SHA and whether it matched an upstream tag.
 
-    The worktree is always laid down detached, so a concrete commit is all the
-    checkout/worktree-add needs, and resolving the mirror's branches via
-    `refs/remotes/mirror/*` keeps them out of refs/heads/*, where developer pushes
-    live (a tag like `v11.0.0` still wins outright).
+    A tag is tried first, then the mirror remote, then the literal ref (a commit, or
+    a developer branch in refs/heads/*). The worktree is always laid down detached,
+    so a concrete commit is all the checkout/worktree-add needs, and resolving the
+    mirror's branches via `refs/remotes/mirror/*` keeps them out of refs/heads/*,
+    where developer pushes live (a tag like `v11.0.0` still wins outright). The tag
+    flag drives the `vanilla` label for a plain upstream build.
     """
-    for candidate in (f"refs/tags/{ref}", f"mirror/{ref}", ref):
+    for index, candidate in enumerate((f"refs/tags/{ref}", f"mirror/{ref}", ref)):
         sha = git.capture(
             "-C",
             str(bare),
@@ -273,7 +284,7 @@ def _resolve_ref(git: Git, bare: Path, ref: str) -> str:
             check=False,
         ).strip()
         if sha:
-            return sha
+            return sha, index == 0
     raise ValueError(
         f"could not resolve ref {ref!r} in {bare} "
         "(tried a tag, the mirror remote, and the literal ref)"
@@ -300,8 +311,99 @@ def _b4_slug(b4_series: str) -> str:
     if "/" in value:
         value = value.rsplit("/", 1)[-1]
     value = value.split("@", 1)[0]
-    value = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-._").lower()
-    return value[:48] or "series"
+    return _slug(value)[:48] or "series"
+
+
+def _slug(value: str) -> str:
+    """Lowercase a string into a label-safe slug (no truncation): non
+    `[A-Za-z0-9._-]` runs collapse to `-`, leading/trailing `-._` stripped."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip()).strip("-._").lower()
+
+
+def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) -> str:
+    """Download the lore series with `b4 am`, apply its mbox with `git am`, and
+    return a label slug from the series subject.
+
+    `b4 am` writes the patch mbox (and a cover letter when the series carries one) to
+    an output dir; `git am` of that mbox is exactly what `b4 shazam` runs internally,
+    so the applied result is identical. The midmask override makes message-id
+    resolution robust regardless of the worker's ambient b4 config. The cover, when
+    present, holds the series title and version, so it feeds the label but is never
+    passed to `git am`. A failed apply leaves a half-applied state, so it is
+    sanitized (the abort path `_sanitize_worktree` handles) before the error
+    re-raises.
+    """
+    with tempfile.TemporaryDirectory(dir=os.environ.get("TMPDIR")) as tmp:
+        DevShell(workers).run(
+            "b4",
+            "-c",
+            "b4.midmask=https://lore.kernel.org/all/%s",
+            "am",
+            "--outdir",
+            tmp,
+            b4_series,
+            cwd=str(worktree),
+        )
+        out = Path(tmp)
+        mboxes = sorted(out.glob("*.mbx"))
+        if not mboxes:
+            raise FileNotFoundError(f"b4 am produced no patch mbox in {out}")
+        mbox = mboxes[0]
+        covers = sorted(out.glob("*.cover"))
+        label = _subject_label(_first_subject(covers[0] if covers else mbox))
+        try:
+            git.run("-C", str(worktree), "am", str(mbox))
+        except Exception:
+            _sanitize_worktree(git, worktree, clean=False)
+            raise
+    return label
+
+
+def _first_subject(path: Path) -> str:
+    """Return the value of the first `Subject:` header in an mbox/cover file."""
+    for line in path.read_text(errors="replace").splitlines():
+        if line.startswith("Subject:"):
+            return line[len("Subject:") :].strip()
+    return ""
+
+
+def _subject_label(subject: str) -> str:
+    """Slug a patch subject `[PATCH[ RFC][ vN][ M/K]] <summary>` into a label.
+
+    The version `N` (default 1) is read from a `vN` token inside the bracket and
+    appended as `-v<N>` only for v2 and later; the summary is the text after the
+    final `]`.
+    """
+    version = 1
+    bracket = re.match(r"\s*\[(.*?)\]", subject)
+    if bracket:
+        match = re.search(r"\bv(\d+)\b", bracket.group(1))
+        if match:
+            version = int(match.group(1))
+    summary = subject.rsplit("]", 1)[1] if "]" in subject else subject
+    slug = _slug(summary)
+    if version >= 2:
+        slug = f"{slug}-v{version}" if slug else f"v{version}"
+    return slug
+
+
+def _compute_label(
+    *, user_label: str, b4_series: str, b4_label: str, is_tag: bool, ref: str
+) -> str:
+    """Pick the readable build-identity label (untruncated; bake_identity fits it).
+
+    Precedence: a non-empty user override, else the b4 series subject, else the
+    literal `vanilla` when the ref resolved to an upstream tag with no series, else a
+    slug of the ref string (a branch or commit). An empty result means no label, and
+    bake_identity falls back to the digest alone.
+    """
+    if user_label:
+        return _slug(user_label)
+    if b4_series:
+        return b4_label
+    if is_tag:
+        return "vanilla"
+    return _slug(ref)
 
 
 def _read_version(worktree: Path, version_file: str) -> str | None:

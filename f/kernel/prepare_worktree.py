@@ -17,7 +17,8 @@ source checkout (`linux/build`, `linux/destdir`), so kbuild emits paths relative
 The `destdir` install dir is rm+recreated every build: it is per-build staging for
 the install steps, and the durable run layer lives in the Store, not here. Knobs:
 `wipe_build` rm+recreates the `build` dir first; `b4_series` applies a lore series
-on top of the checkout via `b4 shazam` in the devShell.
+on top of the checkout via `b4 am` plus `git am` in the devShell. `label`
+overrides the auto-derived build-identity name.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 
@@ -37,6 +38,7 @@ from f.common.worktree import prepare
 def main(
     git_ref: str = "v7.1-rc7",
     b4_series: str = "",
+    label: str = "",
     recreate_build_worktree: bool = False,
     wipe_build: bool = False,
 ) -> dict:
@@ -47,6 +49,7 @@ def main(
         developer=False,
         ref=git_ref,
         b4_series=b4_series,
+        label=label,
         recreate_worktree=recreate_build_worktree,
         extra_dirs=("build", "destdir"),
         wipe_dirs=wipe_dirs,

@@ -22,6 +22,7 @@ schema:
     - build_dir
     - defconfig
     - make_flags
+    - label
   properties:
     build_dir:
       type: string
@@ -53,6 +54,12 @@ schema:
           - rust.config
           - xen.config
           - nopm.config
+    label:
+      type: string
+      description: |-
+        Readable build-identity label baked before the digest (from
+        prepare_worktree).
+      default: ''
     make_flags:
       type: string
       description: |-

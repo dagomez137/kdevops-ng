@@ -169,6 +169,8 @@ schema:
           - recreate_build_worktree
           - wipe_build
           - b4_series
+          - custom_label
+          - label
           - deploy_developer_worktree
           - worktree_group
           - recreate_developer_worktree
@@ -177,9 +179,24 @@ schema:
               type: string
               description: 'Optional lore series (message-id/URL) to apply on top of the
 
-                checkout via `b4 shazam`, published to the Bare as `b4/<slug>`.'
+                checkout via `b4 am`, published to the Bare as `b4/<slug>`.'
               default: ''
               title: b4 Series
+            custom_label:
+              type: boolean
+              description: 'Set a custom build-identity name instead of the auto-derived
+
+                vanilla/series name.'
+              default: false
+              title: Custom Label
+            label:
+              type: string
+              description: 'Custom build-identity name (replaces the auto-derived vanilla/series
+
+                name).'
+              default: ''
+              maxLength: 40
+              showExpr: fields.custom_label === true
             deploy_developer_worktree:
               type: boolean
               description: 'After the build, lay or refresh a developer group worktree under

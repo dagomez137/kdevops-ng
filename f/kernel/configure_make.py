@@ -28,6 +28,7 @@ def main(
     build_dir: str,
     defconfig: list[str] | None = None,
     make_flags: str = "",
+    label: str = "",
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     build = Path(build_dir)
@@ -51,7 +52,7 @@ def main(
         *flag_args,
         *config_goals,
     )
-    kernelrelease = bake_identity(shell, worktree, str(build), make_flags)
+    kernelrelease = bake_identity(shell, worktree, str(build), make_flags, label=label)
 
     print(
         f"configured [{' '.join(config_goals)}] -> {kernelrelease or 'unknown'}",
