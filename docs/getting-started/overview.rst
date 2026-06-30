@@ -55,9 +55,10 @@ Repository layout
 
    kdevops-ng/
    ├── f/          Windmill workspace content (flows, steps, apps)
-   ├── deploy/     brings the Windmill instance up (podman today)
+   ├── deploy/     brings the Windmill instance up (nix by default)
    ├── vendor/     pinned upstream projects (nixos-flake, ...)
-   ├── docs/       this documentation site and the ADRs
+   ├── docs/       this documentation site
+   ├── notes/      research, design notes and the ADRs (not rendered)
    ├── scripts/    check scripts and generators
    ├── wmill.yaml  workspace-as-code configuration
    └── flake.nix   nix tooling: checks, apps, devShells, formatter

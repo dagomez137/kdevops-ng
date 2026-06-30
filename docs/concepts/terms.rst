@@ -30,18 +30,25 @@ The containment of the on-host pieces is:
 ::
 
    workbench/             the Workbench (relocatable; or $HOME/src)
-   ├── system/         reserved: bare/ mirror/ ssh/ store-index/ ccache/ gitbin/
-   ├── workers/<id>/      reserved: per-worker build sandboxes
-   │   └── main/          the worker's fixed group
-   │       └── linux/     the worker worktree (build site)
-   ├── vanilla/           the default worktree-group
+   ├── system/            reserved singletons: bare/ mirror/ ssh/ store-index/
+   │                      ccache/ gitbin/ and the peers registry
+   ├── workers/           per-worker sandboxes + a shared/ sibling
+   │   ├── <id>/          a worker sandbox
+   │   │   └── main/      the worker's fixed group
+   │   │       └── linux/ the worker worktree (build site)
+   │   └── shared/        cross-worker: vm/ (deployed-VM registry), ccache/, ...
+   ├── vanilla/           the default developer's worktree-group
    │   ├── linux/         a project worktree
    │   │   ├── build/     child of the source
    │   │   └── destdir/   install staging
    │   └── qemu/          a project worktree
    │       ├── build/
    │       └── destdir/
-   └── largeio/           a further worktree-group
+   └── largeio/           a further developer's worktree-group
+       ├── linux/         a project worktree
+       ├── qemu/
+       ├── fio/
+       └── xfstests/
    vendor/                pinned upstream projects
 
 The whole ``workbench/`` relocates as a unit; ``system/`` and ``workers/`` each
@@ -104,8 +111,9 @@ Places
 
    System workbench
       The host-local infrastructure singleton: the :term:`Mirrors <Mirror>`,
-      :term:`Bares <Bare>`, SSH key, :term:`Store`, the shared compiler cache,
-      and the Store index (the identity->store-path GC-root registry). It
+      :term:`Bares <Bare>`, SSH keys, :term:`Store`, the shared compiler cache,
+      the Store index (the identity->store-path GC-root registry), and the peers
+      registry (the cross-host peer list). It
       defaults to ``system/`` under the :term:`Workbench` but relocates on its
       own, and its :term:`Mirrors <Mirror>` (the bulky shared object store,
       default ``system/mirror``), compiler cache (default ``system/ccache``) and
@@ -180,8 +188,9 @@ Source and artifacts
 
    Build identity
       A content hash of a :term:`Build`'s inputs: config, toolchain (the Nix
-      devShell's store hash), build flags, and source commit. Same identity
-      implies the same bytes. Where it can, a project bakes the identity into
+      devShell's store hash), build flags, and the source tree (so a series
+      re-applied with ``git am`` keeps one identity). Same identity implies the
+      same bytes. Where it can, a project bakes the identity into
       its artifact so the result self-reports it; the kernel, for example, puts
       it in ``kernelrelease`` via ``LOCALVERSION``.
 
