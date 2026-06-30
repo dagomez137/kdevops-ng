@@ -270,12 +270,17 @@ bakes into ``kernelrelease`` through ``CONFIG_LOCALVERSION``, so the running
 The **digest** is a 12-hex hash over the inputs that fix the build's bytes:
 the ``.config`` (with the ``LOCALVERSION`` line excluded), the ``.#build``
 devShell's toolchain store path, the make flags (with the host-specific
-``-fdebug-prefix-map`` value stripped), and the source commit. It is the same
-on every host, so a peer's build is provably the one requested, and it is the
-field that tells configs apart: two builds of one series with different configs
-(KASAN on or off, GCC or clang) share the **label** but differ in the digest,
-so they never collide in the Store key or in ``/lib/modules/<release>`` inside
-the booted guest (the ADR-0002 identity scheme is intact).
+``-fdebug-prefix-map`` value stripped), and the source tree (the worktree's
+``HEAD`` tree object). A tree is content-addressed by the file bytes it names,
+so a ``b4`` series re-applied with ``git am`` (which restamps each commit with
+the wall-clock time, a fresh ``HEAD`` SHA over identical content) still hashes
+the same: the identity stays put and reuse holds. The digest is the same on
+every host, so a peer's build is provably the one requested, and it is the
+field that tells builds apart by content: two builds of one ref with different
+configs (KASAN on or off, GCC or clang), or two revisions of one series, differ
+in the digest, so they never collide in the Store key or in
+``/lib/modules/<release>`` inside the booted guest (the ADR-0002 identity scheme
+is intact).
 
 The **label** is the readable name baked in front of the digest. It is
 inferred, in this precedence: a ``custom_label`` override; else the ``b4``
@@ -287,8 +292,8 @@ series subject as a slug (with ``-v<N>`` appended for v2 and later); else
 The kernel's own ``setlocalversion`` describe suffix (``-<count>-g<sha>``) is
 dropped by setting ``CONFIG_LOCALVERSION_AUTO=n`` (this kernel has no
 ``.scmversion`` mechanism), which frees that length for the label. The commit it
-would have named is not lost: it stays in the manifest ``commit`` field and is
-folded into the digest.
+would have named is not lost: it stays in the manifest ``commit`` field, while
+the digest keys on that commit's tree.
 
 Because the identity hashes the produced ``.config``, ``configure`` must run
 before the build can be matched: ``fetch_identity`` then ``reuse_check`` run
