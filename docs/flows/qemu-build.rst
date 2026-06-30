@@ -6,9 +6,10 @@
 Build QEMU
 ==========
 
-The `f/qemu/build`_ flow builds a custom `QEMU`_ from source, reproducibly, for
-the QEMU/systemd guest layer to consume. It is the Windmill equivalent of an
-out-of-tree ``configure`` plus ``make`` of upstream QEMU at a pinned ref. The
+The `f/qemu/build`_ flow builds a custom `QEMU`_ from source, reproducibly, to
+provide the emulator each guest's ``qemu-system@<vm>.service`` unit runs. It is
+the Windmill equivalent of an out-of-tree ``configure`` plus ``make`` of
+upstream QEMU at a pinned ref. The
 flow deliberately mirrors `f/kernel/build`_: a mirror-backed git worktree built
 inside the ``nixos-flake`` ``.#build`` devShell, producing a ``result.json``
 manifest that a downstream flow reads. Most of this page is "do what the kernel
@@ -255,9 +256,10 @@ or the store key.
 How the guest layer consumes this
 =================================
 
-The QEMU/systemd guest layer renders a ``qemu-system@<vm>.service`` unit plus
-its ``virtiofsd@.service`` into the user systemd manager, and that unit
-consumes both build flows: ``qemu_binary`` from `f/qemu/build`_ becomes the
+kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit
+(an instance of the ``qemu-system@.service`` template unit) plus its
+``virtiofsd@.service`` in the per-user service manager, and that unit consumes
+both build flows: ``qemu_binary`` from `f/qemu/build`_ becomes the
 unit's ``ExecStart=`` emulator, while the ``bzImage`` and modules from
 `f/kernel/build`_ become ``-kernel`` and the virtiofs ``/lib/modules`` share.
 Because both manifests' paths live under ``WORKERS_DIR``, bind-mounted at the

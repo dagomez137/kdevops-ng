@@ -7,9 +7,10 @@ Build the Linux kernel
 ======================
 
 The `f/kernel/build`_ flow builds a custom `Linux kernel`_ from source,
-reproducibly, for the QEMU/systemd guest layer to boot. It is the Windmill
-equivalent of a ``make`` of an upstream kernel at a pinned ref, optionally with
-a mailed patch series applied on top. The flow runs over a mirror-backed git
+reproducibly, to boot in a QEMU virtual machine run through systemd. It is the
+Windmill equivalent of a ``make`` of an upstream kernel at a pinned ref,
+optionally with a mailed patch series applied on top. The flow runs over a
+mirror-backed git
 worktree inside the ``nixos-flake`` ``.#build`` devShell, with
 ``make --jobs=$(nproc)`` so the container cgroup governs CPU and concurrent
 builds self-balance across workers, and returns a manifest a downstream flow
@@ -330,7 +331,8 @@ build was compiled or reused.
 How the guest layer consumes this
 =================================
 
-The QEMU/systemd guest layer renders a ``qemu-system@<vm>.service`` unit that
+kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit,
+an instance of the ``qemu-system@.service`` template unit, and that unit
 consumes both build flows: ``qemu_binary`` from `f/qemu/build`_ becomes the
 unit's ``ExecStart=`` emulator, while ``bzImage`` from this flow becomes
 ``-kernel`` and the ``/lib/modules`` tree becomes a ``virtiofs`` share the guest

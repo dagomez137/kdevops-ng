@@ -92,7 +92,7 @@ When writing or extending Windmill flows and steps, also follow these rules:
   acronyms (`qemu_binary` → `QEMU Binary`, `cpu` → `CPU`, `ram` → `RAM`).
 - **Name the consumer, not the generator.** User-facing output (flow/step
   summaries, descriptions, field labels) names the concept it produces,
-  such as `QEMU/systemd` or the `qemu-system@.service` unit, never the vendored
+  such as the `qemu-system@.service` systemd service unit, never the vendored
   generator's codename (`qsu`/qemu-system-units). The codename appears only
   where it is the accurate, structural name: code paths (`f/qsu/`,
   `f.qsu.common`), the kdevops `qsu` ansible role being ported, the vendored

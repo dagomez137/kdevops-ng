@@ -15,7 +15,7 @@ as a disk-image ``libvirt`` system, could be added under the same flow later.
 
 The flow is the Windmill reimplementation of kdevops's ``nixosfi`` role. It
 covers only the build half: render, lock, then build the closure. Booting the
-closure is the QEMU/systemd half, a separate concern (host-systemd VM
+closure is the boot half, a separate concern (the guest's systemd service
 lifecycle) that is parked and described elsewhere; it is mentioned here only
 where the two meet.
 
@@ -31,7 +31,7 @@ step wrote under ``$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/``:
    (``init`` and ``initrd``) from ``boot.json``.
 
 The flow returns ``{toplevel, init, initrd, config_dir}``. It is self-contained:
-pairing the closure with a kernel is a QEMU/systemd concern, not an input here.
+pairing the closure with a kernel is a boot concern, not an input here.
 
 Featured by default
 ===================
@@ -160,7 +160,7 @@ this flow goes through the ``nix`` CLI. A single ``f/nix`` bucket cleanly holds
 both "run a package" (the existing ``f/nix/hello`` is ``nix run
 nixpkgs#hello``) and "build a NixOS system", because both are Nix operations.
 Booting the closure is not a Nix operation (it is host-systemd VM lifecycle), so
-it stays in a separate QEMU/systemd bucket under ``f/qsu/``. This mirrors
+it stays in a separate boot bucket under ``f/qsu/``. This mirrors
 kdevops's own split, where the ``nixosfi`` role builds the closure and a
 separate role boots it.
 
@@ -172,8 +172,8 @@ input: the closure sets ``boot.kernel.enable = false`` and its initrd loads no
 modules, so it builds entirely on its own. ``f/kernel/build`` separately
 produces the ``bzImage`` and the ``/lib/modules`` tree.
 
-The two products meet only at boot, where the QEMU/systemd half pairs the
-``toplevel`` closure with the external kernel and modules and starts the
+The two products meet only at boot, where the guest's systemd service pairs
+the ``toplevel`` closure with the external kernel and modules and starts the
 machine. Because the build half needs no host systemd, the entire render, lock
 and build sequence is runnable and provable on its own, before the boot half
 exists.
