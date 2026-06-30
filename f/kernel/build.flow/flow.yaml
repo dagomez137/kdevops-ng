@@ -6,28 +6,60 @@ description: |-
   with `make --jobs=$(nproc)` so the container cgroup governs CPU and N
   concurrent builds self-balance across the workers.
 
-  Steps (pinned to one worker via `same_worker`, so each sees the previous
-  step's files):
+  The build is content-addressed: `configure` always bakes a Build Identity, a
+  hash of the config, toolchain, make flags and commit, into `kernelrelease`, so
+  an identical build is fetched or reused instead of recompiled.
 
-  1. `prepare_worktree`: resolve the slot and check out `git_ref`. 2.
-  `configure`: generate `.config` by the selected `config_method`: - `preset`
-  (default) → `f/kernel/configure_preset`: a predefined whole-kernel config
-  (e.g. `imageless_defconfig`) applied via `KCONFIG_ALLCONFIG`. - `make` →
-  `f/kernel/configure_make`: a list of make config goals (`defconfig`,
-  `tinyconfig`, `["defconfig","kvm_guest.config"]`, ...). - `fragments` →
-  `f/kernel/configure_fragments`: pick from the curated `linux-config-fragments`
-  library (canonical order applied). 3. `compile`: `make` (default goal: vmlinux
-  + boot image + modules). 4. `devtools`: generate dev-tooling artifacts
-  (compile_commands.json, GDB helpers, rust-project.json); each optional, on by
-  default. 5. `install`: install the kernel image into a destdir; only when
-  `install` is set. 6. `install_modules`: modules_install into the destdir (plus
-  the canonical source symlink); only when `modules_install` is set (skip for an
-  all-built-in kernel). 7. `publish`: add this identity's run layer to the Nix
-  store so a peer can fetch it; only after a real install (skipped on reuse). 8.
-  `publish_devel`: add this identity's devel layer (the build dir's `.cmd`
+  Steps, pinned to one worker via `same_worker` so each sees the previous step's
+  files:
+
+  1. `prepare_worktree`: resolve the worker slot and check out `git_ref`,
+  optionally applying a `b4` series.
+
+  2. `build_flags`: resolve the make flags (GCC or clang/LLVM toolchain,
+  reproducibility, ccache).
+
+  3. `configure`: generate `.config` by `config_method`, then bake the Build
+  Identity into `kernelrelease`. `preset` (the default) applies a predefined
+  whole-kernel config such as `imageless_defconfig` via `KCONFIG_ALLCONFIG`;
+  `make` runs a list of config goals such as `defconfig` or
+  `["defconfig","kvm_guest.config"]`; `fragments` merges from the curated
+  `linux-config-fragments` library in canonical order.
+
+  4. `fetch_identity`: with `use_peers` on, fetch this identity's run layer from
+  a registered peer's Nix store so a local reuse hit can land.
+
+  5. `reuse_check`: report whether this identity is already built, in the worker
+  destdir or this host's Nix store. A hit short-circuits compile, install and
+  publish.
+
+  6. `compile`: `make` (default goal: `vmlinux`, the arch boot image and the
+  modules). Skipped on a reuse hit.
+
+  7. `devtools`: generate dev-tooling artifacts (compile_commands.json, GDB
+  helpers, rust-project.json), each optional and on by default.
+
+  8. `install`: install the kernel image into the destdir, only when `install`
+  is set and not reused.
+
+  9. `install_modules`: `modules_install` into the destdir plus the canonical
+  source symlink, only when `modules_install` is set (skip for an all-built-in
+  kernel).
+
+  10. `publish`: add this identity's run layer to the Nix store so a peer can
+  fetch it, only after a real install (skipped on reuse).
+
+  11. `publish_devel`: add this identity's devel layer (the build dir's `.cmd`
   files, headers and scripts, minus binaries) to the Nix store so `fetch_devel`
-  can index a worktree from it; only after a real build (skipped on reuse). 9.
-  `collect`: merge the step results into one manifest.
+  can index a worktree from it, only after a real build (skipped on reuse).
+
+  12. `deploy_worktree`: lay the developer-group worktree at the built ref, only
+  when a developer worktree is requested.
+
+  13. `fetch_devel`: materialize this build's devel layer into that developer
+  worktree and regenerate its clangd index.
+
+  14. `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
   (`workers/<worker>/main/linux`), synced to `git_ref` every run so rebuilds
@@ -36,10 +68,9 @@ description: |-
   build.
 
   Returns a manifest (`commit`, `uts_release`, `bzImage`, `build_dir`, `config`,
-  `config_method`, `destdir`, the build provenance
-  `linux_compiler`/`uts_version`/
-  `uts_machine`/`linux_compile_by`/`linux_compile_host`, …) so downstream flows
-  (e.g. VM boot) can consume it.
+  `config_method`, `destdir`, and the build provenance `linux_compiler`,
+  `uts_version`, `uts_machine`, `linux_compile_by`, `linux_compile_host`) so
+  downstream flows such as VM boot can consume it.
 value:
   modules:
     - id: prepare_worktree
@@ -823,8 +854,8 @@ schema:
         Where a finished build of this identity may come from instead of
         recompiling: a local hit (this worker's destdir or this host's Nix
         store) or a registered peer's published run layer. The identity is
-        always computed, so an identical build can be fetched or reused
-        instead of rebuilt.
+        always computed, so an identical build can be fetched or reused instead
+        of rebuilt.
       default: {}
       order:
         - reuse

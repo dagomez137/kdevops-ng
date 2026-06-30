@@ -487,9 +487,9 @@ schema:
 
             store) or a registered peer''s published run layer. The identity is
 
-            always computed, so an identical build can be fetched or reused
+            always computed, so an identical build can be fetched or reused instead
 
-            instead of rebuilt.'
+            of rebuilt.'
           default: {}
           order:
           - reuse
