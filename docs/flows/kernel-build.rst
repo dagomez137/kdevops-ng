@@ -284,9 +284,10 @@ series subject as a slug (with ``-v<N>`` appended for v2 and later); else
 ``uname -r``; the digest is never shortened.
 
 The kernel's own ``setlocalversion`` describe suffix (``-<count>-g<sha>``) is
-suppressed by an empty ``.scmversion`` written into the worktree, which frees
-that length for the label. The commit it would have named is not lost: it stays
-in the manifest ``commit`` field and is folded into the digest.
+dropped by setting ``CONFIG_LOCALVERSION_AUTO=n`` (this kernel has no
+``.scmversion`` mechanism), which frees that length for the label. The commit it
+would have named is not lost: it stays in the manifest ``commit`` field and is
+folded into the digest.
 
 Because the identity hashes the produced ``.config``, ``configure`` must run
 before the build can be matched: ``fetch_identity`` then ``reuse_check`` run

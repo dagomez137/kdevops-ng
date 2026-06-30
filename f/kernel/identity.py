@@ -10,11 +10,12 @@ source commit. A readable label precedes that digest in CONFIG_LOCALVERSION, so
 `7.1.0-vanilla-<hash>`, or `7.1.0-iomap-consolidate-bio-submission-<hash>` for a
 series. The label comes from `f.common.worktree.prepare` (a user override, the b4
 series subject, `vanilla` for an upstream tag, or a slug of the dev ref) and is
-truncated to fit the 64-char release. An empty `.scmversion` is written into the
-worktree to drop the kernel's own `-<count>-g<sha>` describe suffix and free that
-budget; the commit it encodes survives in the manifest and the digest. Same identity
-then means same bytes, so the image and modules install under one release and a built
-identity can be fetched or reused instead of rebuilt.
+truncated to fit the 64-char release. `CONFIG_LOCALVERSION_AUTO` is forced off to
+drop the kernel's own `-<count>-g<sha>` describe suffix (this kernel has no
+`.scmversion` mechanism) and free that budget; the commit it encodes survives in the
+manifest and the digest. Same identity then means same bytes, so the image and
+modules install under one release and a built identity can be fetched or reused
+instead of rebuilt.
 
 The hash excludes the CONFIG_LOCALVERSION line and the host-specific
 `-fdebug-prefix-map` value from the make flags, so the identity (and thus the digest)
@@ -65,7 +66,7 @@ def bake_identity(
         prior = prior[: -len(label) - 1]
     localversion = f"{prior}-{label}-{digest}" if label else f"{prior}-{digest}"
     _set_localversion(config, localversion)
-    _write_scmversion(worktree)
+    _disable_localversion_auto(config)
 
     # syncconfig regenerates auto.conf.
     shell.run(*base, *flags, "syncconfig")
@@ -87,16 +88,27 @@ def _fit_label(label: str, budget: int) -> str:
     return cut.rstrip("-._")
 
 
-def _write_scmversion(worktree: str) -> None:
-    """Suppress setlocalversion's git-describe suffix with an empty `.scmversion`.
-
-    The file is in the kernel's .gitignore, so the worktree's `git clean -fd`
-    preserves it across rebuilds; setlocalversion short-circuits on it, dropping the
-    `-<count>-g<sha>` describe (and any `+`), which frees the label's length budget.
+def _disable_localversion_auto(config: Path) -> None:
+    """Force `# CONFIG_LOCALVERSION_AUTO is not set` so setlocalversion drops the
+    git-describe `-<count>-g<sha>` suffix; this kernel has no `.scmversion` path, so
+    AUTO is what actually gates the describe. With AUTO off and `LOCALVERSION=` set by
+    the default reproducible build, neither the describe nor a `+` is appended. A
+    non-reproducible build (reproducible=false, no `LOCALVERSION=` make var) may still
+    get a trailing `+`; that is acceptable and out of scope.
     """
-    path = Path(worktree) / ".scmversion"
-    path.write_text("")
-    print(f"wrote {path}  (empty: suppresses setlocalversion describe)", flush=True)
+    off = "# CONFIG_LOCALVERSION_AUTO is not set"
+    lines = []
+    found = False
+    for line in config.read_text().splitlines():
+        if line.startswith("CONFIG_LOCALVERSION_AUTO=") or line == off:
+            lines.append(off)
+            found = True
+        else:
+            lines.append(line)
+    if not found:
+        lines.append(off)
+    config.write_text("\n".join(lines) + "\n")
+    print(f"wrote {config}  {off}", flush=True)
 
 
 def _digest(config_text: str, worktree: str, make_flags: str) -> str:
