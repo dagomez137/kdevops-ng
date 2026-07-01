@@ -31,6 +31,7 @@ Flows
 =====
 
 - :doc:`/flows/kernel-build` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/kunit` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/nix-build` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/qemu-build` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/nvme-testing` (add to ``docs/flows/index.rst``)

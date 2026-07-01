@@ -73,6 +73,7 @@ _MAN7 = "https://man7.org/linux/man-pages/man1"
 cmd_links = {
     "ssh": f"{_MAN7}/ssh.1.html",
     "dmesg": f"{_MAN7}/dmesg.1.html",
+    "cat": f"{_MAN7}/cat.1.html",
     "~/.ssh/config": "https://man7.org/linux/man-pages/man5/ssh_config.5.html",
     "socat": "http://www.dest-unreach.org/socat/doc/socat.html",
     "systemctl": f"{_SYSTEMD}/systemctl.html",
@@ -87,6 +88,9 @@ cmd_links = {
     "systemd-journal-gatewayd": f"{_SYSTEMD}/systemd-journal-gatewayd.service.html",
     "systemd-machined": f"{_SYSTEMD}/systemd-machined.service.html",
     "TimeoutStartSec": f"{_SYSTEMD}/systemd.service.html#TimeoutStartSec=",
+    "modules-load.d": f"{_SYSTEMD}/modules-load.d.html",
+    "systemd-modules-load": f"{_SYSTEMD}/systemd-modules-load.service.html",
+    "kmod-static-nodes": f"{_SYSTEMD}/kmod-static-nodes.service.html",
     "RuntimeMaxSec": f"{_SYSTEMD}/systemd.service.html#RuntimeMaxSec=",
 }
 
