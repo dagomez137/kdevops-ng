@@ -34,6 +34,7 @@ _TEST_SUITES = [
     "blktests",
     "fstests",
     "gitr",
+    "kunit",
     "ltp",
     "mmtests",
     "pynfs",
