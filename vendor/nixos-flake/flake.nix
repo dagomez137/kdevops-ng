@@ -167,7 +167,15 @@
           # host-tool argv (E2BIG on fixdep).
           build-kernel = pkgs.mkShell {
             packages = kernelPackages;
-            env.RUST_LIB_SRC = rustLibSrc;
+            env = {
+              RUST_LIB_SRC = rustLibSrc;
+              # Host tools (gendwarfksyms, extract-cert) need these at runtime.
+              LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+                pkgs.elfutils
+                pkgs.zlib
+                pkgs.openssl
+              ];
+            };
             shellHook = reproducibleShellHook + kernelClangHook;
           };
 
