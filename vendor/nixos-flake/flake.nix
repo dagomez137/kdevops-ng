@@ -76,6 +76,7 @@
           blktests = ./modules/testSuites/blktests.nix;
           fstests = ./modules/testSuites/fstests.nix;
           gitr = ./modules/testSuites/gitr.nix;
+          kunit = ./modules/testSuites/kunit.nix;
           ltp = ./modules/testSuites/ltp.nix;
           mmtests = ./modules/testSuites/mmtests.nix;
           pynfs = ./modules/testSuites/pynfs.nix;
