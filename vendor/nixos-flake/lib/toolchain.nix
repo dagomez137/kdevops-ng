@@ -18,6 +18,8 @@
     openssl
     elfutils
     pahole
+    binutils # readelf/objdump/nm/strings for inspecting build artifacts
+    patchelf
     cpio
     kmod
     zstd
