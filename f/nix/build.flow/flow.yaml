@@ -165,6 +165,7 @@ schema:
             - blktests
             - fstests
             - gitr
+            - kunit
             - ltp
             - mmtests
             - pynfs
@@ -176,6 +177,7 @@ schema:
               - blktests
               - fstests
               - gitr
+              - kunit
               - ltp
               - mmtests
               - pynfs
