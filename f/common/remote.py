@@ -6,6 +6,7 @@
 # no fstests/kunit coupling, so f/fstests/* and f/kunit/* import it the same way.
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
@@ -14,6 +15,22 @@ from pathlib import Path
 from f.common.devshell import DevShell, system_dir
 
 _CID_RE = re.compile(r"^\s*HostName\s+vsock/(\d+)\s*$")
+
+# systemd's stable journal MESSAGE_ID values (sd-messages.h). A start job ends
+# with exactly one of the first two; UNIT_STOPPED closes a stop job; each
+# service process exit carries EXIT_STATUS under UNIT_PROCESS_EXIT.
+MSG_UNIT_STARTED = "39f53479d3a045ac8e11786248231fbf"
+MSG_UNIT_FAILED = "be02cf6855d2428ba40df7e9d022f03d"
+MSG_UNIT_STOPPED = "9d1aaa27d60140bd96365438aad20286"
+MSG_UNIT_PROCESS_EXIT = "98e322203f7a4ed290d09fe03c09fe15"
+
+
+def journal_message(record: dict) -> str:
+    """A journal record's MESSAGE as text (json output encodes non-UTF-8 as a byte array)."""
+    msg = record.get("MESSAGE", "")
+    if isinstance(msg, list):
+        return bytes(msg).decode("utf-8", errors="replace")
+    return msg if isinstance(msg, str) else ""
 
 
 class RemoteSystemd:
@@ -191,6 +208,57 @@ class RemoteSystemd:
             else:
                 body.append(line)
         return next_cursor, "\n".join(body)
+
+    def journal_cursor(self) -> str:
+        """The guest journal's end-of-now cursor (`--lines=0 --show-cursor`).
+
+        Captured before starting a unit, it bounds every later journal read to
+        that one run: entries after the cursor cannot belong to a previous
+        invocation, however fast the unit ran or whether systemd still has it
+        loaded.
+        """
+        out = (
+            self.ssh("journalctl", "--no-pager", "--boot", "--lines=0", "--show-cursor")
+            or ""
+        )
+        for line in out.splitlines():
+            if line.startswith("-- cursor:"):
+                return line.split(":", 1)[1].strip()
+        raise RuntimeError("journalctl returned no cursor")
+
+    def journal_unit(
+        self, unit: str, cursor: str | None = None, quiet: bool = True
+    ) -> tuple[str | None, list[dict]]:
+        """This boot's journal records for `--unit=<unit>` past `cursor`, parsed.
+
+        `--unit=` matches both the unit's own output and PID1's lifecycle records
+        about it (`UNIT=`), so the returned records carry the run's KTAP lines and
+        the `MSG_UNIT_*` job outcome in one stream. Returns `(next_cursor,
+        records)`; `next_cursor` resumes the next call (unchanged when nothing
+        new). Raises on a failed fetch, so a poll loop can tell a transient
+        transport error from an empty read.
+        """
+        args = [
+            "journalctl",
+            "--no-pager",
+            "--output=json",
+            "--show-cursor",
+            f"--unit={unit}",
+        ]
+        args += [f"--after-cursor={cursor}"] if cursor else ["--boot"]
+        out = self.ssh(*args, quiet=quiet) or ""
+        next_cursor, records = cursor, []
+        for line in out.splitlines():
+            if line.startswith("-- cursor:"):
+                next_cursor = line.split(":", 1)[1].strip()
+                continue
+            if not line.startswith("{"):
+                continue
+            try:
+                records.append(json.loads(line))
+            except ValueError:
+                continue
+        return next_cursor, records
 
     def unit_exists(self, template: str) -> bool:
         """Whether the guest knows `<template>` (in-guest `list-unit-files`)."""

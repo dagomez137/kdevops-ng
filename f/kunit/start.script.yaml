@@ -1,0 +1,43 @@
+summary: Start a KUnit suite on a guest
+description: |-
+  Capture the guest journal's end-of-now cursor, then start the suite's unit
+  over vsock-SSH with `--no-block`: `kunit@<suite>.service` for a re-runnable
+  suite, `kunit-results@<suite>.service` for an init-only suite (no debugfs
+  `run` node; only its boot-time results can be read). The cursor is the run's
+  identity: journal entries past it belong to this run and nothing before it
+  does, however fast the oneshot finishes, so `wait`/`collect` can never confuse
+  this run with a previous one. The unit's exit codes carry no pass/fail
+  verdict; the verdict is the KTAP in the journal.
+
+  Returns `{vm, suite, unit, cursor}`.
+lock: '!inline f/kunit/start.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - suite
+    - runnable
+  properties:
+    runnable:
+      type: boolean
+      description: |-
+        Whether the suite carries a debugfs `run` node (from `discover`): true
+        starts `kunit@<suite>` (re-run), false starts `kunit-results@<suite>`
+        (boot-time results read-back only).
+      default: true
+      title: Runnable
+    suite:
+      type: string
+      description: |-
+        KUnit suite name (a `/sys/kernel/debug/kunit/` entry) to start.
+    vm_name:
+      type: object
+      description: Booted VM to start the KUnit suite on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - suite
+tag: vm

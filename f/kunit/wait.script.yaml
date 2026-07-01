@@ -1,0 +1,80 @@
+summary: Wait for a KUnit suite to finish
+description: |-
+  Poll the guest's journal for the unit `f/kunit/start` started, reading only
+  entries past start's cursor, until systemd's job-outcome record appears: PID1
+  logs exactly one of "Finished <unit>" (`result=done`) or "Failed to start
+  <unit>" (`result=failed`) per start job, and "Stopped" when an outside stop
+  ended it. This holds even when the sub-second oneshot instance is already
+  deactivated and garbage-collected before the first poll, where `systemctl
+  show` would read back defaults. The same records carry the run's KTAP and the
+  unit's process exits, so the returned `ktap` is the run-scoped document
+  `f/kunit/collect` parses and `exec_status` carries a failing command's exit
+  status when there is one (successful exits are journal-logged only at debug
+  level, so a clean run leaves it empty).
+
+  Each poll also checks the host `qemu-system@<vm>.service`: any not-alive state
+  means the guest is gone and the wait ends with `crashed` set. On expiry of the
+  timeout the unit is stopped (`timed_out`).
+
+  Returns `{vm, suite, unit, result, exec_status, ktap, crashed, timed_out}`.
+lock: '!inline f/kunit/wait.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - suite
+    - unit
+    - cursor
+    - timeout
+    - poll_interval
+    - stream_logs
+  properties:
+    cursor:
+      type: string
+      description: |-
+        The guest journal cursor `f/kunit/start` captured before starting the
+        unit; bounds every read to this run.
+      title: Cursor
+    poll_interval:
+      type: integer
+      description: |-
+        Seconds between journal polls (and the host liveness check).
+      default: 5
+      title: Poll Interval
+    stream_logs:
+      type: boolean
+      description: |-
+        Each poll, print the guest's new unit + kernel journal (merged) into the
+        job log. Off = only a bounded journal tail at the end.
+      default: true
+      title: Stream Logs
+    suite:
+      type: string
+      description: |-
+        KUnit suite name (a `/sys/kernel/debug/kunit/` entry) being waited on.
+    timeout:
+      type: integer
+      description: |-
+        Maximum seconds to wait for the suite to finish before giving up
+        (`timed_out`). KUnit is sub-second; the budget is for a hang or an oops.
+      default: 600
+      title: Timeout
+    unit:
+      type: string
+      description: |-
+        The unit `f/kunit/start` started (`kunit@<suite>.service` or
+        `kunit-results@<suite>.service`).
+      title: Unit
+    vm_name:
+      type: object
+      description: Booted VM whose KUnit suite to wait on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - suite
+    - unit
+    - cursor
+tag: vm-run

@@ -1,0 +1,33 @@
+summary: 'Discover a guest''s KUnit readiness over SSH'
+description: |-
+  Reach a booted guest over vsock-SSH and report whether it is ready to run
+  KUnit, and which suites it exposes. Checks `systemctl --host <vm>
+  is-system-running` is `running`/`degraded`, that the `kunit@.service` template
+  is installed and `/sys/kernel/debug/kunit/` is mounted, then enumerates the
+  suites (the debugfs directory entries), which of them are re-runnable (carry a
+  `run` node; init-only suites have none), and reads the running kernel release
+  (`/proc/sys/kernel/osrelease`).
+
+  Returns `{vm, host, booted, kunit_ready, suites, runnable, kernel_version}`.
+  Fails fast with a clear message if the guest is not KUnit-ready (build the
+  kernel with CONFIG_KUNIT + CONFIG_KUNIT_DEBUGFS and boot it with the `kunit`
+  test suite) or exposes zero suites (the kernel built no tests: enable them
+  built-in or as modules, e.g. CONFIG_KUNIT_ALL_TESTS=m; the guest declares
+  and loads the booted kernel's test modules at boot automatically). Read-only;
+  mutates nothing on the guest.
+lock: '!inline f/kunit/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM to probe over vsock-SSH for KUnit readiness.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

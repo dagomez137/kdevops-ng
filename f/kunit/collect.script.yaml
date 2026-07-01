@@ -1,0 +1,88 @@
+summary: Fold a suite's KTAP into a verdict
+description: |-
+  Parse the run-scoped KTAP `f/kunit/wait` captured (bounded by start's journal
+  cursor, so it can only be this run's output) into per-test pass/fail/notrun
+  counts; the guest is never contacted, so a crashed guest still gets an honest
+  verdict. `passed` needs the start job finished (`result=done`), the unit's
+  final `cat` exited 0, no crash, no timeout, the suite's `# Subtest` block
+  present with its `1..N` plan matching the parsed result lines (a truncated
+  journal can never pass), and no `not ok` line. A run that passed nothing at
+  all (empty body, or every test skipped) is `notrun`; anything else is
+  `failed`. Returns a scalar overview `{suite, vm_name, kernel_version, status,
+  result, exec_status, crashed, timed_out, tests, passed, failed, notrun}` (so
+  the run flow's per-suite forloop renders a tidy one-row-per-suite table) plus
+  a `detail` object carrying the per-test rows, the failing tests, and the raw
+  KTAP (consumed by `f/kunit/report`).
+lock: '!inline f/kunit/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - suite
+    - kernel_version
+    - ktap
+    - result
+    - exec_status
+    - crashed
+    - timed_out
+  properties:
+    crashed:
+      type: boolean
+      description: |-
+        Whether `f/kunit/wait` saw the guest go down (the host
+        `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
+      default: false
+      title: Crashed
+    exec_status:
+      type: string
+      description: |-
+        A failing command's exit status from the run's journal, when there is
+        one (successful exits are logged only at debug level, so a clean run
+        leaves it empty); anything but empty or `0` fails the verdict.
+      default: ''
+      title: Exec Status
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); keys the
+        `report.json` rollup under the kernel the suite ran on.
+      title: Kernel Version
+    ktap:
+      type: string
+      description: |-
+        The run-scoped KTAP document `f/kunit/wait` captured from the unit's
+        journal.
+      default: ''
+      title: KTAP
+    result:
+      type: string
+      description: |-
+        systemd's job outcome from `f/kunit/wait` (`done`/`failed`/`stopped`);
+        anything but `done` forces a `failed` verdict.
+      default: ''
+      title: Result
+    suite:
+      type: string
+      description: |-
+        KUnit suite name (a `/sys/kernel/debug/kunit/` entry) the KTAP belongs
+        to.
+    timed_out:
+      type: boolean
+      description: |-
+        Whether `f/kunit/wait` gave up on the suite and stopped its unit; forces
+        a `failed` verdict.
+      default: false
+      title: Timed Out
+    vm_name:
+      type: object
+      description: |-
+        The VM the suite ran on (recorded; the guest is not contacted).
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - suite
+    - kernel_version
+tag: vm

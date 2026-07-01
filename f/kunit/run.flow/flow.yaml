@@ -1,0 +1,260 @@
+summary: Run KUnit test suites
+description: |-
+  Run Linux kernel KUnit test suites against an already-booted, KUnit-ready
+  guest, driving each suite as its own systemd template unit without rebooting:
+  `kunit@<suite>.service` re-runs a suite through its debugfs `run` node, and
+  `kunit-results@<suite>.service` reads back an init-only suite's boot-time
+  results.
+
+  Steps mirror KUnit/systemd vocabulary 1:1:
+
+  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
+  is-system-running`, the `kunit@.service` template present, `/sys/kernel/
+  debug/kunit/` mounted, at least one suite exposed) and enumerate the suites
+  and which are re-runnable. 2. for each `suite`: `start` (capture a guest
+  journal cursor, then `systemctl --host <vm> start --no-block` the suite's
+  unit) → `wait` (poll the unit's journal past the cursor for systemd's
+  job-outcome record, crash-check the host `qemu-system@<vm>`) → `collect`
+  (parse the run-scoped KTAP `wait` captured; plan-checked, so a truncated
+  journal never passes). 3. `report`: aggregate the per-suite results into one
+  summary. 4. `judge`: fail the job unless every suite passed.
+
+  The lifecycle and control steps run on the `vm` worker tag (the dedicated
+  worker that reaches the guest over the vsock-SSH transport); the `wait` poll
+  runs on `vm-run`, so a hung or oopsing suite never starves a quick control op.
+  Empty **Suites** runs every re-runnable suite the guest exposes (an init-only
+  suite has no `run` node and only carries results when the kernel opted into
+  boot-time autorun, so it runs only when picked explicitly); the curated
+  default set is `rust_rxarray`/`rust_doctests_kernel`. Returns the `report`
+  summary.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + enumerate suites (f/kunit/discover)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kunit/discover
+        tag_override: vm
+    - id: suites
+      summary: Run each suite sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        modules:
+          - id: start
+            summary: Start the suite's unit detached (f/kunit/start)
+            value:
+              type: script
+              input_transforms:
+                runnable:
+                  type: javascript
+                  expr: >-
+                    (results.discover.runnable ??
+                    []).includes(flow_input.iter.value)
+                suite:
+                  type: javascript
+                  expr: flow_input.iter.value
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/kunit/start
+              tag_override: vm
+          - id: wait
+            summary: Poll the run's journal to its outcome (f/kunit/wait)
+            value:
+              type: script
+              input_transforms:
+                cursor:
+                  type: javascript
+                  expr: results.start.cursor
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+                suite:
+                  type: javascript
+                  expr: flow_input.iter.value
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                unit:
+                  type: javascript
+                  expr: results.start.unit
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/kunit/wait
+              tag_override: vm-run
+          - id: collect
+            summary: Parse the run-scoped KTAP (f/kunit/collect)
+            value:
+              type: script
+              input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
+                exec_status:
+                  type: javascript
+                  expr: results.wait.exec_status
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                ktap:
+                  type: javascript
+                  expr: results.wait.ktap
+                result:
+                  type: javascript
+                  expr: results.wait.result
+                suite:
+                  type: javascript
+                  expr: flow_input.iter.value
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/kunit/collect
+              tag_override: vm
+        iterator:
+          type: javascript
+          expr: |-
+            (flow_input.suites && flow_input.suites.length)
+              ? flow_input.suites
+              : results.discover.runnable
+        parallel: false
+        skip_failures: true
+    - id: report
+      summary: Aggregate per-suite results (f/kunit/report)
+      value:
+        type: script
+        input_transforms:
+          per_suite:
+            type: javascript
+            expr: results.suites
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kunit/report
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every suite passed (f/kunit/judge)
+      value:
+        type: script
+        input_transforms:
+          per_suite:
+            type: javascript
+            expr: results.suites
+          report:
+            type: javascript
+            expr: results.report
+        path: f/kunit/judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop kunit@<suite>.service on failure or cancel (f/kunit/stop)
+    value:
+      type: script
+      input_transforms:
+        suites:
+          type: javascript
+          expr: >-
+            (flow_input.suites && flow_input.suites.length) ? flow_input.suites
+            : (results?.discover?.suites ?? [])
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/kunit/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - suites
+    - service
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown
+        lists all guests; it must be KUnit-ready, which `discover` gates.
+      format: dynselect-list_vms
+      title: VM Name
+    suites:
+      type: array
+      description: |-
+        Pick the KUnit suites to run from the guest's named
+        `/sys/kernel/debug/kunit/` suites (the featured set is `rust_rxarray`
+        and `rust_doctests_kernel`). Empty runs every re-runnable suite the
+        guest exposes; an init-only suite runs only when picked explicitly.
+      default: []
+      format: dynmultiselect-list_suites
+      items:
+        type: string
+      title: Suites
+    service:
+      type: object
+      description: |-
+        Timeouts for the run: `wait`'s per-suite polling
+        (`timeout`/`poll_interval`) and whether to stream the guest journal
+        (`stream_logs`). A KUnit suite is sub-second, so these matter only for a
+        hang or an oops.
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+      properties:
+        poll_interval:
+          type: integer
+          description: |-
+            Seconds between `wait`'s unit-status polls and log drains.
+          default: 5
+          title: Poll Interval
+        stream_logs:
+          type: boolean
+          description: |-
+            Each poll, print the guest's new unit + kernel journal (merged, from
+            boot) into the job log, so KTAP and dmesg are visible live. Off =
+            only a bounded journal tail at the end.
+          default: true
+          title: Stream Logs
+        timeout:
+          type: integer
+          description: |-
+            Seconds to poll a suite's unit to a terminal state; on expiry `wait`
+            aborts the suite (`systemctl stop kunit@<suite>`).
+          default: 600
+          title: Suite Timeout
+      title: Service
+  required:
+    - vm_name
+  x-windmill-dyn-select-code: >
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the one source f/common/remote owns).
+        try:
+            from f.common.remote import list_vms as _list_vms
+            return _list_vms(filterText)
+        except Exception:
+            return []
+
+
+    def list_suites(vm_name: str = "", filterText: str = "", **_: object) ->
+    list:
+        # The guest's KUnit suites from the per-VM cache f/kunit/discover writes;
+        # degrades to the curated catalog before the first discovery.
+        try:
+            from f.kunit.common import list_suites as _list_suites
+            return _list_suites(vm_name, filterText)
+        except Exception:
+            return [
+                {"label": "rxarray (Rust XArray)", "value": "rust_rxarray"},
+                {"label": "Rust kernel crate doctests", "value": "rust_doctests_kernel"},
+            ]
+  x-windmill-dyn-select-lang: python3
