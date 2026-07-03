@@ -98,8 +98,10 @@ def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
-        os.fchmod(fd, mode)
+        # fdopen owns the fd from here; fchmod inside the with block so the raw
+        # fd can never leak on a chmod failure.
         with os.fdopen(fd, "w") as fh:
+            os.fchmod(fh.fileno(), mode)
             fh.write(data)
         os.replace(tmp, path)
     except BaseException:
