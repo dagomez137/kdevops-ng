@@ -121,7 +121,7 @@ value:
           expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
         kernel_boot:
           type: javascript
-          expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure})'
+          expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_parameters: flow_input.boot_kernel?.kernel_parameters})'
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -132,6 +132,7 @@ schema:
   - closure
   - qemu
   - boot_qemu
+  - boot_kernel
   - boot_networking
   - boot_sharing
   - boot_nvme
@@ -784,6 +785,7 @@ schema:
               - blktests
               - fstests
               - gitr
+              - kunit
               - ltp
               - mmtests
               - pynfs
@@ -795,6 +797,7 @@ schema:
                 - blktests
                 - fstests
                 - gitr
+                - kunit
                 - ltp
                 - mmtests
                 - pynfs
@@ -1390,6 +1393,29 @@ schema:
           default: 4096
           title: RAM
       title: QEMU machine
+    boot_kernel:
+      type: object
+      description: 'Direct kernel boot (`-kernel`/`-initrd`/`-append`) from the build
+
+        manifests or explicit overrides.'
+      default: {}
+      order:
+      - kernel_parameters
+      properties:
+        kernel_parameters:
+          type: array
+          description: 'Curated extra kernel parameters, appended after the composed
+
+            cmdline. `kunit.autorun=1` runs every initialized KUnit suite
+
+            once at boot; unset, suites wait for `f/kunit/run`.'
+          default: []
+          items:
+            type: string
+            enum:
+            - kunit.autorun=1
+          title: Kernel Parameters
+      title: Kernel boot
     boot_networking:
       type: object
       description: 'Host vsock/SSH forwarding; the base + a per-VM offset (`vm_index`, or a

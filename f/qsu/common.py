@@ -391,6 +391,11 @@ def _kernel(fi: dict, kernel: dict | None, closure: dict | None) -> dict | None:
     append = fi.get("kernel_append") or (
         f"root=tmpfs console=ttyS0,115200 console=hvc0 init={init}" if init else None
     )
+    # Curated extra parameters (e.g. kunit.autorun=1) ride after the composed
+    # cmdline, or stand alone when there is none.
+    params = " ".join(fi.get("kernel_parameters") or [])
+    if params:
+        append = f"{append} {params}" if append else params
     k = {"image": image}
     if append:
         k["append"] = append

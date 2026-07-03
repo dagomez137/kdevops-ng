@@ -229,8 +229,18 @@ for k in ("qemu_source", "qemu_binary"):
     if k in boot_qemu.get("order", []):
         boot_qemu["order"].remove(k)
 
+# Boot-args toggles only: the manifests and overrides in kernel_boot are
+# computed from the build/reuse results, so the group surfaces just the
+# curated kernel parameters.
+boot_kernel = copy.deepcopy(bsch["kernel_boot"])
+for k in list(boot_kernel["properties"]):
+    if k != "kernel_parameters":
+        boot_kernel["properties"].pop(k)
+boot_kernel["order"] = ["kernel_parameters"]
+
 for newkey, src, title in [
     ("boot_qemu", boot_qemu, "QEMU machine"),
+    ("boot_kernel", boot_kernel, "Kernel boot"),
     ("boot_networking", bsch["networking"], "Networking"),
     ("boot_sharing", boot_sharing, "File sharing"),
     ("boot_nvme", bsch["nvme"], "NVMe"),
@@ -305,7 +315,8 @@ boot_transforms = {
     ),
     "kernel_boot": jx(
         '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, '
-        'closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure})'
+        'closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, '
+        "kernel_parameters: flow_input.boot_kernel?.kernel_parameters})"
     ),
 }
 

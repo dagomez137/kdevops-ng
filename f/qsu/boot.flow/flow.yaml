@@ -131,6 +131,9 @@ value:
           kernel_initrd:
             type: javascript
             expr: flow_input.kernel_boot?.kernel_initrd
+          kernel_parameters:
+            type: javascript
+            expr: flow_input.kernel_boot?.kernel_parameters
           legacy_cmb:
             type: javascript
             expr: flow_input.nvme?.legacy_cmb
@@ -301,6 +304,7 @@ schema:
       order:
         - kernel
         - closure
+        - kernel_parameters
         - kernel_image
         - kernel_initrd
         - kernel_append
@@ -332,6 +336,18 @@ schema:
           type: string
           description: Override the `-initrd` (else from `closure`).
           default: ''
+        kernel_parameters:
+          type: array
+          description: |-
+            Curated extra kernel parameters, appended after the composed
+            cmdline. `kunit.autorun=1` runs every initialized KUnit suite
+            once at boot; unset, suites wait for `f/kunit/run`.
+          default: []
+          items:
+            type: string
+            enum:
+              - kunit.autorun=1
+          title: Kernel Parameters
       title: Kernel boot
     networking:
       type: object
