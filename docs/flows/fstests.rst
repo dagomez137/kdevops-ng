@@ -18,6 +18,9 @@ The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
    ``check.env`` ``EnvironmentFile`` onto the host side of the share. Its
    ``[section]`` names drive the loop.
 3. for each ``section`` in turn: ``start`` →  ``wait`` → ``collect``.
+   ``start`` first removes the section's previous ``result.xml`` from the
+   share (xfstests writes it only at run end), so a run that crashes or never
+   finishes can never inherit an old report as a false pass.
 4. ``report``: fold the per-section results into one verdict.
 
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``

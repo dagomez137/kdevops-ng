@@ -1,11 +1,15 @@
 summary: Start a section on a guest
 description: |-
-  Start `xfstests@<section>.service` on a booted guest over vsock-SSH with
-  `--no-block`. The unit is `Type=oneshot`, so a blocking `start` would not
-  return until the whole section finished (hours); `--no-block` returns
-  immediately and `f/fstests/wait` polls for the outcome. After starting, reads
-  back `ActiveState` and asserts it is `activating`/`active`, so a start that
-  never took fails here.
+  Remove the section's previous `result.xml` from the host side of the share
+  (xfstests writes the xunit report only at run end and never truncates it at
+  start, so a leftover report from an earlier run of the same section on the
+  same kernel would otherwise read as a false pass for a run that crashed or
+  never finished), then start `xfstests@<section>.service` on the guest over
+  vsock-SSH with `--no-block`. The unit is `Type=oneshot`, so a blocking `start`
+  would not return until the whole section finished (hours); `--no-block`
+  returns immediately and `f/fstests/wait` polls for the outcome. After
+  starting, reads back `ActiveState` and asserts it is `activating`/`active`, so
+  a start that never took fails here.
 
   Returns `{vm, section, unit, active_state}`.
 lock: '!inline f/fstests/start.script.lock'
@@ -16,7 +20,15 @@ schema:
   order:
     - vm_name
     - section
+    - kernel_version
   properties:
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); selects which
+        `<kver>` subtree's stale `result.xml` to remove before the start.
+      default: ''
+      title: Kernel Version
     section:
       type: string
       description: |-

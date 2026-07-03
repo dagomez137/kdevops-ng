@@ -15,14 +15,17 @@ description: |-
   `render_config`: write the `HOST_OPTIONS` config (`local.config`) and the
   `check.env` `EnvironmentFile` onto the host side of the share; its `[section]`
   names drive the loop. 3. for each `section`, sequentially (sections share
-  `TEST_DEV`/`SCRATCH_DEV`): `start` (`systemctl --host <vm> start --no-block
+  `TEST_DEV`/`SCRATCH_DEV`): `start` (remove the section's previous `result.xml`
+  from the share, then `systemctl --host <vm> start --no-block
   xfstests@<section>`) → `wait` (poll `show
   --property=Result,ExecMainStatus,ActiveState` to terminal, crash-check the
   host `qemu-system@<vm>`) → `collect` (parse the `-R xunit` report from the
-  share). 4. `report`: aggregate the per-section results into one summary.
+  share, gated by the run's crash/timeout outcome). 4. `report`: aggregate the
+  per-section results into one summary.
 
-  Every step is `tag: vm` (the dedicated worker that reaches the guest over the
-  vsock-SSH transport). Returns the `report` summary.
+  The lifecycle and control steps run on the `vm` worker tag (the dedicated
+  worker that reaches the guest over the vsock-SSH transport); the long-lived
+  `wait` poll runs on `vm-run`. Returns the `report` summary.
 value:
   modules:
     - id: discover
@@ -160,6 +163,9 @@ value:
             value:
               type: script
               input_transforms:
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
                 section:
                   type: javascript
                   expr: flow_input.iter.value
@@ -195,12 +201,18 @@ value:
             value:
               type: script
               input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
                 kernel_version:
                   type: javascript
                   expr: results.discover.kernel_version
                 section:
                   type: javascript
                   expr: flow_input.iter.value
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
                 vm_name:
                   type: javascript
                   expr: flow_input.vm_name
@@ -3357,8 +3369,8 @@ schema:
           type: object
           description: |-
             Which xfstests `[section]`s actually run, chosen from the config
-            above (the shipped XFS matrix when `local.config` is empty).
-            **Empty = run ALL of them**; pick one or more to run ONLY those.
+            above (the shipped XFS matrix when `local.config` is empty). **Empty
+            = run ALL of them**; pick one or more to run ONLY those.
           default: []
           format: dynmultiselect-list_sections
           title: Sections

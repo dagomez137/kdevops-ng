@@ -5,10 +5,13 @@ The guest's `./check -s <section> -R xunit` writes its report to
 `RESULT_BASE/<section>/result.xml`. RESULT_BASE is `$PWD/results` with the unit's
 `WorkingDirectory=.../%v`, so results are keyed by the guest's kernel release:
 `<share>/<kver>/results/<section>`. This reads that one section's `result.xml`
-and returns a summary (`passed`/`failed`/`skipped`, the failing test names + messages,
-the notruns), plus the paths of any `.out.bad` diffs and the section `check.log`
-xfstests left beside it. A still-running or crashed section (no/partial report) degrades
-to zeros with a flag rather than failing. Read-only; the host never contacts the guest.
+(this run's: `f/fstests/start` removed any previous run's report before starting)
+and returns a summary (`passed`/`failed`/`skipped`, the failing test names +
+messages, the notruns), plus the paths of any `.out.bad` diffs and the section
+`check.log` xfstests left beside it. The verdict is gated by the run's outcome
+from `f/fstests/wait`: a crashed guest or an aborted (timed-out) section is
+`failed` even when a report exists, and a missing report degrades to zeros with
+a flag rather than raising. Read-only; the host never contacts the guest.
 
 Equivalent command:
 
@@ -33,7 +36,13 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
-def main(vm_name: str, section: str, kernel_version: str) -> dict:
+def main(
+    vm_name: str,
+    section: str,
+    kernel_version: str,
+    crashed: bool = False,
+    timed_out: bool = False,
+) -> dict:
     results_dir = section_results_dir(vm_name, kernel_version, section)
     print(f"+ reading {results_dir}", flush=True)
     summary = parse_xunit(results_dir, section=section)
@@ -53,12 +62,18 @@ def main(vm_name: str, section: str, kernel_version: str) -> dict:
         geometry["features"] = xi["features"]
         geometry["xfs_info"] = xi["raw"]
     report_present = summary["report_present"]
+    # A crashed guest or an aborted (timed-out) section fails even when a report
+    # exists: `start` removed the previous run's report, so anything present is
+    # this run's, but a run cut short must never read as a pass.
+    ok = report_present and not summary["failed"] and not crashed and not timed_out
     return {
         "section": section,
         "vm_name": vm_name,
         "kernel_version": kernel_version,
         "fstype": geometry.get("fstype", ""),
-        "status": "passed" if (report_present and not summary["failed"]) else "failed",
+        "status": "passed" if ok else "failed",
+        "crashed": crashed,
+        "timed_out": timed_out,
         "report_present": report_present,
         "tests": summary["tests"],
         "passed": summary["passed"],
