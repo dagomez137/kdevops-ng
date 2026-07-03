@@ -1,0 +1,36 @@
+summary: Fail the job unless the run passed
+description: |-
+  Apply `f.fstests.common.run_status` (the one rule `f/fstests/report` also
+  uses) to the per-section collect results and raise unless every section
+  passed, so a red run is a red Windmill job: schedules, callers, and flows
+  embedding this one see the verdict in the job state, not only in the report
+  tables. On a pass, return the report rollup unchanged, keeping the report's
+  tables as the flow result. The report step's own result stays viewable either
+  way.
+lock: '!inline f/fstests/judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - per_section
+    - report
+  properties:
+    per_section:
+      type: array
+      description: |-
+        The `f/fstests/collect` result objects, one per section; their statuses
+        decide the verdict.
+      default: []
+      items:
+        type: object
+      title: Per Section
+    report:
+      type: object
+      description: |-
+        The `f/fstests/report` rollup, passed through unchanged on a pass so its
+        tables stay the flow result.
+      default: {}
+      title: Report
+  required: []
+tag: vm

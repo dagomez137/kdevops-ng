@@ -6,11 +6,14 @@ flow's per-section forloop) into a single rollup: the per-section summaries, the
 per-test rows, and a `status` of `failed` when any section reported a failure (or a
 missing report), else `passed`. Pure aggregation, no guest contact. When a `vm_name`
 is given it also writes the full rollup to `<share>/<kver>/report.json` (atomically),
-so the run's verdict is recoverable from the share alone.
+so the run's verdict is recoverable from the share alone. `f/fstests/judge` turns
+the same per-section results into the job verdict (`run_status` is the one shared
+rule).
 
 The returned value is a Windmill `render_all` display of three NATIVE tables (no
 markdown: arrays of objects render as real sortable/searchable tables, while the
-result-view markdown renderer has no GFM-table support):
+result-view markdown renderer has no GFM-table support; `render_all` must stay
+the sole key or the display falls back to raw JSON):
 
   1. run info: testsuite, filesystem type, kernel, guest
   2. per section: the filesystem-under-test geometry + the section's pass/fail counts
@@ -25,7 +28,7 @@ from __future__ import annotations
 
 import json
 
-from f.fstests.common import _atomic_write, share_dir
+from f.fstests.common import _atomic_write, run_status, share_dir
 
 # Cap the per-test table; the full per-test list is always in report.json.
 _TEST_TABLE_CAP = 1000
@@ -77,16 +80,9 @@ def _per_test_rows(section: str, per_test: list[dict]) -> list[dict]:
 
 def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
     sections = list(per_section or [])
-    # A section with no report (still running / crashed) is treated as failed so a
-    # partial run never reports a false pass; `collect` already folds that into `status`.
-    status = (
-        "failed"
-        if any(
-            s.get("status") == "failed" or not s.get("report_present", False)
-            for s in sections
-        )
-        else "passed"
-    )
+    # One shared rule with f/fstests/judge: collect already folds a missing
+    # report, a crash, and a timeout into each section's status.
+    status = run_status(sections)
     # Run-level facts (same across a run's sections): the kernel results are keyed by,
     # and the filesystem type under test.
     kernel_version = next(

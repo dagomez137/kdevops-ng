@@ -92,6 +92,15 @@ def section_results_dir(
     return path
 
 
+def run_status(per_section: list[dict]) -> str:
+    """The run verdict from the per-section collect results, the one rule
+    `f/fstests/report` and `f/fstests/judge` share: `passed` only when every
+    section passed and there was at least one; aggregating nothing must never
+    read as a pass."""
+    ok = bool(per_section) and all(s.get("status") == "passed" for s in per_section)
+    return "passed" if ok else "failed"
+
+
 def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
     """Write via a hidden temp file + rename so a concurrent reader on the shared
     dir (the guest's virtiofsd) never sees a half-written `local.config`/`check.env`."""

@@ -21,7 +21,8 @@ description: |-
   --property=Result,ExecMainStatus,ActiveState` to terminal, crash-check the
   host `qemu-system@<vm>`) → `collect` (parse the `-R xunit` report from the
   share, gated by the run's crash/timeout outcome). 4. `report`: aggregate the
-  per-section results into one summary.
+  per-section results into one summary. 5. `judge`: fail the job unless every
+  section passed.
 
   The lifecycle and control steps run on the `vm` worker tag (the dedicated
   worker that reaches the guest over the vsock-SSH transport); the long-lived
@@ -235,6 +236,19 @@ value:
             type: javascript
             expr: flow_input.vm_name
         path: f/fstests/report
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every section passed (f/fstests/judge)
+      value:
+        type: script
+        input_transforms:
+          per_section:
+            type: javascript
+            expr: results.sections
+          report:
+            type: javascript
+            expr: results.report
+        path: f/fstests/judge
         tag_override: vm
   failure_module:
     id: stop

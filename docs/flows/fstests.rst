@@ -22,6 +22,8 @@ The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
    share (xfstests writes it only at run end), so a run that crashes or never
    finishes can never inherit an old report as a false pass.
 4. ``report``: fold the per-section results into one verdict.
+5. ``judge``: fail the job unless every section passed, so a red run is a red
+   Windmill job.
 
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``
 template unit started with ``--no-block``, executing ``./check -s <section>``.
