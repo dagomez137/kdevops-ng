@@ -7,9 +7,11 @@ Polls `xfstests@<section>.service` on the guest (over vsock-SSH) until its
 (systemd's enum: `success`/`exit-code`/`signal`/`core-dump`/`timeout`/`watchdog`/
 `oom-kill`/...) and `ExecMainStatus` (the `./check` exit code, 0 = all passed).
 
-Each poll also crash-checks the HOST `qemu-system@<vm>.service`: if it has gone
-`failed`, the VM died and we stop with `crashed=True`. On completion (or crash) a
-bounded tail of the guest's unit journal is dumped to the job log for triage.
+Each poll also checks the HOST `qemu-system@<vm>.service`: any not-alive state
+(`failed` is a crash, `inactive` a clean outside stop) means the guest is gone
+and we stop with `crashed=True` rather than burning the timeout on a dead
+transport. On completion (or crash) a bounded tail of the guest's unit journal
+is dumped to the job log for triage.
 
 Equivalent commands:
 
@@ -34,6 +36,7 @@ from f.fstests.common import RemoteSystemd
 from f.fstests.common import list_vms as _list_vms
 
 _DONE = ("inactive", "failed")
+_ALIVE = ("active", "activating", "reloading", "refreshing")
 _JOURNAL_LINES = 200
 
 
@@ -81,9 +84,13 @@ def main(
         host_state = (
             host.systemctl("is-active", qemu_unit, capture=True, check=False) or ""
         ).strip()
-        if host_state == "failed":
+        # Any not-alive state ends the wait: `failed` is a crash, and `inactive`
+        # is a clean outside stop of the VM; either way the guest is gone and
+        # polling a dead transport until the deadline helps nobody.
+        if host_state not in _ALIVE:
             print(
-                f"{vm_name}: {qemu_unit} is failed: guest crashed, stopping poll",
+                f"{vm_name}: {qemu_unit} is {host_state or 'gone'}: guest is down, "
+                f"stopping poll",
                 flush=True,
             )
             crashed = True

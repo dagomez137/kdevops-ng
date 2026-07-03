@@ -6,10 +6,11 @@ description: |-
   enum: `success`/`exit-code`/`signal`/`core-dump`/`timeout`/...) and
   `ExecMainStatus` (the `./check` exit code, 0 = all passed).
 
-  Each poll also crash-checks the host: if `qemu-system@<vm>.service` (the host
-  `systemd --user` unit running QEMU) has gone `failed`, the guest panicked;
-  polling stops and `crashed` is set. On completion a bounded tail of the
-  guest's unit journal is dumped to the job log.
+  Each poll also checks the host `qemu-system@<vm>.service` (the host `systemd
+  --user` unit running QEMU): any not-alive state (`failed` is a panic,
+  `inactive` a clean outside stop) means the guest is gone; polling stops and
+  `crashed` is set. On completion a bounded tail of the guest's unit journal is
+  dumped to the job log.
 
   Returns `{vm, section, result, exec_status, active_state, crashed,
   timed_out}`.
