@@ -51,9 +51,7 @@ def main(vm_name: str, sections: list[str] | None = None) -> dict:
     stopped: list[str] = []
     for section in sections:
         unit = f"xfstests@{section}.service"
-        print(f"+ systemctl stop {unit}", flush=True)
         remote.systemctl("stop", unit, check=False)
-        print(f"+ systemctl reset-failed {unit}", flush=True)
         remote.systemctl("reset-failed", unit, check=False)
         stopped.append(unit)
     return {"vm_name": vm_name, "stopped": stopped, "skipped_no_transport": False}
