@@ -80,6 +80,7 @@ def main(
     modules_dir: str = "",
     shares: list | None = None,
     fstests: bool = False,
+    selftests: bool = False,
     home_share: bool = False,
     home_share_readwrite: bool = False,
     controller_share: bool = False,
@@ -142,6 +143,7 @@ def main(
         "modules_dir": modules_dir or None,
         "shares": shares,
         "fstests": fstests,
+        "selftests": selftests,
         "home_share": home_share,
         "home_share_readwrite": home_share_readwrite,
         "controller_share": controller_share,
@@ -228,6 +230,7 @@ def main(
                 # `tag not found`. modules_dir is omitted: it tracks the kernel, not the closure.
                 "sharing": {
                     "fstests": fstests,
+                    "selftests": selftests,
                     "home_share": home_share,
                     "home_share_readwrite": home_share_readwrite,
                     "shares": shares or [],

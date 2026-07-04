@@ -117,6 +117,9 @@ def main(
     #  - fstests: auto whenever the closure runs the fstests suite.
     if "fstests" in test_suites:
         shares.setdefault("/var/lib/xfstests", {"tag": "fstests"})
+    #  - selftests: auto whenever the closure runs the selftests suite.
+    if "selftests" in test_suites:
+        shares.setdefault("/var/lib/kselftests", {"tag": "selftests"})
     #  - home: the operator's host home (tag `home`, served once by qsu) mounted at
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
     #    in your home (writable via the root->operator virtiofsd uid-map, with no extra

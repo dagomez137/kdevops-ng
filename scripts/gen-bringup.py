@@ -302,7 +302,8 @@ boot_transforms = {
         ': (flow_input.qemu?.mode === "reuse" ? results.resolve?.qemu_binary : null)})'
     ),
     # reuse closure -> replay the shares recorded in the sidecar (explicit File-Sharing
-    # overrides on top); build -> derive fstests/home from the closure inputs. An empty
+    # overrides on top); build -> derive fstests/selftests/home from the closure
+    # inputs. An empty
     # resolve sharing (no reuse / pre-fix sidecar) falls through to the BUILD-derive branch
     # so shares are reconstructed from the closure inputs rather than dropped.
     "sharing": jx(
@@ -310,6 +311,7 @@ boot_transforms = {
         "? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) "
         ": ({ ...flow_input.boot_sharing, "
         'fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), '
+        'selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), '
         "home_share: (flow_input.closure?.guest?.home === true), "
         "home_share_readwrite: (flow_input.closure?.guest?.home === true) }))"
     ),

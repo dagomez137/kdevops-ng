@@ -52,6 +52,9 @@ value:
         installation:
           type: javascript
           expr: flow_input.kernel?.installation
+        selftests:
+          type: javascript
+          expr: flow_input.kernel?.selftests
   - id: build_nix
     summary: Build the NixOS closure (f/nix/build)
     skip_if:
@@ -118,7 +121,7 @@ value:
           expr: '({...flow_input.boot_qemu, qemu_source: (flow_input.qemu?.mode === "build" || flow_input.qemu?.mode === "reuse") ? "qemu-build" : "nixpkgs", qemu_binary: flow_input.qemu?.mode === "build" ? results.build_qemu?.qemu_binary : (flow_input.qemu?.mode === "reuse" ? results.resolve?.qemu_binary : null)})'
         sharing:
           type: javascript
-          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
+          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
         kernel_boot:
           type: javascript
           expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_parameters: flow_input.boot_kernel?.kernel_parameters})'
@@ -152,6 +155,7 @@ schema:
       - build
       - devtools
       - installation
+      - selftests
       properties:
         mode:
           title: Kernel
@@ -659,6 +663,97 @@ schema:
                 modules_install.'
               default: true
           title: Install
+          showExpr: fields.mode === "build"
+        selftests:
+          type: object
+          description: 'Optional kernel selftests build: `make kselftest-install` the selected
+
+            collections into a self-contained tree beside the kernel install.'
+          default: {}
+          order:
+          - enable
+          - targets
+          - extra_targets
+          properties:
+            enable:
+              type: boolean
+              description: 'Build and install the kernel selftests for this kernel, and publish
+
+                the tree to the Nix store as `kselftests-<release>` for the
+
+                selftests suite flow to run against the booted guest.'
+              default: false
+            extra_targets:
+              type: string
+              description: 'Extra selftest collections, space-separated, appended to Targets
+
+                (advanced; collections outside the curated set, e.g.
+
+                `net/forwarding`).'
+              default: ''
+              showExpr: fields.enable === true
+            targets:
+              type: array
+              description: 'Selftest collections to build (make `TARGETS`). A collection that
+
+                fails to build fails the step (`FORCE_TARGETS=1`) instead of being
+
+                silently dropped from the install.'
+              default:
+              - size
+              - breakpoints
+              - kcmp
+              - mincore
+              - splice
+              - sync
+              - clone3
+              - fchmodat2
+              - mount_setattr
+              - memfd
+              - mqueue
+              - syscall_user_dispatch
+              - ptrace
+              - seccomp
+              - cgroup
+              - futex
+              - rlimits
+              - capabilities
+              - exec
+              - proc
+              - sysctl
+              - lib
+              - kmod
+              - timers
+              - kselftest_harness
+              items:
+                type: string
+                enum:
+                - size
+                - breakpoints
+                - kcmp
+                - mincore
+                - splice
+                - sync
+                - clone3 - fchmodat2
+                - mount_setattr
+                - memfd
+                - mqueue
+                - syscall_user_dispatch
+                - ptrace
+                - seccomp
+                - cgroup
+                - futex
+                - rlimits
+                - capabilities
+                - exec
+                - proc
+                - sysctl
+                - lib
+                - kmod
+                - timers
+                - kselftest_harness
+              showExpr: fields.enable === true
+          title: Selftests
           showExpr: fields.mode === "build"
     closure:
       type: object

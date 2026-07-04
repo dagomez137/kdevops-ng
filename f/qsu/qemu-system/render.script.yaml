@@ -46,6 +46,7 @@ schema:
     - modules_dir
     - shares
     - fstests
+    - selftests
     - home_share
     - home_share_readwrite
     - controller_share
@@ -616,11 +617,19 @@ schema:
       description: Guest RAM in MB, passed to QEMU `-m`.
       default: 4096
       title: RAM
+    selftests:
+      type: boolean
+      description: |-
+        Predefined `selftests` share (auto): serve
+        `$WORKERS_DIR/shared/selftests/<vm>` at `/var/lib/kselftests` (rw), tag
+        `selftests`. Set automatically by `f/qsu/bringup` when the closure's
+        test suites include `selftests`; no manual knob.
+      default: false
     shares:
       type: array
       description: |-
         Explicit virtiofs shares (`{tag,dir,mount,options}`); overrides the
-        composed store/modules/fstests/home/controller set.
+        composed store/modules/fstests/selftests/home/controller set.
       default: []
       items:
         type: object

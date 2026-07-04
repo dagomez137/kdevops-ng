@@ -179,6 +179,9 @@ value:
           ram:
             type: javascript
             expr: flow_input.qemu?.ram
+          selftests:
+            type: javascript
+            expr: flow_input.sharing?.selftests
           shares:
             type: javascript
             expr: flow_input.sharing?.shares
