@@ -219,6 +219,33 @@ runner wraps every test in :cmd:`timeout` with the collection's
 killed test appears as ``not ok <n> … # TIMEOUT <secs> seconds`` in that
 same journal, while the run moves on to the next test.
 
+In-kernel module tests beyond kselftest
+=======================================
+
+Two runtime test suites are covered by neither kselftest nor KUnit in
+current kernels: the XArray and Maple Tree suites are classic module-init
+test modules (``lib/test_xarray.c``, ``lib/test_maple_tree.c``). Loading
+the module runs the whole suite; init returns nonzero on any failure, so
+the load's exit status is the verdict, and the pass counts land in the
+kernel log. The imageless preset builds both as modules, and systemd's own
+``modprobe@.service`` template (its start job synchronizes on module
+initialization, that is, on the tests having run) makes the run a
+first-class unit with no extra machinery:
+
+.. code-block:: console
+
+   $ systemctl --host <vm> start modprobe@test_xarray.service
+   $ systemctl --host <vm> start modprobe@test_maple_tree.service
+   $ ssh <vm> journalctl --dmesg --output=cat | grep "tests passed"
+
+A failing suite fails the unit (module init returns an error, so
+:cmd:`modprobe` does too). Loading is idempotent: re-running requires
+removing the module first (``modprobe --remove test_xarray``) and
+``systemctl reset-failed`` if the previous load failed. The lib tests
+that used to sit beside these (``printf``, ``scanf``, ``prime_numbers``)
+were converted to KUnit upstream and run through :doc:`kunit` on a
+KUnit-enabled guest instead.
+
 Stopping a run
 ==============
 
