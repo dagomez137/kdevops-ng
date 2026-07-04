@@ -41,4 +41,5 @@ Flows
 - :doc:`/flows/qemu-build` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/nvme-testing` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/selftests` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/runtime-tests` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/sysrq` (add to ``docs/flows/index.rst``)
