@@ -179,6 +179,43 @@
             shellHook = reproducibleShellHook + kernelClangHook;
           };
 
+          # Kernel selftests (tools/testing/selftests) build out of the
+          # kernel source tree with the kernel toolchain plus a handful
+          # of userland libraries the test binaries link against; the
+          # suite's install stage uses rsync (already in the kernel
+          # set). Kept separate from build-kernel so its
+          # reproducibility-pinned environment stays untouched: the
+          # selftest binaries are ordinary userland, with no
+          # byte-identical cross-host requirement.
+          build-kselftests = pkgs.mkShell {
+            packages = kernelPackages;
+            buildInputs = [
+              pkgs.libcap
+              pkgs.libcap_ng
+              pkgs.popt
+              pkgs.numactl
+              pkgs.libmnl
+              pkgs.fuse
+              pkgs.fuse3
+              pkgs.liburing
+            ];
+            # A few tests link -static or -static-pie (size, exec);
+            # the static libc archives live in glibc's separate static
+            # output. NIX_LDFLAGS_AFTER puts the directory behind the
+            # wrapper's own libc path: ahead of the dynamic libc (as a
+            # buildInput would be) it resolves -lc to libc.a for
+            # ordinary dynamic links too, which breaks at run time on
+            # glibc's IFUNC relocations; a -static link ignores shared
+            # objects, so it still finds libc.a back there.
+            env.NIX_LDFLAGS_AFTER = "-L${pkgs.glibc.static}/lib";
+            # The suite assumes stock toolchain defaults. The wrapper's
+            # injected hardening breaks freestanding tests: the implicit
+            # stack protector's __stack_chk_fail drags glibc's static
+            # startup objects into size/get_size (-nostartfiles), which
+            # reference the undefined _DYNAMIC.
+            hardeningDisable = [ "all" ];
+          };
+
           # Adds qemu's build inputs via inputsFrom + the python deps qemu's
           # offline configure venv (mkvenv) needs.
           build-qemu = pkgs.mkShell {
