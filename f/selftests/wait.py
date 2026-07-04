@@ -1,0 +1,196 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+"""Wait for one kselftest run item to finish on a booted guest, with crash detection.
+
+Polls the guest's journal for the unit `f/selftests/start` started, reading only
+entries past start's cursor, so everything seen belongs to this run. Completion
+is systemd's own job-outcome record in that stream: PID1 logs exactly one of
+`MSG_UNIT_STARTED` ("Finished <unit>", the start job succeeded) or
+`MSG_UNIT_FAILED` ("Failed to start <unit>") per start job, and `MSG_UNIT_STOPPED`
+when an outside stop ended it. The same records carry the run's KTAP (the unit's
+own output) and the unit's process exits (`EXIT_STATUS`), so the returned `ktap`
+is the run-scoped document `f/selftests/collect` parses, and `exec_status`
+carries a failing command's exit status when there is one (systemd journal-logs
+successful process exits only at debug level, so a clean run leaves it empty;
+the "Finished" outcome already proves the runner exited 0). The templates pass
+`--no-error-on-fail`, so a nonzero exit is an infrastructure error, never a
+test failure; the pass/fail verdict is the KTAP itself.
+
+The runner bounds each individual test (the per-collection `settings` timeout,
+default 45 s, or the run form's Per-test Timeout), and the unit is
+`TimeoutStartSec=infinity`, so this poll deadline is the only bound on the
+whole run. Each poll also checks the host `qemu-system@<vm>.service`: any
+not-alive state (`failed`, or `inactive` after a clean outside stop) means the
+guest is gone and the wait ends with `crashed=True` rather than burning the
+timeout on a dead transport.
+
+Equivalent commands:
+
+    # guest, over vsock-SSH, each poll:
+    ssh <vm> journalctl --output=json --after-cursor=<cursor> \
+        --unit=kselftest@<instance>.service
+    # host systemd --user, each poll (liveness check):
+    systemctl --user is-active qemu-system@<vm>.service
+"""
+
+from __future__ import annotations
+
+import os
+import time
+from pathlib import Path
+
+from f.common.devshell import Systemd
+from f.common.remote import (
+    MSG_UNIT_FAILED,
+    MSG_UNIT_PROCESS_EXIT,
+    MSG_UNIT_STARTED,
+    MSG_UNIT_STOPPED,
+    RemoteSystemd,
+    journal_message,
+)
+from f.common.remote import list_vms as _list_vms
+
+_ALIVE = ("active", "activating", "reloading", "refreshing")
+_TAIL_LINES = 40
+
+
+def list_vms(filterText: str = "", **_: object) -> list[dict]:
+    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.common.remote.list_vms`."""
+    return _list_vms(filterText)
+
+
+def main(
+    vm_name: str,
+    item: str,
+    unit: str,
+    cursor: str,
+    timeout: int = 900,
+    poll_interval: int = 15,
+    stream_logs: bool = True,
+) -> dict:
+    workers = Path(os.environ["WORKERS_DIR"])
+    remote = RemoteSystemd(workers, vm_name)
+    host = Systemd(workers)
+    qemu_unit = f"qemu-system@{vm_name}.service"
+
+    deadline = time.monotonic() + int(timeout)
+    result = ""
+    exec_status = ""
+    crashed = False
+    timed_out = False
+    poll_errors = 0
+    ktap_lines: list[str] = []
+    run_cursor: str | None = cursor
+    # Stream the display journal from the run's own cursor, not from boot: a
+    # boot-anchored first drain would dump the guest's entire dmesg into the
+    # job log in one oversized chunk (which the job-log pipeline drops).
+    log_cursor: str | None = cursor
+
+    def drain_logs() -> None:
+        """Print the guest's new combined unit + kernel journal into the job log."""
+        nonlocal log_cursor
+        if not stream_logs:
+            return
+        try:
+            log_cursor, body = remote.journal_combined(unit, log_cursor)
+        except Exception as exc:
+            print(f"{vm_name}: journal fetch failed ({exc}); continuing", flush=True)
+            return
+        if body.strip():
+            print(body, flush=True)
+
+    def scan(records: list[dict]) -> None:
+        """Fold this run's new journal records into the outcome and the KTAP."""
+        nonlocal result, exec_status
+        for rec in records:
+            if rec.get("_SYSTEMD_UNIT") == unit:
+                ktap_lines.append(journal_message(rec))
+            mid = rec.get("MESSAGE_ID", "")
+            if mid == MSG_UNIT_PROCESS_EXIT:
+                exec_status = str(rec.get("EXIT_STATUS", ""))
+            elif mid == MSG_UNIT_STARTED:
+                result = "done"
+            elif mid == MSG_UNIT_FAILED:
+                result = "failed"
+            elif mid == MSG_UNIT_STOPPED:
+                result = result or "stopped"
+
+    while True:
+        host_state = (
+            host.systemctl("is-active", qemu_unit, capture=True, check=False) or ""
+        ).strip()
+        if host_state not in _ALIVE:
+            print(
+                f"{vm_name}: {qemu_unit} is {host_state or 'gone'}: guest is down, "
+                f"stopping poll",
+                flush=True,
+            )
+            crashed = True
+            break
+
+        # A transient vsock-SSH poll failure is not the run failing (the host qemu
+        # liveness check above is the authority on a dead guest), so it just
+        # retries; only the deadline (or the guest going down) ends the wait.
+        try:
+            run_cursor, records = remote.journal_unit(unit, run_cursor)
+        except Exception as exc:
+            poll_errors += 1
+            print(
+                f"{vm_name}: poll of {unit} failed ({exc}); qemu still up, retrying "
+                f"(consecutive errors: {poll_errors})",
+                flush=True,
+            )
+            if time.monotonic() >= deadline:
+                timed_out = True
+                print(
+                    f"{vm_name}: timed out after {timeout}s (last poll errored)",
+                    flush=True,
+                )
+                break
+            time.sleep(int(poll_interval))
+            continue
+        poll_errors = 0
+        scan(records)
+        drain_logs()
+        if result:
+            break
+        if time.monotonic() >= deadline:
+            timed_out = True
+            print(f"{vm_name}: timed out after {timeout}s (no job outcome)", flush=True)
+            break
+        time.sleep(int(poll_interval))
+
+    # A run that overran its poll deadline is hung in the guest (an oops or a
+    # never-returning test); abort it rather than leave it spinning.
+    if timed_out:
+        print(f"{vm_name}: stopping {unit} after the run timeout", flush=True)
+        remote.systemctl("stop", unit, check=False)
+        try:
+            run_cursor, records = remote.journal_unit(unit, run_cursor)
+            scan(records)
+        except Exception:
+            pass
+
+    if stream_logs:
+        drain_logs()
+    elif ktap_lines:
+        # No live stream was requested; still leave a bounded tail in the job log
+        # so a failure is diagnosable without reaching for the guest.
+        tail = ktap_lines[-_TAIL_LINES:]
+        print(f"{vm_name}: {unit} journal tail ({len(tail)} lines):", flush=True)
+        print("\n".join(tail), flush=True)
+
+    print(
+        f"{vm_name}: {unit} finished result={result!r} exec_status={exec_status!r} "
+        f"crashed={crashed} timed_out={timed_out}",
+        flush=True,
+    )
+    return {
+        "vm": vm_name,
+        "item": item,
+        "unit": unit,
+        "result": result,
+        "exec_status": exec_status,
+        "ktap": "\n".join(ktap_lines),
+        "crashed": crashed,
+        "timed_out": timed_out,
+    }

@@ -1,0 +1,35 @@
+summary: Fail the job unless the run passed
+description: |-
+  Apply `f.selftests.common.run_status` (the one rule `f/selftests/report` also
+  uses) to the per-item collect results and raise unless every item passed, so a
+  red run is a red Windmill job: schedules, callers, and flows embedding this
+  one see the verdict in the job state, not only in the report tables. On a
+  pass, return the report rollup unchanged, keeping the report's tables as the
+  flow result. The report step's own result stays viewable either way.
+lock: '!inline f/selftests/judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - per_item
+    - report
+  properties:
+    per_item:
+      type: array
+      description: |-
+        The `f/selftests/collect` result objects, one per run item; their
+        statuses decide the verdict.
+      default: []
+      items:
+        type: object
+      title: Per Item
+    report:
+      type: object
+      description: |-
+        The `f/selftests/report` rollup, passed through unchanged on a pass so
+        its tables stay the flow result.
+      default: {}
+      title: Report
+  required: []
+tag: vm

@@ -1,0 +1,316 @@
+summary: Run kernel selftests (kselftest)
+description: |-
+  Run Linux kernel selftests (kselftest) against an already-booted guest,
+  driving each run item as its own systemd template unit without rebooting:
+  `kselftest@<instance>.service` runs one collection (`run_kselftest.sh
+  --collection`), and `kselftest-test@<instance>.service` runs one
+  COLLECTION:TEST list entry (`run_kselftest.sh --test`); the instance is the
+  systemd-escaped item name (`net/forwarding` -> `net-forwarding`). The built
+  install tree is version-coupled to the kernel under test, so it comes from the
+  Nix store (the `kselftests-<kver>` entry the kernel build publishes) and is
+  copied onto the guest's writable `selftests` share.
+
+  Steps mirror kselftest/systemd vocabulary 1:1:
+
+  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
+  is-system-running`, the `kselftest@.service` template present), resolve the
+  running kernel's built tree from the store index, and enumerate its
+  collections from `kselftest-list.txt`. 2. `prepare`: copy the store tree to
+  the share's `<kver>/tree/` (skipped when already current). 3. `render_config`:
+  write `kselftest.env` (the units' `EnvironmentFile`) with the optional
+  per-test timeout override. 4. for each item: `start` (capture a guest journal
+  cursor, then `systemctl --host <vm> start --no-block` the item's unit) →
+  `wait` (poll the unit's journal past the cursor for systemd's job-outcome
+  record, crash-check the host `qemu-system@<vm>`) → `collect` (parse the
+  run-scoped KTAP `wait` captured; plan-checked, so a truncated journal never
+  passes). 5. `report`: aggregate the per-item results into one summary. 6.
+  `judge`: fail the job unless every item passed.
+
+  The lifecycle and control steps run on the `vm` worker tag (the dedicated
+  worker that reaches the guest over the vsock-SSH transport); the `wait` poll
+  runs on `vm-run`, so a hung collection never starves a quick control op.
+  **Tests** (explicit COLLECTION:TEST entries) takes precedence over
+  **Collections**; both empty runs every collection the built tree lists.
+  Returns the `report` summary.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + enumerate collections (f/selftests/discover)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/selftests/discover
+        tag_override: vm
+    - id: prepare
+      summary: Lay the built tree onto the share (f/selftests/prepare)
+      value:
+        type: script
+        input_transforms:
+          kernel_version:
+            type: javascript
+            expr: results.discover.kernel_version
+          store_path:
+            type: javascript
+            expr: results.discover.store_path
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/selftests/prepare
+        tag_override: vm
+    - id: render_config
+      summary: Write kselftest.env onto the share (f/selftests/render_config)
+      value:
+        type: script
+        input_transforms:
+          override_timeout:
+            type: javascript
+            expr: flow_input.override_timeout
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/selftests/render_config
+        tag_override: vm
+    - id: items
+      summary: Run each item sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        modules:
+          - id: start
+            summary: Start the item's unit detached (f/selftests/start)
+            value:
+              type: script
+              input_transforms:
+                item:
+                  type: javascript
+                  expr: flow_input.iter.value
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/selftests/start
+              tag_override: vm
+          - id: wait
+            summary: Poll the run's journal to its outcome (f/selftests/wait)
+            value:
+              type: script
+              input_transforms:
+                cursor:
+                  type: javascript
+                  expr: results.start.cursor
+                item:
+                  type: javascript
+                  expr: flow_input.iter.value
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                unit:
+                  type: javascript
+                  expr: results.start.unit
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/selftests/wait
+              tag_override: vm-run
+          - id: collect
+            summary: Parse the run-scoped KTAP (f/selftests/collect)
+            value:
+              type: script
+              input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
+                exec_status:
+                  type: javascript
+                  expr: results.wait.exec_status
+                item:
+                  type: javascript
+                  expr: flow_input.iter.value
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                ktap:
+                  type: javascript
+                  expr: results.wait.ktap
+                result:
+                  type: javascript
+                  expr: results.wait.result
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/selftests/collect
+              tag_override: vm
+        iterator:
+          type: javascript
+          expr: |-
+            (flow_input.tests && flow_input.tests.length)
+              ? flow_input.tests
+              : ((flow_input.collections && flow_input.collections.length)
+                  ? flow_input.collections
+                  : results.discover.collections)
+        parallel: false
+        skip_failures: true
+    - id: report
+      summary: Aggregate per-item results (f/selftests/report)
+      value:
+        type: script
+        input_transforms:
+          per_item:
+            type: javascript
+            expr: results.items
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/selftests/report
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every item passed (f/selftests/judge)
+      value:
+        type: script
+        input_transforms:
+          per_item:
+            type: javascript
+            expr: results.items
+          report:
+            type: javascript
+            expr: results.report
+        path: f/selftests/judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop kselftest units on failure or cancel (f/selftests/stop)
+    value:
+      type: script
+      input_transforms:
+        items:
+          type: javascript
+          expr: >-
+            (flow_input.tests && flow_input.tests.length) ? flow_input.tests :
+            ((flow_input.collections && flow_input.collections.length) ?
+            flow_input.collections : (results?.discover?.collections ?? []))
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/selftests/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - collections
+    - tests
+    - override_timeout
+    - service
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown
+        lists all guests; it must carry the `selftests` suite, which `discover`
+        gates.
+      format: dynselect-list_vms
+      title: VM Name
+    collections:
+      type: array
+      description: |-
+        Pick the kselftest collections to run from the built tree's
+        `kselftest-list.txt` (curated labels; a collection outside the curated
+        kernel-build set notes its environment caveat). Empty runs every
+        collection the tree lists. Ignored when **Tests** is set.
+      default: []
+      format: dynmultiselect-list_collections
+      items:
+        type: string
+      title: Collections
+    tests:
+      type: array
+      description: |-
+        Advanced: explicit `COLLECTION:TEST` entries (`kselftest-list.txt`
+        lines, e.g. `net:fcnal-test.sh`), each run as its own
+        `kselftest-test@<instance>.service`. Takes precedence over
+        **Collections**; empty defers to it.
+      default: []
+      items:
+        type: string
+      title: Tests
+    override_timeout:
+      type: integer
+      description: |-
+        Seconds per individual test (`run_kselftest.sh --override-timeout`),
+        replacing every collection's own upstream `settings` timeout (default 45
+        s per test). 0 keeps the upstream timeouts.
+      default: 0
+      title: Per-test Timeout
+    service:
+      type: object
+      description: |-
+        Timeouts for the run: `wait`'s per-item polling
+        (`timeout`/`poll_interval`) and whether to stream the guest journal
+        (`stream_logs`). The runner bounds each individual test itself; this
+        deadline bounds a whole collection.
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+      properties:
+        poll_interval:
+          type: integer
+          description: |-
+            Seconds between `wait`'s unit-status polls and log drains.
+          default: 15
+          title: Poll Interval
+        stream_logs:
+          type: boolean
+          description: |-
+            Each poll, print the guest's new unit + kernel journal (merged) into
+            the job log, so KTAP and dmesg are visible live. Off = only a
+            bounded journal tail at the end.
+          default: true
+          title: Stream Logs
+        timeout:
+          type: integer
+          description: |-
+            Seconds to poll an item's unit to a terminal state; on expiry `wait`
+            aborts the item (`systemctl stop` of its unit).
+          default: 900
+          title: Item Timeout
+      title: Service
+  required:
+    - vm_name
+  x-windmill-dyn-select-code: >
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the one source f/common/remote owns).
+        try:
+            from f.common.remote import list_vms as _list_vms
+            return _list_vms(filterText)
+        except Exception:
+            return []
+
+
+    def list_collections(vm_name: str = "", filterText: str = "", **_: object)
+    -> list:
+        # The kernel's kselftest collections from the per-VM cache
+        # f/selftests/discover writes; degrades to the curated catalog before
+        # the first discovery.
+        try:
+            from f.selftests.common import list_collections as _list_collections
+            return _list_collections(vm_name, filterText)
+        except Exception:
+            return [
+                {"label": "size (minimal memory-usage report)", "value": "size"},
+                {"label": "seccomp (seccomp filters)", "value": "seccomp"},
+                {"label": "kselftest_harness (harness self-checks)", "value": "kselftest_harness"},
+            ]
+  x-windmill-dyn-select-lang: python3

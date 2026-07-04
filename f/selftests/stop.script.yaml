@@ -1,0 +1,40 @@
+summary: Stop a kselftest run on a guest
+description: |-
+  Stop a run item's units on the guest over vsock-SSH (plus `reset-failed` to
+  clear any latched state), covering both templates an item can run as
+  (`kselftest@<instance>` and the single-test `kselftest-test@<instance>`), the
+  instance systemd-escaped exactly as `start` escapes it. Wired as the
+  `run.flow` `failure_module` so cancelling a run from the Windmill UI, or any
+  step erroring out mid-run, tears the running unit down on the guest. Stops are
+  idempotent; a guest unreachable from the worker is logged and skipped so the
+  failure handler never itself fails. Force-stopping a Windmill job bypasses
+  `failure_module`; the manual fallback is `systemctl --host <vm> stop
+  kselftest@<instance>.service`.
+
+  Returns `{vm_name, stopped, skipped_no_transport}`.
+lock: '!inline f/selftests/stop.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - items
+  properties:
+    items:
+      type: array
+      description: |-
+        Run items (collection names or `COLLECTION:TEST` entries) whose units to
+        stop. Empty = no-op.
+      default: []
+      items:
+        type: string
+      title: Items
+    vm_name:
+      type: object
+      description: Booted VM whose kselftest units to stop, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

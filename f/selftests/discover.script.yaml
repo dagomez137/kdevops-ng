@@ -1,0 +1,32 @@
+summary: 'Discover a guest''s kselftest readiness over SSH'
+description: |-
+  Reach a booted guest over vsock-SSH and report whether it is ready to run the
+  kernel selftests, and which collections its kernel built. Checks `systemctl
+  --host <vm> is-system-running` is `running`/`degraded` and that the
+  `kselftest@.service` template is installed, reads the running kernel release
+  (`/proc/sys/kernel/osrelease`), resolves the matching built install tree from
+  the local Nix store (the `kselftests-<kver>` index entry the kernel build
+  publishes), and enumerates the collections from its `kselftest-list.txt` (one
+  `collection:test` line per test, split on the first `:`).
+
+  Returns `{vm, host, booted, kernel_version, store_path, collections,
+  tests_total, version}`. Fails fast with a clear message if the guest is not
+  kselftest-ready, no tree is published for the running kernel (build the kernel
+  with selftests enabled), or the tree lists zero collections. Writes the
+  collection list to the per-VM picker cache; mutates nothing on the guest.
+lock: '!inline f/selftests/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM to probe over vsock-SSH for kselftest readiness.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

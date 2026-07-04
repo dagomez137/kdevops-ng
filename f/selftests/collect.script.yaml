@@ -1,0 +1,92 @@
+summary: Fold an item's KTAP into a verdict
+description: |-
+  Parse the run-scoped KTAP `f/selftests/wait` captured (bounded by start's
+  journal cursor, so it can only be this run's output) into per-test
+  pass/fail/notrun counts; the guest is never contacted, so a crashed guest
+  still gets an honest verdict. `passed` needs the start job finished
+  (`result=done`), a clean exit (with `--no-error-on-fail` a nonzero exit is an
+  infrastructure error), no crash, no timeout, the document's `1..N` plan
+  matching the parsed result lines (a truncated journal can never pass), and no
+  `not ok` line. A run that passed nothing at all (empty body, or every test
+  skipped) is `notrun`; anything else is `failed`. Returns a scalar overview
+  `{item, vm_name, kernel_version, status, result, exec_status, crashed,
+  timed_out, tests, passed, failed, skipped}` (so the run flow's per-item
+  forloop renders a tidy one-row-per-item table) plus a `detail` object carrying
+  the per-test rows, the failing tests, and the raw KTAP (consumed by
+  `f/selftests/report`).
+lock: '!inline f/selftests/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - item
+    - kernel_version
+    - ktap
+    - result
+    - exec_status
+    - crashed
+    - timed_out
+  properties:
+    crashed:
+      type: boolean
+      description: |-
+        Whether `f/selftests/wait` saw the guest go down (the host
+        `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
+      default: false
+      title: Crashed
+    exec_status:
+      type: string
+      description: |-
+        A failing command's exit status from the run's journal, when there is
+        one (successful exits are logged only at debug level, so a clean run
+        leaves it empty); anything but empty or `0` fails the verdict (with
+        `--no-error-on-fail` it is an infrastructure error).
+      default: ''
+      title: Exec Status
+    item:
+      type: string
+      description: |-
+        Run item the KTAP belongs to (a collection name or a `COLLECTION:TEST`
+        entry).
+      title: Item
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); keys the
+        `report.json` rollup under the kernel the item ran on.
+      title: Kernel Version
+    ktap:
+      type: string
+      description: |-
+        The run-scoped KTAP document `f/selftests/wait` captured from the unit's
+        journal.
+      default: ''
+      title: KTAP
+    result:
+      type: string
+      description: |-
+        systemd's job outcome from `f/selftests/wait`
+        (`done`/`failed`/`stopped`); anything but `done` forces a `failed`
+        verdict.
+      default: ''
+      title: Result
+    timed_out:
+      type: boolean
+      description: |-
+        Whether `f/selftests/wait` gave up on the item and stopped its unit;
+        forces a `failed` verdict.
+      default: false
+      title: Timed Out
+    vm_name:
+      type: object
+      description: |-
+        The VM the item ran on (recorded; the guest is not contacted).
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - item
+    - kernel_version
+tag: vm

@@ -1,0 +1,38 @@
+summary: Start a kselftest run item on a guest
+description: |-
+  Capture the guest journal's end-of-now cursor, then start the item's unit over
+  vsock-SSH with `--no-block`: `kselftest@<instance>.service` for a whole
+  collection (`run_kselftest.sh --collection`), `kselftest-test@<instance>.
+  service` for a single COLLECTION:TEST entry (`run_kselftest.sh --test`); the
+  instance is the systemd-escaped item name. The cursor is the run's identity:
+  journal entries past it belong to this run and nothing before it does, so
+  `wait`/`collect` can never confuse this run with a previous one. The unit's
+  exit codes carry no pass/fail verdict (the templates pass
+  `--no-error-on-fail`); the verdict is the KTAP in the journal.
+
+  Returns `{vm, item, unit, cursor}`.
+lock: '!inline f/selftests/start.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - item
+  properties:
+    item:
+      type: string
+      description: |-
+        Run item to start: a collection name (a `kselftest-list.txt` collection,
+        e.g. `seccomp`, `net/forwarding`) or an explicit `COLLECTION:TEST` entry
+        (e.g. `net:fcnal-test.sh`).
+      title: Item
+    vm_name:
+      type: object
+      description: Booted VM to start the kselftest item on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - item
+tag: vm

@@ -1,0 +1,18 @@
+summary: KTAP parser and kselftest collection listing
+description: |-
+  Library module imported by the `f/selftests/*` steps (`from f.selftests.common
+  import parse_ktap, item_unit, list_collections, ...`). Not a runnable step on
+  its own. Parses the flat KTAP `run_kselftest.sh` emits to its
+  `kselftest@<instance>.service` journal into per-test pass/fail/notrun counts,
+  escapes collection names into systemd unit instances (`net/forwarding` ->
+  `net-forwarding`, `cpu-hotplug` -> `cpu\x2dhotplug`), lists a guest kernel's
+  collections from the per-VM cache, and writes the run's `report.json` rollup
+  onto the shared `selftests` tree. Never contacts the guest.
+lock: '!inline f/selftests/common.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
