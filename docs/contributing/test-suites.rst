@@ -90,6 +90,21 @@ commander; the unit is the executor. Requirements:
   Know the systemd caveat: a **successful** process exit is journal-logged
   only at debug level, so never require a visible exit-status record to
   call a run clean; the ``Finished`` job record is the proof.
+- A runner that reopens its own stdout breaks under
+  ``StandardOutput=journal``: the journal stream is a socket, and
+  ``open(2)`` on a socket fails with ``ENXIO``, so an append redirection
+  to ``/dev/stdout`` (kselftest's default per-test logfile) kills every
+  test before it runs while the framing still streams. Prefer the
+  runner's own file-logging mode over any wrapper (``run_kselftest.sh
+  --summary`` sends the per-test output to a file on the share; the KTAP
+  skeleton keeps writing to the inherited journal fd).
+- A suite's hard-coded FHS tool paths get :cmd:`systemd-tmpfiles` ``L+``
+  compat symlinks, declared in the suite's own module so only its guests
+  carry them. The kselftest module ships three: ``/usr/bin/timeout`` (the
+  runner's per-test watchdog silently vanishes without it),
+  ``/sbin/modprobe`` (every ``module.sh``-driven test skips without it),
+  and ``/bin/bash`` for test-script shebangs
+  (:src:`vendor/nixos-flake/modules/testSuites/selftests.nix`).
 
 The nix layer
 =============
