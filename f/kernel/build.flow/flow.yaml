@@ -341,6 +341,56 @@ value:
       timeout:
         type: static
         value: 1800
+    - id: build_selftests
+      summary: make kselftest-install (optional)
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          extra_targets:
+            type: javascript
+            expr: flow_input.selftests?.extra_targets
+          reuse_present:
+            type: javascript
+            expr: results.reuse_check?.present === true &&
+              flow_input.reuse?.reuse !== false
+          targets:
+            type: javascript
+            expr: flow_input.selftests?.targets
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/build_selftests
+      skip_if:
+        expr: flow_input.selftests?.enable !== true
+      timeout:
+        type: static
+        value: 3600
+    - id: publish_selftests
+      summary: publish the kselftests tree to the Nix store
+      value:
+        type: script
+        input_transforms:
+          install_dir:
+            type: javascript
+            expr: results.build_selftests?.install_dir
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+        path: f/kernel/publish_selftests
+      skip_if:
+        expr: flow_input.selftests?.enable !== true
+      timeout:
+        type: static
+        value: 600
     - id: publish
       summary: publish this identity's run layer to the Nix store
       value:
@@ -446,6 +496,9 @@ value:
           reuse:
             type: javascript
             expr: results.reuse_check
+          selftests:
+            type: javascript
+            expr: results.publish_selftests
         lock: '!inline merge_step_results_into_one_manifest.inline_script.lock'
         language: bun
   same_worker: true
@@ -459,6 +512,7 @@ schema:
     - build
     - devtools
     - installation
+    - selftests
   properties:
     build:
       type: object
@@ -846,6 +900,94 @@ schema:
           default: true
           title: Use Peers
       title: Reuse
+    selftests:
+      type: object
+      description: |-
+        Optional kernel selftests build: `make kselftest-install` the selected
+        collections into a self-contained tree beside the kernel install.
+      default: {}
+      order:
+        - enable
+        - targets
+        - extra_targets
+      properties:
+        enable:
+          type: boolean
+          description: |-
+            Build and install the kernel selftests for this kernel, and publish
+            the tree to the Nix store as `kselftests-<release>` for the
+            selftests suite flow to run against the booted guest.
+          default: false
+        extra_targets:
+          type: string
+          description: |-
+            Extra selftest collections, space-separated, appended to Targets
+            (advanced; collections outside the curated set, e.g.
+            `net/forwarding`).
+          default: ''
+          showExpr: fields.enable === true
+        targets:
+          type: array
+          description: |-
+            Selftest collections to build (make `TARGETS`). A collection that
+            fails to build fails the step (`FORCE_TARGETS=1`) instead of being
+            silently dropped from the install.
+          default:
+            - size
+            - breakpoints
+            - kcmp
+            - mincore
+            - splice
+            - sync
+            - clone3
+            - fchmodat2
+            - mount_setattr
+            - memfd
+            - mqueue
+            - syscall_user_dispatch
+            - ptrace
+            - seccomp
+            - cgroup
+            - futex
+            - rlimits
+            - capabilities
+            - exec
+            - proc
+            - sysctl
+            - lib
+            - kmod
+            - timers
+            - kselftest_harness
+          items:
+            type: string
+            enum:
+              - size
+              - breakpoints
+              - kcmp
+              - mincore
+              - splice
+              - sync
+              - clone3
+                - fchmodat2
+              - mount_setattr
+              - memfd
+              - mqueue
+              - syscall_user_dispatch
+              - ptrace
+              - seccomp
+              - cgroup
+              - futex
+              - rlimits
+              - capabilities
+              - exec
+              - proc
+              - sysctl
+              - lib
+              - kmod
+              - timers
+              - kselftest_harness
+          showExpr: fields.enable === true
+      title: Selftests
     worktree:
       type: object
       description: Source ref, optional patch series, and warm-tree lifecycle.

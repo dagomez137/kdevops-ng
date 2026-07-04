@@ -11,6 +11,7 @@ export async function main(
   modules: any,
   reuse: any,
   publish: any,
+  selftests: any,
 ) {
   return {
     worker: prepare?.worker ?? null,
@@ -38,5 +39,7 @@ export async function main(
     compile_commands: devtools?.compile_commands ?? null,
     vmlinux_gdb: devtools?.vmlinux_gdb ?? null,
     rust_project: devtools?.rust_project ?? null,
+    kselftests: selftests?.store_path ?? null,
+    kselftests_name: selftests?.name ?? null,
   };
 }
