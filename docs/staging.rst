@@ -15,6 +15,11 @@ its name to the toctree of the listed section ``index.rst``, and remove its
 entry from the list below. When the list is empty, delete this page and its
 entry in ``docs/index.rst``.
 
+Contributing
+============
+
+- :doc:`/contributing/test-suites` (add to ``docs/contributing/index.rst``)
+
 Reference
 =========
 
