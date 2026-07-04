@@ -41,6 +41,21 @@ in
       prev.gdbm
       prev.liburing
     ];
+    # Upstream check already runs every test in its own transient systemd
+    # scope (fs<seq>.scope, feature-detected) so a hung test's whole process
+    # tree can be killed from outside, but nothing bounds a test's runtime.
+    # Carry the downstream watchdog patch: when TEST_TIMEOUT (seconds,
+    # global) or TEST_TIMEOUTS ("<seq>:<seconds> ..." per-test overrides) is
+    # set in check's environment, the scope gets RuntimeMaxSec, so systemd
+    # kills an overrunning test and check records the failure and moves on.
+    # Unset keeps upstream behavior: no limit. Queued for xfstests upstream;
+    # drop the patch on the version bump that includes it. The recipe
+    # replaces patchPhase wholesale (postPatch would be silently ignored),
+    # so append there.
+    patchPhase = (prevAttrs.patchPhase or "") + ''
+      patch -p1 < ${./xfstests-runtime-max-sec.patch}
+    '';
+
     # The recipe installs the runtime tree (check, tests, common) but drops
     # doc/, so the canonical group registry tracked upstream in
     # doc/group-names.txt -- the group name to description mapping -- is absent

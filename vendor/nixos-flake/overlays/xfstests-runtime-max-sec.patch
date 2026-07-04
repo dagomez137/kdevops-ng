@@ -1,0 +1,62 @@
+From 509c3cdd58960574032242b8af9e64c31aa29c5e Mon Sep 17 00:00:00 2001
+From: Daniel Gomez <da.gomez@kernel.org>
+Date: Sun, 14 Jun 2026 18:21:56 +0200
+Subject: [PATCH] check: bound each test's runtime with a configurable
+ RuntimeMaxSec
+
+When systemd scopes are available each test already runs in its own
+transient scope, but with no runtime limit, so a test that hangs (a
+livelock, or a thread wedged in uninterruptible sleep) blocks the whole
+run indefinitely with no way to make progress short of killing it by hand.
+
+Set the scope's RuntimeMaxSec from a timeout the operator can configure:
+the global TEST_TIMEOUT (seconds) applies to every test, and a per-test
+entry in TEST_TIMEOUTS ("seq:seconds", space separated) overrides it for
+named tests; 0 or unset keeps the previous unlimited behaviour. systemd
+terminates a scope that overruns and puts it into a failure state, so the
+test exits non-zero and check records it as failed and proceeds to the
+next one, exactly as for any other failure. A test stuck in D state still
+cannot be reaped until it leaves that state, but the scope is then torn
+down by the existing reset-failed path.
+
+Generated-by: Claude AI
+Signed-off-by: Daniel Gomez <da.gomez@kernel.org>
+---
+ check | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/check b/check
+index ad685edc..ebb89c7b 100755
+--- a/check
++++ b/check
+@@ -703,8 +703,26 @@ _run_seq() {
+ 
+ 	if [ -n "${HAVE_SYSTEMD_SCOPES}" ]; then
+ 		local unit="$(systemd-escape "fs$seq").scope"
++		# Bound the test's runtime with the scope's own RuntimeMaxSec, so a
++		# hung test is terminated by systemd and the run carries on instead of
++		# blocking forever.  A per-test entry in TEST_TIMEOUTS ("seq:seconds",
++		# space separated) overrides the global TEST_TIMEOUT; 0 or unset means
++		# no limit.  A timed-out scope exits non-zero, so check records the test
++		# as failed and moves to the next one.
++		local -a scope_props=()
++		local timeout_sec="${TEST_TIMEOUT:-0}"
++		local kv
++		for kv in ${TEST_TIMEOUTS:-}; do
++			if [ "${kv%%:*}" = "$seq" ]; then
++				timeout_sec="${kv##*:}"
++				break
++			fi
++		done
++		if [ -n "$timeout_sec" ] && [ "$timeout_sec" != 0 ]; then
++			scope_props+=("--property=RuntimeMaxSec=$timeout_sec")
++		fi
+ 		systemctl reset-failed "${unit}" &> /dev/null
+-		systemd-run --quiet --unit "${unit}" --scope "${cmd[@]}"
++		systemd-run --quiet --unit "${unit}" --scope "${scope_props[@]}" "${cmd[@]}"
+ 		res=$?
+ 		systemctl stop "${unit}" &> /dev/null
+ 		return "${res}"
+-- 
+2.53.0
+
