@@ -1,0 +1,107 @@
+summary: Judge a module's run-scoped outcome
+description: |-
+  Judge one module load against its catalog entry (pure; the guest is never
+  contacted, so a crashed guest still gets an honest verdict). The rules
+  compose: a crash or timeout fails; the start job must be `done` (a `skipped`
+  outcome means the module was already loaded and nothing ran); the post-run
+  load state must match the catalog's `loaded_on_pass` (the exit-honest class
+  stays loaded on a pass, the auto-unload class must be gone, and test_ida
+  INVERTS the convention: it unloads on pass and stays loaded on failure). The
+  load state stands in for the exit status, which is structurally
+  unobservable: modprobe@'s `-` prefixed `ExecStart` makes any exit expected,
+  and expected exits are logged only at debug level, so `exec_status` is
+  carried for forensics only, never a rule input. Any `WARNING:`/`BUG:`/`Call
+  Trace:` line in the cursor-scoped kmsg fails regardless (the only failure
+  channel of the -EAGAIN class); a module-specific failure regex fails on
+  match; run evidence is required (pass counts that parse, cover at least one
+  test and all pass, or the module's sentinel line), its absence failing a
+  test module and marking a stress/benchmark one `notrun`, never a pass.
+  Returns a scalar overview `{item, vm_name, kernel_version, status, result,
+  loaded, exec_status, crashed, timed_out, tests, passed, failed, skipped}`
+  (so the run flow's per-item forloop renders a tidy one-row-per-item table)
+  plus a `detail` object carrying a synthetic per-module row, the failure
+  reasons, and the kmsg tail (consumed by `f/runtime_tests/report`).
+lock: '!inline f/runtime_tests/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - module
+    - kernel_version
+    - kmsg
+    - result
+    - loaded
+    - exec_status
+    - crashed
+    - timed_out
+  properties:
+    crashed:
+      type: boolean
+      description: |-
+        Whether `f/runtime_tests/wait` saw the guest go down (the host
+        `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
+      default: false
+      title: Crashed
+    exec_status:
+      type: string
+      description: |-
+        The modprobe exit status from the run's process-exit journal record,
+        carried for forensics only, never a rule input: the unit's `-`
+        prefixed `ExecStart` makes any exit expected, and expected exits are
+        logged only at debug level, so this stays empty in practice.
+      default: ''
+      title: Exec Status
+    loaded:
+      type: boolean
+      description: |-
+        Whether the module is loaded after the run (`/sys/module/<module>`,
+        probed by `f/runtime_tests/wait`); must match the catalog's
+        `loaded_on_pass`, the observable stand-in for the init exit status.
+      default: false
+      title: Loaded
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); keys the
+        `report.json` rollup under the kernel the module ran on.
+      title: Kernel Version
+    kmsg:
+      type: string
+      description: |-
+        The run-scoped kernel journal lines `f/runtime_tests/wait` captured
+        (`_TRANSPORT=kernel`, bounded by start's cursor): the module's summary
+        printk lines and any splat.
+      default: ''
+      title: Kmsg
+    module:
+      type: string
+      description: Runtime-test module the outcome belongs to.
+      title: Module
+    result:
+      type: string
+      description: |-
+        systemd's job outcome from `f/runtime_tests/wait`
+        (`done`/`failed`/`skipped`/`stopped`); anything but `done` forces a
+        `failed` verdict.
+      default: ''
+      title: Result
+    timed_out:
+      type: boolean
+      description: |-
+        Whether `f/runtime_tests/wait` gave up on the module and stopped its
+        unit; forces a `failed` verdict.
+      default: false
+      title: Timed Out
+    vm_name:
+      type: object
+      description: |-
+        The VM the module ran on (recorded; the guest is not contacted).
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - module
+    - kernel_version
+tag: vm

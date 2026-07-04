@@ -1,0 +1,33 @@
+summary: Discover a guest's runtime-tests readiness over SSH
+description: |-
+  Reach a booted guest over vsock-SSH and report whether it is ready to run the
+  kernel's runtime test modules, and which catalog modules its booted kernel
+  ships. Checks `systemctl --host <vm> is-system-running` is
+  `running`/`degraded` and that upstream systemd's `modprobe@.service` template
+  (the suite's executor) is installed, reads the running kernel release
+  (`/proc/sys/kernel/osrelease`), then derives the present modules from one read
+  of `/lib/modules/<kver>/modules.dep` (one batch over the transport): a module
+  is present when a `.ko` basename matches its name, `-`/`_` normalized.
+
+  Returns `{vm, host, booted, kernel_version, modules, missing}`. Fails fast
+  with a clear message if the guest is not booted, the template is missing, or
+  the kernel ships none of the catalog (a run would silently test nothing).
+  Writes the present list to the per-VM picker cache; mutates nothing on the
+  guest.
+lock: '!inline f/runtime_tests/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM to probe over vsock-SSH for runtime-tests readiness.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

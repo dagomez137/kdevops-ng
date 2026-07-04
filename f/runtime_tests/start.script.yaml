@@ -1,0 +1,40 @@
+summary: Start a runtime-test module on a guest
+description: |-
+  Clear the previous instance, capture the guest journal's end-of-now cursor,
+  then start `modprobe@<module>.service` over vsock-SSH with `--no-block`; the
+  start job synchronizes on the module's init, which runs the whole suite. The
+  cursor is the run's identity: journal entries past it belong to this run and
+  nothing before it does, so `wait`/`collect` can never confuse this run with a
+  previous one.
+
+  A module still loaded from a previous run does not re-run its tests
+  (`modprobe` no-ops and the unit's `ConditionKernelModuleLoaded=!%i` skips the
+  job), so before starting: `systemctl reset-failed` clears a latched
+  expected-failure state and, for the stay-loaded exit-honest class, `modprobe
+  --remove --quiet` unloads the module so the load genuinely re-runs the suite.
+
+  Returns `{vm, module, unit, cursor}`.
+lock: '!inline f/runtime_tests/start.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - module
+  properties:
+    module:
+      type: string
+      description: |-
+        Runtime-test module to load (a catalog name, e.g. `test_xarray`,
+        `rbtree_test`); the `modprobe@` instance name, `[a-z0-9_]+` only.
+      title: Module
+    vm_name:
+      type: object
+      description: Booted VM to start the module on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - module
+tag: vm

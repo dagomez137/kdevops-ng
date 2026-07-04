@@ -1,0 +1,39 @@
+summary: Stop a runtime-tests run on a guest
+description: |-
+  Stop each module's `modprobe@<module>.service` instance on the guest over
+  vsock-SSH, `reset-failed` to clear any latched state (the expected-error class
+  latches one every run), and `modprobe --remove --quiet` the module so a
+  stay-loaded exit-honest module does not turn the next run into a no-op. Wired
+  as the `run.flow` `failure_module` so cancelling a run from the Windmill UI,
+  or any step erroring out mid-run, tears the run down on the guest. Every
+  operation is idempotent; a guest unreachable from the worker is logged and
+  skipped so the failure handler never itself fails. Force-stopping a Windmill
+  job bypasses `failure_module`; the manual fallback is `systemctl --host <vm>
+  stop modprobe@<module>.service`.
+
+  Returns `{vm_name, stopped, skipped_no_transport}`.
+lock: '!inline f/runtime_tests/stop.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - modules
+  properties:
+    modules:
+      type: array
+      description: |-
+        Runtime-test modules whose units to stop and unload. Empty = no-op.
+      default: []
+      items:
+        type: string
+      title: Modules
+    vm_name:
+      type: object
+      description: Booted VM whose runtime-test units to stop, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

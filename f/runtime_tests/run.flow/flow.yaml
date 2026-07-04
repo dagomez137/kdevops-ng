@@ -1,0 +1,273 @@
+summary: Run kernel runtime tests (module-init suites)
+description: |-
+  Run the kernel's standalone runtime test modules (lib/Kconfig.debug's
+  RUNTIME_TESTING_MENU: test_xarray, test_maple_tree, rbtree_test, ...) against
+  an already-booted guest, without rebooting. A run item is a MODULE: loading it
+  runs its whole suite in module_init, and the executor is upstream systemd's
+  `modprobe@<module>.service` (already on every guest), whose start job
+  synchronizes on the module's init. Exit conventions are per module and
+  deliberately inconsistent upstream, so the curated catalog encodes each one,
+  verified against the sources: the exit-honest class (test_xarray, test_bpf,
+  ...) returns 0 on pass and stays loaded; the auto-unload class (rbtree_test,
+  percpu_test, test_vmalloc, ...) always returns -EAGAIN and reports real
+  failures only as kernel WARNING/BUG lines; test_ida INVERTS the convention
+  (-EINVAL on pass, 0 on fail); atomic64_test BUGs the guest on failure. The
+  unit's `ExecStart` carries systemd's `-` prefix, so the job finishes `done`
+  either way and the init's exit status never reaches the journal (the prefix
+  makes any exit expected, and expected exits are logged only at debug level);
+  the verdict therefore reads the module's post-run load state
+  (`/sys/module/<module>`, which each class's init return determines) plus the
+  cursor-scoped kernel journal (pass counts, sentinel lines, WARNING/BUG
+  splats).
+
+  Steps mirror the systemd/modprobe vocabulary 1:1:
+
+  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
+  is-system-running`, the `modprobe@.service` template present) and derive the
+  present catalog modules from one read of the booted kernel's `modules.dep`. 2.
+  for each module: `start` (clear the previous instance, unload a stay-loaded
+  module so the tests re-run, capture a guest journal cursor, then `systemctl
+  --host <vm> start --no-block` the instance) → `wait` (poll the unit's journal
+  past the cursor for systemd's job-outcome record, capture the run-scoped
+  kernel journal, probe the module's post-run load state, crash-check the host
+  `qemu-system@<vm>`) → `collect` (judge the outcome against the module's
+  catalog entry; a WARNING/BUG splat, a wrong post-run load state, or missing
+  run evidence never pass). 3. `report`: aggregate the per-module results into
+  one summary. 4. `judge`: fail the job unless every module passed.
+
+  The lifecycle and control steps run on the `vm` worker tag (the dedicated
+  worker that reaches the guest over the vsock-SSH transport); the `wait` poll
+  runs on `vm-run`, so a wedged module load never starves a quick control op.
+  **Modules** empty runs every present catalog module. Returns the `report`
+  summary.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + enumerate modules (f/runtime_tests/discover)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/runtime_tests/discover
+        tag_override: vm
+    - id: items
+      summary: Run each module sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        modules:
+          - id: start
+            summary: Start the module's unit detached (f/runtime_tests/start)
+            value:
+              type: script
+              input_transforms:
+                module:
+                  type: javascript
+                  expr: flow_input.iter.value
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/runtime_tests/start
+              tag_override: vm
+          - id: wait
+            summary: Poll the run's journal to its outcome (f/runtime_tests/wait)
+            value:
+              type: script
+              input_transforms:
+                cursor:
+                  type: javascript
+                  expr: results.start.cursor
+                module:
+                  type: javascript
+                  expr: flow_input.iter.value
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                unit:
+                  type: javascript
+                  expr: results.start.unit
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/runtime_tests/wait
+              tag_override: vm-run
+          - id: collect
+            summary: Judge the run-scoped outcome (f/runtime_tests/collect)
+            value:
+              type: script
+              input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
+                exec_status:
+                  type: javascript
+                  expr: results.wait.exec_status
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                kmsg:
+                  type: javascript
+                  expr: results.wait.kmsg
+                loaded:
+                  type: javascript
+                  expr: results.wait.loaded
+                module:
+                  type: javascript
+                  expr: flow_input.iter.value
+                result:
+                  type: javascript
+                  expr: results.wait.result
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/runtime_tests/collect
+              tag_override: vm
+        iterator:
+          type: javascript
+          expr: |-
+            (flow_input.modules && flow_input.modules.length)
+              ? flow_input.modules
+              : results.discover.modules
+        parallel: false
+        skip_failures: true
+    - id: report
+      summary: Aggregate per-module results (f/runtime_tests/report)
+      value:
+        type: script
+        input_transforms:
+          per_item:
+            type: javascript
+            expr: results.items
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/runtime_tests/report
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every module passed (f/runtime_tests/judge)
+      value:
+        type: script
+        input_transforms:
+          per_item:
+            type: javascript
+            expr: results.items
+          report:
+            type: javascript
+            expr: results.report
+        path: f/runtime_tests/judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop modprobe@ units on failure or cancel (f/runtime_tests/stop)
+    value:
+      type: script
+      input_transforms:
+        modules:
+          type: javascript
+          expr: >-
+            (flow_input.modules && flow_input.modules.length) ?
+            flow_input.modules : (results?.discover?.modules ?? [])
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/runtime_tests/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - modules
+    - service
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown
+        lists all guests; `discover` gates that the guest is booted and carries
+        the `modprobe@.service` template.
+      format: dynselect-list_vms
+      title: VM Name
+    modules:
+      type: array
+      description: |-
+        Pick the runtime-test modules to load, from the curated catalog filtered
+        by what the booted kernel ships (tests first, then stress, benchmarks
+        last). Empty runs every present catalog module.
+      default: []
+      format: dynmultiselect-list_modules
+      items:
+        type: string
+      title: Modules
+    service:
+      type: object
+      description: |-
+        Timeouts for the run: `wait`'s per-module polling
+        (`timeout`/`poll_interval`) and whether to stream the guest journal
+        (`stream_logs`). Module init is synchronous and unbounded by the unit,
+        so this deadline is the only bound on a module's run.
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+      properties:
+        poll_interval:
+          type: integer
+          description: |-
+            Seconds between `wait`'s journal polls and log drains.
+          default: 10
+          title: Poll Interval
+        stream_logs:
+          type: boolean
+          description: |-
+            Each poll, print the guest's new unit + kernel journal (merged) into
+            the job log, so the module's output and dmesg are visible live. Off
+            = only a bounded kmsg tail at the end.
+          default: true
+          title: Stream Logs
+        timeout:
+          type: integer
+          description: |-
+            Seconds to poll a module's unit to a terminal state; on expiry
+            `wait` aborts the module (`systemctl stop` of its unit).
+          default: 600
+          title: Module Timeout
+      title: Service
+  required:
+    - vm_name
+  x-windmill-dyn-select-code: >
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the one source f/common/remote owns).
+        try:
+            from f.common.remote import list_vms as _list_vms
+            return _list_vms(filterText)
+        except Exception:
+            return []
+
+
+    def list_modules(vm_name: str = "", filterText: str = "", **_: object) ->
+    list:
+        # The booted kernel's present runtime-test modules from the per-VM cache
+        # f/runtime_tests/discover writes; degrades to the curated catalog before
+        # the first discovery.
+        try:
+            from f.runtime_tests.common import list_modules as _list_modules
+            return _list_modules(vm_name, filterText)
+        except Exception:
+            return [
+                {"label": "XArray (test_xarray)", "value": "test_xarray"},
+                {"label": "Maple tree (test_maple_tree)", "value": "test_maple_tree"},
+                {"label": "Red-black tree (rbtree_test)", "value": "rbtree_test"},
+            ]
+  x-windmill-dyn-select-lang: python3

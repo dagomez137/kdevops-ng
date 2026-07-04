@@ -1,0 +1,20 @@
+summary: Runtime-tests catalog, verdict rules and module listing
+description: |-
+  Library module imported by the `f/runtime_tests/*` steps (`from
+  f.runtime_tests.common import CATALOG, catalog_entry, unit_for, ...`). Not a
+  runnable step on its own. Curates the kernel's standalone runtime test modules
+  (lib/Kconfig.debug's RUNTIME_TESTING_MENU) with their per-module, deliberately
+  inconsistent upstream exit conventions, each verified against the kernel
+  sources; maps a module to its `modprobe@<module>.service` instance (strict
+  `[a-z0-9_]+` name guard, no escaping needed); lists a guest kernel's present
+  modules from the per-VM cache; and holds the shared `run_status` rule plus the
+  atomic writer for the host-side cache dir
+  (`$WORKERS_DIR/shared/runtime-tests/<vm>/`). Never contacts the guest.
+lock: '!inline f/runtime_tests/common.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

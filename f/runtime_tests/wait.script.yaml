@@ -1,0 +1,86 @@
+summary: Wait for a runtime-test module load to finish
+description: |-
+  Poll the guest's journal for the `modprobe@<module>.service` instance
+  `f/runtime_tests/start` started, reading only entries past start's cursor,
+  until systemd's job-outcome record appears: "Finished" (`result=done`),
+  "Failed to start" (`result=failed`), a condition skip (`result=skipped`, the
+  module was already loaded and nothing ran), or "Stopped" for an outside stop.
+  The unit's `ExecStart` carries systemd's `-` prefix, so a failed modprobe
+  still finishes the job `done`, and the init's exit status never reaches the
+  journal (the prefix makes any exit expected, and expected exits are logged
+  only at debug level): `exec_status` is returned for forensics but stays
+  empty. The observable init outcome is the module's post-run load state, so
+  after the job outcome one extra probe checks `/sys/module/<module>` and
+  returns it as `loaded`.
+
+  The suite's results ride the kernel ring buffer, not the unit's output, so
+  each poll also fetches the cursor-scoped `_TRANSPORT=kernel` records; the
+  collected lines are returned as `kmsg`, the verdict channel
+  `f/runtime_tests/collect` scans and parses. Each poll also checks the host
+  `qemu-system@<vm>.service`: any not-alive state means the guest is gone (a
+  crash-on-fail module BUGs it) and the wait ends with `crashed` set. On expiry
+  of the timeout the unit is stopped (`timed_out`).
+
+  Returns `{vm, module, unit, result, loaded, exec_status, kmsg, crashed,
+  timed_out}`.
+lock: '!inline f/runtime_tests/wait.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - module
+    - unit
+    - cursor
+    - timeout
+    - poll_interval
+    - stream_logs
+  properties:
+    cursor:
+      type: string
+      description: |-
+        The guest journal cursor `f/runtime_tests/start` captured before
+        starting the unit; bounds every read to this run.
+      title: Cursor
+    module:
+      type: string
+      description: Runtime-test module being waited on.
+      title: Module
+    poll_interval:
+      type: integer
+      description: |-
+        Seconds between journal polls (and the host liveness check).
+      default: 10
+      title: Poll Interval
+    stream_logs:
+      type: boolean
+      description: |-
+        Each poll, print the guest's new unit + kernel journal (merged) into the
+        job log. Off = only a bounded kmsg tail at the end.
+      default: true
+      title: Stream Logs
+    timeout:
+      type: integer
+      description: |-
+        Maximum seconds to wait for the module load to finish before giving up
+        (`timed_out`). Module init is synchronous and unbounded by the unit, so
+        this deadline is the only bound on the run.
+      default: 600
+      title: Timeout
+    unit:
+      type: string
+      description: |-
+        The unit `f/runtime_tests/start` started (`modprobe@<module>.service`).
+      title: Unit
+    vm_name:
+      type: object
+      description: Booted VM whose module load to wait on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - module
+    - unit
+    - cursor
+tag: vm-run

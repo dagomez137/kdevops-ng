@@ -1,0 +1,36 @@
+summary: Fail the job unless the run passed
+description: |-
+  Apply `f.runtime_tests.common.run_status` (the one rule
+  `f/runtime_tests/report` also uses) to the per-module collect results and
+  raise unless every module passed, so a red run is a red Windmill job:
+  schedules, callers, and flows embedding this one see the verdict in the job
+  state, not only in the report tables. On a pass, return the report rollup
+  unchanged, keeping the report's tables as the flow result. The report step's
+  own result stays viewable either way.
+lock: '!inline f/runtime_tests/judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - per_item
+    - report
+  properties:
+    per_item:
+      type: array
+      description: |-
+        The `f/runtime_tests/collect` result objects, one per module; their
+        statuses decide the verdict.
+      default: []
+      items:
+        type: object
+      title: Per Item
+    report:
+      type: object
+      description: |-
+        The `f/runtime_tests/report` rollup, passed through unchanged on a pass
+        so its tables stay the flow result.
+      default: {}
+      title: Report
+  required: []
+tag: vm
