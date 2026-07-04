@@ -726,7 +726,8 @@ def render_check_env(
     `HOST_OPTIONS=<absolute guest path>` and `XFSTESTS_CHECK_ARGS=<./check flags>`.
     RESULT_BASE is omitted; the `xfstests-check` wrapper forces it.
 
-    The per-test watchdog vars the patched `check` reads are added when set:
+    The per-test watchdog vars the xfstests overlay's `check` patch reads are
+    added when set:
     `TEST_TIMEOUT=<seconds>` (global, applied as each test's scope `RuntimeMaxSec`;
     0/unset = no limit) and `TEST_TIMEOUTS=<seq:sec ...>` (per-test overrides).
     """

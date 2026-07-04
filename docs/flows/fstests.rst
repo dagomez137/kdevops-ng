@@ -28,11 +28,13 @@ The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``
 template unit started with ``--no-block``, executing ``./check -s <section>``.
 The unit sets :cmd:`TimeoutStartSec` to ``infinity``, so a section is never
-bounded by systemd's start timeout. The patched ``check`` runs each individual
-test inside its own transient scope, ``fstests-<test>.scope`` (for example
-``fstests-generic-310.scope``), created with :cmd:`systemd-run` in ``--scope``
-mode. This is what makes a single test independently observable and killable
-from outside the run.
+bounded by systemd's start timeout. Upstream ``check`` runs each individual
+test inside its own transient scope, ``fs<test>.scope`` (for example
+``fsgeneric-310.scope``), created with :cmd:`systemd-run` in ``--scope`` mode
+when the guest has systemd; the xfstests overlay
+(:src:`vendor/nixos-flake/overlays/xfstests.nix`) adds the per-test watchdog
+on top. The scope is what makes a single test independently observable and
+killable from outside the run.
 
 Every step carries a worker tag: the quick lifecycle and control steps run on
 the ``vm`` tag, and the long-lived ``wait`` poll runs on the ``vm-run`` tag, so
@@ -49,9 +51,9 @@ journalctl …`` for their logs):
 - ``xfstests@<section>.service``: one per ``[section]``, running
   ``./check -s <section>``. The ``<section>`` is the name as it appears in
   ``local.config``, for example ``xfs_realtime_rtx2_bs4k_ss4k``.
-- ``fstests-<test>.scope``: the transient scope wrapping the single test
+- ``fs<test>.scope``: the transient scope wrapping the single test
   currently executing inside that section, for example
-  ``fstests-generic-310.scope``.
+  ``fsgeneric-310.scope``.
 
 How a flow surfaces its state in the Windmill job log, and why these recipes are
 the out-of-band view, is covered in :doc:`guests`.
@@ -65,7 +67,7 @@ the live section:
 .. code-block:: console
 
    $ systemctl --host <vm> list-units 'xfstests@*'
-   $ systemctl --host <vm> list-units --type=scope    # the fstests-<test>.scope
+   $ systemctl --host <vm> list-units --type=scope    # the fs<test>.scope
 
 Full status of one section (the cgroup line shows the running ``./check`` and
 the current test's helper processes):
@@ -106,10 +108,10 @@ sleep. Because the section unit is ``TimeoutStartSec=infinity``, nothing bounds
 that one test unless the per-test watchdog is armed. The **Per-test Timeout**
 form field (``test_timeout`` → ``TEST_TIMEOUT``) sets each test's scope
 :cmd:`RuntimeMaxSec`, so systemd kills an overrunning test and the run
-continues; it is **0 (no limit) by default**, taking effect only on a guest
-built with the patched xfstests. When it is unset, or you want to intervene on
-a run already in flight, kill the test by hand: this reproduces exactly what the
-watchdog would have done.
+continues; it is **0 (no limit) by default**, taking effect on a guest whose
+xfstests carries the overlay's watchdog. When it is unset, or you want to
+intervene on a run already in flight, kill the test by hand: this reproduces
+exactly what the watchdog would have done.
 
 The symptom is a section that makes no progress: its journal stops emitting new
 ``generic/<n>`` lines and ``status`` keeps reporting ``activating`` for far
@@ -122,14 +124,14 @@ test it is:
 
 .. code-block:: text
 
-   UNIT                       ACTIVE SUB      DESCRIPTION
-   fstests-generic-310.scope  active running  [systemd-run] ... generic/310
+   UNIT                  ACTIVE SUB      DESCRIPTION
+   fsgeneric-310.scope   active running  [systemd-run] ... generic/310
 
 Kill that scope:
 
 .. code-block:: console
 
-   $ systemctl --host <vm> kill --signal=SIGKILL fstests-generic-310.scope
+   $ systemctl --host <vm> kill --signal=SIGKILL fsgeneric-310.scope
 
 ``check`` sees the test killed, records it as a failure, and proceeds to the
 next test. The failure surfaces as an output mismatch with exit status 137

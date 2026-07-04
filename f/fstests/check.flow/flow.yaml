@@ -3521,8 +3521,9 @@ schema:
           type: integer
           description: |-
             Per-test watchdog (seconds): `check` sets it as each test's scope
-            `RuntimeMaxSec`, so a hung test is killed and the run continues. 0 =
-            no limit. Needs the patched xfstests (`TEST_TIMEOUT`).
+            `RuntimeMaxSec`, so a hung test is killed and the run continues.
+            0 = no limit. Needs a guest whose xfstests carries the overlay's
+            watchdog (`TEST_TIMEOUT`); an older guest ignores it.
           default: 0
           title: Per-test Timeout
         test_timeouts:
