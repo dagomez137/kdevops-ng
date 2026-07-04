@@ -22,7 +22,7 @@ description: |-
   of the timeout the unit is stopped (`timed_out`).
 
   Returns `{vm, module, unit, result, loaded, exec_status, kmsg, crashed,
-  timed_out}`.
+  timed_out, runtime}`.
 lock: '!inline f/runtime_tests/wait.script.lock'
 kind: script
 schema:

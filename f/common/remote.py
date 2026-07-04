@@ -16,9 +16,11 @@ from f.common.devshell import DevShell, system_dir
 
 _CID_RE = re.compile(r"^\s*HostName\s+vsock/(\d+)\s*$")
 
-# systemd's stable journal MESSAGE_ID values (sd-messages.h). A start job ends
-# with exactly one of the first two; UNIT_STOPPED closes a stop job; each
-# service process exit carries EXIT_STATUS under UNIT_PROCESS_EXIT.
+# systemd's stable journal MESSAGE_ID values (sd-messages.h). A start job
+# opens with UNIT_STARTING and ends with exactly one of STARTED or FAILED;
+# UNIT_STOPPED closes a stop job; each service process exit carries EXIT_STATUS
+# under UNIT_PROCESS_EXIT.
+MSG_UNIT_STARTING = "7d4958e842da4a758f6c1cdc7b36dcc5"
 MSG_UNIT_STARTED = "39f53479d3a045ac8e11786248231fbf"
 MSG_UNIT_FAILED = "be02cf6855d2428ba40df7e9d022f03d"
 MSG_UNIT_STOPPED = "9d1aaa27d60140bd96365438aad20286"

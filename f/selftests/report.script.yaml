@@ -5,10 +5,11 @@ description: |-
   crashed, or notrun item fails the run, and so does an empty item list;
   `run_status` is the one rule shared with `f/selftests/judge`). Returns a
   Windmill `render_all` of three native tables (no markdown): run info
-  (testsuite, kernel, guest, collections), one row per item (collection, tests,
-  passed, failed, skipped, status), and one row per test across all items
-  (failures first). When `vm_name` is given it also writes the structured rollup
-  to `$WORKERS_DIR/shared/selftests/<vm>/<kver>/report.json`. The host never
+  (testsuite, kernel, guest, collections, time(s)), one row per item
+  (collection, tests, passed, failed, skipped, time(s), status), and one row
+  per test across all items (failures first). When `vm_name` is given it also
+  writes the structured rollup to
+  `$WORKERS_DIR/shared/selftests/<vm>/<kver>/report.json`. The host never
   contacts the guest.
 lock: '!inline f/selftests/report.script.lock'
 kind: script

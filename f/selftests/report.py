@@ -15,8 +15,8 @@ The returned value is a Windmill `render_all` display of three NATIVE tables (no
 markdown: arrays of objects render as real sortable/searchable tables;
 `render_all` must stay the sole key or the display falls back to raw JSON):
 
-  1. run info: testsuite, kernel, guest, collections
-  2. per item: collection, tests, passed, failed, skipped, status
+  1. run info: testsuite, kernel, guest, collections, time(s)
+  2. per item: collection, tests, passed, failed, skipped, time(s), status
   3. per test: one row per test across all items (failures first)
 
 Equivalent command:
@@ -33,6 +33,11 @@ from f.selftests.common import _atomic_write, run_status, share_dir
 _ICON = {"passed": "✅", "failed": "❌", "notrun": "⊘"}
 # Failures first in the per-test table, then notruns, then passes.
 _RANK = {"failed": 0, "notrun": 1, "passed": 2}
+
+
+def _time_s(runtime: float | None) -> float | int:
+    """The `time(s)` column: a NUMBER so the table sorts, 0 only when unknown."""
+    return round(float(runtime), 2) if runtime is not None else 0
 
 
 def _per_test_rows(per_test: list[dict]) -> list[dict]:
@@ -68,6 +73,7 @@ def main(per_item: list[dict] | None = None, vm_name: str = "") -> dict:
             "passed": int(s.get("passed", 0) or 0),
             "failed": int(s.get("failed", 0) or 0),
             "skipped": int(s.get("skipped", 0) or 0),
+            "time(s)": _time_s(s.get("runtime")),
             "status": _ICON.get(s.get("status", ""), s.get("status", "") or "❌"),
         }
         for s in items
@@ -128,6 +134,7 @@ def main(per_item: list[dict] | None = None, vm_name: str = "") -> dict:
             "kernel": kernel_version or "?",
             "guest": vm_name or "?",
             "collections": len(items),
+            "time(s)": round(sum(s.get("runtime") or 0 for s in items), 2),
         }
     ]
     return {"render_all": [run_info, item_rows, test_rows]}

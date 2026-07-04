@@ -9,10 +9,10 @@ description: |-
   journal can never pass), and no `not ok` line. A run that passed nothing at
   all (empty body, or every test skipped) is `notrun`; anything else is
   `failed`. Returns a scalar overview `{suite, vm_name, kernel_version, status,
-  result, exec_status, crashed, timed_out, tests, passed, failed, notrun}` (so
-  the run flow's per-suite forloop renders a tidy one-row-per-suite table) plus
-  a `detail` object carrying the per-test rows, the failing tests, and the raw
-  KTAP (consumed by `f/kunit/report`).
+  result, exec_status, crashed, timed_out, runtime, tests, passed, failed,
+  notrun}` (so the run flow's per-suite forloop renders a tidy
+  one-row-per-suite table) plus a `detail` object carrying the per-test rows,
+  the failing tests, and the raw KTAP (consumed by `f/kunit/report`).
 lock: '!inline f/kunit/collect.script.lock'
 kind: script
 schema:
@@ -27,6 +27,7 @@ schema:
     - exec_status
     - crashed
     - timed_out
+    - runtime
   properties:
     crashed:
       type: boolean
@@ -63,6 +64,15 @@ schema:
         anything but `done` forces a `failed` verdict.
       default: ''
       title: Result
+    runtime:
+      type: number
+      description: |-
+        Seconds the suite's start job ran, measured by `f/kunit/wait` between
+        systemd's "Starting" and job-outcome journal records on the guest's
+        monotonic clock; null when either record is missing. Carried into the
+        report's `time(s)` columns, never a verdict input.
+      default: null
+      title: Runtime
     suite:
       type: string
       description: |-

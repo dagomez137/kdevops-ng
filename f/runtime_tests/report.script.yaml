@@ -5,11 +5,12 @@ description: |-
   crashed, or notrun module fails the run, and so does an empty list;
   `run_status` is the one rule shared with `f/runtime_tests/judge`). Returns a
   Windmill `render_all` of three native tables (no markdown): run info
-  (testsuite, kernel, guest, modules), one row per module (module, tests,
-  passed, failed, skipped, status), and one summary row per module across the
-  run (failures first). When `vm_name` is given it also writes the structured
-  rollup to `$WORKERS_DIR/shared/runtime-tests/<vm>/<kver>/report.json`. The
-  host never contacts the guest.
+  (testsuite, kernel, guest, modules, time(s)), one row per module (module,
+  tests, passed, failed, skipped, time(s), status), and one summary row per
+  module across the run (failures first). When `vm_name` is given it also
+  writes the structured rollup to
+  `$WORKERS_DIR/shared/runtime-tests/<vm>/<kver>/report.json`. The host never
+  contacts the guest.
 lock: '!inline f/runtime_tests/report.script.lock'
 kind: script
 schema:

@@ -79,6 +79,7 @@ def main(
     exec_status: str = "",
     crashed: bool = False,
     timed_out: bool = False,
+    runtime: float | None = None,
 ) -> dict:
     entry = catalog_entry(module)
     reasons: list[str] = []
@@ -168,6 +169,7 @@ def main(
         "exec_status": exec_status,
         "crashed": crashed,
         "timed_out": timed_out,
+        "runtime": runtime,
         "tests": tests,
         "passed": passed,
         "failed": failed,

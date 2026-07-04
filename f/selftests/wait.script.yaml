@@ -15,7 +15,8 @@ description: |-
   means the guest is gone and the wait ends with `crashed` set. On expiry of the
   timeout the unit is stopped (`timed_out`).
 
-  Returns `{vm, item, unit, result, exec_status, ktap, crashed, timed_out}`.
+  Returns `{vm, item, unit, result, exec_status, ktap, crashed, timed_out,
+  runtime}`.
 lock: '!inline f/selftests/wait.script.lock'
 kind: script
 schema:

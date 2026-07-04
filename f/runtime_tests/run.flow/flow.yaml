@@ -124,6 +124,9 @@ value:
                 result:
                   type: javascript
                   expr: results.wait.result
+                runtime:
+                  type: javascript
+                  expr: results.wait.runtime
                 timed_out:
                   type: javascript
                   expr: results.wait.timed_out

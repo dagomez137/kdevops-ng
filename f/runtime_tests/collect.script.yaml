@@ -17,10 +17,11 @@ description: |-
   test and all pass, or the module's sentinel line), its absence failing a
   test module and marking a stress/benchmark one `notrun`, never a pass.
   Returns a scalar overview `{item, vm_name, kernel_version, status, result,
-  loaded, exec_status, crashed, timed_out, tests, passed, failed, skipped}`
-  (so the run flow's per-item forloop renders a tidy one-row-per-item table)
-  plus a `detail` object carrying a synthetic per-module row, the failure
-  reasons, and the kmsg tail (consumed by `f/runtime_tests/report`).
+  loaded, exec_status, crashed, timed_out, runtime, tests, passed, failed,
+  skipped}` (so the run flow's per-item forloop renders a tidy
+  one-row-per-item table) plus a `detail` object carrying a synthetic
+  per-module row, the failure reasons, and the kmsg tail (consumed by
+  `f/runtime_tests/report`).
 lock: '!inline f/runtime_tests/collect.script.lock'
 kind: script
 schema:
@@ -36,6 +37,7 @@ schema:
     - exec_status
     - crashed
     - timed_out
+    - runtime
   properties:
     crashed:
       type: boolean
@@ -87,6 +89,15 @@ schema:
         `failed` verdict.
       default: ''
       title: Result
+    runtime:
+      type: number
+      description: |-
+        Seconds the module's start job ran, measured by `f/runtime_tests/wait`
+        between systemd's "Starting" and job-outcome journal records on the
+        guest's monotonic clock; null when either record is missing. Carried
+        into the report's `time(s)` columns, never a rule input.
+      default: null
+      title: Runtime
     timed_out:
       type: boolean
       description: |-

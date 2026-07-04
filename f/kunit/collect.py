@@ -37,6 +37,7 @@ def main(
     exec_status: str = "",
     crashed: bool = False,
     timed_out: bool = False,
+    runtime: float | None = None,
 ) -> dict:
     summary = parse_ktap(ktap or "", suite)
 
@@ -72,6 +73,7 @@ def main(
         "exec_status": exec_status,
         "crashed": crashed,
         "timed_out": timed_out,
+        "runtime": runtime,
         "report_present": summary["report_present"],
         "tests": len(summary["tests"]),
         "passed": summary["passed"],

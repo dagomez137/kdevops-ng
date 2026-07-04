@@ -10,10 +10,10 @@ description: |-
   `not ok` line. A run that passed nothing at all (empty body, or every test
   skipped) is `notrun`; anything else is `failed`. Returns a scalar overview
   `{item, vm_name, kernel_version, status, result, exec_status, crashed,
-  timed_out, tests, passed, failed, skipped}` (so the run flow's per-item
-  forloop renders a tidy one-row-per-item table) plus a `detail` object carrying
-  the per-test rows, the failing tests, and the raw KTAP (consumed by
-  `f/selftests/report`).
+  timed_out, runtime, tests, passed, failed, skipped}` (so the run flow's
+  per-item forloop renders a tidy one-row-per-item table) plus a `detail`
+  object carrying the per-test rows, the failing tests, and the raw KTAP
+  (consumed by `f/selftests/report`).
 lock: '!inline f/selftests/collect.script.lock'
 kind: script
 schema:
@@ -28,6 +28,7 @@ schema:
     - exec_status
     - crashed
     - timed_out
+    - runtime
   properties:
     crashed:
       type: boolean
@@ -72,6 +73,15 @@ schema:
         verdict.
       default: ''
       title: Result
+    runtime:
+      type: number
+      description: |-
+        Seconds the item's start job ran, measured by `f/selftests/wait`
+        between systemd's "Starting" and job-outcome journal records on the
+        guest's monotonic clock; null when either record is missing. Carried
+        into the report's `time(s)` columns, never a verdict input.
+      default: null
+      title: Runtime
     timed_out:
       type: boolean
       description: |-

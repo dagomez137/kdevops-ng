@@ -110,6 +110,9 @@ value:
                 result:
                   type: javascript
                   expr: results.wait.result
+                runtime:
+                  type: javascript
+                  expr: results.wait.runtime
                 suite:
                   type: javascript
                   expr: flow_input.iter.value
