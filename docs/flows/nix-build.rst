@@ -86,8 +86,10 @@ the config:
 - The ``path:`` scheme does not expand ``~``. The flow uses absolute
   ``WORKERS_DIR`` paths.
 - ``flake.lock`` is kept per config for reproducibility (the ``lock_config``
-  step). Re-pinning the vendored library is ``nix flake update --flake
-  path:<dir> nixos-flake``, exposed through the ``update_lock`` input.
+  step). The vendored library is re-pinned on every build by default
+  (``nix flake update --flake path:<dir> nixos-flake``; the ``update_lock``
+  input turns it off): each worker keeps its own per-VM config dir, and a
+  stale lock there silently rebuilds yesterday's vendored flake.
 - Because ``boot.kernel.enable = false``, the closure has no ``$out/kernel`` or
   ``$out/initrd`` symlinks. The ``init`` and ``initrd`` come from the standard
   NixOS bootspec (RFC-0125) at ``<toplevel>/boot.json``, under the

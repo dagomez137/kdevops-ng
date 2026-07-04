@@ -119,8 +119,10 @@ schema:
           type: boolean
           description: |-
             Re-pin the vendored nixos-flake input instead of only filling
-            missing lock entries.
-          default: false
+            missing lock entries. On by default: each worker keeps its own
+            per-VM config dir, and a stale lock there silently rebuilds
+            yesterday's vendored flake.
+          default: true
       title: Lock
     closure:
       type: object

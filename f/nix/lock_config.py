@@ -43,7 +43,7 @@ def _src_inputs(config_dir: str) -> list[str]:
     return list(dict.fromkeys(names))
 
 
-def main(config_dir: str, update: bool = False) -> dict:
+def main(config_dir: str, update: bool = True) -> dict:
     nix = Nix()
     ref = f"path:{config_dir}"
     nix.run("flake", "lock", ref)

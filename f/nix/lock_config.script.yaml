@@ -25,6 +25,6 @@ schema:
       description: |-
         Refresh the nixos-flake input pin instead of only filling missing lock
         entries.
-      default: false
+      default: true
   required:
     - config_dir
