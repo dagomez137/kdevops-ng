@@ -1,0 +1,64 @@
+summary: Write the per-harness env files onto the share
+description: |-
+  Render one `<share>/<kver>/env/<dir>/<binary>.env` per discovered harness,
+  the per-instance `EnvironmentFile` the guest template reads
+  (`EnvironmentFile=-/var/lib/usertests/%v/env/%I.env`; `%I` unescapes back to
+  the item path). Each file carries one `ARGS=` line: `radix-tree/main`
+  composes its flags from the knobs (`-s <seed>` when seed > 0, `-l` when
+  long_run), `memblock/main` gets its fixed `--verbose`, every other harness
+  an empty `ARGS=`. Written atomically and echoed to the job log; the host
+  never contacts the guest.
+
+  Returns `{vm, env_root, args, seed, long_run}`.
+lock: '!inline f/usertests/render_config.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - kernel_version
+    - harnesses
+    - seed
+    - long_run
+  properties:
+    harnesses:
+      type: array
+      description: |-
+        The `<dir>/<binary>` items to write env files for (normally every item
+        `discover` enumerated, so a manual `systemctl start` works too).
+      default: []
+      items:
+        type: string
+      title: Harnesses
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); keys the env
+        files under the same `<kver>` the unit's `%v` resolves to.
+      title: Kernel Version
+    long_run:
+      type: boolean
+      description: |-
+        Pass `-l` to `radix-tree/main` (the long run; tens of minutes).
+      default: false
+      title: Long Run
+    seed:
+      type: integer
+      description: |-
+        Seed `radix-tree/main` with `-s <seed>` when > 0; 0 lets it pick a
+        random seed (it logs `random seed %u` either way, which collect
+        archives).
+      default: 0
+      title: Seed
+    vm_name:
+      type: object
+      description: |-
+        The VM whose `usertests` share receives the env files (host-side only;
+        the guest is not contacted).
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - kernel_version
+tag: vm

@@ -1,0 +1,103 @@
+summary: Fold a harness run into a verdict
+description: |-
+  Judge the run `f/usertests/wait` observed against the item's catalog entry
+  (bounded by start's journal cursor, so the output can only be this run's);
+  the guest is never contacted, so a crashed guest still gets an honest
+  verdict. A crash, a timeout, a job outcome other than `done`, or a nonzero
+  `exec_status` fails the item (exit codes are REAL: an assert or sanitizer
+  abort arrives as a failed job carrying its signal, and that IS the test
+  failure). Then the global scans: any AddressSanitizer/LeakSanitizer/UBSan
+  line fails, and so does any `assertion failed at` line outside idr-test's
+  expected noise block (stripped before the scan). Then the per-entry evidence
+  rule: summary counts that must all pass, memblock's `--verbose` per-test
+  line counts, radix-tree/main's `tests completed` sentinel, or, for the
+  silent harnesses, the clean exit alone. `radix-tree/main`'s logged `random
+  seed %u` is extracted into the returned row. Returns a scalar overview
+  `{item, vm_name, kernel_version, status, result, exec_status, crashed,
+  timed_out, runtime, seed, tests, passed, failed, skipped}` plus a `detail`
+  object carrying the per-check rows and the output tail (consumed by
+  `f/usertests/report`).
+lock: '!inline f/usertests/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - item
+    - kernel_version
+    - output
+    - result
+    - exec_status
+    - crashed
+    - timed_out
+    - runtime
+  properties:
+    crashed:
+      type: boolean
+      description: |-
+        Whether `f/usertests/wait` saw the guest go down (the host
+        `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
+      default: false
+      title: Crashed
+    exec_status:
+      type: string
+      description: |-
+        The harness's exit status or signal from the run's journal, when there
+        is one (successful exits are logged only at debug level, so a clean
+        run leaves it empty); anything but empty or `0` fails the verdict.
+      default: ''
+      title: Exec Status
+    item:
+      type: string
+      description: |-
+        Harness the output belongs to (a `<dir>/<binary>` MANIFEST item).
+      title: Item
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); keys the
+        `report.json` rollup under the kernel build the harness came from.
+      title: Kernel Version
+    output:
+      type: string
+      description: |-
+        The run-scoped output `f/usertests/wait` captured from the unit's
+        journal.
+      default: ''
+      title: Output
+    result:
+      type: string
+      description: |-
+        systemd's job outcome from `f/usertests/wait`
+        (`done`/`failed`/`stopped`); anything but `done` forces a `failed`
+        verdict.
+      default: ''
+      title: Result
+    runtime:
+      type: number
+      description: |-
+        Seconds the harness's start job ran, measured by `f/usertests/wait`
+        between systemd's "Starting" and job-outcome journal records on the
+        guest's monotonic clock; null when either record is missing. Carried
+        into the report's `time(s)` columns, never a verdict input.
+      default: null
+      title: Runtime
+    timed_out:
+      type: boolean
+      description: |-
+        Whether `f/usertests/wait` gave up on the harness and stopped its
+        unit; forces a `failed` verdict.
+      default: false
+      title: Timed Out
+    vm_name:
+      type: object
+      description: |-
+        The VM the harness ran on (recorded; the guest is not contacted).
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - item
+    - kernel_version
+tag: vm

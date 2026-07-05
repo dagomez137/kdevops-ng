@@ -1,0 +1,44 @@
+summary: Lay the built usertests tree onto the share
+description: |-
+  Copy the published Nix store tree `discover` resolved to the guest's
+  `usertests` share at `<share>/<kver>/tree/`, the directory the
+  `usertests@<instance>.service` template executes from (`ExecStart=...
+  /var/lib/usertests/%v/tree/%I`). When the copied tree's `MANIFEST` already
+  matches the store's, the copy is skipped; otherwise any stale tree is
+  removed and replaced (`cp --archive`, then `chmod --recursive u+w`: store
+  modes are read-only). The host never contacts the guest.
+
+  Returns `{vm, tree, reused}`.
+lock: '!inline f/usertests/prepare.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - kernel_version
+    - store_path
+  properties:
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); keys the
+        tree under the same `<kver>` the unit's `%v` resolves to.
+      title: Kernel Version
+    store_path:
+      type: string
+      description: |-
+        The built usertests harness tree's Nix store path (from `discover`).
+      title: Store Path
+    vm_name:
+      type: object
+      description: |-
+        The VM whose `usertests` share receives the tree (host-side only; the
+        guest is not contacted).
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - kernel_version
+    - store_path
+tag: vm

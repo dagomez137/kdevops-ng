@@ -1,0 +1,324 @@
+summary: Run kernel userspace test harnesses (usertests)
+description: |-
+  Run the kernel tree's userspace test harnesses (the tools/testing
+  radix-tree, vma, rbtree, memblock and scatterlist binaries) against an
+  already-booted guest, driving each harness as its own systemd template unit
+  without rebooting: `usertests@<instance>.service` runs one
+  `<dir>/<binary>` item, the instance being the systemd-escaped item name
+  (`radix-tree/main` -> `radix\x2dtree-main`). The binaries are compiled from
+  the kernel build's SOURCE tree and published to the Nix store (the
+  `usertests-<kver>` entry), so the run exercises that source's
+  data-structure code in userspace; the guest only hosts the run. The unit's
+  `ExecStart` carries no `-` prefix, so exit codes are REAL: an assert or
+  sanitizer abort is a failed job, and that IS the test failure.
+
+  Steps mirror the tools/testing and systemd vocabulary 1:1:
+
+  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
+  is-system-running`, the `usertests@.service` template present), resolve the
+  running kernel's built tree from the store index, and enumerate the
+  harnesses from its `MANIFEST`. 2. `prepare`: copy the store tree to the
+  share's `<kver>/tree/` (skipped when already current). 3. `render_config`:
+  write the per-instance `EnvironmentFile`s (`ARGS=`; the seed and long-run
+  knobs for `radix-tree/main`, `--verbose` for `memblock/main`). 4. for each
+  item: `start` (capture a guest journal cursor, then `systemctl --host <vm>
+  start --no-block` the item's unit) → `wait` (poll the unit's journal past
+  the cursor for systemd's job-outcome record, crash-check the host
+  `qemu-system@<vm>`) → `collect` (judge the run-scoped output against the
+  harness catalog: real exit codes, sanitizer/assertion scans with idr-test's
+  expected-noise whitelist, per-entry summary/sentinel/count rules). 5.
+  `report`: aggregate the per-item results into one summary. 6. `judge`: fail
+  the job unless every item passed.
+
+  The lifecycle and control steps run on the `vm` worker tag (the dedicated
+  worker that reaches the guest over the vsock-SSH transport); the `wait`
+  poll runs on `vm-run`, so a hung harness never starves a quick control op.
+  **Harnesses** empty runs every harness the MANIFEST lists. Returns the
+  `report` summary.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + enumerate harnesses (f/usertests/discover)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/usertests/discover
+        tag_override: vm
+    - id: prepare
+      summary: Lay the built tree onto the share (f/usertests/prepare)
+      value:
+        type: script
+        input_transforms:
+          kernel_version:
+            type: javascript
+            expr: results.discover.kernel_version
+          store_path:
+            type: javascript
+            expr: results.discover.store_path
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/usertests/prepare
+        tag_override: vm
+    - id: render_config
+      summary: Write the per-harness env files (f/usertests/render_config)
+      value:
+        type: script
+        input_transforms:
+          harnesses:
+            type: javascript
+            expr: results.discover.harnesses
+          kernel_version:
+            type: javascript
+            expr: results.discover.kernel_version
+          long_run:
+            type: javascript
+            expr: flow_input.long_run
+          seed:
+            type: javascript
+            expr: flow_input.seed
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/usertests/render_config
+        tag_override: vm
+    - id: items
+      summary: Run each harness sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        modules:
+          - id: start
+            summary: Start the harness's unit detached (f/usertests/start)
+            value:
+              type: script
+              input_transforms:
+                item:
+                  type: javascript
+                  expr: flow_input.iter.value
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/usertests/start
+              tag_override: vm
+          - id: wait
+            summary: Poll the run's journal to its outcome (f/usertests/wait)
+            value:
+              type: script
+              input_transforms:
+                cursor:
+                  type: javascript
+                  expr: results.start.cursor
+                item:
+                  type: javascript
+                  expr: flow_input.iter.value
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                unit:
+                  type: javascript
+                  expr: results.start.unit
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/usertests/wait
+              tag_override: vm-run
+          - id: collect
+            summary: Judge the run-scoped output (f/usertests/collect)
+            value:
+              type: script
+              input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
+                exec_status:
+                  type: javascript
+                  expr: results.wait.exec_status
+                item:
+                  type: javascript
+                  expr: flow_input.iter.value
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                output:
+                  type: javascript
+                  expr: results.wait.output
+                result:
+                  type: javascript
+                  expr: results.wait.result
+                runtime:
+                  type: javascript
+                  expr: results.wait.runtime
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/usertests/collect
+              tag_override: vm
+        iterator:
+          type: javascript
+          expr: |-
+            (flow_input.harnesses && flow_input.harnesses.length)
+              ? flow_input.harnesses
+              : results.discover.harnesses
+        parallel: false
+        skip_failures: true
+    - id: report
+      summary: Aggregate per-item results (f/usertests/report)
+      value:
+        type: script
+        input_transforms:
+          per_item:
+            type: javascript
+            expr: results.items
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/usertests/report
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every item passed (f/usertests/judge)
+      value:
+        type: script
+        input_transforms:
+          per_item:
+            type: javascript
+            expr: results.items
+          report:
+            type: javascript
+            expr: results.report
+        path: f/usertests/judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop usertests units on failure or cancel (f/usertests/stop)
+    value:
+      type: script
+      input_transforms:
+        items:
+          type: javascript
+          expr: >-
+            (flow_input.harnesses && flow_input.harnesses.length) ?
+            flow_input.harnesses : (results?.discover?.harnesses ?? [])
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/usertests/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - harnesses
+    - seed
+    - long_run
+    - service
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown
+        lists all guests; it must carry the `usertests` suite, which
+        `discover` gates.
+      format: dynselect-list_vms
+      title: VM Name
+    harnesses:
+      type: array
+      description: |-
+        Pick the harnesses to run from the built tree's `MANIFEST` (curated
+        labels, tests first, the rbtree benchmark pair last). Empty runs every
+        harness the MANIFEST lists.
+      default: []
+      format: dynmultiselect-list_harnesses
+      items:
+        type: string
+      title: Harnesses
+    seed:
+      type: integer
+      description: |-
+        Seed `radix-tree/main` with `-s <seed>` when > 0; 0 lets it pick a
+        random seed (it logs `random seed %u` either way, and the report
+        archives the printed seed so the run stays reproducible).
+      default: 0
+      title: Seed
+    long_run:
+      type: boolean
+      description: |-
+        Pass `-l` to `radix-tree/main` (the long run; tens of minutes).
+      default: false
+      title: Long Run
+    service:
+      type: object
+      description: |-
+        Timeouts for the run: `wait`'s per-item polling
+        (`timeout`/`poll_interval`) and whether to stream the guest journal
+        (`stream_logs`). The units are `TimeoutStartSec=infinity`, so this
+        deadline is the only bound on a harness.
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+      properties:
+        poll_interval:
+          type: integer
+          description: |-
+            Seconds between `wait`'s unit-status polls and log drains.
+          default: 10
+          title: Poll Interval
+        stream_logs:
+          type: boolean
+          description: |-
+            Each poll, print the guest's new unit + kernel journal (merged)
+            into the job log, so the harness output and dmesg are visible
+            live. Off = only a bounded journal tail at the end.
+          default: true
+          title: Stream Logs
+        timeout:
+          type: integer
+          description: |-
+            Seconds to poll a harness's unit to a terminal state; on expiry
+            `wait` aborts the item (`systemctl stop` of its unit). The default
+            covers `radix-tree/maple`, the longest harness; raise it for
+            `radix-tree/main` with **Long Run** set.
+          default: 1200
+          title: Item Timeout
+      title: Service
+  required:
+    - vm_name
+  x-windmill-dyn-select-code: >
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the one source f/common/remote owns).
+        try:
+            from f.common.remote import list_vms as _list_vms
+            return _list_vms(filterText)
+        except Exception:
+            return []
+
+
+    def list_harnesses(vm_name: str = "", filterText: str = "", **_: object) ->
+    list:
+        # The built kernel's usertests harnesses from the per-VM cache
+        # f/usertests/discover writes; degrades to the curated catalog before
+        # the first discovery.
+        try:
+            from f.usertests.common import list_harnesses as _list_harnesses
+            return _list_harnesses(vm_name, filterText)
+        except Exception:
+            return [
+                {"label": "VMA userland tests (vma/vma)", "value": "vma/vma"},
+                {"label": "XArray (radix-tree/xarray)", "value": "radix-tree/xarray"},
+                {"label": "Radix tree omnibus (radix-tree/main)", "value": "radix-tree/main"},
+            ]
+  x-windmill-dyn-select-lang: python3

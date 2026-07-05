@@ -1,0 +1,34 @@
+summary: Discover a guest's usertests readiness over SSH
+description: |-
+  Reach a booted guest over vsock-SSH and report whether it is ready to run
+  the kernel's userspace test harnesses, and which harnesses its kernel build
+  published. Checks `systemctl --host <vm> is-system-running` is
+  `running`/`degraded` and that the `usertests@.service` template is
+  installed, reads the running kernel release (`/proc/sys/kernel/osrelease`),
+  resolves the matching built harness tree from the local Nix store (the
+  `usertests-<kver>` index entry the kernel build publishes), and enumerates
+  the run items from its `MANIFEST` (one `<dir>/<binary>` line per harness).
+  The harnesses are userspace binaries compiled from that build's SOURCE tree;
+  the guest only hosts the run.
+
+  Returns `{vm, host, booted, kernel_version, store_path, harnesses}`. Fails
+  fast with a clear message if the guest is not usertests-ready, no tree is
+  published for the running kernel (build the kernel with the Usertests
+  group), or the MANIFEST lists zero harnesses. Writes the harness list to the
+  per-VM picker cache; mutates nothing on the guest.
+lock: '!inline f/usertests/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM to probe over vsock-SSH for usertests readiness.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

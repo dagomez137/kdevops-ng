@@ -1,0 +1,37 @@
+summary: Start a usertests harness on a guest
+description: |-
+  Capture the guest journal's end-of-now cursor, then start the item's
+  `usertests@<instance>.service` over vsock-SSH with `--no-block`; the
+  instance is the systemd-escaped `<dir>/<binary>` item (`radix-tree/main` ->
+  `radix\x2dtree-main`). The cursor is the run's identity: journal entries
+  past it belong to this run and nothing before it does, so `wait`/`collect`
+  can never confuse this run with a previous one. The template's `ExecStart`
+  carries no `-` prefix, so exit codes are REAL: a `done` job outcome proves
+  the harness exited 0, and an assert or sanitizer abort surfaces as a failed
+  job with `EXIT_STATUS` populated.
+
+  Returns `{vm, item, unit, cursor}`.
+lock: '!inline f/usertests/start.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - item
+  properties:
+    item:
+      type: string
+      description: |-
+        Harness to start: a `<dir>/<binary>` MANIFEST item, e.g.
+        `radix-tree/main` or `vma/vma`.
+      title: Item
+    vm_name:
+      type: object
+      description: Booted VM to start the harness on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - item
+tag: vm

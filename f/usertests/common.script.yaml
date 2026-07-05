@@ -1,0 +1,21 @@
+summary: Harness catalog, verdict rules and harness listing
+description: |-
+  Library module imported by the `f/usertests/*` steps (`from
+  f.usertests.common import catalog_entry, item_unit, list_harnesses, ...`).
+  Not a runnable step on its own. Curates the kernel tree's userspace test
+  harnesses (the tools/testing radix-tree, vma, rbtree, memblock and
+  scatterlist binaries) and their deliberately inconsistent upstream verdict
+  conventions, each verified against the v7.2-rc1 sources; escapes
+  `<dir>/<binary>` items into `usertests@` unit instances (`radix-tree/main`
+  -> `radix\x2dtree-main`), composes each harness's ARGS from the run form's
+  knobs, lists the built harnesses from the per-VM cache, and writes the run's
+  `report.json` rollup onto the shared `usertests` tree. Never contacts the
+  guest.
+lock: '!inline f/usertests/common.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
