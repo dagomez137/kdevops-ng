@@ -61,6 +61,7 @@ DEFAULT_TARGETS = [
     "sysctl",
     "lib",
     "kmod",
+    "module",
     "timers",
     "kselftest_harness",
 ]

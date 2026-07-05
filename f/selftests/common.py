@@ -57,6 +57,7 @@ CURATED_COLLECTIONS = {
     "sysctl": "sysctl (sysctl interfaces)",
     "lib": "lib (in-kernel library test modules)",
     "kmod": "kmod (module loader stress via test_kmod)",
+    "module": "module (kallsyms find_symbol via test_kallsyms)",
     "timers": "timers (POSIX timers and clocks)",
     "kselftest_harness": "kselftest_harness (harness self-checks)",
     "pidfd": "pidfd (pidfd_* syscalls; hang-prone, outside the curated build)",

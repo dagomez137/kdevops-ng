@@ -1007,6 +1007,7 @@ schema:
             - sysctl
             - lib
             - kmod
+            - module
             - timers
             - kselftest_harness
           items:
@@ -1035,6 +1036,7 @@ schema:
               - sysctl
               - lib
               - kmod
+              - module
               - timers
               - kselftest_harness
           showExpr: fields.enable === true
