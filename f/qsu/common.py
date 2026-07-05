@@ -34,6 +34,7 @@ CANONICAL_SHARE_TAGS = [
     "kdevops-fstests",
     "fstests",
     "selftests",
+    "usertests",
     "home",
     "controller-share",
 ]
@@ -189,10 +190,10 @@ def vm_options(filter_text: str = "") -> list[dict]:
 # --- vars composition (ports the qsu role's render-per-vm.yml glue) ------------
 def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
     # An explicit `shares` list is a FULL replacement; it skips every predefined
-    # share below (store, modules, fstests, selftests, home). Callers that override
-    # must include whatever they still need (e.g. the fstests guest would have to
-    # re-add the /var/lib/xfstests share itself, or its xfstests@.service fails to
-    # start).
+    # share below (store, modules, fstests, selftests, usertests, home). Callers
+    # that override must include whatever they still need (e.g. the fstests guest
+    # would have to re-add the /var/lib/xfstests share itself, or its
+    # xfstests@.service fails to start).
     if fi.get("shares"):
         return fi["shares"]
     shares = [{"tag": "store", "dir": "/nix/store", "mount": "/nix/store"}]
@@ -230,6 +231,20 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
             raise ValueError(f"selftests share needs a valid vm_name, got {vm!r}")
         shares.append(
             {"tag": "selftests", "dir": str(sdir), "mount": "/var/lib/kselftests"}
+        )
+    # Predefined `usertests` share, the selftests analog: a writable per-VM dir the
+    # usertests suite exchanges artifacts with the host through. Added when the
+    # guest runs the usertests suite (`fi["usertests"]`, derived from the closure's
+    # test_suites; render_config declares the matching /var/lib/usertests mount).
+    # Host dir: $WORKERS_DIR/shared/usertests/<vm>.
+    if fi.get("usertests"):
+        vm = fi.get("vm_name") or ""
+        root = _workers() / "shared/usertests"
+        udir = (root / vm).resolve()
+        if not vm or root.resolve() not in udir.parents:
+            raise ValueError(f"usertests share needs a valid vm_name, got {vm!r}")
+        shares.append(
+            {"tag": "usertests", "dir": str(udir), "mount": "/var/lib/usertests"}
         )
     # Predefined `home` share: the operator's host home shared into the guest at the
     # SAME absolute path (so host/guest paths match). Toggled by `fi["home_share"]`;

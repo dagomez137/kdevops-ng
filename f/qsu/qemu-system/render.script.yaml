@@ -47,6 +47,7 @@ schema:
     - shares
     - fstests
     - selftests
+    - usertests
     - home_share
     - home_share_readwrite
     - controller_share
@@ -629,7 +630,8 @@ schema:
       type: array
       description: |-
         Explicit virtiofs shares (`{tag,dir,mount,options}`); overrides the
-        composed store/modules/fstests/selftests/home/controller set.
+        composed store/modules/fstests/selftests/usertests/home/controller
+        set.
       default: []
       items:
         type: object
@@ -644,6 +646,14 @@ schema:
       description: Base host port; guest N forwards `ssh_port_base + vm_index`.
       default: 10022
       title: SSH Port Base
+    usertests:
+      type: boolean
+      description: |-
+        Predefined `usertests` share (auto): serve
+        `$WORKERS_DIR/shared/usertests/<vm>` at `/var/lib/usertests` (rw), tag
+        `usertests`. Set automatically by `f/qsu/bringup` when the closure's
+        test suites include `usertests`; no manual knob.
+      default: false
     virtiofsd_binary:
       type: string
       description: |-

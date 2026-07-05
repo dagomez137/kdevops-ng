@@ -192,6 +192,9 @@ value:
           ssh_port_base:
             type: javascript
             expr: flow_input.networking?.ssh_port_base
+          usertests:
+            type: javascript
+            expr: flow_input.sharing?.usertests
           virtiofsd_binary:
             type: javascript
             expr: flow_input.sharing?.virtiofsd_binary

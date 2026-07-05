@@ -81,6 +81,7 @@ def main(
     shares: list | None = None,
     fstests: bool = False,
     selftests: bool = False,
+    usertests: bool = False,
     home_share: bool = False,
     home_share_readwrite: bool = False,
     controller_share: bool = False,
@@ -144,6 +145,7 @@ def main(
         "shares": shares,
         "fstests": fstests,
         "selftests": selftests,
+        "usertests": usertests,
         "home_share": home_share,
         "home_share_readwrite": home_share_readwrite,
         "controller_share": controller_share,
@@ -231,6 +233,7 @@ def main(
                 "sharing": {
                     "fstests": fstests,
                     "selftests": selftests,
+                    "usertests": usertests,
                     "home_share": home_share,
                     "home_share_readwrite": home_share_readwrite,
                     "shares": shares or [],

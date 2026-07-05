@@ -40,6 +40,7 @@ _TEST_SUITES = [
     "pynfs",
     "selftests",
     "sysbench",
+    "usertests",
 ]
 
 # Packages whose nixos-flake recipe a src override composes with, build-verified
@@ -120,6 +121,9 @@ def main(
     #  - selftests: auto whenever the closure runs the selftests suite.
     if "selftests" in test_suites:
         shares.setdefault("/var/lib/kselftests", {"tag": "selftests"})
+    #  - usertests: auto whenever the closure runs the usertests suite.
+    if "usertests" in test_suites:
+        shares.setdefault("/var/lib/usertests", {"tag": "usertests"})
     #  - home: the operator's host home (tag `home`, served once by qsu) mounted at
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
     #    in your home (writable via the root->operator virtiofsd uid-map, with no extra
