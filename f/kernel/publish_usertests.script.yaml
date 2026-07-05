@@ -1,0 +1,29 @@
+summary: Publish the usertests tree to the Nix store
+description: |-
+  Add the staged `usertests_install` tree to the Nix store under
+  `usertests-<uts_release>`, indexed as a GC root, so the usertests suite flow
+  (and a peer, via `nix copy`) resolves it by kernel release. When the build
+  step reused an already-published tree (`install_dir` empty), resolves the
+  local index entry instead of re-publishing. Returns the index `name`, the
+  resolved `store_path` and the `uts_release`.
+lock: '!inline f/kernel/publish_usertests.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - install_dir
+    - uts_release
+  properties:
+    install_dir:
+      type: string
+      description: |-
+        Staged usertests tree to publish. Empty = the build step reused an
+        already-published tree; resolve its store path instead.
+    uts_release:
+      type: string
+      description: |-
+        The build identity (baked kernelrelease) the artifact is named after.
+  required:
+    - install_dir
+    - uts_release

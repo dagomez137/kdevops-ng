@@ -1,0 +1,71 @@
+summary: Build the kernel userspace test harnesses
+description: |-
+  Bare `make` each selected userspace test harness under `tools/testing`
+  (radix-tree, vma, rbtree, memblock, scatterlist) inside the
+  `nixos-flake#build-usertests` devShell, stage the expected binaries to
+  `<destdir>/usertests_install/<dir>/<binary>` with a MANIFEST, then `make
+  clean` each harness directory so the shared worktree stays pristine. A
+  binary the make did not produce is a hard error instead of a silent drop
+  from the stage.
+
+  Skips the build when the reuse gate says `usertests-<uts_release>` is
+  already published to the Nix store. Reads `worktree`/`build_dir` from
+  `prepare_worktree`; returns `install_dir` and the staged `harnesses`
+  entries.
+lock: '!inline f/kernel/build_usertests.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - destdir
+    - harnesses
+    - reuse_present
+    - uts_release
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        Out-of-tree build directory (from prepare_worktree). Unused by the
+        harness makes (objects land in-tree); kept for signature parity with
+        the sibling build steps.
+    destdir:
+      type: string
+      description: |-
+        Stage root; the tree lands at `<destdir>/usertests_install`. Empty =
+        `<slot>/destdir`.
+      default: ''
+    harnesses:
+      type: array
+      description: |-
+        Harness directories under `tools/testing` to build. Empty = all of
+        them.
+      default: []
+      items:
+        type: string
+        enum:
+          - radix-tree
+          - vma
+          - rbtree
+          - memblock
+          - scatterlist
+    reuse_present:
+      type: boolean
+      description: |-
+        Skip the build when `usertests-<uts_release>` is already in the Nix
+        store index (the build flow's reuse gate).
+      default: false
+    uts_release:
+      type: string
+      description: |-
+        The build identity (baked kernelrelease); names the published artifact
+        `usertests-<uts_release>` for the reuse check.
+      default: ''
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - build_dir

@@ -12,6 +12,7 @@ export async function main(
   reuse: any,
   publish: any,
   selftests: any,
+  usertests: any,
 ) {
   return {
     worker: prepare?.worker ?? null,
@@ -41,5 +42,7 @@ export async function main(
     rust_project: devtools?.rust_project ?? null,
     kselftests: selftests?.store_path ?? null,
     kselftests_name: selftests?.name ?? null,
+    usertests: usertests?.store_path ?? null,
+    usertests_name: usertests?.name ?? null,
   };
 }

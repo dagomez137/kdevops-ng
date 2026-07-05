@@ -391,6 +391,53 @@ value:
       timeout:
         type: static
         value: 600
+    - id: build_usertests
+      summary: make the userspace test harnesses (optional)
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          harnesses:
+            type: javascript
+            expr: flow_input.usertests?.harnesses
+          reuse_present:
+            type: javascript
+            expr: results.reuse_check?.present === true &&
+              flow_input.reuse?.reuse !== false
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/build_usertests
+      skip_if:
+        expr: flow_input.usertests?.enable !== true
+      timeout:
+        type: static
+        value: 1800
+    - id: publish_usertests
+      summary: publish the usertests tree to the Nix store
+      value:
+        type: script
+        input_transforms:
+          install_dir:
+            type: javascript
+            expr: results.build_usertests?.install_dir
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+        path: f/kernel/publish_usertests
+      skip_if:
+        expr: flow_input.usertests?.enable !== true
+      timeout:
+        type: static
+        value: 600
     - id: publish
       summary: publish this identity's run layer to the Nix store
       value:
@@ -499,6 +546,9 @@ value:
           selftests:
             type: javascript
             expr: results.publish_selftests
+          usertests:
+            type: javascript
+            expr: results.publish_usertests
         lock: '!inline merge_step_results_into_one_manifest.inline_script.lock'
         language: bun
   same_worker: true
@@ -513,6 +563,7 @@ schema:
     - devtools
     - installation
     - selftests
+    - usertests
   properties:
     build:
       type: object
@@ -988,6 +1039,45 @@ schema:
               - kselftest_harness
           showExpr: fields.enable === true
       title: Selftests
+    usertests:
+      type: object
+      description: |-
+        Optional userspace test harnesses build: bare `make` each selected
+        `tools/testing` harness and stage its binaries beside the kernel
+        install.
+      default: {}
+      order:
+        - enable
+        - harnesses
+      properties:
+        enable:
+          type: boolean
+          description: |-
+            Build the kernel's userspace test harnesses for this kernel, and
+            publish the staged binaries to the Nix store as
+            `usertests-<release>` for the usertests suite flow to run against
+            the booted guest.
+          default: false
+        harnesses:
+          type: array
+          description: |-
+            Harness directories under `tools/testing` to build. A harness
+            whose expected binaries do not all build fails the step instead of
+            being silently dropped from the stage.
+          default:
+            - radix-tree
+            - vma
+            - memblock
+            - scatterlist
+          items:
+            type: string
+            enum:
+              - radix-tree
+              - vma
+              - memblock
+              - scatterlist
+          showExpr: fields.enable === true
+      title: Usertests
     worktree:
       type: object
       description: Source ref, optional patch series, and warm-tree lifecycle.
