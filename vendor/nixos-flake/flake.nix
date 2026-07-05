@@ -82,6 +82,7 @@
           pynfs = ./modules/testSuites/pynfs.nix;
           selftests = ./modules/testSuites/selftests.nix;
           sysbench = ./modules/testSuites/sysbench.nix;
+          usertests = ./modules/testSuites/usertests.nix;
         };
 
         user = ./modules/user.nix;
@@ -177,6 +178,21 @@
               ];
             };
             shellHook = reproducibleShellHook + kernelClangHook;
+          };
+
+          # The kernel's userspace test harnesses (tools/testing's
+          # radix-tree, vma, rbtree, memblock, scatterlist) compile
+          # kernel sources into plain userspace binaries: no kernel
+          # configuration, only a toolchain plus liburcu (the shared
+          # shim maps RCU onto userspace RCU) with AddressSanitizer
+          # and UndefinedBehaviorSanitizer hardwired in their
+          # Makefiles. Hardening is disabled for the same reason as
+          # the selftests shell: the suite assumes stock toolchain
+          # defaults, and fortify interacts badly with ASan.
+          build-usertests = pkgs.mkShell {
+            packages = kernelPackages;
+            buildInputs = [ pkgs.liburcu ];
+            hardeningDisable = [ "all" ];
           };
 
           # Kernel selftests (tools/testing/selftests) build out of the
