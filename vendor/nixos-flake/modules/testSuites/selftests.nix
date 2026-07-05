@@ -120,5 +120,12 @@ in
     "L+ /usr/bin/timeout - - - - ${pkgs.coreutils}/bin/timeout"
     "L+ /sbin/modprobe   - - - - ${pkgs.kmod}/bin/modprobe"
     "L+ /bin/bash        - - - - ${pkgs.bash}/bin/bash"
+
+    # The firmware collection's fw_namespace helper mounts a tmpfs
+    # onto /lib/firmware without creating it and runs before every
+    # shell test, so the mount point must exist as a directory (the
+    # tmpfs makes it writable). The shell tests use their own temp
+    # dirs, so nothing needs to live here.
+    "d /lib/firmware 0755 root root -"
   ];
 }
