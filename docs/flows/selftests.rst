@@ -90,7 +90,19 @@ seconds; an overrunning test is killed by :cmd:`timeout` and recorded as
 ``# TIMEOUT``, and the run continues. ``kmod`` ships no ``settings`` file
 upstream, so its module-loader stress dies at the 45-second default; it
 completes in about four minutes, so run it with a Per-test Timeout of 300
-seconds or more.
+seconds or more. ``firmware`` is the opposite: it carries an upstream
+``settings`` timeout of 165 seconds sized to its own fallback-handshake
+math, so the default already bounds it and no override is needed.
+
+Two collections need guest state the closure provides. The module-driven
+tests (``sysctl``, ``lib``, ``kmod``, ``module``) load kernel modules
+through the ``/sbin/modprobe`` compat symlink the suite module ships. The
+``firmware`` collection additionally needs a ``/lib/firmware`` mount
+point to exist: its namespace sub-test mounts a tmpfs there before any
+other test runs, so the module creates the directory (the tests supply
+their own firmware from temporary directories, so nothing lives in it).
+Both are set up by :src:`vendor/nixos-flake/modules/testSuites/selftests`
+and need no operator action.
 
 The **Service** group bounds the run. **Item Timeout** (default 900
 seconds) is ``wait``'s per-collection deadline; on expiry the unit is
