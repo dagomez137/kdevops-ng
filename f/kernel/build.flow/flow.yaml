@@ -1008,6 +1008,7 @@ schema:
             - lib
             - kmod
             - module
+            - firmware
             - timers
             - kselftest_harness
           items:
@@ -1037,6 +1038,7 @@ schema:
               - lib
               - kmod
               - module
+              - firmware
               - timers
               - kselftest_harness
           showExpr: fields.enable === true

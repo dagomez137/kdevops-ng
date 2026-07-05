@@ -62,6 +62,7 @@ DEFAULT_TARGETS = [
     "lib",
     "kmod",
     "module",
+    "firmware",
     "timers",
     "kselftest_harness",
 ]
