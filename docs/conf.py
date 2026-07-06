@@ -91,6 +91,7 @@ cmd_links = {
     "modules-load.d": f"{_SYSTEMD}/modules-load.d.html",
     "systemd-modules-load": f"{_SYSTEMD}/systemd-modules-load.service.html",
     "kmod-static-nodes": f"{_SYSTEMD}/kmod-static-nodes.service.html",
+    "systemd-tmpfiles": f"{_SYSTEMD}/systemd-tmpfiles.html",
     "RuntimeMaxSec": f"{_SYSTEMD}/systemd.service.html#RuntimeMaxSec=",
     "systemd-escape": f"{_SYSTEMD}/systemd-escape.html",
     "timeout": f"{_MAN7}/timeout.1.html",

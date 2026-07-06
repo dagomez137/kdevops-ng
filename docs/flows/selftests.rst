@@ -101,8 +101,9 @@ through the ``/sbin/modprobe`` compat symlink the suite module ships. The
 point to exist: its namespace sub-test mounts a tmpfs there before any
 other test runs, so the module creates the directory (the tests supply
 their own firmware from temporary directories, so nothing lives in it).
-Both are set up by :src:`vendor/nixos-flake/modules/testSuites/selftests`
-and need no operator action.
+Both are set up by
+:src:`vendor/nixos-flake/modules/testSuites/selftests.nix` and need no
+operator action.
 
 The **Service** group bounds the run. **Item Timeout** (default 900
 seconds) is ``wait``'s per-collection deadline; on expiry the unit is
