@@ -1,0 +1,63 @@
+summary: Post the run window to Grafana
+description: |-
+  Post one region annotation spanning the suite run's wall-clock window (the
+  earliest `started_realtime_ms` to the latest `ended_realtime_ms` over the
+  per-item collect results) to Grafana's `/api/annotations`, tagged
+  `suite-run` plus the suite, VM, kernel, and verdict, so the shipped
+  dashboard's annotations panel (filtering tag `suite-run`) shows test runs
+  over the metrics.
+
+  One-time setup: create the Windmill resource `f/monitoring/grafana` by hand
+  in the UI with fields `base_url` (such as `http://127.0.0.1:3000`) and
+  `token` (a Grafana service-account token). It is intentionally kept out of
+  git (a sync would clobber it); this step fetches it at runtime. When the
+  resource is absent or blank, or no item carries a usable window, the step
+  logs why and returns `{posted: false}` instead of failing the run; a
+  configured but broken Grafana does fail the step.
+
+  Returns `{posted, id, verdict, time, timeEnd}` on a post, else
+  `{posted, reason}`.
+lock: '!inline f/monitoring/annotate.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - suite
+    - vm_name
+    - kernel
+    - per_item
+  properties:
+    kernel:
+      type: string
+      description: |-
+        Kernel release the run tested (`uname -r`); tagged onto the annotation
+        and named in its text.
+      default: ''
+      title: Kernel
+    per_item:
+      type: array
+      description: |-
+        The suite's per-item collect results; their
+        `started_realtime_ms`/`ended_realtime_ms` bound the window and their
+        `status` decides the verdict tag.
+      default: []
+      items:
+        type: object
+      title: Per Item
+    suite:
+      type: string
+      description: |-
+        Suite the run belongs to (`selftests`, `fstests`); tagged onto the
+        annotation.
+      default: ''
+      title: Suite
+    vm_name:
+      type: string
+      description: |-
+        VM the run drove (recorded; the guest is not contacted); tagged onto
+        the annotation.
+      default: ''
+      title: VM Name
+  required: []
+tag: vm
