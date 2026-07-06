@@ -123,5 +123,28 @@ its system bus:
    $ systemctl --host <vm> is-system-running   # guest systemd state
    $ hostnamectl --host <vm>                   # guest identity
 
+Guest telemetry
+===============
+
+A guest built with the ``telemetry`` profile continuously exports its metrics
+and journal to the optional :doc:`monitoring stack <../deployment/monitoring>`:
+one `Grafana Alloy`_ agent on the guest pushes CPU, memory, disk, network, and
+every other node-exporter series over Prometheus remote_write, and ships the
+systemd journal to Loki, each sample and line labelled ``host=<vm>``. Select
+the profile in the closure group of the :src:`f/nix/build` form (or bringup);
+the push URLs default to the guest's own host over the QEMU user network, so
+the zero-config path reports to the monitoring stack on the same machine. A
+baremetal system or a cross-host guest points the two URL fields at the
+monitoring host instead.
+
+The exported series appear in Grafana's ``Guest overview`` dashboard per
+``host`` label, alongside the guest journal from Loki. Because guests push, a
+guest that dies goes stale rather than flipping a liveness metric; the
+dashboard's freshness panel carries that signal. The run-scoped monitor units
+(``monitor-<name>@<run-id>.service``, from the ``monitoring`` profile) are
+unchanged by this: they still bracket a single workload and write files, while
+telemetry streams continuously for the life of the boot.
+
 .. _Windmill: https://www.windmill.dev/
 .. _qemu-system-units: https://github.com/linux-kdevops/qemu-system-units
+.. _Grafana Alloy: https://grafana.com/oss/alloy/
