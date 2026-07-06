@@ -63,6 +63,10 @@ _PROFILE_ENABLE = {
 # node_exporter collectors the telemetry profile can enable on top of its
 # defaults (nixos-flake.telemetry.extraCollectors); all are off in
 # node_exporter by default.
+# ebpf_exporter example configs the telemetry profile can load; each is a
+# CO-RE BPF object beside its YAML in the package.
+_TELEMETRY_EBPF_CONFIGS = ["biolatency", "bio-trace"]
+
 _TELEMETRY_COLLECTORS = [
     "buddyinfo",
     "zoneinfo",
@@ -95,6 +99,8 @@ def main(
     telemetry_metrics_url: str = "http://10.0.2.2:9090/api/v1/write",
     telemetry_logs_url: str = "http://10.0.2.2:3100/loki/api/v1/push",
     telemetry_collectors: list[str] | None = None,
+    telemetry_ebpf: bool = False,
+    telemetry_ebpf_configs: list[str] | None = None,
     shares: dict | None = None,
     overrides: list[dict] | None = None,
     extra_overrides: list[dict] | None = None,
@@ -119,6 +125,9 @@ def main(
     telemetry_metrics_url = telemetry_metrics_url or "http://10.0.2.2:9090/api/v1/write"
     telemetry_logs_url = telemetry_logs_url or "http://10.0.2.2:3100/loki/api/v1/push"
     telemetry_collectors = [c for c in (telemetry_collectors or []) if c]
+    telemetry_ebpf_configs = [c for c in (telemetry_ebpf_configs or []) if c] or [
+        "biolatency"
+    ]
     # Curated overrides name a package from the form's dropdown (_OVERRIDABLE_PKGS);
     # extra_overrides takes any other nixpkgs package. Both are validated below.
     overrides = [ov for ov in (overrides or []) if ov]
@@ -166,6 +175,9 @@ def main(
     _reject_unknown("test_suite", test_suites, _TEST_SUITES)
     _reject_unknown(
         "telemetry collector", telemetry_collectors, set(_TELEMETRY_COLLECTORS)
+    )
+    _reject_unknown(
+        "telemetry ebpf config", telemetry_ebpf_configs, set(_TELEMETRY_EBPF_CONFIGS)
     )
     for ov in overrides:
         if not _PKG_RE.match(ov.get("pkg", "")):
@@ -220,6 +232,8 @@ def main(
         telemetry_metrics_url,
         telemetry_logs_url,
         telemetry_collectors,
+        telemetry_ebpf,
+        telemetry_ebpf_configs,
         shares,
         overrides,
         ssh_keys,
@@ -294,6 +308,8 @@ def _render_default(
     telemetry_metrics_url: str,
     telemetry_logs_url: str,
     telemetry_collectors: list[str],
+    telemetry_ebpf: bool,
+    telemetry_ebpf_configs: list[str],
     shares: dict,
     overrides: list[dict],
     ssh_keys: list[str],
@@ -347,6 +363,10 @@ def _render_default(
             if telemetry_collectors:
                 cols = " ".join(_nix_str(c) for c in telemetry_collectors)
                 out.append(f"  nixos-flake.telemetry.extraCollectors = [ {cols} ];")
+            if telemetry_ebpf:
+                out.append("  nixos-flake.telemetry.ebpf.enable = true;")
+                cfgs = " ".join(_nix_str(c) for c in telemetry_ebpf_configs)
+                out.append(f"  nixos-flake.telemetry.ebpf.configs = [ {cfgs} ];")
 
     if ssh_keys:
         keys = " ".join(_nix_str(k) for k in ssh_keys)
