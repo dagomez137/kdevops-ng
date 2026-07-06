@@ -145,6 +145,13 @@ dashboard's freshness panel carries that signal. The run-scoped monitor units
 unchanged by this: they still bracket a single workload and write files, while
 telemetry streams continuously for the life of the boot.
 
+The exported set is expandable per guest: the closure form's **Extra
+collectors** checklist enables node-exporter collectors that are off by
+default, notably the memory-management trio (``buddyinfo`` for the buddy
+allocator's per-order free blocks, ``zoneinfo`` for per-zone counters,
+``meminfo_numa`` for per-NUMA-node meminfo), which feed the shipped
+``Memory management`` dashboard.
+
 Suite runs mark themselves on those dashboards: each suite flow's
 :src:`f/monitoring/annotate` step posts a Grafana region annotation spanning
 the run's wall-clock window (taken from the ``wait`` step's unit
