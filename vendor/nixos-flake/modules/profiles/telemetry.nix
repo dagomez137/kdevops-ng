@@ -79,7 +79,17 @@ let
         url = "${cfg.logs.url}"
       }
     }
+  ''
+  + lib.optionalString cfg.ebpf.enable ''
+
+    prometheus.scrape "ebpf" {
+      targets         = [{ __address__ = "${ebpfListen}" }]
+      forward_to      = [prometheus.remote_write.default.receiver]
+      scrape_interval = "${cfg.scrapeInterval}"
+    }
   '';
+
+  ebpfListen = "127.0.0.1:9435";
 in
 {
   options.nixos-flake.telemetry = {
@@ -130,10 +140,58 @@ in
         node_exporter collector names are accepted.
       '';
     };
+
+    ebpf = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Run ebpf_exporter beside the agent and scrape it into the
+          same remote_write. Its BPF programs are CO-RE objects, so
+          the kernel must expose BTF (/sys/kernel/btf/vmlinux,
+          CONFIG_DEBUG_INFO_BTF). Off by default even when telemetry
+          is on, staying opt-in like the run-scoped eBPF monitors.
+        '';
+      };
+      configs = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ "biolatency" ];
+        example = [
+          "biolatency"
+          "bio-trace"
+        ];
+        description = ''
+          Upstream example configs to load (--config.names), by name
+          under the package's share/ebpf_exporter/examples. Each is
+          a YAML config beside its compiled BPF object; biolatency
+          exports block I/O latency histograms.
+        '';
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
     environment.etc."alloy/config.alloy".text = alloyConfig;
+
+    systemd.services.ebpf_exporter = lib.mkIf cfg.ebpf.enable {
+      description = "ebpf_exporter eBPF metrics";
+      documentation = [ "https://github.com/cloudflare/ebpf_exporter" ];
+      wantedBy = [ "multi-user.target" ];
+      # CO-RE relocation needs the kernel's BTF, exposed once sysfs
+      # is up; no network ordering, the listener is loopback.
+      unitConfig.ConditionPathExists = "/sys/kernel/btf/vmlinux";
+
+      serviceConfig = {
+        ExecStart = lib.concatStringsSep " " [
+          "${pkgs.ebpf_exporter}/bin/ebpf_exporter"
+          "--config.dir=${pkgs.ebpf_exporter}/share/ebpf_exporter/examples"
+          "--config.names=${lib.concatStringsSep "," cfg.ebpf.configs}"
+          "--web.listen-address=${ebpfListen}"
+        ];
+        Restart = "on-failure";
+        RestartSec = "5s";
+      };
+    };
 
     systemd.services.alloy = {
       description = "Grafana Alloy telemetry agent";
