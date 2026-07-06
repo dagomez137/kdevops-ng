@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Grafana dashboard provider, provisioned as code: loads every dashboard
+# JSON installed under %E/monitoring/grafana/dashboards (MONITORING_CONFIG
+# comes from monitoring-grafana.service; Grafana interpolates $VARS in
+# provisioning files). Git is the source of truth: edit the JSON in the
+# repository and re-run the monitoring install, not the UI.
+apiVersion: 1
+
+providers:
+  - name: kdevops
+    folder: kdevops
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: ${MONITORING_CONFIG}/grafana/dashboards

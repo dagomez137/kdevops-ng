@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Prometheus, run from nix under systemd --user. Optional: part of the
+# monitoring stack (docs/deployment/monitoring.rst). The guests push their
+# metrics here over remote_write (--web.enable-remote-write-receiver), so the
+# shipped config has no scrape targets; the TSDB lives under the user state
+# dir. Loopback only.
+#
+# The binary is a fixed out-link the operator creates:
+#   nix build .#prometheus --out-link %S/monitoring/pkgs/prometheus
+# Override the port or retention by editing this unit
+# (`systemctl --user edit monitoring-prometheus.service`).
+[Unit]
+Description=Prometheus (monitoring stack)
+
+[Service]
+StateDirectory=monitoring
+ExecStart=%S/monitoring/pkgs/prometheus/bin/prometheus \
+    --config.file=%E/monitoring/prometheus.yml \
+    --storage.tsdb.path=%S/monitoring/prometheus \
+    --storage.tsdb.retention.time=30d \
+    --web.listen-address=127.0.0.1:9090 \
+    --web.enable-remote-write-receiver
+Restart=always
+
+[Install]
+WantedBy=default.target

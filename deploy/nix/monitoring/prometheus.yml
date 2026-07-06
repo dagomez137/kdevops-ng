@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Prometheus configuration for the monitoring stack. The guests PUSH their
+# metrics over remote_write (the monitoring-prometheus.service unit runs with
+# --web.enable-remote-write-receiver), so there are no scrape targets here;
+# add scrape_configs entries only for host-local exporters scraped in the
+# conventional pull direction.
+global:
+  scrape_interval: 15s
+
+scrape_configs: []

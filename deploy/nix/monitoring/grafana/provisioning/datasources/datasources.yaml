@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Grafana datasources, provisioned as code: the stack's own Prometheus and
+# Loki on their loopback ports. Stable uids so shipped dashboards can
+# reference them.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:9090
+    isDefault: true
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://127.0.0.1:3100

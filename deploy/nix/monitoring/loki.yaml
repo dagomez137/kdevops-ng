@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Loki single-binary configuration for the monitoring stack. Filesystem
+# object store and TSDB index under the unit's state directory
+# (MONITORING_STATE comes from monitoring-loki.service via
+# -config.expand-env). Loopback only; the guests push to
+# /loki/api/v1/push through the host side of their user-mode network.
+auth_enabled: false
+
+server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: 3100
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: ${MONITORING_STATE}/loki
+  storage:
+    filesystem:
+      chunks_directory: ${MONITORING_STATE}/loki/chunks
+      rules_directory: ${MONITORING_STATE}/loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+# The WAL disk-full protection throttles every push (surfaced to clients as
+# "Ingester is shutting down") once the filesystem crosses the threshold
+# fraction. The default 0.90 suits dedicated log hosts; on a build host that
+# routinely runs above 90% of a large disk it rejects all logs while tens of
+# gigabytes remain, so leave headroom in absolute terms instead: 0.95 of the
+# deployment's 920G root still keeps ~46G free.
+ingester:
+  wal:
+    disk_full_threshold: 0.95
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+analytics:
+  reporting_enabled: false

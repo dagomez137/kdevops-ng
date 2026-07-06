@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Grafana database provisioning, run from nix under systemd --user. Optional:
+# part of the monitoring stack (docs/deployment/monitoring.rst). A oneshot
+# that creates the grafana role and database in the Windmill PostgreSQL
+# cluster and writes the GF_DATABASE_* environment file. It is its own unit
+# (not monitoring-grafana's ExecStartPre) because systemd loads a service's
+# EnvironmentFile= before any of its Exec lines run: the file this setup
+# writes must exist before the Grafana unit even spawns, which only ordering
+# between units can guarantee.
+#
+# The binary is a fixed out-link the operator creates:
+#   nix build .#monitoring-db-setup --out-link %S/monitoring/pkgs/monitoring-db-setup
+[Unit]
+Description=Grafana database provisioning (monitoring stack)
+Requires=windmill-db.service
+After=windmill-db.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StateDirectory=monitoring
+Environment=MONITORING_STATE=%S/monitoring
+Environment=PGHOST_SOCKET=%t/windmill
+EnvironmentFile=-%E/monitoring/monitoring-db-setup.env
+ExecStart=%S/monitoring/pkgs/monitoring-db-setup/bin/monitoring-db-setup
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Loki, run from nix under systemd --user. Optional: part of the monitoring
+# stack (docs/deployment/monitoring.rst). The guests push their journal here
+# (loki.write from the guest agent); chunks and index live under the user
+# state dir, resolved from MONITORING_STATE by -config.expand-env. Loopback
+# only. Loki's flag parser has no long-form spellings, so the single-dash
+# flags are the documented exception to the long-form rule.
+#
+# The binary is a fixed out-link the operator creates:
+#   nix build .#loki --out-link %S/monitoring/pkgs/loki
+[Unit]
+Description=Loki (monitoring stack)
+
+[Service]
+StateDirectory=monitoring
+Environment=MONITORING_STATE=%S/monitoring
+ExecStart=%S/monitoring/pkgs/loki/bin/loki \
+    -config.file=%E/monitoring/loki.yaml \
+    -config.expand-env=true
+Restart=always
+
+[Install]
+WantedBy=default.target

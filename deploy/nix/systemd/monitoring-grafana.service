@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Grafana, run from nix under systemd --user. Optional: part of the monitoring
+# stack (docs/deployment/monitoring.rst), not the Windmill deploy. Grafana's
+# own state (dashboards edited in the UI, users, service accounts) lives in a
+# grafana database inside the Windmill PostgreSQL cluster, provisioned by
+# monitoring-db-setup.service (ordered before this unit so the database env
+# file exists when systemd loads it); datasources and shipped dashboards are
+# provisioned as code from %E/monitoring/grafana. Loopback only; reach the UI
+# with `ssh -L 3000:localhost:3000 <host>`.
+#
+# The binary is a fixed out-link the operator creates:
+#   nix build .#grafana --out-link %S/monitoring/pkgs/grafana
+# Override settings with GF_<SECTION>_<KEY> lines in a
+# %E/monitoring/monitoring-grafana.env file.
+[Unit]
+Description=Grafana (monitoring stack)
+Requires=monitoring-db-setup.service
+After=monitoring-db-setup.service
+
+[Service]
+StateDirectory=monitoring
+Environment=MONITORING_CONFIG=%E/monitoring
+Environment=GF_SERVER_HTTP_ADDR=127.0.0.1
+Environment=GF_SERVER_HTTP_PORT=3000
+Environment=GF_PATHS_DATA=%S/monitoring/grafana
+Environment=GF_PATHS_LOGS=%S/monitoring/grafana/log
+Environment=GF_PATHS_PLUGINS=%S/monitoring/grafana/plugins
+Environment=GF_PATHS_PROVISIONING=%E/monitoring/grafana/provisioning
+Environment=GF_ANALYTICS_REPORTING_ENABLED=false
+EnvironmentFile=%S/monitoring/env/grafana-database.env
+EnvironmentFile=-%E/monitoring/monitoring-grafana.env
+ExecStart=%S/monitoring/pkgs/grafana/bin/grafana server --homepath %S/monitoring/pkgs/grafana/share/grafana
+Restart=always
+
+[Install]
+WantedBy=default.target
