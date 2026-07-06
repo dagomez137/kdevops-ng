@@ -145,6 +145,16 @@ dashboard's freshness panel carries that signal. The run-scoped monitor units
 unchanged by this: they still bracket a single workload and write files, while
 telemetry streams continuously for the life of the boot.
 
+Suite runs mark themselves on those dashboards: each suite flow's
+:src:`f/monitoring/annotate` step posts a Grafana region annotation spanning
+the run's wall-clock window (taken from the ``wait`` step's unit
+observations), tagged ``suite-run`` plus the suite, guest, kernel, and
+verdict. Clicking a region in the dashboard shows exactly what the guest's
+CPU, memory, I/O, and journal did during that run. The step is a logged
+no-op until the operator creates the one-time Grafana credential resource
+(see :doc:`../deployment/monitoring`), so suites run identically with or
+without the monitoring stack.
+
 .. _Windmill: https://www.windmill.dev/
 .. _qemu-system-units: https://github.com/linux-kdevops/qemu-system-units
 .. _Grafana Alloy: https://grafana.com/oss/alloy/

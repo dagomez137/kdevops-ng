@@ -95,6 +95,35 @@ of a large disk, so the shipped config raises it to 0.95. Loki's flag parser
 has no long-form spellings, so its single-dash flags are the documented
 exception to the long-form rule.
 
+Run annotations
+===============
+
+Suite flows post a region annotation to Grafana spanning each run's exact
+window, tagged ``suite-run`` plus the suite, guest, kernel, and verdict, so
+the ``Guest overview`` dashboard shows what ran under the metrics. The
+endpoint and credential live in one Windmill resource the operator creates
+once, at path ``f/monitoring/grafana`` (type ``c_grafana``, fields
+``base_url`` and ``token``). The resource is deliberately not synced from
+git: it carries a credential, and a push must not clobber it. Without the
+resource, runs simply skip the annotation with a note in the job log.
+
+Mint the credential as a Grafana service account (role ``Editor``) with one
+token, then create the resource; both are one-time actions, over the SSH
+forward or on the host:
+
+.. code-block:: console
+
+   $ curl -s -u admin:<password> -H 'Content-Type: application/json' \
+       -X POST http://127.0.0.1:3000/api/serviceaccounts \
+       -d '{"name":"kdevops-annotations","role":"Editor"}'
+   $ curl -s -u admin:<password> -H 'Content-Type: application/json' \
+       -X POST http://127.0.0.1:3000/api/serviceaccounts/<id>/tokens \
+       -d '{"name":"kdevops-annotations"}'
+
+then put the returned key in the resource (Windmill UI: Resources, Add
+resource, type ``c_grafana``, path ``f/monitoring/grafana``, with
+``base_url`` ``http://127.0.0.1:3000`` and the token).
+
 Deactivate
 ==========
 
