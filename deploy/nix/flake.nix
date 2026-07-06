@@ -75,6 +75,29 @@
           # caddy serves it.
           caddy = pkgs.caddy;
 
+          # The optional monitoring stack (docs/deployment/monitoring.rst):
+          # Grafana with its state in a grafana database inside the Windmill
+          # PostgreSQL cluster, Prometheus as a push target for the guests'
+          # remote_write, Loki as their journal sink. Same nixpkgs pin as the
+          # rest of the stack; the monitoring-* units exec these out-links.
+          grafana = pkgs.grafana;
+          prometheus = pkgs.prometheus;
+          loki = pkgs.grafana-loki;
+
+          # The grafana role/database provision helper run as
+          # monitoring-grafana.service's ExecStartPre, against the Windmill
+          # cluster's local socket.
+          monitoring-db-setup = pkgs.writeShellApplication {
+            name = "monitoring-db-setup";
+            runtimeInputs = [
+              pkgs.postgresql_16
+              pkgs.openssl
+              pkgs.coreutils
+              pkgs.gnugrep
+            ];
+            text = builtins.readFile ./bin/monitoring-db-setup;
+          };
+
           # The workspace CLI (wmill), pinned to the server version.
           wmill = pkgs.callPackage ./wmill/package.nix { };
 

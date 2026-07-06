@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Provision Grafana's database in the Windmill postgres cluster. Idempotent.
+# Run as monitoring-grafana.service's ExecStartPre, after windmill-db.service
+# is up: over the cluster's local socket (trust auth) it creates a grafana
+# role with a generated password, a grafana database owned by it, and writes
+# the GF_DATABASE_* environment Grafana reads. Postgres tools (psql,
+# pg_isready, createdb) come from PATH; the unit puts the nix out-link bin
+# there. Standalone use: run inside `nix shell nixpkgs#postgresql_16`.
+set -o errexit -o nounset -o pipefail
+
+STATE="${MONITORING_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/monitoring}"
+PGPORT="${PGPORT:-5432}"
+SOCKDIR="${PGHOST_SOCKET:-${XDG_RUNTIME_DIR:-/tmp}/windmill}"
+SECRET="$STATE/secrets/grafana-pg-password"
+ENVFILE="$STATE/env/grafana-database.env"
+DBNAME=grafana
+ROLE=grafana
+
+psql_local() { psql --host="$SOCKDIR" --port="$PGPORT" --username=postgres --no-password "$@"; }
+
+# Wait for the cluster to accept connections (windmill-db just started).
+for _ in $(seq 1 60); do
+    if pg_isready --host="$SOCKDIR" --port="$PGPORT" --username=postgres --quiet; then break; fi
+    sleep 1
+done
+
+mkdir --parents "$STATE/secrets" "$STATE/env"
+chmod 700 "$STATE/secrets"
+
+if [ ! -f "$SECRET" ]; then
+    (umask 077; openssl rand -hex 24 > "$SECRET")
+    echo "secret: generated $SECRET"
+fi
+pw="$(<"$SECRET")"
+
+if ! psql_local --dbname=postgres --tuples-only --no-align \
+    --command="SELECT 1 FROM pg_roles WHERE rolname='$ROLE';" | grep --quiet 1; then
+    psql_local --dbname=postgres --quiet \
+        --command="CREATE ROLE $ROLE WITH LOGIN PASSWORD '$pw';"
+    echo "role: created $ROLE"
+else
+    psql_local --dbname=postgres --quiet \
+        --command="ALTER ROLE $ROLE WITH LOGIN PASSWORD '$pw';"
+    echo "role: $ROLE password set from $SECRET"
+fi
+
+if ! psql_local --dbname=postgres --tuples-only --no-align \
+    --command="SELECT 1 FROM pg_database WHERE datname='$DBNAME';" | grep --quiet 1; then
+    createdb --host="$SOCKDIR" --port="$PGPORT" --username=postgres --no-password \
+        --owner="$ROLE" "$DBNAME"
+    echo "database: created $DBNAME (owner $ROLE)"
+else
+    echo "database: $DBNAME already present"
+fi
+
+# The connection settings Grafana consumes. Loopback TCP, so it needs the
+# password even though this setup ran over the trusted local socket.
+(umask 077
+ {
+     printf 'GF_DATABASE_TYPE=postgres\n'
+     printf 'GF_DATABASE_HOST=127.0.0.1:%s\n' "$PGPORT"
+     printf 'GF_DATABASE_NAME=%s\n' "$DBNAME"
+     printf 'GF_DATABASE_USER=%s\n' "$ROLE"
+     printf 'GF_DATABASE_PASSWORD=%s\n' "$pw"
+     printf 'GF_DATABASE_SSL_MODE=disable\n'
+ } > "$ENVFILE")
+echo "wrote $ENVFILE"
