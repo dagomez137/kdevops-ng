@@ -22,7 +22,10 @@ description: |-
   of the timeout the unit is stopped (`timed_out`).
 
   Returns `{vm, module, unit, result, loaded, exec_status, kmsg, crashed,
-  timed_out, runtime}`.
+  timed_out, runtime, started_realtime_ms, ended_realtime_ms}` (the
+  `*_realtime_ms` pair is the run's wall-clock window in milliseconds since
+  the epoch, from the journal records' `__REALTIME_TIMESTAMP`; null when the
+  record is missing).
 lock: '!inline f/runtime_tests/wait.script.lock'
 kind: script
 schema:

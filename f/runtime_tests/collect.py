@@ -80,6 +80,8 @@ def main(
     crashed: bool = False,
     timed_out: bool = False,
     runtime: float | None = None,
+    started_realtime_ms: int | None = None,
+    ended_realtime_ms: int | None = None,
 ) -> dict:
     entry = catalog_entry(module)
     reasons: list[str] = []
@@ -170,6 +172,8 @@ def main(
         "crashed": crashed,
         "timed_out": timed_out,
         "runtime": runtime,
+        "started_realtime_ms": started_realtime_ms,
+        "ended_realtime_ms": ended_realtime_ms,
         "tests": tests,
         "passed": passed,
         "failed": failed,

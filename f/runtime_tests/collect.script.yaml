@@ -17,7 +17,8 @@ description: |-
   test and all pass, or the module's sentinel line), its absence failing a
   test module and marking a stress/benchmark one `notrun`, never a pass.
   Returns a scalar overview `{item, vm_name, kernel_version, status, result,
-  loaded, exec_status, crashed, timed_out, runtime, tests, passed, failed,
+  loaded, exec_status, crashed, timed_out, runtime, started_realtime_ms,
+  ended_realtime_ms, tests, passed, failed,
   skipped}` (so the run flow's per-item forloop renders a tidy
   one-row-per-item table) plus a `detail` object carrying a synthetic
   per-module row, the failure reasons, and the kmsg tail (consumed by
@@ -38,6 +39,8 @@ schema:
     - crashed
     - timed_out
     - runtime
+    - started_realtime_ms
+    - ended_realtime_ms
   properties:
     crashed:
       type: boolean
@@ -46,6 +49,14 @@ schema:
         `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
       default: false
       title: Crashed
+    ended_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock end of the module's run from `f/runtime_tests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a rule input.
+      default: null
+      title: Ended Realtime Ms
     exec_status:
       type: string
       description: |-
@@ -98,6 +109,14 @@ schema:
         into the report's `time(s)` columns, never a rule input.
       default: null
       title: Runtime
+    started_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock start of the module's run from `f/runtime_tests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a rule input.
+      default: null
+      title: Started Realtime Ms
     timed_out:
       type: boolean
       description: |-

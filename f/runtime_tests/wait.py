@@ -76,6 +76,14 @@ def _monotonic_us(rec: dict) -> int | None:
         return None
 
 
+def _realtime_ms(rec: dict) -> int | None:
+    """The record's `__REALTIME_TIMESTAMP` (microseconds since epoch) as ms."""
+    try:
+        return int(rec["__REALTIME_TIMESTAMP"]) // 1000
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_vms` entrypoint for `vm_name`: see `f.common.remote.list_vms`."""
     return _list_vms(filterText)
@@ -136,6 +144,8 @@ def main(
     poll_errors = 0
     started_at: int | None = None
     ended_at: int | None = None
+    started_realtime_ms: int | None = None
+    ended_realtime_ms: int | None = None
     kmsg_lines: list[str] = []
     run_cursor: str | None = cursor
     kmsg_cursor: str | None = cursor
@@ -160,25 +170,31 @@ def main(
     def scan(records: list[dict]) -> None:
         """Fold this run's new unit journal records into the job outcome."""
         nonlocal result, exec_status, started_at, ended_at
+        nonlocal started_realtime_ms, ended_realtime_ms
         for rec in records:
             mid = rec.get("MESSAGE_ID", "")
             if mid == MSG_UNIT_STARTING:
                 if started_at is None:
                     started_at = _monotonic_us(rec)
+                    started_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_PROCESS_EXIT:
                 exec_status = str(rec.get("EXIT_STATUS", ""))
             elif mid == MSG_UNIT_STARTED:
                 result = "done"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_FAILED:
                 result = "failed"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_SKIPPED:
                 result = "skipped"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_STOPPED and not result:
                 result = "stopped"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
 
     def fetch() -> None:
         """One poll: the unit's records for the outcome, the kernel's for the verdict."""
@@ -285,4 +301,6 @@ def main(
         "crashed": crashed,
         "timed_out": timed_out,
         "runtime": runtime,
+        "started_realtime_ms": started_realtime_ms,
+        "ended_realtime_ms": ended_realtime_ms,
     }
