@@ -152,6 +152,18 @@ allocator's per-order free blocks, ``zoneinfo`` for per-zone counters,
 ``meminfo_numa`` for per-NUMA-node meminfo), which feed the shipped
 ``Memory management`` dashboard.
 
+eBPF metrics ride the same pipeline: the **eBPF exporter** toggle runs
+`ebpf_exporter`_ on the guest with the chosen configs (``biolatency``
+block I/O latency histograms by default), scraped by the same agent into
+the same push targets. The programs are CO-RE objects relocated against
+the running kernel's BTF, which the default kernel already exposes. This
+complements the run-scoped eBPF monitors
+(``monitor-blkalgn@``/``monitor-biolatency@`` from the ``monitoring``
+profile, with blkalgn supplied by a bcc fork through the closure's
+package source overrides): those bracket one workload and write files,
+while the exporter streams histograms continuously, and the run
+annotations make both findable for a given run.
+
 Suite runs mark themselves on those dashboards: each suite flow's
 :src:`f/monitoring/annotate` step posts a Grafana region annotation spanning
 the run's wall-clock window (taken from the ``wait`` step's unit
@@ -165,3 +177,4 @@ without the monitoring stack.
 .. _Windmill: https://www.windmill.dev/
 .. _qemu-system-units: https://github.com/linux-kdevops/qemu-system-units
 .. _Grafana Alloy: https://grafana.com/oss/alloy/
+.. _ebpf_exporter: https://github.com/cloudflare/ebpf_exporter
