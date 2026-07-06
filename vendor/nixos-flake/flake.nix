@@ -114,6 +114,7 @@
         inherit (pkgs)
           cpupower
           damo
+          ebpf_exporter
           libbpf-tools
           nfstest
           pynfs
@@ -351,6 +352,7 @@
               metrics.url = "http://192.0.2.1:9090/api/v1/write";
               logs.url = "http://192.0.2.1:3100/loki/api/v1/push";
               extraCollectors = [ "buddyinfo" ];
+              ebpf.enable = true;
             };
           };
         }
