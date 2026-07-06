@@ -100,6 +100,50 @@ let
     rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"
   '';
 
+  # The optional monitoring stack (Grafana + Prometheus + Loki) beside the
+  # Windmill deploy: own out-links and units under the monitoring name, its
+  # Grafana database inside the Windmill postgres cluster. Optional means the
+  # windmill-* apps never touch it and deactivating it leaves Windmill up.
+  monitoringBuild = ''
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/monitoring"
+    pkgs="$state/pkgs"
+    nix build .#grafana             --out-link "$pkgs/grafana"
+    nix build .#prometheus          --out-link "$pkgs/prometheus"
+    nix build .#loki                --out-link "$pkgs/loki"
+    nix build .#monitoring-db-setup --out-link "$pkgs/monitoring-db-setup"
+  '';
+
+  monitoringInstall = ''
+    config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+    mkdir --parents "$config/systemd/user" "$config/monitoring"
+    cp deploy/nix/systemd/monitoring-*.service "$config/systemd/user/"
+    cp deploy/nix/monitoring/prometheus.yml "$config/monitoring/prometheus.yml"
+    cp deploy/nix/monitoring/loki.yaml "$config/monitoring/loki.yaml"
+    rm --recursive --force "$config/monitoring/grafana"
+    mkdir --parents "$config/monitoring/grafana"
+    cp --recursive --no-preserve=mode deploy/nix/monitoring/grafana/provisioning \
+      "$config/monitoring/grafana/provisioning"
+    cp --recursive --no-preserve=mode deploy/nix/monitoring/dashboards \
+      "$config/monitoring/grafana/dashboards"
+  '';
+
+  monitoringActivate = ''
+    systemctl --user daemon-reload
+    loginctl enable-linger "$USER"
+    systemctl --user enable --now \
+      monitoring-prometheus monitoring-loki monitoring-grafana
+  '';
+
+  monitoringDeactivate = ''
+    config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+    systemctl --user stop 'monitoring-*' || true
+    shopt -s nullglob
+    for link in "$config"/systemd/user/default.target.wants/monitoring-*; do
+      systemctl --user disable "''${link##*/}"
+    done
+    systemctl --user daemon-reload
+  '';
+
   windmillTrust = ''
     root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
     if [ ! -f "$root" ]; then
@@ -279,6 +323,43 @@ in
       ${windmillWipe}
       echo "windmill torn down and wiped"
     '';
+  };
+
+  monitoring-build = mkApp {
+    name = "kdevops-monitoring-build";
+    description = "Build the monitoring stack (Grafana, Prometheus, Loki) to its out-links";
+    text = monitoringBuild;
+  };
+
+  monitoring-install = mkApp {
+    name = "kdevops-monitoring-install";
+    description = "Install the monitoring systemd --user units and configs";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = monitoringInstall;
+  };
+
+  monitoring-activate = mkApp {
+    name = "kdevops-monitoring-activate";
+    description = "Enable and start the monitoring systemd --user services";
+    text = monitoringActivate;
+  };
+
+  monitoring-deploy = mkApp {
+    name = "kdevops-monitoring-deploy";
+    description = "Build, install, and activate the whole monitoring stack";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      ${monitoringBuild}
+      ${monitoringInstall}
+      ${monitoringActivate}
+      echo "monitoring deployed; reach Grafana with: ssh -L 3000:localhost:3000 $USER@<host>"
+    '';
+  };
+
+  monitoring-deactivate = mkApp {
+    name = "kdevops-monitoring-deactivate";
+    description = "Stop and disable the monitoring systemd --user services";
+    text = monitoringDeactivate;
   };
 
   windmill-trust = {
