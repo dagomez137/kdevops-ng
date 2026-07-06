@@ -1,0 +1,14 @@
+description: Grafana server endpoint and service-account token
+schema:
+  type: object
+  properties:
+    base_url:
+      type: string
+      description: Grafana base URL, e.g. http://127.0.0.1:3000
+    token:
+      type: string
+      description: Grafana service-account token (store it in a variable and
+        reference it here as $var:<path>)
+  required:
+    - base_url
+    - token

@@ -101,15 +101,16 @@ Run annotations
 Suite flows post a region annotation to Grafana spanning each run's exact
 window, tagged ``suite-run`` plus the suite, guest, kernel, and verdict, so
 the ``Guest overview`` dashboard shows what ran under the metrics. The
-endpoint and credential live in one Windmill resource the operator creates
-once, at path ``f/monitoring/grafana`` (type ``c_grafana``, fields
-``base_url`` and ``token``). The resource is deliberately not synced from
-git: it carries a credential, and a push must not clobber it. Without the
-resource, runs simply skip the annotation with a note in the job log.
+endpoint lives in the Windmill resource ``f/monitoring/grafana``, which is
+in git and synced like the rest of the workspace; its ``token`` field is a
+``$var:f/monitoring/grafana_token`` reference, because variables are the
+one workspace kind the sync never touches (``skipVariables`` in
+``wmill.yaml``), so the credential survives every push. Until the operator
+creates that variable, runs simply skip the annotation with a note in the
+job log.
 
 Mint the credential as a Grafana service account (role ``Editor``) with one
-token, then create the resource; both are one-time actions, over the SSH
-forward or on the host:
+token; both are one-time actions, over the SSH forward or on the host:
 
 .. code-block:: console
 
@@ -120,9 +121,10 @@ forward or on the host:
        -X POST http://127.0.0.1:3000/api/serviceaccounts/<id>/tokens \
        -d '{"name":"kdevops-annotations"}'
 
-then put the returned key in the resource (Windmill UI: Resources, Add
-resource, type ``c_grafana``, path ``f/monitoring/grafana``, with
-``base_url`` ``http://127.0.0.1:3000`` and the token).
+then store the returned key as the secret Windmill variable
+``f/monitoring/grafana_token`` (Windmill UI: Variables, Add variable,
+secret). A non-local Grafana only needs the resource's ``base_url``
+changed, in git.
 
 Deactivate
 ==========

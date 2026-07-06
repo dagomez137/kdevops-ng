@@ -1,0 +1,7 @@
+description: Grafana annotations endpoint. The token is a $var reference so
+  the secret lives in the f/monitoring/grafana_token variable (variables are
+  not synced; create it once, see docs/deployment/monitoring.rst).
+value:
+  base_url: http://127.0.0.1:3000
+  token: $var:f/monitoring/grafana_token
+resource_type: c_grafana
