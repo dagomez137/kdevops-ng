@@ -1,0 +1,128 @@
+{
+  "uid": "kdevops-mm",
+  "title": "Memory management",
+  "description": "Buddy allocator, per-zone, and per-NUMA-node memory state per guest. The source collectors (buddyinfo, zoneinfo, meminfo_numa) are disabled by default; enable them per guest through the closure form's Extra collectors field.",
+  "tags": ["kdevops"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "browser",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(node_buddyinfo_blocks, host)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "zone",
+        "label": "Zone",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(node_buddyinfo_blocks{host=~\"$host\"}, zone)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Buddy allocator free blocks per order",
+      "description": "node_buddyinfo_blocks: free block count per allocation order (the size label is the order). Falling high orders under load show fragmentation.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_buddyinfo_blocks{host=~\"$host\",zone=~\"$zone\"}",
+          "legendFormat": "{{host}} {{zone}} order {{size}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Per-zone free pages",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_zoneinfo_nr_free_pages{host=~\"$host\",zone=~\"$zone\"}",
+          "legendFormat": "{{host}} {{zone}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Per-NUMA-node memory",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_memory_numa_MemFree_bytes{host=~\"$host\"}",
+          "legendFormat": "{{host}} node {{node}} free"
+        },
+        {
+          "refId": "B",
+          "expr": "node_memory_numa_MemUsed_bytes{host=~\"$host\"}",
+          "legendFormat": "{{host}} node {{node}} used"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Page faults and swaps",
+      "description": "From the always-on vmstat collector, for context beside the opt-in panels.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_vmstat_pgfault{host=~\"$host\"}[$__rate_interval])",
+          "legendFormat": "{{host}} pgfault/s"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(node_vmstat_pgmajfault{host=~\"$host\"}[$__rate_interval])",
+          "legendFormat": "{{host}} pgmajfault/s"
+        },
+        {
+          "refId": "C",
+          "expr": "rate(node_vmstat_oom_kill{host=~\"$host\"}[$__rate_interval])",
+          "legendFormat": "{{host}} oom_kill/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] }
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Suite runs",
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "iconColor": "purple",
+        "type": "tags",
+        "tags": ["suite-run"]
+      }
+    ]
+  }
+}
