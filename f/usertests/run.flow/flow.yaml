@@ -139,6 +139,9 @@ value:
                 crashed:
                   type: javascript
                   expr: results.wait.crashed
+                ended_realtime_ms:
+                  type: javascript
+                  expr: results.wait.ended_realtime_ms
                 exec_status:
                   type: javascript
                   expr: results.wait.exec_status
@@ -157,6 +160,9 @@ value:
                 runtime:
                   type: javascript
                   expr: results.wait.runtime
+                started_realtime_ms:
+                  type: javascript
+                  expr: results.wait.started_realtime_ms
                 timed_out:
                   type: javascript
                   expr: results.wait.timed_out
@@ -185,6 +191,25 @@ value:
             type: javascript
             expr: flow_input.vm_name
         path: f/usertests/report
+        tag_override: vm
+    - id: annotate
+      summary: Post the run window to Grafana (f/monitoring/annotate)
+      value:
+        type: script
+        input_transforms:
+          kernel:
+            type: javascript
+            expr: results.discover.kernel_version ?? ""
+          per_item:
+            type: javascript
+            expr: results.items
+          suite:
+            type: static
+            value: usertests
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/monitoring/annotate
         tag_override: vm
     - id: judge
       summary: Fail the job unless every item passed (f/usertests/judge)

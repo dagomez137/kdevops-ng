@@ -88,6 +88,8 @@ def main(
     crashed: bool = False,
     timed_out: bool = False,
     runtime: float | None = None,
+    started_realtime_ms: int | None = None,
+    ended_realtime_ms: int | None = None,
 ) -> dict:
     entry = catalog_entry(item)
     # (check, message) pairs; any one fails the item and becomes a report row.
@@ -238,6 +240,8 @@ def main(
         "crashed": crashed,
         "timed_out": timed_out,
         "runtime": runtime,
+        "started_realtime_ms": started_realtime_ms,
+        "ended_realtime_ms": ended_realtime_ms,
         "seed": seed,
         "tests": tests,
         "passed": passed,

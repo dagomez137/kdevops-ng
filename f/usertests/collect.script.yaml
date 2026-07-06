@@ -14,7 +14,8 @@ description: |-
   silent harnesses, the clean exit alone. `radix-tree/main`'s logged `random
   seed %u` is extracted into the returned row. Returns a scalar overview
   `{item, vm_name, kernel_version, status, result, exec_status, crashed,
-  timed_out, runtime, seed, tests, passed, failed, skipped}` plus a `detail`
+  timed_out, runtime, started_realtime_ms, ended_realtime_ms, seed, tests,
+  passed, failed, skipped}` plus a `detail`
   object carrying the per-check rows and the output tail (consumed by
   `f/usertests/report`).
 lock: '!inline f/usertests/collect.script.lock'
@@ -32,6 +33,8 @@ schema:
     - crashed
     - timed_out
     - runtime
+    - started_realtime_ms
+    - ended_realtime_ms
   properties:
     crashed:
       type: boolean
@@ -40,6 +43,14 @@ schema:
         `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
       default: false
       title: Crashed
+    ended_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock end of the harness's run from `f/usertests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Ended Realtime Ms
     exec_status:
       type: string
       description: |-
@@ -83,6 +94,14 @@ schema:
         into the report's `time(s)` columns, never a verdict input.
       default: null
       title: Runtime
+    started_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock start of the harness's run from `f/usertests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Started Realtime Ms
     timed_out:
       type: boolean
       description: |-
