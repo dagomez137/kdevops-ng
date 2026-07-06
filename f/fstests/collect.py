@@ -42,6 +42,8 @@ def main(
     kernel_version: str,
     crashed: bool = False,
     timed_out: bool = False,
+    started_realtime_ms: int | None = None,
+    ended_realtime_ms: int | None = None,
 ) -> dict:
     results_dir = section_results_dir(vm_name, kernel_version, section)
     print(f"+ reading {results_dir}", flush=True)
@@ -74,6 +76,8 @@ def main(
         "status": "passed" if ok else "failed",
         "crashed": crashed,
         "timed_out": timed_out,
+        "started_realtime_ms": started_realtime_ms,
+        "ended_realtime_ms": ended_realtime_ms,
         "report_present": report_present,
         "tests": summary["tests"],
         "passed": summary["passed"],

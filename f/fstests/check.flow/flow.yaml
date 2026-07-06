@@ -205,12 +205,18 @@ value:
                 crashed:
                   type: javascript
                   expr: results.wait.crashed
+                ended_realtime_ms:
+                  type: javascript
+                  expr: results.wait.ended_realtime_ms
                 kernel_version:
                   type: javascript
                   expr: results.discover.kernel_version
                 section:
                   type: javascript
                   expr: flow_input.iter.value
+                started_realtime_ms:
+                  type: javascript
+                  expr: results.wait.started_realtime_ms
                 timed_out:
                   type: javascript
                   expr: results.wait.timed_out
@@ -236,6 +242,25 @@ value:
             type: javascript
             expr: flow_input.vm_name
         path: f/fstests/report
+        tag_override: vm
+    - id: annotate
+      summary: Post the run window to Grafana (f/monitoring/annotate)
+      value:
+        type: script
+        input_transforms:
+          kernel:
+            type: javascript
+            expr: results.discover.kernel_version ?? ""
+          per_item:
+            type: javascript
+            expr: results.sections
+          suite:
+            type: static
+            value: fstests
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/monitoring/annotate
         tag_override: vm
     - id: judge
       summary: Fail the job unless every section passed (f/fstests/judge)

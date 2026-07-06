@@ -59,6 +59,8 @@ def main(
     qemu_unit = f"qemu-system@{vm_name}.service"
 
     props = ("Result", "ExecMainStatus", "ActiveState")
+    # The run window is poll-observed wall clock, not unit-reported timestamps.
+    started_realtime_ms = int(time.time() * 1000)
     deadline = time.monotonic() + int(timeout)
     state: dict[str, str] = {}
     active_state = ""
@@ -132,6 +134,8 @@ def main(
             break
         time.sleep(int(poll_interval))
 
+    ended_realtime_ms = int(time.time() * 1000)
+
     # A section that overran its poll deadline is still running in the guest
     # (TimeoutStartSec=infinity), so abort it rather than leave it spinning. The
     # per-test watchdog (the unit's check honours TEST_TIMEOUT) handles a single
@@ -183,4 +187,6 @@ def main(
         "active_state": active_state,
         "crashed": crashed,
         "timed_out": timed_out,
+        "started_realtime_ms": started_realtime_ms,
+        "ended_realtime_ms": ended_realtime_ms,
     }

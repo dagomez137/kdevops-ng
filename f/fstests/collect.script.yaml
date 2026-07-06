@@ -6,8 +6,9 @@ description: |-
   (RESULT_BASE follows the unit's `WorkingDirectory=.../%v`, so results are
   keyed by the guest's kernel release); `f/fstests/start` removed any previous
   run's report before starting, so anything present is this run's. Returns a
-  scalar overview `{section, fstype, status, crashed, timed_out, report_present,
-  tests, passed, failed, notrun, iterations}` (so the check flow's per-section
+  scalar overview `{section, fstype, status, crashed, timed_out,
+  started_realtime_ms, ended_realtime_ms, report_present, tests, passed,
+  failed, notrun, iterations}` (so the check flow's per-section
   forloop renders a tidy one-row-per-section table) plus a `detail` object
   carrying the per-test rows, failing test names with their messages, the
   notruns, the configured filesystem `geometry` (FSTYP, mkfs/mount options,
@@ -27,6 +28,8 @@ schema:
     - kernel_version
     - crashed
     - timed_out
+    - started_realtime_ms
+    - ended_realtime_ms
   properties:
     crashed:
       type: boolean
@@ -35,6 +38,14 @@ schema:
         `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
       default: false
       title: Crashed
+    ended_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock end of the section's run from `f/fstests/wait`, milliseconds
+        since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Ended Realtime Ms
     kernel_version:
       type: string
       description: |-
@@ -46,6 +57,14 @@ schema:
       description: |-
         xfstests config-section name (the `[section]` header) whose
         `results/<section>/result.xml` to parse.
+    started_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock start of the section's run from `f/fstests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Started Realtime Ms
     timed_out:
       type: boolean
       description: |-
