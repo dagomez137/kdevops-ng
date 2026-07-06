@@ -51,6 +51,9 @@ value:
           ssh_keys:
             type: javascript
             expr: flow_input.guest?.ssh_keys
+          telemetry_collectors:
+            type: javascript
+            expr: flow_input.closure?.telemetry_collectors
           telemetry_logs_url:
             type: javascript
             expr: flow_input.closure?.telemetry_logs_url
@@ -140,6 +143,7 @@ schema:
         - overrides
         - telemetry_metrics_url
         - telemetry_logs_url
+        - telemetry_collectors
       properties:
         overrides:
           type: array
@@ -168,6 +172,24 @@ schema:
               - devel
               - monitoring
               - telemetry
+        telemetry_collectors:
+          type: array
+          description: |-
+            node_exporter collectors the telemetry profile enables on top of its
+            defaults; all five are disabled in node_exporter by default.
+            buddyinfo exposes the buddy allocator's per-order free block counts,
+            zoneinfo the per-zone counters, and meminfo_numa the per-NUMA-node
+            meminfo.
+          default: []
+          items:
+            type: string
+            enum:
+              - buddyinfo
+              - zoneinfo
+              - meminfo_numa
+              - processes
+              - interrupts
+          title: Extra collectors
         telemetry_logs_url:
           type: string
           description: |-

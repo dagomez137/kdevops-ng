@@ -60,6 +60,17 @@ _PROFILE_ENABLE = {
     "telemetry": "nixos-flake.telemetry.enable",
 }
 
+# node_exporter collectors the telemetry profile can enable on top of its
+# defaults (nixos-flake.telemetry.extraCollectors); all are off in
+# node_exporter by default.
+_TELEMETRY_COLLECTORS = [
+    "buddyinfo",
+    "zoneinfo",
+    "meminfo_numa",
+    "processes",
+    "interrupts",
+]
+
 # A fully-featured guest by default: every guest profile plus all test suites. Pare
 # these back per run for a lighter closure.
 _FEATURED_PROFILES = ["devel", "build-tools", "monitoring"]
@@ -83,6 +94,7 @@ def main(
     # baremetal or cross-host guests pass explicit URLs.
     telemetry_metrics_url: str = "http://10.0.2.2:9090/api/v1/write",
     telemetry_logs_url: str = "http://10.0.2.2:3100/loki/api/v1/push",
+    telemetry_collectors: list[str] | None = None,
     shares: dict | None = None,
     overrides: list[dict] | None = None,
     extra_overrides: list[dict] | None = None,
@@ -106,6 +118,7 @@ def main(
     ]
     telemetry_metrics_url = telemetry_metrics_url or "http://10.0.2.2:9090/api/v1/write"
     telemetry_logs_url = telemetry_logs_url or "http://10.0.2.2:3100/loki/api/v1/push"
+    telemetry_collectors = [c for c in (telemetry_collectors or []) if c]
     # Curated overrides name a package from the form's dropdown (_OVERRIDABLE_PKGS);
     # extra_overrides takes any other nixpkgs package. Both are validated below.
     overrides = [ov for ov in (overrides or []) if ov]
@@ -151,6 +164,9 @@ def main(
         )
     _reject_unknown("profile", profiles, _PROFILES)
     _reject_unknown("test_suite", test_suites, _TEST_SUITES)
+    _reject_unknown(
+        "telemetry collector", telemetry_collectors, set(_TELEMETRY_COLLECTORS)
+    )
     for ov in overrides:
         if not _PKG_RE.match(ov.get("pkg", "")):
             raise ValueError(
@@ -203,6 +219,7 @@ def main(
         test_suites,
         telemetry_metrics_url,
         telemetry_logs_url,
+        telemetry_collectors,
         shares,
         overrides,
         ssh_keys,
@@ -276,6 +293,7 @@ def _render_default(
     test_suites: list[str],
     telemetry_metrics_url: str,
     telemetry_logs_url: str,
+    telemetry_collectors: list[str],
     shares: dict,
     overrides: list[dict],
     ssh_keys: list[str],
@@ -326,6 +344,9 @@ def _render_default(
             out.append(
                 f"  nixos-flake.telemetry.logs.url = {_nix_str(telemetry_logs_url)};"
             )
+            if telemetry_collectors:
+                cols = " ".join(_nix_str(c) for c in telemetry_collectors)
+                out.append(f"  nixos-flake.telemetry.extraCollectors = [ {cols} ];")
 
     if ssh_keys:
         keys = " ".join(_nix_str(k) for k in ssh_keys)
