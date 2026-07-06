@@ -39,7 +39,7 @@
       #   backends/   complete system shape (imageless, libvirt) —
       #               import one and only one per nixosSystem
       #   profiles/   additive feature sets (build-tools, controller,
-      #               devel, monitoring) on top of a backend
+      #               devel, monitoring, telemetry) on top of a backend
       #   mounts/     fileSystems-emitting DSLs (shares, storage)
       #   testSuites/ per-suite modules (fstests, blktests, …)
       #
@@ -65,6 +65,7 @@
           controller = ./modules/profiles/controller.nix;
           devel = ./modules/profiles/devel.nix;
           monitoring = ./modules/profiles/monitoring.nix;
+          telemetry = ./modules/profiles/telemetry.nix;
         };
 
         mounts = {
@@ -335,6 +336,22 @@
               self.nixosModules.backends.imageless
               self.nixosModules.profiles.devel
             ];
+          };
+          # Telemetry composed on the imageless backend with both
+          # push endpoints set, the shape a monitored guest boots
+          # with (the URLs are examples; the module takes them from
+          # the consumer).
+          telemetry = buildBackend {
+            imports = [
+              self.nixosModules.backends.imageless
+              self.nixosModules.profiles.telemetry
+            ];
+            nixos-flake.telemetry = {
+              enable = true;
+              metrics.url = "http://192.0.2.1:9090/api/v1/write";
+              logs.url = "http://192.0.2.1:3100/loki/api/v1/push";
+              extraCollectors = [ "buddyinfo" ];
+            };
           };
         }
         // testSuiteChecks
