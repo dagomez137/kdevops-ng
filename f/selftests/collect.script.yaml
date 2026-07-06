@@ -10,7 +10,8 @@ description: |-
   `not ok` line. A run that passed nothing at all (empty body, or every test
   skipped) is `notrun`; anything else is `failed`. Returns a scalar overview
   `{item, vm_name, kernel_version, status, result, exec_status, crashed,
-  timed_out, runtime, tests, passed, failed, skipped}` (so the run flow's
+  timed_out, runtime, started_realtime_ms, ended_realtime_ms, tests, passed,
+  failed, skipped}` (so the run flow's
   per-item forloop renders a tidy one-row-per-item table) plus a `detail`
   object carrying the per-test rows, the failing tests, and the raw KTAP
   (consumed by `f/selftests/report`).
@@ -29,6 +30,8 @@ schema:
     - crashed
     - timed_out
     - runtime
+    - started_realtime_ms
+    - ended_realtime_ms
   properties:
     crashed:
       type: boolean
@@ -37,6 +40,14 @@ schema:
         `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
       default: false
       title: Crashed
+    ended_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock end of the item's run from `f/selftests/wait`, milliseconds
+        since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Ended Realtime Ms
     exec_status:
       type: string
       description: |-
@@ -82,6 +93,14 @@ schema:
         into the report's `time(s)` columns, never a verdict input.
       default: null
       title: Runtime
+    started_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock start of the item's run from `f/selftests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Started Realtime Ms
     timed_out:
       type: boolean
       description: |-

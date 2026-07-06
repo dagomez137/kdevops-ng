@@ -16,7 +16,9 @@ description: |-
   timeout the unit is stopped (`timed_out`).
 
   Returns `{vm, item, unit, result, exec_status, ktap, crashed, timed_out,
-  runtime}`.
+  runtime, started_realtime_ms, ended_realtime_ms}` (the `*_realtime_ms` pair
+  is the run's wall-clock window in milliseconds since the epoch, from the
+  journal records' `__REALTIME_TIMESTAMP`; null when the record is missing).
 lock: '!inline f/selftests/wait.script.lock'
 kind: script
 schema:

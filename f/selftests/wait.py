@@ -62,6 +62,14 @@ def _monotonic_us(rec: dict) -> int | None:
         return None
 
 
+def _realtime_ms(rec: dict) -> int | None:
+    """The record's `__REALTIME_TIMESTAMP` (microseconds since epoch) as ms."""
+    try:
+        return int(rec["__REALTIME_TIMESTAMP"]) // 1000
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_vms` entrypoint for `vm_name`: see `f.common.remote.list_vms`."""
     return _list_vms(filterText)
@@ -89,6 +97,8 @@ def main(
     poll_errors = 0
     started_at: int | None = None
     ended_at: int | None = None
+    started_realtime_ms: int | None = None
+    ended_realtime_ms: int | None = None
     ktap_lines: list[str] = []
     run_cursor: str | None = cursor
     # Stream the display journal from the run's own cursor, not from boot: a
@@ -112,6 +122,7 @@ def main(
     def scan(records: list[dict]) -> None:
         """Fold this run's new journal records into the outcome and the KTAP."""
         nonlocal result, exec_status, started_at, ended_at
+        nonlocal started_realtime_ms, ended_realtime_ms
         for rec in records:
             if rec.get("_SYSTEMD_UNIT") == unit:
                 ktap_lines.append(journal_message(rec))
@@ -119,17 +130,21 @@ def main(
             if mid == MSG_UNIT_STARTING:
                 if started_at is None:
                     started_at = _monotonic_us(rec)
+                    started_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_PROCESS_EXIT:
                 exec_status = str(rec.get("EXIT_STATUS", ""))
             elif mid == MSG_UNIT_STARTED:
                 result = "done"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_FAILED:
                 result = "failed"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
             elif mid == MSG_UNIT_STOPPED and not result:
                 result = "stopped"
                 ended_at = _monotonic_us(rec)
+                ended_realtime_ms = _realtime_ms(rec)
 
     while True:
         host_state = (
@@ -216,4 +231,6 @@ def main(
         "crashed": crashed,
         "timed_out": timed_out,
         "runtime": runtime,
+        "started_realtime_ms": started_realtime_ms,
+        "ended_realtime_ms": ended_realtime_ms,
     }
