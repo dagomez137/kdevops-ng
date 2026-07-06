@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Guest telemetry fan-in for a worker host, run from nix under systemd
+# --user. Optional: install this INSTEAD of the monitoring stack on a host
+# whose guests should report to a primary monitoring host elsewhere. A
+# host-side Grafana Alloy listens on the same two loopback endpoints the
+# guests already push to (so their zero-config URLs keep working) and
+# forwards everything to the primary, whose endpoints come from the
+# required environment file:
+#
+#   ~/.config/monitoring/monitoring-collector.env
+#     PRIMARY_METRICS_URL=http://127.0.0.1:19090/api/v1/write
+#     PRIMARY_LOGS_URL=http://127.0.0.1:13100/loki/api/v1/push
+#
+# (the 19090/13100 defaults match monitoring-tunnel.service, which keeps
+# an SSH forward to the primary's loopback stack).
+#
+# The binary is a fixed out-link the operator creates:
+#   nix build .#alloy --out-link %S/monitoring/pkgs/alloy
+[Unit]
+Description=Guest telemetry fan-in (monitoring stack)
+
+[Service]
+StateDirectory=monitoring
+EnvironmentFile=%E/monitoring/monitoring-collector.env
+ExecStart=%S/monitoring/pkgs/alloy/bin/alloy run \
+    --storage.path=%S/monitoring/collector \
+    --disable-reporting \
+    %E/monitoring/collector.alloy
+Restart=always
+
+[Install]
+WantedBy=default.target

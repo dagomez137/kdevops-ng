@@ -83,6 +83,9 @@
           grafana = pkgs.grafana;
           prometheus = pkgs.prometheus;
           loki = pkgs.grafana-loki;
+          # Host-side Alloy: the fan-in collector a worker host runs
+          # instead of the full stack (monitoring-collector.service).
+          alloy = pkgs.grafana-alloy;
 
           # The grafana role/database provision helper run as
           # monitoring-grafana.service's ExecStartPre, against the Windmill

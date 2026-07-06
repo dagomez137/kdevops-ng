@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: copyleft-next-0.3.1
+// Host-side fan-in for a worker host without its own monitoring stack:
+// listen on the same two loopback endpoints the guests already push to
+// (Prometheus remote_write on 9090, Loki push on 3100) and forward
+// everything to the primary monitoring host. The primary endpoints come
+// from the unit's environment (monitoring-collector.env), typically
+// through the SSH tunnel monitoring-tunnel.service keeps up.
+prometheus.receive_http "guests" {
+  http {
+    listen_address = "127.0.0.1"
+    listen_port    = 9090
+  }
+  forward_to = [prometheus.remote_write.primary.receiver]
+}
+
+prometheus.remote_write "primary" {
+  endpoint {
+    url = sys.env("PRIMARY_METRICS_URL")
+  }
+}
+
+loki.source.api "guests" {
+  http {
+    listen_address = "127.0.0.1"
+    listen_port    = 3100
+  }
+  forward_to = [loki.write.primary.receiver]
+}
+
+loki.write "primary" {
+  endpoint {
+    url = sys.env("PRIMARY_LOGS_URL")
+  }
+}

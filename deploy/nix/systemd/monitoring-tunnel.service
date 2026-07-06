@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+# Persistent SSH forward from a worker host to the primary monitoring
+# host's loopback stack, matching the deployment's peer-SSH posture (the
+# collectors never listen beyond loopback anywhere). The collector's
+# forwarding URLs point at the two local forward ports.
+#
+# Required environment file:
+#   ~/.config/monitoring/monitoring-tunnel.env
+#     MONITORING_PRIMARY=<user@primary-host>
+#
+# ssh -N carries no command, only the forwards; ExitOnForwardFailure
+# plus Restart=always makes the unit converge after network blips.
+[Unit]
+Description=SSH forward to the primary monitoring host
+
+[Service]
+EnvironmentFile=%E/monitoring/monitoring-tunnel.env
+ExecStart=ssh -N \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=30 \
+    -L 19090:127.0.0.1:9090 \
+    -L 13100:127.0.0.1:3100 \
+    ${MONITORING_PRIMARY}
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=default.target
