@@ -14,6 +14,7 @@
 pkgs: {
   cpupower = pkgs.callPackage ./cpupower.nix { };
   damo = pkgs.callPackage ./damo.nix { };
+  ebpf_exporter = pkgs.callPackage ./ebpf_exporter.nix { };
   libbpf-tools = pkgs.callPackage ./libbpf-tools.nix { };
   nfstest = pkgs.callPackage ./nfstest.nix { };
   pynfs = pkgs.callPackage ./pynfs.nix { };
