@@ -9,7 +9,8 @@ description: |-
   journal can never pass), and no `not ok` line. A run that passed nothing at
   all (empty body, or every test skipped) is `notrun`; anything else is
   `failed`. Returns a scalar overview `{suite, vm_name, kernel_version, status,
-  result, exec_status, crashed, timed_out, runtime, tests, passed, failed,
+  result, exec_status, crashed, timed_out, runtime, started_realtime_ms,
+  ended_realtime_ms, tests, passed, failed,
   notrun}` (so the run flow's per-suite forloop renders a tidy
   one-row-per-suite table) plus a `detail` object carrying the per-test rows,
   the failing tests, and the raw KTAP (consumed by `f/kunit/report`).
@@ -28,6 +29,8 @@ schema:
     - crashed
     - timed_out
     - runtime
+    - started_realtime_ms
+    - ended_realtime_ms
   properties:
     crashed:
       type: boolean
@@ -36,6 +39,14 @@ schema:
         `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
       default: false
       title: Crashed
+    ended_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock end of the suite's run from `f/kunit/wait`, milliseconds
+        since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Ended Realtime Ms
     exec_status:
       type: string
       description: |-
@@ -73,6 +84,14 @@ schema:
         report's `time(s)` columns, never a verdict input.
       default: null
       title: Runtime
+    started_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock start of the suite's run from `f/kunit/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Started Realtime Ms
     suite:
       type: string
       description: |-
