@@ -29,7 +29,7 @@ from pathlib import Path
 from f.common.devshell import system_dir, vendor_dir
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
-_PROFILES = {"build-tools", "controller", "devel", "monitoring"}
+_PROFILES = {"build-tools", "controller", "devel", "monitoring", "telemetry"}
 _TEST_SUITES = [
     "blktests",
     "fstests",
@@ -52,10 +52,12 @@ _OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools"]
 
 # Profiles whose effect is behind an enable gate: importing alone is inert, so we
 # turn them on when selected. devel and build-tools are active on import. controller
-# is a host role (it pulls in libvirtd), so it is excluded from the featured default.
+# is a host role (it pulls in libvirtd) and telemetry pushes to an external
+# monitoring stack, so both are excluded from the featured default.
 _PROFILE_ENABLE = {
     "monitoring": "nixos-flake.monitoring.enable",
     "controller": "nixos-flake.controller.enable",
+    "telemetry": "nixos-flake.telemetry.enable",
 }
 
 # A fully-featured guest by default: every guest profile plus all test suites. Pare
@@ -76,6 +78,11 @@ def main(
     vm_name: str = "nixos",
     profiles: list[str] | None = None,
     test_suites: list[str] | None = None,
+    # 10.0.2.2 is the QEMU user-net alias for the host (slirp maps it to the host
+    # loopback), so the defaults reach a monitoring stack on the VM's own host;
+    # baremetal or cross-host guests pass explicit URLs.
+    telemetry_metrics_url: str = "http://10.0.2.2:9090/api/v1/write",
+    telemetry_logs_url: str = "http://10.0.2.2:3100/loki/api/v1/push",
     shares: dict | None = None,
     overrides: list[dict] | None = None,
     extra_overrides: list[dict] | None = None,
@@ -97,6 +104,8 @@ def main(
         for t in (test_suites if test_suites is not None else _FEATURED_TEST_SUITES)
         if t
     ]
+    telemetry_metrics_url = telemetry_metrics_url or "http://10.0.2.2:9090/api/v1/write"
+    telemetry_logs_url = telemetry_logs_url or "http://10.0.2.2:3100/loki/api/v1/push"
     # Curated overrides name a package from the form's dropdown (_OVERRIDABLE_PKGS);
     # extra_overrides takes any other nixpkgs package. Both are validated below.
     overrides = [ov for ov in (overrides or []) if ov]
@@ -192,6 +201,8 @@ def main(
         user_name,
         profiles,
         test_suites,
+        telemetry_metrics_url,
+        telemetry_logs_url,
         shares,
         overrides,
         ssh_keys,
@@ -263,6 +274,8 @@ def _render_default(
     user_name: str,
     profiles: list[str],
     test_suites: list[str],
+    telemetry_metrics_url: str,
+    telemetry_logs_url: str,
     shares: dict,
     overrides: list[dict],
     ssh_keys: list[str],
@@ -305,6 +318,14 @@ def _render_default(
         opt = _PROFILE_ENABLE.get(prof)
         if opt:
             out.append(f"  {opt} = true;")
+        if prof == "telemetry":
+            out.append(
+                "  nixos-flake.telemetry.metrics.url = "
+                f"{_nix_str(telemetry_metrics_url)};"
+            )
+            out.append(
+                f"  nixos-flake.telemetry.logs.url = {_nix_str(telemetry_logs_url)};"
+            )
 
     if ssh_keys:
         keys = " ".join(_nix_str(k) for k in ssh_keys)

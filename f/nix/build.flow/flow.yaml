@@ -51,6 +51,12 @@ value:
           ssh_keys:
             type: javascript
             expr: flow_input.guest?.ssh_keys
+          telemetry_logs_url:
+            type: javascript
+            expr: flow_input.closure?.telemetry_logs_url
+          telemetry_metrics_url:
+            type: javascript
+            expr: flow_input.closure?.telemetry_metrics_url
           test_suites:
             type: javascript
             expr: flow_input.closure?.test_suites
@@ -132,6 +138,8 @@ schema:
         - profiles
         - test_suites
         - overrides
+        - telemetry_metrics_url
+        - telemetry_logs_url
       properties:
         overrides:
           type: array
@@ -146,7 +154,8 @@ schema:
           description: |-
             nixos-flake profile modules to import (fully featured by default;
             pare back for a lighter closure). controller is a host role and off
-            by default.
+            by default. telemetry is off by default; it pushes metrics and the
+            journal to the monitoring stack.
           default:
             - devel
             - build-tools
@@ -158,6 +167,22 @@ schema:
               - controller
               - devel
               - monitoring
+              - telemetry
+        telemetry_logs_url:
+          type: string
+          description: |-
+            Loki push API endpoint the telemetry profile ships the journal to.
+            The default reaches the guest's own host over the QEMU user network.
+          default: http://10.0.2.2:3100/loki/api/v1/push
+          title: Logs push URL
+        telemetry_metrics_url:
+          type: string
+          description: |-
+            Prometheus remote_write endpoint the telemetry profile pushes
+            metrics to. The default reaches the guest's own host over the QEMU
+            user network.
+          default: http://10.0.2.2:9090/api/v1/write
+          title: Metrics push URL
         test_suites:
           type: array
           description: |-
