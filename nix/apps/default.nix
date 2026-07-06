@@ -362,6 +362,29 @@ in
     text = monitoringDeactivate;
   };
 
+  monitoring-collector-install = mkApp {
+    name = "kdevops-monitoring-collector-install";
+    description = "Install the guest telemetry fan-in for a worker host";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      state="''${XDG_STATE_HOME:-$HOME/.local/state}/monitoring"
+      config="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      nix build .#alloy --out-link "$state/pkgs/alloy"
+      mkdir --parents "$config/systemd/user" "$config/monitoring"
+      cp deploy/nix/systemd/monitoring-collector.service \
+        deploy/nix/systemd/monitoring-tunnel.service "$config/systemd/user/"
+      cp deploy/nix/monitoring/collector.alloy "$config/monitoring/collector.alloy"
+      systemctl --user daemon-reload
+      echo "collector installed. Point it at the primary, then enable:"
+      echo "  $config/monitoring/monitoring-tunnel.env:"
+      echo "    MONITORING_PRIMARY=<user@primary-host>"
+      echo "  $config/monitoring/monitoring-collector.env:"
+      echo "    PRIMARY_METRICS_URL=http://127.0.0.1:19090/api/v1/write"
+      echo "    PRIMARY_LOGS_URL=http://127.0.0.1:13100/loki/api/v1/push"
+      echo "  systemctl --user enable --now monitoring-tunnel monitoring-collector"
+    '';
+  };
+
   windmill-trust = {
     type = "app";
     program = lib.getExe (writeShellApplication {
