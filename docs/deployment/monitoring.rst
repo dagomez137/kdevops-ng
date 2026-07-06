@@ -126,6 +126,27 @@ then store the returned key as the secret Windmill variable
 secret). A non-local Grafana only needs the resource's ``base_url``
 changed, in git.
 
+Multiple hosts and baremetal
+============================
+
+A worker host whose guests should report to a primary monitoring host
+elsewhere runs the fan-in instead of the full stack:
+``nix run .#monitoring-collector-install`` installs a host-side
+:cmd:`alloy` (``monitoring-collector.service``) listening on the same two
+loopback endpoints the guests already push to, so their zero-config URLs
+keep working, and forwarding everything, ``host`` labels intact, to the
+primary. Transport matches the deployment's peer-SSH posture:
+``monitoring-tunnel.service`` keeps a persistent :cmd:`ssh` forward
+(local ports 19090 and 13100) to the primary's loopback stack, and the
+collector's two ``PRIMARY_*`` URLs point at those forward ports. Both
+units read their settings from required environment files the install
+step prints.
+
+A baremetal system needs no collector arrangement of its own: the
+``telemetry`` profile applies unchanged, with the closure form's two push
+URL fields pointed at the monitoring host (the ``10.0.2.2`` defaults are
+the QEMU user-network case only).
+
 Deactivate
 ==========
 
