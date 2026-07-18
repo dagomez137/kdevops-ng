@@ -99,6 +99,19 @@ value:
                   expr: '({home_share: true, controller_share: false,
                     custom_virtiofsd: false, home_share_readwrite: true})'
               path: f/qsu/bringup
+          - id: settle
+            summary: Wait for the guest to finish starting up (f/qsu/settle)
+            value:
+              type: script
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                timeout:
+                  type: static
+                  value: 240
+              path: f/qsu/settle
+              tag_override: vm
           - id: run
             summary: Run the selected suites on the candidate (f/kunit/run)
             value:
