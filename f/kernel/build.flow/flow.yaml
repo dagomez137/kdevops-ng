@@ -1067,12 +1067,15 @@ schema:
           description: |-
             Harness directories under `tools/testing` to build. A harness
             whose expected binaries do not all build fails the step instead of
-            being silently dropped from the stage.
+            being silently dropped from the stage. `scatterlist` is off the
+            default set: since v7.2-rc3 `include/linux/scatterlist.h` needs
+            `struct folio` and `page_range_contiguous()`, which the harness's
+            userspace shim headers lack (upstream fix candidate); pick it only
+            for a kernel where it builds.
           default:
             - radix-tree
             - vma
             - memblock
-            - scatterlist
           items:
             type: string
             enum:
