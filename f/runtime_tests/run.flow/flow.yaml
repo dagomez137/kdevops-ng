@@ -227,15 +227,13 @@ schema:
       format: dynselect-list_vms
       title: VM Name
     modules:
-      type: array
+      type: object
       description: |-
         Pick the runtime-test modules to load, from the curated catalog filtered
         by what the booted kernel ships (tests first, then stress, benchmarks
         last). Empty runs every present catalog module.
       default: []
       format: dynmultiselect-list_modules
-      items:
-        type: string
       title: Modules
     service:
       type: object
