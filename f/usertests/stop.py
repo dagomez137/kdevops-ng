@@ -36,6 +36,13 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
+def list_items(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_items` entrypoint: see `f.usertests.common`."""
+    from f.usertests.common import list_harnesses as _list_harnesses
+
+    return _list_harnesses(vm_name, filterText)
+
+
 def main(vm_name: str, items: list[str] | None = None) -> dict:
     items = list(items or [])
     if not vm_name or not items:
