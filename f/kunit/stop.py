@@ -34,6 +34,13 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
+def list_suites(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_suites` entrypoint: see `f.kunit.common.list_suites`."""
+    from f.kunit.common import list_suites as _list_suites
+
+    return _list_suites(vm_name, filterText)
+
+
 def main(vm_name: str, suites: list[str] | None = None) -> dict:
     suites = list(suites or [])
     if not vm_name or not suites:

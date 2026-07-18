@@ -21,12 +21,11 @@ schema:
     - suites
   properties:
     suites:
-      type: array
+      type: object
       description: |-
         KUnit suite names whose units to stop. Empty = no-op.
       default: []
-      items:
-        type: string
+      format: dynmultiselect-list_suites
       title: Suites
     vm_name:
       type: object
