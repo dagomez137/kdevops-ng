@@ -208,23 +208,43 @@ def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
         raise
 
 
+def _cached_names(cache: Path) -> list[str]:
+    try:
+        data = json.loads(cache.read_text())
+    except Exception:
+        return []
+    return [s for s in data if isinstance(s, str) and s]
+
+
+def _cached_union() -> list[str]:
+    """Union of every VM's cached suite names, sorted."""
+    names: set[str] = set()
+    try:
+        caches = sorted((_workers() / "shared/kunit").glob("*/suites.json"))
+    except Exception:
+        return []
+    for cache in caches:
+        names.update(_cached_names(cache))
+    return sorted(names)
+
+
 def list_suites(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
     """`dynmultiselect-list_suites` entrypoint: the guest's KUnit suites, named.
 
     Reads the per-VM cache `f/kunit/discover` writes from the guest's
     `/sys/kernel/debug/kunit/` (a form dynselect cannot reach the guest over
-    vsock), human-labeled from the curated catalog and featured first. Falls back
-    to the curated catalog before the first discovery, so it is never an empty box.
+    vsock), human-labeled from the curated catalog and featured first. Before the
+    selected guest's first discovery it falls back to the union of every VM's
+    cache, then to the curated catalog, so it is never an empty box.
     """
     cached: list[str] = []
     vm = (vm_name or "").strip()
     if vm:
         try:
-            data = json.loads(suites_cache(vm).read_text())
-            cached = [s for s in data if isinstance(s, str) and s]
+            cached = _cached_names(suites_cache(vm))
         except Exception:
             cached = []
-    names = cached or list(CURATED_SUITES)
+    names = cached or _cached_union() or list(CURATED_SUITES)
     ordered = [s for s in CURATED_SUITES if s in names] + [
         s for s in names if s not in CURATED_SUITES
     ]
