@@ -1,0 +1,23 @@
+summary: Fail the bisect unless it concluded
+description: |-
+  Raises unless the bisect ended with a real answer (`first_bad_found`,
+  `not_reproducible_standalone`, or `good_endpoint_failed`), so a run that
+  stopped without one (`max_steps_exceeded`, `endpoint_untestable`,
+  `inconclusive`) is a red Windmill job. Mirrors the suite flows'
+  report/judge split.
+lock: '!inline f/kernel/bisect_judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: string
+      description: |-
+        Bisect guest whose state dir carries the outcome.
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

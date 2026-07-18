@@ -1,0 +1,24 @@
+summary: Render the bisect run tables
+description: |-
+  Render the bisect run from the state `f/kernel/bisect_step` keeps: one
+  summary row (outcome, endpoints, suites, step count), one row per
+  iteration (phase, candidate, verdict), plus the first bad commit with its
+  subject and the full `git bisect log` in the job log when the bisect
+  concluded, so a manual `git bisect` can resume from the same state clone.
+  Renders only; `f/kernel/bisect_judge` owns the verdict.
+lock: '!inline f/kernel/bisect_report.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: string
+      description: |-
+        Bisect guest whose state dir to render.
+      title: VM Name
+  required:
+    - vm_name
+tag: vm
