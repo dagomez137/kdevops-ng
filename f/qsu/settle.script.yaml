@@ -1,0 +1,40 @@
+summary: Wait for a guest to finish starting up
+description: |-
+  Poll `systemctl --host <vm> is-system-running` over vsock-SSH until the
+  guest reports `running` or `degraded`, closing the race between
+  `f/qsu/boot` returning (the QEMU unit is active, SSH polled only briefly)
+  and a suite flow's gate probing a guest whose closure is still activating.
+  Expiry raises, so a kernel that never brings the guest up fails here
+  rather than handing a dead guest to the next flow.
+
+  Returns `{vm_name, state, polls}`.
+lock: '!inline f/qsu/settle.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - timeout
+    - poll_interval
+  properties:
+    poll_interval:
+      type: integer
+      description: |-
+        Seconds between polls.
+      default: 5
+      title: Poll Interval
+    timeout:
+      type: integer
+      description: |-
+        Seconds to wait for `running`/`degraded` before failing.
+      default: 240
+      title: Timeout
+    vm_name:
+      type: object
+      description: Guest to wait for, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm
