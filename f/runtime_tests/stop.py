@@ -41,6 +41,13 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
+def list_modules(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_modules` entrypoint: see `f.runtime_tests.common`."""
+    from f.runtime_tests.common import list_modules as _list_modules
+
+    return _list_modules(vm_name, filterText)
+
+
 def main(vm_name: str, modules: list[str] | None = None) -> dict:
     modules = list(modules or [])
     if not vm_name or not modules:

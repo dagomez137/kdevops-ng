@@ -22,12 +22,11 @@ schema:
     - modules
   properties:
     modules:
-      type: array
+      type: object
       description: |-
         Runtime-test modules whose units to stop and unload. Empty = no-op.
       default: []
-      items:
-        type: string
+      format: dynmultiselect-list_modules
       title: Modules
     vm_name:
       type: object
