@@ -100,6 +100,7 @@ cmd_links = {
     "RuntimeMaxSec": f"{_SYSTEMD}/systemd.service.html#RuntimeMaxSec=",
     "systemd-escape": f"{_SYSTEMD}/systemd-escape.html",
     "timeout": f"{_MAN7}/timeout.1.html",
+    "git bisect": f"{_MAN7}/git-bisect.1.html",
 }
 
 
