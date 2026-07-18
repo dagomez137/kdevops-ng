@@ -259,15 +259,13 @@ schema:
       format: dynselect-list_vms
       title: VM Name
     harnesses:
-      type: array
+      type: object
       description: |-
         Pick the harnesses to run from the built tree's `MANIFEST` (curated
         labels, tests first, the rbtree benchmark pair last). Empty runs every
         harness the MANIFEST lists.
       default: []
       format: dynmultiselect-list_harnesses
-      items:
-        type: string
       title: Harnesses
     seed:
       type: integer
