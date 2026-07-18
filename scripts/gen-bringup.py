@@ -77,6 +77,24 @@ def list_iommu(filterText: str = "", **_: object) -> list:
     # constrains to the supported four regardless.
     from f.qsu.binaries import iommu_options
     return iommu_options({}, filterText)
+
+
+def list_kernel_refs(filterText: str = "", **_: object) -> list:
+    # The Bare's branches + tags via f.common.gitrefs (the one ref source).
+    try:
+        from f.common.gitrefs import list_refs
+        return list_refs("linux", filterText)
+    except Exception:
+        return []
+
+
+def list_qemu_refs(filterText: str = "", **_: object) -> list:
+    # The Bare's branches + tags via f.common.gitrefs (the one ref source).
+    try:
+        from f.common.gitrefs import list_refs
+        return list_refs("qemu", filterText)
+    except Exception:
+        return []
 """
 
 

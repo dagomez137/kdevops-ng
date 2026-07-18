@@ -42,7 +42,8 @@ value:
               "") : ""'
           qemu_ref:
             type: javascript
-            expr: flow_input.worktree?.qemu_ref
+            expr: 'flow_input.worktree?.custom_ref ? (flow_input.worktree?.qemu_ref ??
+              "") : (flow_input.worktree?.ref || flow_input.worktree?.qemu_ref)'
           recreate_worktree:
             type: javascript
             expr: flow_input.worktree?.recreate_worktree
@@ -480,6 +481,8 @@ schema:
       description: Source ref, optional patch series, and warm-tree lifecycle.
       default: {}
       order:
+        - ref
+        - custom_ref
         - qemu_ref
         - b4_series
         - custom_label
@@ -509,12 +512,30 @@ schema:
           default: ''
           maxLength: 40
           showExpr: fields.custom_label === true
+        ref:
+          type: object
+          description: |-
+            Branch or tag in the Bare to build, from its live ref list
+            (developer branches first, then tags newest first). For a raw
+            commit id or a ref the list misses, switch on **Custom Ref**.
+          default: v11.0.0
+          format: dynselect-list_qemu_refs
+          showExpr: fields.custom_ref !== true
+          title: Ref
+        custom_ref:
+          type: boolean
+          description: |-
+            Type the ref by hand (any committish) instead of picking from the
+            Bare's ref list.
+          default: false
+          title: Custom Ref
         qemu_ref:
           type: string
           description: |-
             Branch, tag or commit in the Bare to build (a tag, an upstream ref
             via the mirror, or a developer branch).
           default: v11.0.0
+          showExpr: fields.custom_ref === true
           title: QEMU Ref
         recreate_worktree:
           type: boolean
@@ -534,3 +555,12 @@ schema:
           showExpr: fields.recreate_worktree !== true
       title: Worktree
   required: []
+  x-windmill-dyn-select-code: >
+    def list_qemu_refs(filterText: str = "", **_: object) -> list:
+        # The Bare's branches + tags via f.common.gitrefs (the one ref source).
+        try:
+            from f.common.gitrefs import list_refs
+            return list_refs("qemu", filterText)
+        except Exception:
+            return []
+  x-windmill-dyn-select-lang: python3

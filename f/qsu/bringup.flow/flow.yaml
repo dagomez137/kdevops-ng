@@ -131,7 +131,7 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_index(\"kernel-\")\n        if not n.startswith(\"kernel-devel-\") and filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_index(\"qemu-\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n"
+  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_index(\"kernel-\")\n        if not n.startswith(\"kernel-devel-\") and filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_index(\"qemu-\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n"
   x-windmill-dyn-select-lang: python3
   order:
   - kernel
@@ -180,6 +180,8 @@ schema:
           description: Source ref, optional patch series, and warm-tree lifecycle.
           default: {}
           order:
+          - ref
+          - custom_ref
           - git_ref
           - recreate_build_worktree
           - wipe_build
@@ -223,12 +225,31 @@ schema:
                 this toggle.'
               default: false
               title: Deploy Developer Worktree
+            ref:
+              type: object
+              description: 'Branch or tag in the Bare to build, from its live ref list
+
+                (developer branches first, then tags newest first). For a raw
+
+                commit id or a ref the list misses, switch on **Custom Ref**.'
+              default: v7.1-rc7
+              format: dynselect-list_kernel_refs
+              showExpr: fields.custom_ref !== true
+              title: Ref
+            custom_ref:
+              type: boolean
+              description: 'Type the ref by hand (any committish) instead of picking from the
+
+                Bare''s ref list.'
+              default: false
+              title: Custom Ref
             git_ref:
               type: string
               description: 'Branch, tag or commit in the Bare to build (a tag, an upstream ref
 
                 via the mirror, or a developer branch).'
               default: v7.1-rc7
+              showExpr: fields.custom_ref === true
             recreate_build_worktree:
               type: boolean
               description: 'Re-cut the worker''s build-site checkout (rm the warm tree, its build
@@ -1083,6 +1104,8 @@ schema:
           description: Source ref, optional patch series, and warm-tree lifecycle.
           default: {}
           order:
+          - ref
+          - custom_ref
           - qemu_ref
           - b4_series
           - custom_label
@@ -1112,12 +1135,31 @@ schema:
               default: ''
               maxLength: 40
               showExpr: fields.custom_label === true
+            ref:
+              type: object
+              description: 'Branch or tag in the Bare to build, from its live ref list
+
+                (developer branches first, then tags newest first). For a raw
+
+                commit id or a ref the list misses, switch on **Custom Ref**.'
+              default: v11.0.0
+              format: dynselect-list_qemu_refs
+              showExpr: fields.custom_ref !== true
+              title: Ref
+            custom_ref:
+              type: boolean
+              description: 'Type the ref by hand (any committish) instead of picking from the
+
+                Bare''s ref list.'
+              default: false
+              title: Custom Ref
             qemu_ref:
               type: string
               description: 'Branch, tag or commit in the Bare to build (a tag, an upstream ref
 
                 via the mirror, or a developer branch).'
               default: v11.0.0
+              showExpr: fields.custom_ref === true
               title: QEMU Ref
             recreate_worktree:
               type: boolean
