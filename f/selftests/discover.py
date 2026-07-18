@@ -29,7 +29,7 @@ from pathlib import Path
 from f.common import store
 from f.common.remote import RemoteSystemd
 from f.common.remote import list_vms as _list_vms
-from f.selftests.common import _atomic_write, collections_cache
+from f.selftests.common import _atomic_write, collections_cache, tests_cache
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -121,6 +121,10 @@ def main(vm_name: str) -> dict:
         f"+ wrote {cache} ({len(collections)} collections for the run form)",
         flush=True,
     )
+    tests = [line.strip() for line in list_text.splitlines() if ":" in line]
+    tcache = tests_cache(vm_name)
+    _atomic_write(tcache, json.dumps(tests) + "\n")
+    print(f"+ wrote {tcache} ({len(tests)} tests for the run form)", flush=True)
     print(
         f"{vm_name}: booted={system_state} kernel={kernel_version} "
         f"store_path={store_path} collections={len(collections)} "

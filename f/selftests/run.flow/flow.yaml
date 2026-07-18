@@ -260,15 +260,15 @@ schema:
       format: dynmultiselect-list_collections
       title: Collections
     tests:
-      type: array
+      type: object
       description: |-
-        Advanced: explicit `COLLECTION:TEST` entries (`kselftest-list.txt`
-        lines, e.g. `net:fcnal-test.sh`), each run as its own
-        `kselftest-test@<instance>.service`. Takes precedence over
-        **Collections**; empty defers to it.
+        Advanced: explicit `COLLECTION:TEST` entries picked from the built
+        tree's `kselftest-list.txt` (e.g. `net:fcnal-test.sh`), each run as
+        its own `kselftest-test@<instance>.service`. Takes precedence over
+        **Collections**; empty defers to it. The list fills after the guest's
+        first discovery.
       default: []
-      items:
-        type: string
+      format: dynmultiselect-list_tests
       title: Tests
     override_timeout:
       type: integer
@@ -339,4 +339,14 @@ schema:
                 {"label": "seccomp (seccomp filters)", "value": "seccomp"},
                 {"label": "kselftest_harness (harness self-checks)", "value": "kselftest_harness"},
             ]
+
+
+    def list_tests(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The built tree's collection:test lines from the per-VM cache
+        # f/selftests/discover writes; empty before the first discovery.
+        try:
+            from f.selftests.common import list_tests as _list_tests
+            return _list_tests(vm_name, filterText)
+        except Exception:
+            return []
   x-windmill-dyn-select-lang: python3

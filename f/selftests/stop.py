@@ -36,6 +36,13 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
+def list_items(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_items` entrypoint: collections then explicit tests."""
+    from f.selftests.common import list_collections, list_tests
+
+    return list_collections(vm_name, filterText) + list_tests(vm_name, filterText)
+
+
 def main(vm_name: str, items: list[str] | None = None) -> dict:
     items = list(items or [])
     if not vm_name or not items:

@@ -22,13 +22,12 @@ schema:
     - items
   properties:
     items:
-      type: array
+      type: object
       description: |-
         Run items (collection names or `COLLECTION:TEST` entries) whose units to
         stop. Empty = no-op.
       default: []
-      items:
-        type: string
+      format: dynmultiselect-list_items
       title: Items
     vm_name:
       type: object

@@ -270,6 +270,15 @@ def collections_cache(vm_name: str, workers: Path | None = None) -> Path:
     return share_dir(vm_name, workers) / "collections.json"
 
 
+def tests_cache(vm_name: str, workers: Path | None = None) -> Path:
+    """Per-VM cache of the built tree's full `collection:test` lines.
+
+    `f/selftests/discover` writes every `kselftest-list.txt` entry here; the run
+    form's `list_tests` picker reads them for the advanced Tests field.
+    """
+    return share_dir(vm_name, workers) / "tests.json"
+
+
 def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
     """Write via a hidden temp file + rename so a concurrent reader on the shared
     dir never sees a half-written `report.json`."""
@@ -287,6 +296,26 @@ def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
         raise
 
 
+def _cached_names(cache: Path) -> list[str]:
+    try:
+        data = json.loads(cache.read_text())
+    except Exception:
+        return []
+    return [s for s in data if isinstance(s, str) and s]
+
+
+def _cached_union(filename: str) -> list[str]:
+    """Union of every VM's cached names for one cache file, sorted."""
+    names: set[str] = set()
+    try:
+        caches = sorted((_workers() / "shared/selftests").glob(f"*/{filename}"))
+    except Exception:
+        return []
+    for cache in caches:
+        names.update(_cached_names(cache))
+    return sorted(names)
+
+
 def list_collections(
     vm_name: str = "", filterText: str = "", **_: object
 ) -> list[dict]:
@@ -294,18 +323,18 @@ def list_collections(
 
     Reads the per-VM cache `f/selftests/discover` writes from the built tree's
     `kselftest-list.txt` (a form dynselect cannot reach the guest over vsock),
-    human-labeled from the curated catalog and featured first. Falls back to the
-    curated catalog before the first discovery, so it is never an empty box.
+    human-labeled from the curated catalog and featured first. Before the
+    selected guest's first discovery it falls back to the union of every VM's
+    cache, then to the curated catalog, so it is never an empty box.
     """
     cached: list[str] = []
     vm = (vm_name or "").strip()
     if vm:
         try:
-            data = json.loads(collections_cache(vm).read_text())
-            cached = [c for c in data if isinstance(c, str) and c]
+            cached = _cached_names(collections_cache(vm))
         except Exception:
             cached = []
-    names = cached or list(CURATED_COLLECTIONS)
+    names = cached or _cached_union("collections.json") or list(CURATED_COLLECTIONS)
     ordered = [c for c in CURATED_COLLECTIONS if c in names] + [
         c for c in names if c not in CURATED_COLLECTIONS
     ]
@@ -315,6 +344,26 @@ def list_collections(
         for c in ordered
         if needle in c.lower() or needle in CURATED_COLLECTIONS.get(c, c).lower()
     ]
+
+
+def list_tests(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_tests` entrypoint: the tree's `collection:test` lines.
+
+    Reads the per-VM cache `f/selftests/discover` writes from the built tree's
+    `kselftest-list.txt`; before the selected guest's first discovery it falls
+    back to the union of every VM's cache. Entries are only valid against a
+    built tree, so an empty list before any discovery is honest, not a gap.
+    """
+    cached: list[str] = []
+    vm = (vm_name or "").strip()
+    if vm:
+        try:
+            cached = _cached_names(tests_cache(vm))
+        except Exception:
+            cached = []
+    names = cached or _cached_union("tests.json")
+    needle = (filterText or "").lower()
+    return [{"value": t, "label": t} for t in names if needle in t.lower()]
 
 
 def main():
