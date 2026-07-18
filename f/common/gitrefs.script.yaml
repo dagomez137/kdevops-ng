@@ -7,7 +7,10 @@ description: |-
   answers fast. The universe is the durable Bare the worktree steps check out
   from (`$SYSTEM_DIR/bare/<repo>.git`, developer branches plus mirror-fetched
   upstream refs), falling back to the mirror before the first fetch. Branches
-  sort first, then tags newest version first.
+  sort first, then tags newest version first. The linux picker leads with
+  kernel.org's current releases (`releases.json`, disk-cached, fetched
+  best-effort), labeled by moniker (mainline, stable, longterm, linux-next),
+  a release absent from the local mirror marked `not mirrored`.
 lock: '!inline f/common/gitrefs.script.lock'
 kind: script
 schema:
