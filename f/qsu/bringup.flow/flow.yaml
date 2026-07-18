@@ -1014,6 +1014,7 @@ schema:
               - pynfs
               - selftests
               - sysbench
+              - usertests
               items:
                 type: string
                 enum:
@@ -1026,6 +1027,7 @@ schema:
                 - pynfs
                 - selftests
                 - sysbench
+                - usertests
           title: Closure
           showExpr: fields.mode === "build"
         lock:

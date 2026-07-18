@@ -202,6 +202,7 @@ schema:
         - pynfs
         - selftests
         - sysbench
+        - usertests
       items:
         type: string
         enum:
@@ -214,6 +215,7 @@ schema:
           - pynfs
           - selftests
           - sysbench
+          - usertests
     user_name:
       type: string
       description: |-
