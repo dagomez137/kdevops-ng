@@ -250,7 +250,7 @@ schema:
       format: dynselect-list_vms
       title: VM Name
     collections:
-      type: array
+      type: object
       description: |-
         Pick the kselftest collections to run from the built tree's
         `kselftest-list.txt` (curated labels; a collection outside the curated
@@ -258,8 +258,6 @@ schema:
         collection the tree lists. Ignored when **Tests** is set.
       default: []
       format: dynmultiselect-list_collections
-      items:
-        type: string
       title: Collections
     tests:
       type: array
