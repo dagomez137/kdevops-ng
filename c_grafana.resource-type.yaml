@@ -1,4 +1,6 @@
 description: Grafana server endpoint and service-account token
+format_extension: null
+is_fileset: false
 schema:
   type: object
   properties:
