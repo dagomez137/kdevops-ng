@@ -215,7 +215,7 @@ schema:
       format: dynselect-list_vms
       title: VM Name
     suites:
-      type: array
+      type: object
       description: |-
         Pick the KUnit suites to run from the guest's named
         `/sys/kernel/debug/kunit/` suites (the featured set is `rust_rxarray`
@@ -223,8 +223,6 @@ schema:
         guest exposes; an init-only suite runs only when picked explicitly.
       default: []
       format: dynmultiselect-list_suites
-      items:
-        type: string
       title: Suites
     service:
       type: object
