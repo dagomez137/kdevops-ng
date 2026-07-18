@@ -55,7 +55,9 @@ value:
             expr: flow_input.check.exclude
           exclude_group:
             type: javascript
-            expr: flow_input.check.exclude_group
+            expr: 'Array.isArray(flow_input.check?.exclude_group) ?
+              flow_input.check.exclude_group.join(",") :
+              (flow_input.check?.exclude_group ?? "")'
           groups:
             type: javascript
             expr: flow_input.check.groups
@@ -342,11 +344,13 @@ schema:
           showExpr: fields.test_selection === 'groups'
           title: Exclude File (-X)
         exclude_group:
-          type: string
+          type: object
           description: |-
             xfstests `./check -x group[,group...]`: exclude tests from these
-            groups (e.g. `dangerous`).
-          default: ''
+            groups (e.g. `dangerous`), picked from the same group registry as
+            **Groups**.
+          default: []
+          format: dynmultiselect-list_groups
           showExpr: fields.test_selection === 'groups'
           title: Exclude Group (-x)
         groups:

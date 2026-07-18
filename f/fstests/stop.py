@@ -34,6 +34,29 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
+def list_sections(filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_sections` entrypoint: the shipped matrix's sections.
+
+    A run driven by a custom `local.config` can carry other section names; the
+    field still accepts them via the flow, this picker only offers the catalog.
+    """
+    import re
+
+    from f.fstests.common import xfs_catalog_text
+
+    try:
+        cfg = xfs_catalog_text()
+    except Exception:
+        return []
+    names: list[str] = []
+    for line in cfg.splitlines():
+        m = re.match(r"^\[([^]]+)\]\s*$", line)
+        if m and m.group(1) not in names:
+            names.append(m.group(1))
+    needle = (filterText or "").lower()
+    return [{"value": s, "label": s} for s in names if needle in s.lower()]
+
+
 def main(vm_name: str, sections: list[str] | None = None) -> dict:
     sections = list(sections or [])
     if not vm_name or not sections:

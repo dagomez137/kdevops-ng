@@ -20,13 +20,12 @@ schema:
     - sections
   properties:
     sections:
-      type: array
+      type: object
       description: |-
         xfstests config-section names whose `xfstests@<section>.service` to
         stop. Empty = no-op.
       default: []
-      items:
-        type: string
+      format: dynmultiselect-list_sections
       title: Sections
     vm_name:
       type: object
