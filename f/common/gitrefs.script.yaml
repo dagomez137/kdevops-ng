@@ -1,0 +1,18 @@
+summary: Bare-repository ref listing
+description: |-
+  Library module imported by the build forms' ref pickers (`from
+  f.common.gitrefs import list_refs`). Not a runnable step on its own. Lists a
+  host-local bare repository's branches and tags by reading `packed-refs` and
+  the loose `refs/` entries directly, no `git` subprocess, so a form dynselect
+  answers fast. The universe is the durable Bare the worktree steps check out
+  from (`$SYSTEM_DIR/bare/<repo>.git`, developer branches plus mirror-fetched
+  upstream refs), falling back to the mirror before the first fetch. Branches
+  sort first, then tags newest version first.
+lock: '!inline f/common/gitrefs.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
