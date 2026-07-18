@@ -1,0 +1,239 @@
+summary: Bisect a kernel regression with KUnit
+description: |-
+  Find the first bad kernel commit for a failing KUnit suite by driving
+  `git bisect` with real guest runs: each iteration builds the candidate
+  commit, boots a dedicated guest with it (`f/qsu/bringup`, kernel artifacts
+  reused from the Nix store when the commit was built before), runs the
+  selected suites (`f/kunit/run`), and feeds the verdict back. Before
+  bisecting it tests the endpoints standalone: a bad ref that passes alone
+  ends the run as `not_reproducible_standalone` (the failure needs other
+  suites first; itself a finding), and a failing good ref ends it as
+  `good_endpoint_failed`. A kernel that fails to build or boot is `git
+  bisect skip`ped, so this flow bisects suite verdicts, not boot failures.
+  The state (a `--shared` clone of the Bare plus `state.json`) lives under
+  `$SYSTEM_DIR/bisect/<vm_name>/` and survives for a manual `git bisect`
+  resume. The payload is KUnit for now; another suite means one more branch
+  around the run step plus its report path in `f/kernel/bisect_step`.
+value:
+  modules:
+    - id: iterate
+      summary: Decide, build + boot, run KUnit, repeat
+      value:
+        type: whileloopflow
+        skip_failures: true
+        squash: false
+        modules:
+          - id: step
+            summary: Advance the bisect state machine (f/kernel/bisect_step)
+            value:
+              type: script
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                good:
+                  type: javascript
+                  expr: flow_input.good
+                bad:
+                  type: javascript
+                  expr: flow_input.bad
+                suites:
+                  type: javascript
+                  expr: flow_input.suites
+                max_steps:
+                  type: javascript
+                  expr: flow_input.max_steps
+              path: f/kernel/bisect_step
+              tag_override: vm
+            stop_after_if:
+              expr: result.done === true
+              skip_if_stopped: false
+          - id: bringup
+            summary: Build the candidate kernel + boot the bisect guest (f/qsu/bringup)
+            value:
+              type: flow
+              input_transforms:
+                boot_orchestration:
+                  type: javascript
+                  expr: '({wait_timeout: 300, emit_vars_yaml_snapshot: false})'
+                vm:
+                  type: javascript
+                  expr: '({vm_target: "new", auto_vm_name: false, vm_name:
+                    flow_input.vm_name})'
+                qemu:
+                  type: javascript
+                  expr: '({mode: "nixpkgs"})'
+                boot_kernel:
+                  type: javascript
+                  expr: '({kernel_parameters: []})'
+                closure:
+                  type: javascript
+                  expr: '({mode: "build", lock: {update_lock: true}, guest:
+                    {vm_name: flow_input.vm_name, home: true, shares: {},
+                    home_dir: "", ssh_keys: [], user_name: "kdevops"},
+                    closure: {profiles: ["devel"], overrides: [],
+                    test_suites: ["kunit"]}})'
+                boot_nvme:
+                  type: javascript
+                  expr: '({customize_drives: false, nvme_drive_count: 4,
+                    nvme_drive_size_gb: 20})'
+                kernel:
+                  type: javascript
+                  expr: '({mode: "build", build: {ccache: true, compiler:
+                    "gcc", reproducible: true}, reuse: {reuse: true,
+                    use_peers: true}, installation: {install: true,
+                    modules_install: true}, configuration: {config_method:
+                    "preset", preset: "imageless_defconfig"}, worktree:
+                    {custom_ref: true, git_ref: results.step.candidate,
+                    b4_series: "", custom_label: false}})'
+                boot_qemu:
+                  type: javascript
+                  expr: '({cpu: "host", ram: 4096, cpus: 4, accel: "kvm",
+                    iommu: "", machine_type: "q35"})'
+                boot_networking:
+                  type: javascript
+                  expr: '({vm_index: 0, ssh_port_base: 10022, vsock_cid_base:
+                    100, custom_ssh_port: false, custom_vsock_cid: false})'
+                boot_sharing:
+                  type: javascript
+                  expr: '({home_share: true, controller_share: false,
+                    custom_virtiofsd: false, home_share_readwrite: true})'
+              path: f/qsu/bringup
+          - id: run
+            summary: Run the selected suites on the candidate (f/kunit/run)
+            value:
+              type: flow
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                suites:
+                  type: javascript
+                  expr: flow_input.suites
+                service:
+                  type: javascript
+                  expr: '({timeout: flow_input.service?.timeout ?? 600,
+                    poll_interval: 5, stream_logs: true})'
+              path: f/kunit/run
+    - id: report
+      summary: Render the bisect run (f/kernel/bisect_report)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kernel/bisect_report
+        tag_override: vm
+    - id: judge
+      summary: Fail unless the bisect concluded (f/kernel/bisect_judge)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kernel/bisect_judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop any running KUnit units on the bisect guest (f/kunit/stop)
+    value:
+      type: script
+      input_transforms:
+        suites:
+          type: javascript
+          expr: flow_input.suites ?? []
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/kunit/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - bad
+    - good
+    - suites
+    - vm_name
+    - max_steps
+    - service
+  properties:
+    bad:
+      type: object
+      description: |-
+        Ref where the suites fail (the bisect's bad endpoint), from the
+        Bare's live ref list. Tested standalone first: if it passes alone,
+        the run concludes `not_reproducible_standalone` without bisecting.
+      format: dynselect-list_kernel_refs
+      title: Bad Ref
+    good:
+      type: object
+      description: |-
+        Ref where the suites pass (the bisect's good endpoint), from the
+        Bare's live ref list. Verified before the bisect starts.
+      format: dynselect-list_kernel_refs
+      title: Good Ref
+    suites:
+      type: object
+      description: |-
+        KUnit suites whose combined verdict drives the bisect; every listed
+        suite must pass for a candidate to count as good. Pick the failing
+        suite alone for the sharpest signal.
+      default: []
+      format: dynmultiselect-list_suites
+      title: Suites
+    vm_name:
+      type: string
+      description: |-
+        Dedicated bisect guest, replaced on every iteration; keep it away
+        from developer guests. Also keys the on-disk bisect state.
+      default: bisect
+      title: VM Name
+    max_steps:
+      type: integer
+      description: |-
+        Bisect verdicts to feed before giving up red (`max_steps_exceeded`).
+        A few hundred commits need about eight; skips add more.
+      default: 20
+      title: Max Steps
+    service:
+      type: object
+      description: |-
+        Suite-run tuning passed through to the KUnit run.
+      default: {}
+      order:
+        - timeout
+      properties:
+        timeout:
+          type: integer
+          description: |-
+            Seconds to poll each suite's unit to a terminal state per
+            iteration.
+          default: 600
+          title: Suite Timeout
+      title: Service
+  required:
+    - bad
+    - good
+    - suites
+  x-windmill-dyn-select-code: >
+    def list_kernel_refs(filterText: str = "", **_: object) -> list:
+        # The Bare's branches + tags via f.common.gitrefs (the one ref source).
+        try:
+            from f.common.gitrefs import list_refs
+            return list_refs("linux", filterText)
+        except Exception:
+            return []
+
+
+    def list_suites(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The guest's KUnit suites from the per-VM cache f/kunit/discover writes;
+        # a fresh bisect guest falls back to the union of every VM's cache.
+        try:
+            from f.kunit.common import list_suites as _list_suites
+            return _list_suites(vm_name, filterText)
+        except Exception:
+            return []
+  x-windmill-dyn-select-lang: python3
