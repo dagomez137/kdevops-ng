@@ -124,11 +124,6 @@ def _aggregate(items: list) -> list:
     return out
 
 
-def _time_s(runtime: float | None) -> float | int:
-    """The `time(s)` column: a NUMBER so the table sorts, 0 only when unknown."""
-    return round(float(runtime), 2) if runtime is not None else 0
-
-
 def _per_test_rows(per_test: list[dict]) -> list[dict]:
     """One display row per module summary: status icon, the failing message."""
     return [
