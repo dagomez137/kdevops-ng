@@ -772,6 +772,7 @@ def parse_xunit(results_dir: Path, section: str | None = None) -> dict:
         "failed": 0,
         "skipped": 0,
         "tests": 0,
+        "iterations": 0,
         "failures": [],
         "notruns": [],
         "per_test": [],
