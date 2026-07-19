@@ -58,15 +58,10 @@ fixture tests, and tree formatting. CI runs the same single command.
    $ nix build .#checks.x86_64-linux.generated    # just the drift check
    $ nix build .#checks.x86_64-linux.tests        # just the fixture tests
 
-The fixture tests under ``tests/`` cover the pure logic of the ``f/`` step
-modules (the KTAP and xunit parsers, the shared verdict rules, the store
-index's pure reads) with no instance and no network, so a change that breaks
-a parsing contract or a degrade path fails the gate before it is deployed.
-Run them directly from the checks shell while iterating:
-
-.. code-block:: console
-
-   $ nix develop .#checks --command pytest tests
+The ``tests`` check is the hermetic layer of the flow-testing story;
+:doc:`testing` covers all three layers (the fixture tests, the
+``preview-smoke`` app, and the deploy-time selfchecks) and when to run
+each before submitting.
 
 The whitespace, end-of-file, and commit-trailer checks need the git repository,
 so they cannot be a sandboxed flake check; run them from the checks shell:
@@ -102,49 +97,6 @@ rather than ordinary typing.
 .. code-block:: console
 
    $ nix develop .#checks --command pyright
-
-Previewing flows against the instance
-=====================================
-
-The fixture tests cover the pure logic; the ``wmill`` CLI covers the rest by
-running local, undeployed content against the running instance as preview
-jobs. ``wmill lint`` validates every flow definition offline, ``wmill script
-preview`` runs a local script body, and ``wmill flow preview`` runs a local
-flow definition; its ``--step`` flag runs one module in isolation with
-explicit arguments, which is the fastest way to exercise a step's degrade
-paths against real worker state:
-
-.. code-block:: console
-
-   $ nix run .#wmill -- lint
-   $ nix run .#wmill -- script preview f/common/store.py --silent
-   $ nix run .#wmill -- flow preview f/fstests/check.flow --step collect \
-       --data '{"vm_name": "no-such-vm", "section": "xfs_4k",
-                "kernel_version": "0.0.0-test"}' --silent
-
-Two caveats. A preview runs the local step body, but its ``from f...``
-imports resolve against the deployed workspace copy, so a shared-module
-change is visible to previews only after the next ``wmill sync push``. And a
-preview executes on the real workers, so preview only read-only steps, or
-mutating steps with arguments that cannot touch live state.
-
-``nix run .#preview-smoke`` packages that workflow as the standing smoke
-suite: for every test-suite flow it previews the ``collect``, ``report``,
-and ``judge`` modules in isolation with fixture and degrade arguments that
-touch no guest and no share, and asserts the contracts the flows lean on (a
-crashed run can never read as a pass, an empty run is failed, ``report``
-returns ``render_all`` as the sole key, ``judge`` fails a red run and
-passes a green report through unchanged). ``--only <substring>`` narrows
-the run while iterating on one suite or step. Because of the import caveat
-above, a red case can also mean the deployed copy of a shared module lags a
-local fix; that is the harness catching real skew, not a false alarm.
-
-The same contracts re-verify themselves on every deploy: each suite
-carries a ``selfcheck`` step whose leading ``# test:`` annotation registers
-it as a Windmill CI test, so pushing the flow or any of the suite's scripts
-runs the deployed ``collect``/``report``/``judge`` against the shared
-fixture cases in :src:`f/common/selfcheck` and badges the deployment red
-when a contract broke.
 
 Documentation
 =============

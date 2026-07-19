@@ -318,7 +318,11 @@ Before committing any of it
 
 ``nix flake check`` and ``scripts/check-style.sh`` gate the repository;
 the vendored projects carry their own checks (``nix flake check`` in
-:src:`vendor/nixos-flake`, ``verify_config.sh`` in the fragments). The
+:src:`vendor/nixos-flake`, ``verify_config.sh`` in the fragments). Each
+layer of :doc:`testing` covers the new suite too: give its parsers and
+verdict rules fixture tests under ``tests/``, add it to the
+``preview-smoke`` case table, and give it a ``selfcheck`` step so every
+deploy re-verifies the contracts. The
 commit rules in ``CLAUDE.md`` apply per tree: atomic commits, subsystem
 prefixes, and each vendored project's own message conventions. Validate the
 integration live before trusting it: the kunit end-to-end run (build with

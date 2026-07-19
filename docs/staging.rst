@@ -19,6 +19,7 @@ Contributing
 ============
 
 - :doc:`/contributing/test-suites` (add to ``docs/contributing/index.rst``)
+- :doc:`/contributing/testing` (add to ``docs/contributing/index.rst``)
 
 Reference
 =========
