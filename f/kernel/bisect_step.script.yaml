@@ -3,12 +3,14 @@ description: |-
   The `f/kernel/bisect` state machine, called at the top of every loop
   iteration. Keeps its state under `$SYSTEM_DIR/bisect/<vm_name>/`: a
   `--shared --no-checkout` clone of the Bare plus `state.json`. Reads the
-  previous candidate's verdict from the freshest kunit `report.json` on the
-  VM's share (a failed bringup or run reads as `skip`), advances the phase
-  (`verify_bad` tests the bad ref standalone, `verify_good` the good ref,
-  then `bisect` feeds `git bisect good|bad|skip` until git names the first
-  bad commit), and returns the next candidate commit, or `done` with the
-  outcome. Changed inputs or a concluded prior run reset the state.
+  previous candidate's verdict from the freshest payload `report.json` (the
+  kunit run's report on the VM's share, or `f/kernel/check_usertests`'s
+  report in the state dir; a failed bringup or run reads as `skip`, a
+  report of `untestable` too), advances the phase (`verify_bad` tests the bad
+  ref standalone, `verify_good` the good ref, then `bisect` feeds `git
+  bisect good|bad|skip` until git names the first bad commit), and returns
+  the next candidate commit, or `done` with the outcome. Changed inputs or
+  a concluded prior run reset the state.
 
   Returns `{done, phase, candidate, outcome, steps}`.
 lock: '!inline f/kernel/bisect_step.script.lock'
@@ -22,7 +24,29 @@ schema:
     - bad
     - suites
     - max_steps
+    - payload
+    - error_re
   properties:
+    error_re:
+      type: string
+      description: |-
+        [payload=usertests_build] Regex a failed build's output must match to
+        count as `bad`; a failure without it counts as `good` (the hunt
+        tracks the signature, not build health). Empty = any build failure
+        is `bad`.
+      default: ''
+      title: Error Regex
+    payload:
+      type: string
+      description: |-
+        Verdict source: `kunit` reads the suite run's report from the VM's
+        share, `usertests_build` reads `f/kernel/check_usertests`'s
+        host-side harness build report from the state dir.
+      default: kunit
+      enum:
+        - kunit
+        - usertests_build
+      title: Payload
     bad:
       type: string
       description: |-
@@ -42,7 +66,8 @@ schema:
     suites:
       type: array
       description: |-
-        KUnit suites whose combined verdict drives the bisect.
+        KUnit suites (or, for the build payload, usertests harness
+        directories) whose combined verdict drives the bisect.
       default: []
       items:
         type: string

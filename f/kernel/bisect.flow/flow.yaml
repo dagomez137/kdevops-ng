@@ -1,4 +1,4 @@
-summary: Bisect a kernel regression with KUnit
+summary: Bisect a kernel regression
 description: |-
   Find the first bad kernel commit for a failing KUnit suite by driving
   `git bisect` with real guest runs: each iteration builds the candidate
@@ -12,8 +12,15 @@ description: |-
   bisect skip`ped, so this flow bisects suite verdicts, not boot failures.
   The state (a `--shared` clone of the Bare plus `state.json`) lives under
   `$SYSTEM_DIR/bisect/<vm_name>/` and survives for a manual `git bisect`
-  resume. The payload is KUnit for now; another suite means one more branch
-  around the run step plus its report path in `f/kernel/bisect_step`.
+  resume. Two payloads: `kunit` (the default, above) and `usertests_build`,
+  which skips the guest entirely and asks only whether the selected
+  `tools/testing` harnesses compile at the candidate
+  (`f/kernel/check_usertests`), seconds per iteration; its `error_re` knob
+  scopes the hunt to one failure signature, and a build failing without
+  that signature counts as good, so each layer of a harness carrying
+  several independent breaks bisects in its own range. Another guest
+  suite means one more branch around the run step plus its report path in
+  `f/kernel/bisect_step`.
 value:
   modules:
     - id: iterate
@@ -43,11 +50,41 @@ value:
                 max_steps:
                   type: javascript
                   expr: flow_input.max_steps
+                payload:
+                  type: javascript
+                  expr: flow_input.payload ?? "kunit"
+                error_re:
+                  type: javascript
+                  expr: flow_input.error_re ?? ""
               path: f/kernel/bisect_step
               tag_override: vm
             stop_after_if:
               expr: result.done === true
               skip_if_stopped: false
+          - id: check
+            summary: Build-check the harnesses at the candidate (f/kernel/check_usertests)
+            value:
+              type: script
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                candidate:
+                  type: javascript
+                  expr: results.step.candidate
+                harnesses:
+                  type: javascript
+                  expr: flow_input.suites
+                error_re:
+                  type: javascript
+                  expr: flow_input.error_re ?? ""
+              path: f/kernel/check_usertests
+              tag_override: vm
+            skip_if:
+              expr: flow_input.payload !== 'usertests_build'
+            timeout:
+              type: static
+              value: 1800
           - id: bringup
             summary: Build the candidate kernel + boot the bisect guest (f/qsu/bringup)
             value:
@@ -99,6 +136,8 @@ value:
                   expr: '({home_share: true, controller_share: false,
                     custom_virtiofsd: false, home_share_readwrite: true})'
               path: f/qsu/bringup
+            skip_if:
+              expr: flow_input.payload === 'usertests_build'
           - id: settle
             summary: Wait for the guest to finish starting up (f/qsu/settle)
             value:
@@ -112,6 +151,8 @@ value:
                   value: 240
               path: f/qsu/settle
               tag_override: vm
+            skip_if:
+              expr: flow_input.payload === 'usertests_build'
           - id: run
             summary: Run the selected suites on the candidate (f/kunit/run)
             value:
@@ -128,6 +169,8 @@ value:
                   expr: '({timeout: flow_input.service?.timeout ?? 600,
                     poll_interval: 5, stream_logs: true})'
               path: f/kunit/run
+            skip_if:
+              expr: flow_input.payload === 'usertests_build'
     - id: report
       summary: Render the bisect run (f/kernel/bisect_report)
       value:
@@ -162,17 +205,43 @@ value:
           expr: flow_input.vm_name
       path: f/kunit/stop
       tag_override: vm
+    skip_if:
+      expr: flow_input.payload === 'usertests_build'
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
     - bad
     - good
+    - payload
     - suites
+    - error_re
     - vm_name
     - max_steps
     - service
   properties:
+    payload:
+      type: string
+      description: |-
+        What decides a candidate's verdict: `kunit` builds and boots the
+        candidate on the bisect guest and runs the selected KUnit suites;
+        `usertests_build` never touches a guest and only asks whether the
+        selected `tools/testing` harnesses compile at the candidate
+        (seconds per iteration).
+      default: kunit
+      enum:
+        - kunit
+        - usertests_build
+      title: Payload
+    error_re:
+      type: string
+      description: |-
+        [payload=usertests_build] Regex a failed build's output must match
+        to count as `bad`; a failure without it counts as `good` (the hunt
+        tracks when the signature appeared, not build health). Empty = any
+        build failure is `bad`.
+      default: ''
+      title: Error Regex
     bad:
       type: object
       description: |-
@@ -191,9 +260,10 @@ schema:
     suites:
       type: object
       description: |-
-        KUnit suites whose combined verdict drives the bisect; every listed
-        suite must pass for a candidate to count as good. Pick the failing
-        suite alone for the sharpest signal.
+        KUnit suites (or, for the build payload, usertests harness
+        directories) whose combined verdict drives the bisect; every listed
+        one must pass for a candidate to count as good. Pick the failing
+        one alone for the sharpest signal.
       default: []
       format: dynmultiselect-list_suites
       title: Suites
@@ -201,7 +271,8 @@ schema:
       type: string
       description: |-
         Dedicated bisect guest, replaced on every iteration; keep it away
-        from developer guests. Also keys the on-disk bisect state.
+        from developer guests. Also keys the on-disk bisect state, which is
+        all the build payload uses it for (no guest is touched).
       default: bisect
       title: VM Name
     max_steps:
@@ -241,10 +312,17 @@ schema:
             return []
 
 
-    def list_suites(vm_name: str = "", filterText: str = "", **_: object) -> list:
-        # The guest's KUnit suites from the per-VM cache f/kunit/discover writes;
-        # a fresh bisect guest falls back to the union of every VM's cache.
+    def list_suites(
+        vm_name: str = "", payload: str = "", filterText: str = "", **_: object
+    ) -> list:
+        # KUnit payload: the guest's suites from the per-VM cache
+        # f/kunit/discover writes, falling back to the union of every VM's
+        # cache. Build payload: the usertests harness catalog.
         try:
+            if payload == "usertests_build":
+                from f.kernel.build_usertests import CATALOG
+                needle = (filterText or "").lower()
+                return [h for h in CATALOG if needle in h]
             from f.kunit.common import list_suites as _list_suites
             return _list_suites(vm_name, filterText)
         except Exception:

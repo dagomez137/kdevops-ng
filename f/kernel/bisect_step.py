@@ -6,9 +6,12 @@ iteration. State lives on disk under `$SYSTEM_DIR/bisect/<vm_name>/`: a
 `--shared --no-checkout` clone of the Bare (objects borrowed, no tree
 materialized; `git bisect --no-checkout` keeps the candidate in
 `BISECT_HEAD`) plus `state.json`. The previous candidate's verdict comes
-from disk too, never from flow results: the freshest `report.json` the kunit
-run wrote onto the VM's share since the last decision. A failed bringup or
-run therefore cannot skip the decision; it just reads as `skip`.
+from disk too, never from flow results: the freshest `report.json` the
+payload wrote since the last decision (the kunit run's report on the VM's
+share, or `f/kernel/check_usertests`'s report in the state dir). A failed
+bringup or run therefore cannot skip the decision; it just reads as `skip`.
+The report contract is `passed` -> good, `untestable` -> skip, anything
+else -> bad.
 
 Phases: `verify_bad` tests the bad ref standalone (a pass ends the run as
 `not_reproducible_standalone`, itself a finding for ordering-dependent
@@ -64,11 +67,16 @@ def _resolve(git: Git, repo: Path, ref: str) -> str:
     raise ValueError(f"ref {ref!r} does not resolve in the Bare clone at {repo}")
 
 
-def _fresh_verdict(vm_name: str, decided_at: float) -> str | None:
-    """`good`/`bad` from the newest report.json written after the last decision,
-    None when no run reported (bringup or the run itself never got there)."""
+def _report_candidates(payload: str, vm_name: str, sdir: Path) -> list[Path]:
+    if payload == "usertests_build":
+        return [sdir / "report.json"]
     root = share_dir(vm_name)
-    candidates = [root / "report.json", *root.glob("*/report.json")]
+    return [root / "report.json", *root.glob("*/report.json")]
+
+
+def _fresh_verdict(candidates: list[Path], decided_at: float) -> str | None:
+    """`good`/`bad`/`skip` from the newest report.json written after the last
+    decision, None when no run reported (the payload never got there)."""
     best = None
     for path in candidates:
         if path.is_file() and (
@@ -82,7 +90,9 @@ def _fresh_verdict(vm_name: str, decided_at: float) -> str | None:
     except Exception:
         return None
     print(f"verdict source: {best}", flush=True)
-    return "good" if status == "passed" else "bad"
+    if status == "passed":
+        return "good"
+    return "skip" if status == "untestable" else "bad"
 
 
 def _bisect_feed(git: Git, repo: Path, verdict: str, sha: str) -> str:
@@ -104,10 +114,23 @@ def main(
     bad: str,
     suites: list[str] | None = None,
     max_steps: int = 20,
+    payload: str = "kunit",
+    error_re: str = "",
 ) -> dict:
     suites = list(suites or [])
     if not suites:
-        raise ValueError("suites must name at least one KUnit suite to bisect on")
+        raise ValueError("suites must name at least one suite to bisect on")
+    if payload not in ("kunit", "usertests_build"):
+        raise ValueError(f"unknown payload {payload!r}")
+    if payload == "usertests_build":
+        from f.kernel.build_usertests import CATALOG
+
+        unknown = [s for s in suites if s not in CATALOG]
+        if unknown:
+            raise ValueError(
+                f"unknown usertests harness(es): {' '.join(unknown)} "
+                f"(known: {' '.join(CATALOG)})"
+            )
     sdir = _state_dir(vm_name)
     state_file = sdir / "state.json"
     repo = sdir / "repo"
@@ -125,6 +148,8 @@ def main(
         or state.get("good") != good
         or state.get("bad") != bad
         or state.get("suites") != suites
+        or state.get("payload", "kunit") != payload
+        or state.get("error_re", "") != error_re
         or state.get("outcome")
     )
 
@@ -144,6 +169,8 @@ def main(
             "good": good,
             "bad": bad,
             "suites": suites,
+            "payload": payload,
+            "error_re": error_re,
             "good_sha": _resolve(git, repo, good),
             "bad_sha": bad_sha,
             "phase": "verify_bad",
@@ -155,7 +182,8 @@ def main(
         }
         state["candidate"] = state["bad_sha"]
     else:
-        verdict = _fresh_verdict(vm_name, float(state["decided_at"])) or "skip"
+        candidates = _report_candidates(payload, vm_name, sdir)
+        verdict = _fresh_verdict(candidates, float(state["decided_at"])) or "skip"
         prev = state["candidate"]
         phase = state["phase"]
         print(f"verdict={verdict} candidate={prev} phase={phase}", flush=True)

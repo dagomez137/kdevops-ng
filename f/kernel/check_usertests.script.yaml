@@ -1,0 +1,57 @@
+summary: Build-check the usertests harnesses at a commit
+description: |-
+  The host-side payload of `f/kernel/bisect`'s `usertests_build` mode:
+  sparse-checkout the candidate commit in the bisect state clone
+  (`$SYSTEM_DIR/bisect/<vm_name>/repo`), bare-`make` each selected
+  `tools/testing` harness in the `nixos-flake#build-usertests` devShell,
+  and write the verdict to `report.json` beside `state.json` for
+  `f/kernel/bisect_step` to read: `passed` when every make succeeds,
+  `failed` when one fails. With `error_re` set the verdict tracks the
+  signature instead of build health: a failure matching it is `failed`,
+  a failure without it is `passed`, so an older, unrelated break in the
+  range cannot derail the hunt.
+lock: '!inline f/kernel/check_usertests.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - candidate
+    - harnesses
+    - error_re
+  properties:
+    candidate:
+      type: string
+      description: |-
+        Commit to build-check (from `bisect_step`'s `candidate`).
+    error_re:
+      type: string
+      description: |-
+        Regex a failed build's output must match to count as `failed`; a
+        failure without it counts as `passed` (the hunt tracks the
+        signature, not build health). Empty = any failure is `failed`.
+      default: ''
+      title: Error Regex
+    harnesses:
+      type: array
+      description: |-
+        Harness directories under `tools/testing` to build. Empty = all of
+        them.
+      default: []
+      items:
+        type: string
+        enum:
+          - radix-tree
+          - vma
+          - memblock
+          - scatterlist
+    vm_name:
+      type: string
+      description: |-
+        The bisect state key (the flow's VM Name input); no guest is
+        touched.
+      title: VM Name
+  required:
+    - vm_name
+    - candidate

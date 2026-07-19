@@ -2,12 +2,13 @@
 
 :orphan:
 
-=====================================
-Bisect a kernel regression with KUnit
-=====================================
+==========================
+Bisect a kernel regression
+==========================
 
 The :src:`f/kernel/bisect` flow finds the first bad kernel commit for a
-failing KUnit suite by driving :cmd:`git bisect` with real guest runs. Each
+failing KUnit suite (the default payload; a host-side build payload follows
+below) by driving :cmd:`git bisect` with real guest runs. Each
 iteration builds the candidate commit, boots a dedicated guest with it, runs
 the selected suites, and feeds the verdict back, until git names the first
 bad commit. It composes the flows you already know: :src:`f/qsu/bringup`
@@ -54,6 +55,17 @@ table and, on completion, the first bad commit with its subject plus the
 full ``git bisect log``; ``judge`` fails the job unless the run reached a
 real conclusion, so an exhausted or untestable run is a red Windmill job.
 
-The payload is KUnit for now. Extending to another suite is mechanical: one
-more branch around the run step and that suite's report location in
-:src:`f/kernel/bisect_step`.
+A second payload, ``usertests_build``, bisects host-side build breaks in the
+kernel's userspace test harnesses (the :doc:`usertests <usertests>` family
+under ``tools/testing``). It never touches a guest: each iteration
+:src:`f/kernel/check_usertests` sparse-checkouts the candidate in the state
+clone and bare-makes the selected harnesses in the same devShell the real
+suite build uses, so an iteration takes seconds instead of a
+build-boot-run cycle. Because such harnesses can carry several independent
+breaks at once, the ``error_re`` knob scopes the hunt to one failure
+signature: a candidate whose build fails without matching it is ``git
+bisect skip``\ ped as untestable (an older, unrelated break), which is what
+lets each layer of a long-rotted harness be bisected in its own range.
+
+Extending to another guest suite is mechanical: one more branch around the
+run step and that suite's report location in :src:`f/kernel/bisect_step`.
