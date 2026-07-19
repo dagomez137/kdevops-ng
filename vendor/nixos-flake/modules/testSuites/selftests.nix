@@ -19,10 +19,12 @@
 # (`run_kselftest.sh --test`). A collection name may carry `/`
 # (net/forwarding) or `-` (cpu-hotplug), so instances are
 # systemd-escaped and %I restores the literal name. Both pass
-# --no-error-on-fail: the KTAP the unit journals carries the
-# per-test verdicts, so the exit status is left to report only
-# infrastructure errors (an unknown collection, a missing
-# runner), never a test failure.
+# --no-error-on-fail where the tree's runner supports it: the
+# KTAP the unit journals carries the per-test verdicts, so the
+# exit status is left to report only infrastructure errors (an
+# unknown collection, a missing runner), never a test failure.
+# An old tree's runner predates the flag; there a failing test
+# also fails the unit, and the KTAP still names the verdict.
 { pkgs, lib, ... }:
 let
   # run_kselftest.sh and its per-kernel install tree live under
@@ -54,6 +56,43 @@ let
     # timeout), and the caller's own deadline bounds the whole run.
     TimeoutStartSec = "infinity";
   };
+  # The runner is version-coupled to the tree like the tests: an old
+  # tree's run_kselftest.sh rejects options it predates with its usage
+  # text before running anything (--no-error-on-fail and
+  # --override-timeout are both younger than --summary and the
+  # collection selectors). Probe the vintage's own usage and pass an
+  # optional flag, hardcoded or arriving via KSELFTEST_ARGS, only when
+  # that runner knows it, so one unit template drives every kernel a
+  # sweep or bisect may boot.
+  runKselftest = pkgs.writeShellScript "run-kselftest-compat" ''
+    tree=$1
+    shift
+    usage=$("$tree/run_kselftest.sh" --help 2>&1 || true)
+    args=("$@")
+    case $usage in
+      *--no-error-on-fail*) args+=(--no-error-on-fail) ;;
+    esac
+    case $usage in
+      *--summary*) args+=(--summary) ;;
+    esac
+    skip=
+    for arg in $KSELFTEST_ARGS; do
+      if [ -n "$skip" ]; then
+        skip=
+        continue
+      fi
+      case $arg in
+        -o | --override-timeout)
+          case $usage in
+            *--override-timeout*) args+=("$arg") ;;
+            *) skip=1 ;;
+          esac
+          ;;
+        *) args+=("$arg") ;;
+      esac
+    done
+    exec "$tree/run_kselftest.sh" "''${args[@]}"
+  '';
   unitCommon = {
     inherit documentation;
     # The runner and the tests invoke system tools by bare name.
@@ -93,14 +132,14 @@ in
   systemd.services."kselftest@" = unitCommon // {
     description = "Kernel selftests collection %I";
     serviceConfig = serviceCommon // {
-      ExecStart = "${stateDir}/%v/tree/run_kselftest.sh --collection %I --no-error-on-fail --summary $KSELFTEST_ARGS";
+      ExecStart = "${runKselftest} ${stateDir}/%v/tree --collection %I";
     };
   };
 
   systemd.services."kselftest-test@" = unitCommon // {
     description = "Kernel selftest %I";
     serviceConfig = serviceCommon // {
-      ExecStart = "${stateDir}/%v/tree/run_kselftest.sh --test %I --no-error-on-fail --summary $KSELFTEST_ARGS";
+      ExecStart = "${runKselftest} ${stateDir}/%v/tree --test %I";
     };
   };
 
