@@ -1,6 +1,7 @@
 version: v2
 locks:
   f/common/devshell: 37dfb281a2b035c4a4b73dfb1ebf37a256a02566dae920f4aa68d47325802db3
+  f/common/selfcheck: 8869dded337a803f4f82c4f2146bde3e72a5b03f4242bbc2d8dc6c61b9f75a87
   f/common/store: 49142d946a0c2989482df9b9799eb489234e18df7c47af266322703e3aeecbb1
   f/common/store_index: 4aaf098605f1c097f95e566e0e9fb2ee5d392f5e31241b750d0d828ccf755152
   f/common/worktree: 9b93c760d68a1259eb3cc8629aed58b9111559c711927f92ee3ebea35b62601d
@@ -12,6 +13,7 @@ locks:
   f/fstests/reboot: b30dcc53264298d8792200b0a4221643d389560bdb4e812464630a10290798aa
   f/fstests/render_config: 518e6d1b79a89e0e137dc1d3186b55a7ea46e07777ce29a30f0ecf1a92e4f3c2
   f/fstests/report: 08b3c2eb91e29c772499bfc0aa23173d60e243fe7620f565e2b5b83a49b2c3b3
+  f/fstests/selfcheck: 3d61b660f521ed7d2f94cd9205403c48cdaca90d9e00388c22bd2ee808cf3cc7
   f/fstests/start: eebbaa7224d695788e39f0146f606b64fcbd275ec62a14cb180b5870ede15423
   f/fstests/stop: e93c8a7940231b92409e05429cb98ec804cd67afe7ec7bfa392fa96b7650e7fd
   f/fstests/wait: 6eec904de885cd5f10d7a62e0a38460b108162a1a43e74eb8941416aa8d3b251
@@ -33,6 +35,7 @@ locks:
   f/kernel/publish: 40d4d87dc51fa63a5970d51317efbeec79268a61433948234c5a425dd20edec4
   f/kernel/publish_devel: deba628f963b74e35ee21a14830d184d59be44ee8ee38ee5ad8dc6be2887555b
   f/kernel/reuse_check: 36f3a6b0d00d8e027f7ee5a68bb6fca849107b2dfbf8b2cf7051c4d4f8c17d41
+  f/kunit/selfcheck: a4934a9e475b8366f6f0d4cfb6fd6d20e73588b440414a81b92aef263a234f86
   f/nix/build_closure: 9e4e6841fd9fdb1666fbfa0205578b6863d009e3f8e13cae604c548f0d598f49
   f/nix/build.flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   f/nix/lock_config: 396883d10e7c0e15844736b86262a7d4ea33f3cb9f9fa687b5a6ed348715ba0b
@@ -62,6 +65,9 @@ locks:
   f/qsu/stop: b7fbbd8584efba39cd64cd224bb07a4c9b8d214ba6cc8e9fb4276948354aa45b
   f/qsu/vfio/render: 0986612b34a3240df258ea0f25a4a22d02cca5a5d570eff66877ebd8f2bf7a49
   f/qsu/virtiofsd/render: eae9ef10d8b082298db0d12e67aeab52a2cc757deb7e1df26f684409b953a779
+  f/runtime_tests/selfcheck: 4d749f3deb16dd122df750b2a02b311e18dc6d2584c5fb644cb716aeff37a21e
+  f/selftests/selfcheck: d9aa5529cf6d05afcf93aac5067056a8269580a474d12afdf71a297faedbea56
+  f/usertests/selfcheck: fb27a41ab437333c3ec396b86fc28327dd456e119d2fd8e1aeb0b854a17f357c
   f/workbench/fetch: 49619dbd37002dc7e549c6f7cf415011c1a470ac984e6c126e42b785709555e7
   f/workbench/init.flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
   f/workbench/mirror: 1d57e0fd9d8fcf70978141c76b2536323872f2db8943b326a473f483fa26101e

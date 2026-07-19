@@ -1,0 +1,9 @@
+# py: 3.12
+anyio==4.14.2
+certifi==2026.6.17
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.18
+typing-extensions==4.16.0
+wmill==1.763.0
