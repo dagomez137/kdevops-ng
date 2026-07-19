@@ -227,6 +227,9 @@ value:
                 modules:
                   type: javascript
                   expr: flow_input.suites
+                repeats:
+                  type: javascript
+                  expr: flow_input.service?.repeats ?? 1
                 service:
                   type: javascript
                   expr: '({timeout: flow_input.service?.timeout ?? 600,
@@ -245,6 +248,9 @@ value:
                 harnesses:
                   type: javascript
                   expr: flow_input.suites
+                repeats:
+                  type: javascript
+                  expr: flow_input.service?.repeats ?? 1
                 seed:
                   type: static
                   value: 0
@@ -424,6 +430,7 @@ schema:
       order:
         - timeout
         - override_timeout
+        - repeats
       properties:
         timeout:
           type: integer
@@ -441,6 +448,15 @@ schema:
             600 or more).
           default: 0
           title: Per-test Timeout
+        repeats:
+          type: integer
+          description: |-
+            [payload=runtime_tests|usertests] Statistical repeats per
+            candidate: the suite runs each item this many times and its
+            report's median runtime is what `max_runtime` judges, so a
+            runtime hunt is not at the mercy of one noisy boot.
+          default: 1
+          title: Repeats
       title: Service
   required:
     - bad
