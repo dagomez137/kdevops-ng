@@ -68,7 +68,16 @@ def _aggregate(items: list) -> list:
             out.append(entry)
             continue
         runs = groups[entry]
-        agg = dict(runs[-1])
+        # Counts and throughput come from the last PASSING run (an aborted
+        # run reports zero tests), while the evidence fields come from the
+        # last FAILING run: its detail (the assertion tail, the reasons)
+        # is what a later passing run would otherwise silently discard.
+        passing = [r for r in runs if r.get("status") == "passed"]
+        failing = [r for r in runs if r.get("status") == "failed"]
+        agg = dict((passing or runs)[-1])
+        if failing:
+            agg["detail"] = failing[-1].get("detail")
+            agg["exec_status"] = failing[-1].get("exec_status")
         statuses = [r.get("status") for r in runs]
         agg["status"] = (
             "failed"
