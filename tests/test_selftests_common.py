@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Fixture tests for the kselftest flat-KTAP parser and shared verdict rule."""
 
-from f.selftests.common import parse_ktap, run_status
+from f.selftests.common import item_unit, parse_ktap, run_status, unit_escape
 
 KTAP = """\
 TAP version 13
@@ -49,3 +49,19 @@ def test_run_status_never_passes_a_vacuous_or_errored_run():
     assert run_status([{"status": "passed"}]) == "passed"
     assert run_status([{"status": "passed"}, {"status": "failed"}]) == "failed"
     assert run_status([{"status": "passed"}, {"error": {"name": "SSH"}}]) == "failed"
+
+
+def test_unit_escape_follows_systemd_do_escape():
+    assert unit_escape("net/forwarding") == "net-forwarding"
+    assert unit_escape("cpu-hotplug") == r"cpu\x2dhotplug"
+    assert unit_escape("timers:posix_timers.sh") == "timers:posix_timers.sh"
+    assert unit_escape(".hidden") == r"\x2ehidden"
+    assert unit_escape("a\\b") == r"a\x5cb"
+
+
+def test_item_unit_picks_the_template_by_the_colon():
+    assert item_unit("net/forwarding") == "kselftest@net-forwarding.service"
+    assert item_unit("cpu-hotplug") == r"kselftest@cpu\x2dhotplug.service"
+    assert (
+        item_unit("timers:posix_timers") == "kselftest-test@timers:posix_timers.service"
+    )
