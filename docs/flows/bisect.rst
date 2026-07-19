@@ -7,8 +7,8 @@ Bisect a kernel regression
 ==========================
 
 The :src:`f/kernel/bisect` flow finds the first bad kernel commit for a
-failing KUnit suite (the default payload; the selftests and host-side build
-payloads follow below) by driving :cmd:`git bisect` with real guest runs. Each
+failing KUnit suite (the default payload; the other payloads follow below)
+by driving :cmd:`git bisect` with real guest runs. Each
 iteration builds the candidate commit, boots a dedicated guest with it, runs
 the selected suites, and feeds the verdict back, until git names the first
 bad commit. It composes the flows you already know: :src:`f/qsu/bringup`
@@ -87,6 +87,24 @@ the 45-second default; give it 600 or more). Because the test
 scripts travel with the tree, the first bad commit may land in the test
 itself rather than the kernel; either way it names what changed the
 runtime.
+
+Two more guest payloads cover the XArray and maple tree test families,
+one per execution form. ``runtime_tests`` loads the candidate's
+module-init test modules (``test_xarray``, ``test_maple_tree``, and the
+rest of :doc:`the runtime-tests catalog <runtime-tests>`) and judges
+their kmsg summaries, since a module-init test's exit status is
+structurally unobservable under ``modprobe@``; the imageless preset
+already builds the modules, so no extra kernel knob is needed.
+``usertests`` runs the userspace harness binaries (``radix-tree/xarray``,
+``radix-tree/maple``, and the rest of :doc:`the usertests catalog
+<usertests>`): each candidate's bringup also compiles the picked
+harnesses from that candidate's own ``lib/`` sources (only the harness
+directories the picked binaries live in), so the verdict tracks the
+source tree under sanitizers rather than the booted kernel. Both payloads
+honor ``max_runtime``, so an assert-throughput collapse in either form
+bisects the same way the kmod slowdown did. The suites picker speaks each
+payload's own vocabulary: module names for one, ``directory/binary``
+entries for the other.
 
 Extending to another guest suite is mechanical: one more branch around the
 run step and that suite's report location in :src:`f/kernel/bisect_step`.
