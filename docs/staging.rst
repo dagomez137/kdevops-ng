@@ -47,3 +47,4 @@ Flows
 - :doc:`/flows/bisect` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/boot` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/bringup` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/workbench-init` (add to ``docs/flows/index.rst``)
