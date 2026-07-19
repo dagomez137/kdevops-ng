@@ -54,14 +54,43 @@ v7.2-rc3 do not exonerate those tags (3/3 passes by chance ~30% of the
 time at that rate), so the flake is NOT localized and may predate the
 sheaf conversion; suspicious company is noted, not proven.
 
-Next step before any bisect: qualify the rate. Run the usertests flow
-with `harnesses: [radix-tree/maple]`, `repeats: 15` on v7.2-rc3 first
-(if it reproduces on the newest kernel it is a live upstream bug worth
-reporting regardless of origin), then on v6.18 and v6.17 to bracket. A
-bisect over a flaky verdict is sound once the rate is known: the bisect
-flow's `service.repeats` uses worst-of-N semantics, so at a ~1/3 rate,
-`repeats: 10` reads a truly affected candidate as bad with ~98%
-confidence while unaffected candidates always read good.
+### Qualification (2026-07-19/20): long-latent, not bisectable
+
+The rate was qualified with the flows' `repeats` knob, plus a host
+control:
+
+| leg | runs | failures |
+| --- | --- | --- |
+| v7.2-rc3 guest | 18 | 1 |
+| v7.1 guest | 3 | 0 |
+| v7.0 guest | 3 | 1 |
+| v6.18 guest | 33 | 1 |
+| v6.17 guest | 48 | 1 |
+| v7.2-rc3 host (same binary) | 15 | 0 |
+
+Pooled: 4 failures in 105 guest runs, about 4% per run, statistically
+uniform across every tested tag; v6.17 failing kills the sheaf-era
+hypothesis, so the race is long-latent (present at least since v6.17,
+plausibly far older) and NOT a regression with a reachable good
+endpoint, hence not bisectable. It is also environment-sensitive: the
+identical rc3 binary stayed clean in 15 host runs, so the 4-vCPU guest's
+timing is part of the reproduction. The assertion signature was captured
+live at v7.0 (`maple.c:34667`) and v7.2-rc3 (`maple.c:34697`), the same
+`run_check_rcu_slowread` assert both times, aborting within the last few
+asserts of a ~490M-assert run.
+
+Upstream report candidate, reproducer included: build
+`tools/testing/radix-tree` at any recent tag, run `./maple` repeatedly
+in a small VM (4 vCPUs); expect the RCU slow-read assertion within a few
+tens of runs. Whether the inconsistency is in `lib/maple_tree.c`'s RCU
+semantics or in the harness's userspace-RCU modelling of them is the
+question for the maple maintainers; the failing window (a reader
+observing a stale range during store) is genuine either way.
+
+The qualification also exposed and fixed a reporting gap: the repeats
+fold kept only the last run's detail, discarding a mid-sequence
+failure's assertion tail; the fold now takes counts from the last
+passing run and evidence from the last failing one (`c78b855`).
 
 ## Sweep mechanics worth keeping
 
