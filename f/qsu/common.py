@@ -304,7 +304,7 @@ NVME_BLOCKCONF_KNOBS = (
 )
 
 
-def _drive_pick(raw: str, i: int) -> str:
+def _drive_pick(raw: str | None, i: int) -> str:
     """Resolve a per-drive knob for drive `i` from a single value or comma-list.
 
     A bare value (no comma) applies to every drive; a comma-list assigns by index
