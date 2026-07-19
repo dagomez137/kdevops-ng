@@ -48,14 +48,25 @@ Verifying
 =========
 
 ``nix flake check`` is the gate. It runs every read-only check the flake
-defines: ``ruff`` lint and format verification, generated-file drift, and tree
-formatting. CI runs the same single command.
+defines: ``ruff`` lint and format verification, generated-file drift, the
+fixture tests, and tree formatting. CI runs the same single command.
 
 .. code-block:: console
 
    $ nix flake check                              # the whole source gate
    $ nix build .#checks.x86_64-linux.lint         # just the ruff check
    $ nix build .#checks.x86_64-linux.generated    # just the drift check
+   $ nix build .#checks.x86_64-linux.tests        # just the fixture tests
+
+The fixture tests under ``tests/`` cover the pure logic of the ``f/`` step
+modules (the KTAP and xunit parsers, the shared verdict rules, the store
+index's pure reads) with no instance and no network, so a change that breaks
+a parsing contract or a degrade path fails the gate before it is deployed.
+Run them directly from the checks shell while iterating:
+
+.. code-block:: console
+
+   $ nix develop .#checks --command pytest tests
 
 The whitespace, end-of-file, and commit-trailer checks need the git repository,
 so they cannot be a sandboxed flake check; run them from the checks shell:
@@ -91,6 +102,31 @@ rather than ordinary typing.
 .. code-block:: console
 
    $ nix develop .#checks --command pyright
+
+Previewing flows against the instance
+=====================================
+
+The fixture tests cover the pure logic; the ``wmill`` CLI covers the rest by
+running local, undeployed content against the running instance as preview
+jobs. ``wmill lint`` validates every flow definition offline, ``wmill script
+preview`` runs a local script body, and ``wmill flow preview`` runs a local
+flow definition; its ``--step`` flag runs one module in isolation with
+explicit arguments, which is the fastest way to exercise a step's degrade
+paths against real worker state:
+
+.. code-block:: console
+
+   $ nix run .#wmill -- lint
+   $ nix run .#wmill -- script preview f/common/store.py --silent
+   $ nix run .#wmill -- flow preview f/fstests/check.flow --step collect \
+       --data '{"vm_name": "no-such-vm", "section": "xfs_4k",
+                "kernel_version": "0.0.0-test"}' --silent
+
+Two caveats. A preview runs the local step body, but its ``from f...``
+imports resolve against the deployed workspace copy, so a shared-module
+change is visible to previews only after the next ``wmill sync push``. And a
+preview executes on the real workers, so preview only read-only steps, or
+mutating steps with arguments that cannot touch live state.
 
 Documentation
 =============
