@@ -86,18 +86,19 @@ def parse_ktap(text: str, suite: str) -> dict:
     """
     summary = _empty_summary(suite)
     lines = (text or "").splitlines()
-    header = next(
+    found = next(
         (
-            i
+            (i, m)
             for i in range(len(lines) - 1, -1, -1)
             if (m := _SUBTEST_RE.match(lines[i])) and m.group("name").strip() == suite
         ),
         None,
     )
-    if header is None:
+    if found is None:
         return summary
+    header, header_match = found
     summary["report_present"] = True
-    sub_indent = len(_SUBTEST_RE.match(lines[header]).group("indent"))
+    sub_indent = len(header_match.group("indent"))
 
     for ln in lines[header + 1 :]:
         p = _PLAN_RE.match(ln)

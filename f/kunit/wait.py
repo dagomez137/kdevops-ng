@@ -99,6 +99,7 @@ def main(
     started_realtime_ms: int | None = None
     ended_realtime_ms: int | None = None
     ktap_lines: list[str] = []
+    run_cursor: str | None = cursor
     # Stream the display journal from the run's own cursor, not from boot: a
     # boot-anchored first drain would dump the guest's entire dmesg into the
     # job log in one oversized chunk (which the job-log pipeline drops).
@@ -161,7 +162,7 @@ def main(
         # liveness check above is the authority on a dead guest), so it just
         # retries; only the deadline (or the guest going down) ends the wait.
         try:
-            cursor, records = remote.journal_unit(unit, cursor)
+            run_cursor, records = remote.journal_unit(unit, run_cursor)
         except Exception as exc:
             poll_errors += 1
             print(
@@ -195,7 +196,7 @@ def main(
         print(f"{vm_name}: stopping {unit} after the suite timeout", flush=True)
         remote.systemctl("stop", unit, check=False)
         try:
-            cursor, records = remote.journal_unit(unit, cursor)
+            run_cursor, records = remote.journal_unit(unit, run_cursor)
             scan(records)
         except Exception:
             pass
