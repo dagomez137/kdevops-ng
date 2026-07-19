@@ -118,7 +118,7 @@ def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
         raise
 
 
-def render_local_config(local_config: str, devices: list[dict] | None = None) -> str:
+def render_local_config(local_config: str, devices: list | None = None) -> str:
     """The xfstests `HOST_OPTIONS` config text (`local.config`).
 
     A non-empty `local_config` is returned verbatim. When empty, synthesize a
@@ -134,11 +134,11 @@ def render_local_config(local_config: str, devices: list[dict] | None = None) ->
             "render_local_config: empty local_config and no devices to synthesize from"
         )
     lines = ["[default]", "FSTYP=xfs", f"TEST_DEV={devs[0]}", "TEST_DIR=/media/test"]
-    if len(devs) >= 2:
+    if len(devs) == 2:
         lines.append(f"SCRATCH_DEV={devs[1]}")
     lines.append("SCRATCH_MNT=/media/scratch")
     if len(devs) > 2:
-        lines.append(f'SCRATCH_DEV_POOL="{" ".join(devs[2:])}"')
+        lines.append(f'SCRATCH_DEV_POOL="{" ".join(devs[1:])}"')
     return "\n".join(lines) + "\n"
 
 
