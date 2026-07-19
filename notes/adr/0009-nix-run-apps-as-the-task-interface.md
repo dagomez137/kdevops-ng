@@ -82,6 +82,13 @@ and with the deploy session's agreement, since the static-unit choice is theirs.
 
 accepted
 
+The app family has since grown under the same model: `default`/`help`, the
+monitoring lifecycle (`monitoring-build/install/activate/deploy/deactivate`
+and `monitoring-collector-install`), and `disable-linger`. The optional
+cleanup deferred below (re-exporting the `deploy/nix` packages at top level)
+has also shipped; the root flake re-exports them so `nix build .#windmill`
+works. The decision itself is unchanged.
+
 ## Consequences
 
 - The current app set is kept as-is. No code moves in this change.

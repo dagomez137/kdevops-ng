@@ -109,7 +109,7 @@ accepted
 - Worker worktree addressing in `f/common/worktree.py` is rewritten: a build
   resolves its worktree under the worker's own sandbox, and a developer worktree
   resolves under `<workbench>/<worktree-group>/<canonical>`.
-- `CONTEXT.md` and `docs/terms.rst` are updated: Workbench is redefined as the
+- `CONTEXT.md` and `docs/concepts/terms.rst` are updated: Workbench is redefined as the
   relocatable developer build area, **worktree-group** is added (default
   `vanilla`), Project-namespace is removed.
 - This is a migration, sequenced in the project TODO: rename and split the env

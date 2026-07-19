@@ -36,6 +36,11 @@ mechanism for content that must not move with host state.
 | **Vendored project** | `nixos-flake`, `linux-config-fragments`, `qemu-system-units` | this repo's git (a pinned copy) | bumped by a reviewed `git subrepo pull`; pinned | top-level `vendor/<project>` (git-tracked, travels with the clone) |
 | **Generated state** | `ccache`, build trees, `store-index`, VM runtime | none: reproducible | regenerated on demand | `workers/shared/*`, `workers/<id>/*` (host-local, gitignored) |
 
+The Home column records the layout at decision time. ADR 0008 later moved the
+mirrors, `ccache`, and `store-index` into the System workbench
+(`system/mirror`, `system/ccache`, `system/store-index`); the class
+boundaries this ADR decides are unaffected.
+
 ## Status
 
 accepted

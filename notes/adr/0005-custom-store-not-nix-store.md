@@ -1,5 +1,14 @@
 # A custom content-addressed store for build outputs, not the Nix store
 
+> **Postscript (2026-06-22, recorded 2026-07-19).** The "expected evolution"
+> below has shipped: `f/common/store.py` now publishes each run layer into the
+> Nix store (`nix store add-path` plus a `SYSTEM_DIR/store-index` GC-root
+> index) and peers fetch with `nix copy`, replacing the rsync transport and
+> the destdir copy described here as current. What stands unchanged is the
+> core decision: builds stay impure `make`/`ninja` runs keyed by our own
+> input-hash identity, never Nix derivations; only the transport and
+> consumption layer moved onto the store.
+
 The kernel and QEMU are built with `make`/`ninja` inside a pinned Nix devShell (not
 as Nix derivations) because development needs fast incremental builds over a mutable
 worktree (b4 series, branch hacking), which hermetic from-scratch derivations
