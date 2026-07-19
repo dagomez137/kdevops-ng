@@ -139,8 +139,10 @@ vendored with its own rules):
   curated boot toggle (the ``kunit-autorun.config`` fragment pairs with the
   ``kunit.autorun=1`` entry of the boot form's Kernel Parameters
   multiselect; see :src:`f/qsu/boot.flow`).
-- Run ``scripts/verify_config.sh`` on a merged config before committing a
-  fragment change; the repo's commit rules require it.
+- Run ``verify_config.sh`` from the fragments project
+  (``vendor/linux-config-fragments/scripts/verify_config.sh``) on a merged
+  config before committing a fragment change; the repo's commit rules
+  require it.
 
 **Registration**: add the suite to ``_TEST_SUITES`` in
 :src:`f/nix/render_config.py` so the closure form offers it as a curated
