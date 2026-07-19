@@ -22,10 +22,12 @@ Uniquely, this suite has **no kernel-configuration surface at all**: the
 harnesses need no ``.config``, no ``make headers``, and no fragment; the
 build needs only a toolchain and liburcu (the shim maps kernel RCU onto
 userspace RCU). The build side lives in :src:`f/kernel/build`'s
-**Usertests** group, which builds the five harness directories in the
-``build-usertests`` devShell, stages the ten binaries, cleans the
-in-tree litter, and publishes the tree to the Nix store as
-``usertests-<release>``. The guest-side unit,
+**Usertests** group, which builds the selected harness directories
+(default ``radix-tree``, ``vma``, ``memblock``; ``scatterlist`` is
+selectable but off the default, see below) in the ``build-usertests``
+devShell, stages the expected binaries, cleans the in-tree litter, and
+publishes the tree to the Nix store as ``usertests-<release>``. The
+guest-side unit,
 ``usertests@<instance>.service``, comes from the vendored module
 (:src:`vendor/nixos-flake/modules/testSuites/usertests.nix`).
 
@@ -70,6 +72,14 @@ one (all source-verified):
   ``tools/testing/shared`` shim does not provide, so the harness does
   not compile (an upstream fix candidate); the assertion-line rule
   above stays encoded for their return.
+- ``scatterlist`` is **off the default build set**: the harness has
+  been unbuildable upstream since v6.2 through three stacked shim
+  gaps (``zone_device_pages_have_same_pgmap()``, ``struct folio``,
+  ``page_range_contiguous()`` plus direct ``struct page`` arithmetic),
+  each pinned to its first bad commit with :doc:`the bisect flow's
+  <bisect>` ``usertests_build`` payload. All three are upstream fix
+  candidates; pick the harness back in only for a tree where it
+  builds.
 - ``radix-tree/idr-test`` (and ``main``) print an **expected** noise
   block bracketed by ``vvv Ignore "not allocated" warnings`` and
   ``^^^``; assertion lines inside it are part of the test and are
