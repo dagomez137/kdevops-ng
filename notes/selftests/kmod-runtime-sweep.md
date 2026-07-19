@@ -54,13 +54,27 @@ during the suite integration, consistent with the plateau.
   finding with its own reproduction matrix; those three tags stay
   honest holes.
 
-## Next: commit-level blame
+## The commit: slab sheaves batching kfree_rcu()
 
-The `f/kernel/bisect` flow's `selftests` payload hunts this directly:
-bad `v6.18`, good `v6.17`, suites `[kmod]`, `max_runtime` 180 (between
-the plateaus), per-test timeout 600, compiler clang plus the make flags
-above so every candidate builds and the endpoints reuse the sweep's
-published kernels. Because the test scripts travel with the tree, the
-first bad commit may be a `kmod.sh` change rather than a kernel change;
-either way it names what doubled the runtime. This note gets the commit
-once the hunt lands it.
+The `f/kernel/bisect` flow's `selftests` payload (bad `v6.18`, good
+`v6.17`, suites `[kmod]`, `max_runtime` 180 between the plateaus,
+per-test timeout 600, compiler clang plus the make flags above so every
+candidate builds and the endpoints reuse the sweep's published kernels)
+concluded `first_bad_found` after two endpoint verifications and 14
+feed steps, every candidate a fresh build-boot-run through the deployed
+flow:
+
+    ec66e0d599520 ("slab: add sheaf support for batching kfree_rcu()
+    operations"), Vlastimil Babka, 2025-09-03, v6.18 merge window via
+    the mm-stable pull; touches mm/slab.h, mm/slab_common.c, mm/slub.c
+    (+295 lines).
+
+A kernel change, not a `kmod.sh` change: routing `kfree_rcu()` through
+per-CPU sheaves changes how reclaim batches and when RCU grace periods
+are waited on, and the kmod collection is hundreds of module
+load/unload cycles whose teardown paths lean on exactly that. Whether
+the slowdown is an accepted cost of the sheaves design or an
+unintended stall (an upstream report candidate either way) needs a
+mechanism read of the commit; the measured fact is 107.9 s at v6.17 to
+249.9 s at v6.18 with this commit as the first bad, and the flat 250 s
+plateau persisting through v7.2-rc3.
