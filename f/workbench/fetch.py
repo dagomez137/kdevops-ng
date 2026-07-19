@@ -298,7 +298,7 @@ def main(
     return {"system_dir": str(system), "mirrors": results, "peers": peers}
 
 
-def _normalize_peers(peers: list[dict] | None) -> list[dict]:
+def _normalize_peers(peers: list | None) -> list[dict]:
     """Normalize the `peers` input to `[{host, store_index}]`, dropping empty entries.
 
     A bare string entry (legacy) is read as a host with the default-layout store-index;
