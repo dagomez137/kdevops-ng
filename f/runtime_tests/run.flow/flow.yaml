@@ -144,9 +144,12 @@ value:
         iterator:
           type: javascript
           expr: |-
-            (flow_input.modules && flow_input.modules.length)
-              ? flow_input.modules
-              : results.discover.modules
+            ((picked) => (flow_input.repeats ?? 1) > 1
+              ? picked.flatMap(m => Array(flow_input.repeats).fill(m))
+              : picked)(
+              (flow_input.modules && flow_input.modules.length)
+                ? flow_input.modules
+                : results.discover.modules)
         parallel: false
         skip_failures: true
     - id: report
@@ -216,6 +219,7 @@ schema:
   order:
     - vm_name
     - modules
+    - repeats
     - service
   properties:
     vm_name:
@@ -235,6 +239,17 @@ schema:
       default: []
       format: dynmultiselect-list_modules
       title: Modules
+    repeats:
+      type: integer
+      description: |-
+        Statistical repeats: run each picked item this many times back to
+        back. The report folds same-item runs into one entry (median
+        `time(s)`, min/max spread, per-run list, `tests/s` throughput, a
+        count-variance flag), which is what every consumer of the rollup
+        reads; the job verdict still fails on any single failing run. 1 =
+        one run, no folding.
+      default: 1
+      title: Repeats
     service:
       type: object
       description: |-

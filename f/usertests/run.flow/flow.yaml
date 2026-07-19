@@ -174,9 +174,12 @@ value:
         iterator:
           type: javascript
           expr: |-
-            (flow_input.harnesses && flow_input.harnesses.length)
-              ? flow_input.harnesses
-              : results.discover.harnesses
+            ((picked) => (flow_input.repeats ?? 1) > 1
+              ? picked.flatMap(h => Array(flow_input.repeats).fill(h))
+              : picked)(
+              (flow_input.harnesses && flow_input.harnesses.length)
+                ? flow_input.harnesses
+                : results.discover.harnesses)
         parallel: false
         skip_failures: true
     - id: report
@@ -246,6 +249,7 @@ schema:
   order:
     - vm_name
     - harnesses
+    - repeats
     - seed
     - long_run
     - service
@@ -267,6 +271,17 @@ schema:
       default: []
       format: dynmultiselect-list_harnesses
       title: Harnesses
+    repeats:
+      type: integer
+      description: |-
+        Statistical repeats: run each picked item this many times back to
+        back. The report folds same-item runs into one entry (median
+        `time(s)`, min/max spread, per-run list, `tests/s` throughput, a
+        count-variance flag), which is what every consumer of the rollup
+        reads; the job verdict still fails on any single failing run. 1 =
+        one run, no folding.
+      default: 1
+      title: Repeats
     seed:
       type: integer
       description: |-
