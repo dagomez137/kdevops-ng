@@ -5,8 +5,10 @@ Copies the published Nix store tree `f/selftests/discover` resolved to
 `<share>/<kver>/tree/`, the writable directory the guest's
 `kselftest@<instance>.service` executes (`WorkingDirectory=.../%v/tree`;
 tests chdir into their collection dir and write there, so the read-only store
-path cannot be executed in place). When the copied tree's `VERSION` and
-`kselftest-list.txt` already match the store's, the copy is skipped; otherwise
+path cannot be executed in place). When the copied tree's `kselftest-list.txt`
+(and `VERSION`, on trees that ship one) already match the store's, the copy is
+skipped, so files a caller adds beside it (a `settings` timeout) survive;
+otherwise
 any stale tree is removed and replaced, and the copy is opened for writing
 (`chmod --recursive u+w`: store modes are read-only). The host never contacts
 the guest.
@@ -35,9 +37,14 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
 
 
 def _same_tree(src: Path, dest: Path) -> bool:
-    """Whether `dest` already carries `src`'s tree: its `VERSION` and
-    `kselftest-list.txt` both present and byte-identical to the store's."""
-    for name in ("VERSION", "kselftest-list.txt"):
+    """Whether `dest` already carries `src`'s tree: its `kselftest-list.txt`
+    (and `VERSION`, when the store tree ships one; old installs predate the
+    file, and requiring it would re-lay their tree on every run) present and
+    byte-identical to the store's."""
+    names = ["kselftest-list.txt"]
+    if (src / "VERSION").is_file():
+        names.append("VERSION")
+    for name in names:
         s, d = src / name, dest / name
         if not d.is_file() or not s.is_file() or s.read_text() != d.read_text():
             return False
