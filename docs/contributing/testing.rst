@@ -122,9 +122,9 @@ The order that catches problems earliest:
 .. code-block:: console
 
    $ nix run .#format                                        # format first
-   $ nix flake check                                         # gate: lint, tests, drift
+   $ nix flake check                              # gate: lint, tests, drift
    $ nix develop .#checks --command bash scripts/check-style.sh
-   $ nix run .#preview-smoke                                 # when flow steps changed
+   $ nix run .#preview-smoke                      # when flow steps changed
 
 The first three are commit rule 6 and gate every commit. The smoke suite
 is the extra step when a change touches flow steps; after the deploy, the
