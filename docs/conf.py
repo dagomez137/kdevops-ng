@@ -96,7 +96,6 @@ cmd_links = {
     "prometheus": "https://prometheus.io/docs/prometheus/latest/",
     "loki": "https://grafana.com/docs/loki/latest/",
     "alloy": "https://grafana.com/docs/alloy/latest/",
-    "psql": "https://www.postgresql.org/docs/16/app-psql.html",
     "RuntimeMaxSec": f"{_SYSTEMD}/systemd.service.html#RuntimeMaxSec=",
     "systemd-escape": f"{_SYSTEMD}/systemd-escape.html",
     "timeout": f"{_MAN7}/timeout.1.html",

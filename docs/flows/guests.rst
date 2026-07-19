@@ -115,8 +115,8 @@ stop, then boots a fresh guest (it is how a VM is re-launched):
    $ systemctl --user stop machines.target                   # stop every VM
    $ systemctl --user reset-failed qemu-system@<vm>          # clear failed
 
-To check a guest's own health from the host instead, go through ``--host`` into
-its system bus:
+To check a guest's own health from the host instead, point ``systemctl`` and
+:cmd:`hostnamectl` through ``--host`` into its system bus:
 
 .. code-block:: console
 
