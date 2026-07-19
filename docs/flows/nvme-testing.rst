@@ -113,7 +113,8 @@ This proves SPDK drives the device over VFIO and reports CMB/PMR:
 .. code-block:: console
 
    $ spdk_nvme_identify -r 'trtype:PCIe traddr:0000:00:04.0' \
-       | grep -iE 'Memory Buffer|Persistent Memory'
+       | grep --ignore-case --extended-regexp \
+           'Memory Buffer|Persistent Memory'
    # Controller Memory Buffer Support
    # Persistent Memory Region Support
 
@@ -193,7 +194,7 @@ Confirm on the host that the guest write appears in the backing file:
 
 .. code-block:: console
 
-   $ grep -a PMRTEST ~/.local/state/qemu-system/<vm>/nvme-pmr-1.img
+   $ grep --text PMRTEST ~/.local/state/qemu-system/<vm>/nvme-pmr-1.img
 
 The PMR ``size`` must be a power of two and at least one host page
 (:src:`f/qsu/common` rejects anything smaller). Here ``00:05.0`` maps to drive

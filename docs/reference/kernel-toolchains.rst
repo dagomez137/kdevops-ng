@@ -220,7 +220,7 @@ silently downgraded: ``alldefconfig`` and ``olddefconfig`` drop it and the build
 succeeds without Rust. Confirm that Rust actually built by checking that the
 resulting config still carries ``CONFIG_RUST=y``::
 
-   grep -E '^CONFIG_RUST(_IS_AVAILABLE)?=' <build_dir>/.config
+   grep --extended-regexp '^CONFIG_RUST(_IS_AVAILABLE)?=' <build_dir>/.config
 
 What the devShell provides
 --------------------------

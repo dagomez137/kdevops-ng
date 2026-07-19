@@ -114,12 +114,14 @@ token; both are one-time actions, over the SSH forward or on the host:
 
 .. code-block:: console
 
-   $ curl -s -u admin:<password> -H 'Content-Type: application/json' \
-       -X POST http://127.0.0.1:3000/api/serviceaccounts \
-       -d '{"name":"kdevops-annotations","role":"Editor"}'
-   $ curl -s -u admin:<password> -H 'Content-Type: application/json' \
-       -X POST http://127.0.0.1:3000/api/serviceaccounts/<id>/tokens \
-       -d '{"name":"kdevops-annotations"}'
+   $ curl --silent --user admin:<password> \
+       --header 'Content-Type: application/json' \
+       --request POST http://127.0.0.1:3000/api/serviceaccounts \
+       --data '{"name":"kdevops-annotations","role":"Editor"}'
+   $ curl --silent --user admin:<password> \
+       --header 'Content-Type: application/json' \
+       --request POST http://127.0.0.1:3000/api/serviceaccounts/<id>/tokens \
+       --data '{"name":"kdevops-annotations"}'
 
 then store the returned key as the secret Windmill variable
 ``f/monitoring/grafana_token`` (Windmill UI: Variables, Add variable,
