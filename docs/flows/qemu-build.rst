@@ -134,9 +134,15 @@ Schema inputs
 
 The form surfaces the choices a maintainer actually makes:
 
-``qemu_ref``
-   The tag, branch, or SHA to check out from the Bare. Default ``v11.0.0``,
-   configurable exactly like the kernel flow's ``git_ref``.
+``ref``
+   The branch or tag to build, picked from the Bare's live ref list
+   (developer branches first, then tags newest first). Default
+   ``v11.0.0``.
+
+``custom_ref`` and ``qemu_ref``
+   The advanced override: turn on ``custom_ref`` and ``qemu_ref`` replaces
+   the picked ref with any tag, branch, or SHA, resolved exactly like the
+   kernel flow's ``git_ref``.
 
 ``custom_label`` and ``label``
    The build identity's name is inferred from the ref and any series (see

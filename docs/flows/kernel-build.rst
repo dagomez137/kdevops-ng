@@ -114,10 +114,18 @@ reference.
 Worktree
 --------
 
-``git_ref``
-   The tag, branch, or SHA to check out from the Bare (default a recent stable
-   tag). Resolved against a tag, then the ``mirror`` remote, then the literal
-   ref, so ``v7.1``, ``mirror/master``, ``hch-misc``, or a bare SHA all work.
+``ref``
+   The branch or tag to build, picked from the Bare's live ref list:
+   developer branches first, then tags newest first, headed by the current
+   kernel.org releases from `releases.json`_ (mainline, stable, longterm,
+   linux-next), each labelled with its moniker plus EOL state and whether
+   the Bare mirrors it yet.
+
+``custom_ref`` and ``git_ref``
+   The advanced override for anything the picker cannot offer. Turn on
+   ``custom_ref`` and ``git_ref`` replaces the picked ref: resolved against
+   a tag, then the ``mirror`` remote, then the literal ref, so ``v7.1``,
+   ``mirror/master``, ``hch-misc``, or a bare SHA all work.
 
 ``b4_series``
    An optional `b4`_ message-id or lore URL. When set, ``prepare_worktree``
@@ -362,5 +370,6 @@ up with the running kernel. For inspecting a running guest see
 :doc:`/flows/guests`.
 
 .. _Linux kernel: https://www.kernel.org/
+.. _releases.json: https://www.kernel.org/releases.json
 .. _linux-config-fragments: https://github.com/dagomez137/linux-config-fragments
 .. _b4: https://b4.docs.kernel.org/
