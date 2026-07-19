@@ -294,6 +294,7 @@ class DevShell:
         env: dict | None = None,
         check: bool = True,
         quiet: bool = False,
+        merge_stderr: bool = False,
     ) -> str:
         argv = self._argv(command, *args)
         if not quiet:
@@ -304,6 +305,7 @@ class DevShell:
             check=check,
             text=True,
             stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT if merge_stderr else None,
             cwd=cwd,
         ).stdout
 
