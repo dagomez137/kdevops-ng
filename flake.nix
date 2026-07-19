@@ -64,7 +64,10 @@
             inherit pkgs toolsets;
             inherit (windmill-deploy.packages.${system}) wmill;
           };
-          apps = import ./nix/apps { inherit pkgs toolsets; };
+          apps = import ./nix/apps {
+            inherit pkgs toolsets;
+            inherit (windmill-deploy.packages.${system}) wmill;
+          };
           checks =
             import ./nix/checks.nix {
               inherit

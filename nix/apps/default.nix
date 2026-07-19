@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-{ pkgs, toolsets }:
+{
+  pkgs,
+  toolsets,
+  wmill,
+}:
 let
   inherit (pkgs) lib writeShellApplication;
 
@@ -233,6 +237,16 @@ in
     description = "Rewrap wmill description fields into clean literal blocks";
     runtimeInputs = [ toolsets.pyEnv ];
     text = "python3 scripts/reflow-descriptions.py --write";
+  };
+
+  preview-smoke = mkApp {
+    name = "kdevops-preview-smoke";
+    description = "Smoke the suite flows' isolated steps as Windmill preview jobs";
+    runtimeInputs = [
+      toolsets.pyEnv
+      wmill
+    ];
+    text = ''python3 scripts/preview-smoke.py "$@"'';
   };
 
   docs = mkApp {
