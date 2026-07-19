@@ -6,14 +6,20 @@
 Adding test suites
 ==================
 
-kdevops-ng carries two fully worked test-suite integrations, and every rule
+kdevops-ng carries five fully worked test-suite integrations, and every rule
 in this page is extracted from them: :doc:`/flows/fstests` (a userland suite
-that needs a share, devices, and per-test observation) and
-:doc:`/flows/kunit` (an in-kernel suite driven purely through debugfs, no
-userland at all). A new suite is one of those two archetypes, or a mix; read
+from a packaged project that needs a share, devices, and per-test
+observation), :doc:`/flows/kunit` (an in-kernel suite driven purely through
+debugfs, no userland at all), :doc:`/flows/selftests` (a userland suite
+built from the kernel tree under test, so its artifact is version-coupled
+to the booted kernel), :doc:`/flows/runtime-tests` (module-init suites
+driven through systemd's own upstream unit: no userland, no share, no
+vendored unit), and :doc:`/flows/usertests` (kernel-tree userspace
+harnesses whose binaries test the source tree they were built from, not
+the booted kernel). A new suite is one of those archetypes, or a mix; read
 the matching sources alongside this page. The requirements are not
 suggestions: each one exists because its absence was a real bug or a real
-usability failure in those two integrations.
+usability failure in those integrations.
 
 A suite spans four layers, each owned by a different part of the tree:
 
@@ -25,6 +31,13 @@ A suite spans four layers, each owned by a different part of the tree:
 3. **The flow**: a subsystem directory ``f/<suite>/`` with a thin Windmill
    flow composing verb-named Python steps.
 4. **Documentation**: a per-flow page under ``docs/flows/``, staged first.
+
+The four layers are a maximum, not a quota. Runtime tests ships no guest
+closure module at all (its executor, ``modprobe@.service``, is already on
+every systemd guest) and so registers nothing in the closure form, and
+usertests has no kernel-configuration surface (the harnesses need no
+``.config`` and no fragment, only a toolchain). Every suite carries the
+flow and documentation layers.
 
 Guest execution model: first-class systemd units
 ================================================
@@ -55,7 +68,30 @@ commander; the unit is the executor. Requirements:
   channel. When the suite needs environment and a working directory, use
   the unit's own mechanisms (``EnvironmentFile=``,
   ``WorkingDirectory=...%v`` so results key by kernel release), as
-  ``xfstests@`` does; never a shell string.
+  ``xfstests@`` does; never a shell string. Per-instance arguments travel
+  the same way: ``usertests@`` reads one environment file per binary
+  carrying its ``$ARGS``, so a re-run with different arguments is a file
+  edit, not a unit change.
+- **Reach for upstream's own template before writing one.** The runtime
+  test modules run through systemd's stock ``modprobe@<module>.service``
+  and the suite ships zero vendored units. Riding an upstream unit means
+  designing around its contract instead of changing it: that template's
+  ``ExecStart`` carries the ``-`` prefix, and systemd journal-logs a
+  successful process exit only at debug level, so the module's exit
+  status is structurally unobservable; the verdict rides what is
+  observable instead, the kernel log's summary or sentinel lines plus
+  the module's post-run load state. Its
+  ``ConditionKernelModuleLoaded=!%i`` skips the start when the module is
+  already loaded, which is a nothing-ran run, so the flow unloads first.
+- **Line-buffer a plain binary's output.** Under
+  ``StandardOutput=journal`` a harness's stdio is block-buffered, so a
+  crashing test's last lines die in its buffer; the ``usertests@`` unit
+  wraps every binary in line-buffered mode so the journal carries the
+  crash context.
+- **Pin sanitizer policy in the unit, never library defaults.** The
+  usertests binaries run with the policy fixed (AddressSanitizer aborts,
+  UBSan halts on error, LeakSanitizer gates), so a finding is always
+  fatal and machine-checkable rather than a log line that scrolls by.
 - When a trigger can fail while a stale artifact still exists, **split the
   unit**: a strict template whose failed trigger fails the unit, and a
   separate read-back template for work that can only be read, never re-run
@@ -144,11 +180,13 @@ vendored with its own rules):
   config before committing a fragment change; the repo's commit rules
   require it.
 
-**Registration**: add the suite to ``_TEST_SUITES`` in
-:src:`f/nix/render_config.py` so the closure form offers it as a curated
-choice, and note whether it carries a share. After editing anything under
-``vendor/``, run ``nix run .#windmill-install`` so the workbench copy the
-workers read is re-synced; ``wmill sync push`` deploys the ``f/`` content.
+**Registration**: when the suite ships a closure module, add it to
+``_TEST_SUITES`` in :src:`f/nix/render_config.py` so the closure form
+offers it as a curated choice, and note whether it carries a share; a
+suite riding an upstream unit (runtime tests) has nothing to register.
+After editing anything under ``vendor/``, run
+``nix run .#windmill-install`` so the workbench copy the workers read is
+re-synced; ``wmill sync push`` deploys the ``f/`` content.
 
 The flow layer
 ==============
@@ -208,6 +246,26 @@ Correctness invariants, each one a former bug:
 - **Split the worker tags**: quick lifecycle steps on ``vm``, the long
   ``wait`` poll on ``vm-run``, so a hung run never starves control
   operations.
+- **Exit conventions are per item; encode them in a source-verified
+  catalog.** The runtime test modules split into classes (exit-honest,
+  always-``-EAGAIN`` auto-unload, ``test_ida``'s inverted convention, a
+  BUG-on-failure case, a benchmark), and each usertests binary has its
+  own failure convention; assuming one convention across a family
+  converts designed behavior into false verdicts in both directions.
+- **Whitelist expected noise explicitly.** ``radix-tree/idr-test``
+  prints a deliberate assertion block bracketed by "Ignore" markers, and
+  a passing ``test_ida`` fires deliberate warnings; the scanners
+  whitelist exactly those, and nothing more, rather than turning
+  themselves off.
+- **A version-coupled artifact resolves by the booted kernel.**
+  ``kselftests-<release>`` and ``usertests-<release>`` are resolved from
+  the guest's ``uname -r``, and a mismatch refuses to run, so a verdict
+  always names the source it covers.
+- **An honest red beats a green lie.** usertests keeps a real UBSan
+  finding red rather than expunging it, and its unbuildable harnesses
+  are excluded from the default set with each exclusion bisect-pinned to
+  its first bad commit and recorded as an upstream fix candidate, never
+  silently dropped.
 
 Mechanics: all guest access goes through the shared vsock-SSH transport
 (:src:`f/common/remote`), all host execution through the
