@@ -12,8 +12,9 @@ is the run-scoped document `f/selftests/collect` parses, and `exec_status`
 carries a failing command's exit status when there is one (systemd journal-logs
 successful process exits only at debug level, so a clean run leaves it empty;
 the "Finished" outcome already proves the runner exited 0). The templates pass
-`--no-error-on-fail`, so a nonzero exit is an infrastructure error, never a
-test failure; the pass/fail verdict is the KTAP itself.
+`--no-error-on-fail` where the tree's runner supports it, so a nonzero exit is
+an infrastructure error (on a tree predating the flag, a test failure); the
+pass/fail verdict is the KTAP itself.
 
 The runner bounds each individual test (the per-collection `settings` timeout,
 default 45 s, or the run form's Per-test Timeout), and the unit is

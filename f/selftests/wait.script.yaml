@@ -8,8 +8,9 @@ description: |-
   so the returned `ktap` is the run-scoped document `f/selftests/ collect`
   parses and `exec_status` carries a failing command's exit status when there is
   one (successful exits are journal-logged only at debug level, so a clean run
-  leaves it empty; with `--no-error-on-fail` a nonzero exit is an infrastructure
-  error, never a test failure).
+  leaves it empty; with `--no-error-on-fail`, passed where the tree's runner
+  supports it, a nonzero exit is an infrastructure error; on an old tree, a
+  test failure).
 
   Each poll also checks the host `qemu-system@<vm>.service`: any not-alive state
   means the guest is gone and the wait ends with `crashed` set. On expiry of the

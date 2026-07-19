@@ -10,9 +10,9 @@ the systemd-escaped item name (`net/forwarding` -> `net-forwarding`,
 everything after it in the unit's journal belongs to this run and nothing
 before it does, so `f/selftests/wait` and `f/selftests/collect` can never
 confuse this run with a previous one. The unit's exit codes carry no pass/fail
-verdict (the templates pass `--no-error-on-fail`, so a nonzero exit means an
-infrastructure error, never a test failure); the verdict is the KTAP the
-journal captures.
+verdict (the templates pass `--no-error-on-fail` where the tree's runner
+supports it, so a nonzero exit means an infrastructure error, or on an old
+tree a test failure); the verdict is the KTAP the journal captures.
 
 Equivalent commands, against the guest over vsock-SSH:
 

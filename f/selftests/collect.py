@@ -6,8 +6,10 @@ start's cursor so it can only be this run's output, and never contacts the
 guest (so a crashed guest still gets an honest verdict). The verdict is the
 KTAP gated by the run's plumbing: `passed` needs the start job to have finished
 (`result=done`), a clean exit (`exec_status` empty or `0`; the templates pass
-`--no-error-on-fail`, so a nonzero exit is an infrastructure error such as an
-unknown collection or a missing runner, never a test failure), no crash, no
+`--no-error-on-fail` where the tree's runner supports it, so a nonzero exit is
+an infrastructure error such as an unknown collection or a missing runner; on
+a tree old enough to predate the flag it is a test failure, and the KTAP names
+it either way), no crash, no
 timeout, the document's `1..N` plan matching the parsed result lines (a journal
 truncated mid-run can never pass), and no `not ok` line. An item whose parsed
 run passed nothing at all (an empty body, or every test skipped) is `notrun`,

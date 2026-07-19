@@ -4,8 +4,9 @@ description: |-
   journal cursor, so it can only be this run's output) into per-test
   pass/fail/notrun counts; the guest is never contacted, so a crashed guest
   still gets an honest verdict. `passed` needs the start job finished
-  (`result=done`), a clean exit (with `--no-error-on-fail` a nonzero exit is an
-  infrastructure error), no crash, no timeout, the document's `1..N` plan
+  (`result=done`), a clean exit (with `--no-error-on-fail`, passed where the
+  tree's runner supports it, a nonzero exit is an infrastructure error; on an
+  old tree, a test failure), no crash, no timeout, the document's `1..N` plan
   matching the parsed result lines (a truncated journal can never pass), and no
   `not ok` line. A run that passed nothing at all (empty body, or every test
   skipped) is `notrun`; anything else is `failed`. Returns a scalar overview
@@ -54,7 +55,8 @@ schema:
         A failing command's exit status from the run's journal, when there is
         one (successful exits are logged only at debug level, so a clean run
         leaves it empty); anything but empty or `0` fails the verdict (with
-        `--no-error-on-fail` it is an infrastructure error).
+        `--no-error-on-fail` an infrastructure error; on an old tree without
+        the flag, a test failure).
       default: ''
       title: Exec Status
     item:
