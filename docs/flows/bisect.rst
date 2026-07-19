@@ -63,9 +63,10 @@ clone and bare-makes the selected harnesses in the same devShell the real
 suite build uses, so an iteration takes seconds instead of a
 build-boot-run cycle. Because such harnesses can carry several independent
 breaks at once, the ``error_re`` knob scopes the hunt to one failure
-signature: a candidate whose build fails without matching it is ``git
-bisect skip``\ ped as untestable (an older, unrelated break), which is what
-lets each layer of a long-rotted harness be bisected in its own range.
+signature: it asks when that signature appeared, not whether the build is
+healthy, so a candidate whose build fails without matching it counts as
+good. That is what lets each layer of a long-rotted harness be bisected in
+its own range, even when an older break wrecks the whole of it.
 
 Extending to another guest suite is mechanical: one more branch around the
 run step and that suite's report location in :src:`f/kernel/bisect_step`.
