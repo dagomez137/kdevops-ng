@@ -122,7 +122,9 @@ value:
                 kernel:
                   type: javascript
                   expr: '({mode: "build", build: {ccache: true, compiler:
-                    "gcc", reproducible: true}, reuse: {reuse: true,
+                    flow_input.compiler ?? "gcc", make_flags:
+                    flow_input.make_flags ?? "", reproducible: true},
+                    reuse: {reuse: true,
                     use_peers: true}, installation: {install: true,
                     modules_install: true}, configuration: {config_method:
                     "preset", preset: "imageless_defconfig"}, worktree:
@@ -249,6 +251,8 @@ schema:
     - suites
     - error_re
     - max_runtime
+    - compiler
+    - make_flags
     - vm_name
     - max_steps
     - service
@@ -287,6 +291,28 @@ schema:
         regression. 0 = verdict is pass/fail only.
       default: 0
       title: Max Runtime
+    compiler:
+      type: string
+      description: |-
+        Compiler for the candidate builds. Pick the one the endpoints were
+        measured with so their published kernels are reused and every
+        candidate is toolchain-comparable; note the devShell's GCC breaks
+        release tags before the upstream C23 fixes, where clang builds the
+        whole range.
+      default: gcc
+      enum:
+        - gcc
+        - clang
+      title: Compiler
+    make_flags:
+      type: string
+      description: |-
+        Extra make variables/flags for the candidate builds, appended
+        verbatim; old ranges often need vintage dodges (e.g.
+        "KCFLAGS=-Wno-enum-enum-conversion RUSTC=rustc-unavailable" for
+        trees whose Rust support predates the modern toolchain).
+      default: ''
+      title: Make Flags
     bad:
       type: object
       description: |-
