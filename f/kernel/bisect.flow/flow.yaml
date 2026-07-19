@@ -12,16 +12,22 @@ description: |-
   bisect skip`ped, so this flow bisects suite verdicts, not boot failures.
   The state (a `--shared` clone of the Bare plus `state.json`) lives under
   `$SYSTEM_DIR/bisect/<vm_name>/` and survives for a manual `git bisect`
-  resume. Three payloads: `kunit` (the default, above); `selftests`, the
-  same build-boot-run loop with kselftest collections built from each
-  candidate's own tree (`f/selftests/run`), whose `max_runtime` knob turns
-  a passing-but-slower run into a bad verdict so a runtime regression
-  bisects like a failure; and `usertests_build`, which skips the guest
-  entirely and asks only whether the selected `tools/testing` harnesses
-  compile at the candidate (`f/kernel/check_usertests`), seconds per
-  iteration, its `error_re` knob scoping the hunt to one failure signature
-  (a build failing without the signature counts as good, so each layer of
-  a harness carrying several independent breaks bisects in its own range).
+  resume. Five payloads. Four run the build-boot-run loop with a different
+  verdict source: `kunit` (the default, above); `selftests`, kselftest
+  collections built from each candidate's own tree (`f/selftests/run`);
+  `runtime_tests`, module-init test modules such as `test_xarray` and
+  `test_maple_tree` judged by their kmsg summaries (`f/runtime_tests/run`);
+  and `usertests`, the userspace harness binaries such as
+  `radix-tree/xarray` and `radix-tree/maple` built from each candidate's
+  own `lib/` sources and run under sanitizers (`f/usertests/run`). For all
+  four the `max_runtime` knob turns a passing-but-slower run into a bad
+  verdict so a runtime regression bisects like a failure. The fifth,
+  `usertests_build`, skips the guest entirely and asks only whether the
+  selected `tools/testing` harnesses compile at the candidate
+  (`f/kernel/check_usertests`), seconds per iteration, its `error_re` knob
+  scoping the hunt to one failure signature (a build failing without the
+  signature counts as good, so each layer of a harness carrying several
+  independent breaks bisects in its own range).
 value:
   modules:
     - id: iterate
@@ -113,8 +119,9 @@ value:
                     {vm_name: flow_input.vm_name, home: true, shares: {},
                     home_dir: "", ssh_keys: [], user_name: "kdevops"},
                     closure: {profiles: ["devel"], overrides: [],
-                    test_suites: [flow_input.payload === "selftests" ?
-                    "selftests" : "kunit"]}})'
+                    test_suites: {selftests: ["selftests"], usertests:
+                    ["usertests"], runtime_tests: []}[flow_input.payload]
+                    ?? ["kunit"]}})'
                 boot_nvme:
                   type: javascript
                   expr: '({customize_drives: false, nvme_drive_count: 4,
@@ -132,7 +139,11 @@ value:
                     b4_series: "", custom_label: false}, selftests:
                     flow_input.payload === "selftests" ? {enable: true,
                     targets: flow_input.suites, extra_targets: ""} :
-                    {enable: false, targets: [], extra_targets: ""}})'
+                    {enable: false, targets: [], extra_targets: ""},
+                    usertests: flow_input.payload === "usertests" ?
+                    {enable: true, harnesses: [...new
+                    Set((flow_input.suites ?? []).map(s =>
+                    s.split("/")[0]))]} : {enable: false, harnesses: []}})'
                 boot_qemu:
                   type: javascript
                   expr: '({cpu: "host", ram: 4096, cpus: 4, accel: "kvm",
@@ -205,6 +216,48 @@ value:
               path: f/selftests/run
             skip_if:
               expr: flow_input.payload !== 'selftests'
+          - id: run_runtime_tests
+            summary: Run the selected test modules on the candidate (f/runtime_tests/run)
+            value:
+              type: flow
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                modules:
+                  type: javascript
+                  expr: flow_input.suites
+                service:
+                  type: javascript
+                  expr: '({timeout: flow_input.service?.timeout ?? 600,
+                    poll_interval: 10, stream_logs: false})'
+              path: f/runtime_tests/run
+            skip_if:
+              expr: flow_input.payload !== 'runtime_tests'
+          - id: run_usertests
+            summary: Run the selected harnesses on the candidate (f/usertests/run)
+            value:
+              type: flow
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                harnesses:
+                  type: javascript
+                  expr: flow_input.suites
+                seed:
+                  type: static
+                  value: 0
+                long_run:
+                  type: static
+                  value: false
+                service:
+                  type: javascript
+                  expr: '({timeout: flow_input.service?.timeout ?? 1200,
+                    poll_interval: 10, stream_logs: false})'
+              path: f/usertests/run
+            skip_if:
+              expr: flow_input.payload !== 'usertests'
     - id: report
       summary: Render the bisect run (f/kernel/bisect_report)
       value:
@@ -260,18 +313,25 @@ schema:
     payload:
       type: string
       description: |-
-        What decides a candidate's verdict: `kunit` builds and boots the
-        candidate on the bisect guest and runs the selected KUnit suites;
-        `selftests` does the same with kselftest collections (built from
-        the candidate's own tree), pair it with Max Runtime to hunt a
-        runtime regression; `usertests_build` never touches a guest and
-        only asks whether the selected `tools/testing` harnesses compile
-        at the candidate (seconds per iteration).
+        What decides a candidate's verdict. All but the last build and
+        boot the candidate on the bisect guest: `kunit` runs the selected
+        KUnit suites; `selftests` runs kselftest collections built from
+        the candidate's own tree; `runtime_tests` loads module-init test
+        modules (`test_xarray`, `test_maple_tree`, ...) and judges their
+        kmsg summaries; `usertests` runs the userspace harness binaries
+        (`radix-tree/xarray`, `radix-tree/maple`, ...) built from the
+        candidate's own `lib/` sources under sanitizers. Any of them
+        pairs with Max Runtime to hunt a runtime regression.
+        `usertests_build` never touches a guest and only asks whether the
+        selected `tools/testing` harnesses compile at the candidate
+        (seconds per iteration).
       default: kunit
       enum:
         - kunit
         - usertests_build
         - selftests
+        - runtime_tests
+        - usertests
       title: Payload
     error_re:
       type: string
@@ -285,10 +345,11 @@ schema:
     max_runtime:
       type: number
       description: |-
-        [payload=selftests] Seconds the run's summed item runtime may take
-        before a passing candidate still counts as `bad`. Pick a value
-        between the fast and slow endpoints' runtimes to bisect a runtime
-        regression. 0 = verdict is pass/fail only.
+        Seconds the run's summed item runtime may take before a passing
+        candidate still counts as `bad` (any guest payload whose report
+        records per-item times). Pick a value between the fast and slow
+        endpoints' runtimes to bisect a runtime regression. 0 = verdict
+        is pass/fail only.
       default: 0
       title: Max Runtime
     compiler:
@@ -331,10 +392,12 @@ schema:
     suites:
       type: object
       description: |-
-        KUnit suites (or, for the build payload, usertests harness
-        directories) whose combined verdict drives the bisect; every listed
-        one must pass for a candidate to count as good. Pick the failing
-        one alone for the sharpest signal.
+        What the payload runs, named in its own vocabulary: KUnit suites,
+        kselftest collections, runtime-test modules (`test_xarray`),
+        usertests harness binaries (`radix-tree/maple`), or, for the
+        build payload, harness directories. Every listed one must pass
+        for a candidate to count as good; pick the failing one alone for
+        the sharpest signal.
       default: []
       format: dynmultiselect-list_suites
       title: Suites
@@ -396,10 +459,10 @@ schema:
     def list_suites(
         vm_name: str = "", payload: str = "", filterText: str = "", **_: object
     ) -> list:
-        # KUnit payload: the guest's suites from the per-VM cache
-        # f/kunit/discover writes, falling back to the union of every VM's
-        # cache. Build payload: the usertests harness catalog. Selftests
-        # payload: the kselftest collections picker.
+        # Each payload's own picker: the guest's KUnit suites from the per-VM
+        # cache f/kunit/discover writes (union fallback), the kselftest
+        # collections, the runtime-test module catalog, the usertests harness
+        # binaries, or the build payload's harness directory catalog.
         try:
             if payload == "usertests_build":
                 from f.kernel.build_usertests import CATALOG
@@ -408,6 +471,12 @@ schema:
             if payload == "selftests":
                 from f.selftests.common import list_collections
                 return list_collections(vm_name, filterText)
+            if payload == "runtime_tests":
+                from f.runtime_tests.common import list_modules
+                return list_modules(vm_name, filterText)
+            if payload == "usertests":
+                from f.usertests.common import list_harnesses
+                return list_harnesses(vm_name, filterText)
             from f.kunit.common import list_suites as _list_suites
             return _list_suites(vm_name, filterText)
         except Exception:

@@ -4,8 +4,9 @@ description: |-
   iteration. Keeps its state under `$SYSTEM_DIR/bisect/<vm_name>/`: a
   `--shared --no-checkout` clone of the Bare plus `state.json`. Reads the
   previous candidate's verdict from the freshest payload `report.json` (the
-  kunit or selftests run's report on the VM's share, or
-  `f/kernel/check_usertests`'s report in the state dir; a failed bringup or
+  kunit, selftests, runtime-tests or usertests run's report on the VM's
+  share, or `f/kernel/check_usertests`'s report in the state dir; a failed
+  bringup or
   run reads as `skip`, a report of `untestable` too, and with `max_runtime`
   set a passed report that ran longer reads as bad), advances the phase
   (`verify_bad` tests the bad
@@ -49,15 +50,17 @@ schema:
     payload:
       type: string
       description: |-
-        Verdict source: `kunit` and `selftests` read their suite run's
-        report from the VM's share, `usertests_build` reads
-        `f/kernel/check_usertests`'s host-side harness build report from
-        the state dir.
+        Verdict source: `kunit`, `selftests`, `runtime_tests` and
+        `usertests` read their suite run's report from the VM's share,
+        `usertests_build` reads `f/kernel/check_usertests`'s host-side
+        harness build report from the state dir.
       default: kunit
       enum:
         - kunit
         - usertests_build
         - selftests
+        - runtime_tests
+        - usertests
       title: Payload
     bad:
       type: string

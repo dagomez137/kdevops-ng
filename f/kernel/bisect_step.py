@@ -7,9 +7,9 @@ iteration. State lives on disk under `$SYSTEM_DIR/bisect/<vm_name>/`: a
 materialized; `git bisect --no-checkout` keeps the candidate in
 `BISECT_HEAD`) plus `state.json`. The previous candidate's verdict comes
 from disk too, never from flow results: the freshest `report.json` the
-payload wrote since the last decision (the kunit or selftests run's report
-on the VM's share, or `f/kernel/check_usertests`'s report in the state
-dir). A failed bringup or run therefore cannot skip the decision; it just
+payload wrote since the last decision (the kunit, selftests, runtime-tests
+or usertests run's report on the VM's share, or
+`f/kernel/check_usertests`'s report in the state dir). A failed bringup or run therefore cannot skip the decision; it just
 reads as `skip`. The report contract is `passed` -> good, `untestable` ->
 skip, anything else -> bad; with `max_runtime` set, a passed report whose
 summed item runtime exceeds it reads as bad too, which is what a runtime
@@ -42,7 +42,9 @@ from pathlib import Path
 
 from f.common.devshell import Git
 from f.kunit.common import share_dir as kunit_share_dir
+from f.runtime_tests.common import cache_dir as runtime_tests_cache_dir
 from f.selftests.common import share_dir as selftests_share_dir
+from f.usertests.common import share_dir as usertests_share_dir
 
 _FIRST_BAD = "is the first bad commit"
 
@@ -70,10 +72,18 @@ def _resolve(git: Git, repo: Path, ref: str) -> str:
     raise ValueError(f"ref {ref!r} does not resolve in the Bare clone at {repo}")
 
 
+_REPORT_ROOTS = {
+    "kunit": kunit_share_dir,
+    "selftests": selftests_share_dir,
+    "runtime_tests": runtime_tests_cache_dir,
+    "usertests": usertests_share_dir,
+}
+
+
 def _report_candidates(payload: str, vm_name: str, sdir: Path) -> list[Path]:
     if payload == "usertests_build":
         return [sdir / "report.json"]
-    root = (selftests_share_dir if payload == "selftests" else kunit_share_dir)(vm_name)
+    root = _REPORT_ROOTS[payload](vm_name)
     return [root / "report.json", *root.glob("*/report.json")]
 
 
@@ -136,7 +146,7 @@ def main(
     suites = list(suites or [])
     if not suites:
         raise ValueError("suites must name at least one suite to bisect on")
-    if payload not in ("kunit", "usertests_build", "selftests"):
+    if payload not in (*_REPORT_ROOTS, "usertests_build"):
         raise ValueError(f"unknown payload {payload!r}")
     if payload == "usertests_build":
         from f.kernel.build_usertests import CATALOG
