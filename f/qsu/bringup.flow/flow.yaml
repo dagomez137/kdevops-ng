@@ -814,13 +814,13 @@ schema:
 
                 being silently dropped from the stage. `scatterlist` is off the
 
-                default set: since v7.2-rc3 `include/linux/scatterlist.h` needs
+                default set: unbuildable upstream since v6.2 through three stacked
 
-                `struct folio` and `page_range_contiguous()`, which the harness''s
+                shim gaps (`zone_device_pages_have_same_pgmap()`, `struct folio`,
 
-                userspace shim headers lack (upstream fix candidate); pick it only
+                `page_range_contiguous()`), all upstream fix candidates; pick it
 
-                for a kernel where it builds.'
+                only for a tree where it builds.'
               default:
               - radix-tree
               - vma

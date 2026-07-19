@@ -1069,10 +1069,10 @@ schema:
             Harness directories under `tools/testing` to build. A harness
             whose expected binaries do not all build fails the step instead of
             being silently dropped from the stage. `scatterlist` is off the
-            default set: since v7.2-rc3 `include/linux/scatterlist.h` needs
-            `struct folio` and `page_range_contiguous()`, which the harness's
-            userspace shim headers lack (upstream fix candidate); pick it only
-            for a kernel where it builds.
+            default set: unbuildable upstream since v6.2 through three stacked
+            shim gaps (`zone_device_pages_have_same_pgmap()`, `struct folio`,
+            `page_range_contiguous()`), all upstream fix candidates; pick it
+            only for a tree where it builds.
           default:
             - radix-tree
             - vma

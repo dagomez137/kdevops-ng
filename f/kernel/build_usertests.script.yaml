@@ -1,7 +1,7 @@
 summary: Build the kernel userspace test harnesses
 description: |-
   Bare `make` each selected userspace test harness under `tools/testing`
-  (radix-tree, vma, rbtree, memblock, scatterlist) inside the
+  (radix-tree, vma, memblock, scatterlist) inside the
   `nixos-flake#build-usertests` devShell, stage the expected binaries to
   `<destdir>/usertests_install/<dir>/<binary>` with a MANIFEST, then `make
   clean` each harness directory so the shared worktree stays pristine. A
@@ -48,7 +48,6 @@ schema:
         enum:
           - radix-tree
           - vma
-          - rbtree
           - memblock
           - scatterlist
     reuse_present:
