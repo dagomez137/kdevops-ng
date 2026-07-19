@@ -97,8 +97,13 @@ The run form
 last); empty runs everything the artifact stages. **Seed** seeds the
 randomized ``radix-tree/main`` (0 keeps it random; the printed seed is
 archived in the report either way). **Long Run** passes ``-l`` to
-``radix-tree/main`` (its extended mode runs for tens of minutes). The
-**Service** group bounds the run: **Item Timeout** defaults to 1200
+``radix-tree/main`` (its extended mode runs for tens of minutes).
+**Repeats** (default 1) runs each picked harness that many times back to
+back; the report folds same-item runs into one entry whose ``time(s)`` is
+the median, with the min/max spread, the per-run list, and a ``tests/s``
+throughput beside it, so a runtime comparison rests on a statistic
+instead of one boot's noise (a single failing run still fails the job).
+The **Service** group bounds the run: **Item Timeout** defaults to 1200
 seconds because ``radix-tree/main`` carries a hard 30-second sleep floor
 and the sanitized ``maple``/``xarray`` runs take minutes.
 

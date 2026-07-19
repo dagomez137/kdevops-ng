@@ -73,7 +73,13 @@ The run form
 
 **Modules** picks the modules to run from the booted kernel's catalog
 (cached per VM by ``discover``; curated labels, benchmarks last); empty
-runs every present catalog module. The **Service** group bounds the run:
+runs every present catalog module. **Repeats** (default 1) runs each
+picked module that many times back to back; the report folds same-item
+runs into one entry whose ``time(s)`` is the median, with the min/max
+spread, the per-run list, and a ``tests/s`` throughput beside it, so a
+runtime comparison rests on a statistic instead of one boot's noise (a
+single failing run still fails the job). The **Service** group bounds the
+run:
 **Item Timeout** (default 600 seconds) is ``wait``'s per-module deadline,
 **Poll Interval** (default 10 seconds) paces the polls, and **Stream
 Logs** (default on) prints the guest's merged unit and kernel journal into
