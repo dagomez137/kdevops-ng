@@ -100,6 +100,8 @@ cmd_links = {
     "systemd-escape": f"{_SYSTEMD}/systemd-escape.html",
     "timeout": f"{_MAN7}/timeout.1.html",
     "git bisect": f"{_MAN7}/git-bisect.1.html",
+    "qemu-img": "https://www.qemu.org/docs/master/tools/qemu-img.html",
+    "virtiofsd": "https://gitlab.com/virtio-fs/virtiofsd",
 }
 
 

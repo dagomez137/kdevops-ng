@@ -45,3 +45,5 @@ Flows
 - :doc:`/flows/usertests` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/sysrq` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/bisect` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/boot` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/bringup` (add to ``docs/flows/index.rst``)
