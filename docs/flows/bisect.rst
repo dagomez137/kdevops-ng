@@ -68,5 +68,20 @@ healthy, so a candidate whose build fails without matching it counts as
 good. That is what lets each layer of a long-rotted harness be bisected in
 its own range, even when an older break wrecks the whole of it.
 
+A third payload, ``selftests``, runs the same build-boot-run loop with
+kselftest collections instead of KUnit suites: each candidate's bringup
+also builds the selected collections from that candidate's own tree
+(``make kselftest-install``), the guest gets the selftests closure, and
+:doc:`the selftests run <selftests>` produces the verdict. Its
+``max_runtime`` knob is what makes it a performance tool: a candidate
+whose run passes but takes longer than the threshold counts as bad, so a
+runtime regression (a suite that used to finish in seconds and now takes
+minutes) bisects exactly like a failure. Pick a threshold between the
+fast and slow endpoints' measured runtimes; the per-item ``time(s)`` the
+selftests report records is the number being compared. Because the test
+scripts travel with the tree, the first bad commit may land in the test
+itself rather than the kernel; either way it names what changed the
+runtime.
+
 Extending to another guest suite is mechanical: one more branch around the
 run step and that suite's report location in :src:`f/kernel/bisect_step`.
