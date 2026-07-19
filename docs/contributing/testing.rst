@@ -58,6 +58,11 @@ lean on: a crashed run can never read as a pass, an empty run is failed,
 ``report`` returns ``render_all`` as the sole key, and ``judge`` fails a
 red run while passing a green report through unchanged.
 
+Beyond the suites, the smoke set covers the pure probe and resolve steps
+of the build and bringup flows: a fake identity must read absent from the
+store index, an empty pick set must resolve to an empty manifest, and a
+reuse mode without a pick must refuse.
+
 Two caveats frame how to read a result. A preview runs the local step body,
 but its ``from f...`` imports resolve against the deployed workspace copy,
 so a shared-module change reaches previews only after the next

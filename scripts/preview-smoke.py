@@ -80,6 +80,26 @@ def check_crashed_fails(result: dict) -> str | None:
     return None
 
 
+def check_probe_absent(result: dict) -> str | None:
+    if not isinstance(result, dict) or "error" in result:
+        return f"expected a probe result dict, got {result!r}"
+    if result.get("present") is not False:
+        return f"expected present False for a fake identity, got {result!r}"
+    return None
+
+
+def check_resolve_empty(result: dict) -> str | None:
+    if not isinstance(result, dict) or "error" in result:
+        return f"expected a resolve manifest, got {result!r}"
+    if result.get("kernel") != {} or result.get("closure") != {}:
+        return f"expected an empty no-reuse manifest, got {result!r}"
+    if result.get("qemu_binary") is not None:
+        return f"expected no emulator in a no-reuse manifest, got {result!r}"
+    if not result.get("host_user"):
+        return f"expected a resolved host_user, got {result!r}"
+    return None
+
+
 def cases() -> list[Case]:
     out = []
     for suite, flow, per_key, item_arg in SUITES:
@@ -120,6 +140,39 @@ def cases() -> list[Case]:
                 check_crashed_fails,
             ),
         ]
+    # The pure probe and resolve steps of the build and bringup flows: a fake
+    # identity must read absent, an empty pick set must resolve empty, and a
+    # reuse mode without a pick must refuse.
+    out += [
+        Case(
+            "kernel:reuse-probe",
+            "f/kernel/build.flow",
+            "reuse_check",
+            {"destdir": "/nonexistent/preview-smoke", "uts_release": "0.0.0-smoke"},
+            check_probe_absent,
+        ),
+        Case(
+            "qemu:reuse-probe",
+            "f/qemu/build.flow",
+            "reuse_check",
+            {"prefix": "/nonexistent/preview-smoke"},
+            check_probe_absent,
+        ),
+        Case(
+            "bringup:resolve-empty",
+            "f/qsu/bringup.flow",
+            "resolve",
+            {},
+            check_resolve_empty,
+        ),
+        Case(
+            "bringup:resolve-red",
+            "f/qsu/bringup.flow",
+            "resolve",
+            {"kernel_reuse": True},
+            check_error,
+        ),
+    ]
     return out
 
 
