@@ -227,8 +227,8 @@ in
     description = "Apply ruff lint fixes and formatting to all Python";
     runtimeInputs = [ pkgs.ruff ];
     text = ''
-      ruff check --fix scripts f
-      ruff format scripts f
+      ruff check --fix scripts f tests
+      ruff format scripts f tests
     '';
   };
 

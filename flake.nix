@@ -44,6 +44,8 @@
         fileset = lib.fileset.unions [
           ./f
           ./tests
+          # The render_config drift guard reads the vendored closure templates.
+          ./vendor/nixos-flake/templates
         ];
       };
       generatedSrc = lib.fileset.toSource {

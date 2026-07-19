@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Fixture tests for the KUnit KTAP parser (`f.kunit.common.parse_ktap`)."""
 
-from f.kunit.common import parse_ktap
+from f.kunit.common import (
+    parse_ktap,
+)
 
 KTAP = """\
 KTAP version 1

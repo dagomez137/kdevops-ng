@@ -3,9 +3,13 @@
 let
   # PyYAML: gen-bringup and reflow-descriptions parse the wmill yaml.
   # pytest: the tests/ fixture suite over the f/ step modules.
+  # Jinja2 and cryptography: imported at module level by the f/qsu render
+  # modules and f/workbench/ssh_key the fixture tests import.
   pyEnv = pkgs.python3.withPackages (ps: [
     ps.pyyaml
     ps.pytest
+    ps.jinja2
+    ps.cryptography
   ]);
 
   # PyData theme pinned ahead of the channel via its published wheel.
