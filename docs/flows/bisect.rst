@@ -7,8 +7,8 @@ Bisect a kernel regression
 ==========================
 
 The :src:`f/kernel/bisect` flow finds the first bad kernel commit for a
-failing KUnit suite (the default payload; a host-side build payload follows
-below) by driving :cmd:`git bisect` with real guest runs. Each
+failing KUnit suite (the default payload; the selftests and host-side build
+payloads follow below) by driving :cmd:`git bisect` with real guest runs. Each
 iteration builds the candidate commit, boots a dedicated guest with it, runs
 the selected suites, and feeds the verdict back, until git names the first
 bad commit. It composes the flows you already know: :src:`f/qsu/bringup`
@@ -47,10 +47,12 @@ starts fresh; an aborted run resumes where it stopped, and the state clone
 also accepts a manual :cmd:`git bisect` for hand-driven follow-up.
 
 The form asks for the two endpoints (from the Bare's live ref list, the same
-picker as the build flows), the suites (pick the one failing suite alone for
-the sharpest signal), a dedicated guest name (default ``bisect``; the guest
-is replaced on every iteration, so keep it away from developer guests), an
-iteration cap, and the per-suite timeout. ``report`` renders the iteration
+picker as the build flows), the payload (which also decides what the suites
+picker offers: KUnit suites, kselftest collections, or usertests harnesses),
+the suites (pick the one failing suite alone for the sharpest signal), a
+dedicated guest name (default ``bisect``; the guest is replaced on every
+iteration, so keep it away from developer guests), an iteration cap, and the
+per-suite timeout. ``report`` renders the iteration
 table and, on completion, the first bad commit with its subject plus the
 full ``git bisect log``; ``judge`` fails the job unless the run reached a
 real conclusion, so an exhausted or untestable run is a red Windmill job.
@@ -78,7 +80,10 @@ whose run passes but takes longer than the threshold counts as bad, so a
 runtime regression (a suite that used to finish in seconds and now takes
 minutes) bisects exactly like a failure. Pick a threshold between the
 fast and slow endpoints' measured runtimes; the per-item ``time(s)`` the
-selftests report records is the number being compared. Because the test
+selftests report records is the number being compared. The **Service**
+group's **Per-test Timeout** passes the runner's override through, which a
+collection like ``kmod`` needs (it ships no ``settings`` file and dies at
+the 45-second default; give it 600 or more). Because the test
 scripts travel with the tree, the first bad commit may land in the test
 itself rather than the kernel; either way it names what changed the
 runtime.
