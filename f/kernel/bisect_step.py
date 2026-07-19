@@ -7,11 +7,13 @@ iteration. State lives on disk under `$SYSTEM_DIR/bisect/<vm_name>/`: a
 materialized; `git bisect --no-checkout` keeps the candidate in
 `BISECT_HEAD`) plus `state.json`. The previous candidate's verdict comes
 from disk too, never from flow results: the freshest `report.json` the
-payload wrote since the last decision (the kunit run's report on the VM's
-share, or `f/kernel/check_usertests`'s report in the state dir). A failed
-bringup or run therefore cannot skip the decision; it just reads as `skip`.
-The report contract is `passed` -> good, `untestable` -> skip, anything
-else -> bad.
+payload wrote since the last decision (the kunit or selftests run's report
+on the VM's share, or `f/kernel/check_usertests`'s report in the state
+dir). A failed bringup or run therefore cannot skip the decision; it just
+reads as `skip`. The report contract is `passed` -> good, `untestable` ->
+skip, anything else -> bad; with `max_runtime` set, a passed report whose
+summed item runtime exceeds it reads as bad too, which is what a runtime
+regression hunt bisects on.
 
 Phases: `verify_bad` tests the bad ref standalone (a pass ends the run as
 `not_reproducible_standalone`, itself a finding for ordering-dependent
@@ -39,7 +41,8 @@ import time
 from pathlib import Path
 
 from f.common.devshell import Git
-from f.kunit.common import share_dir
+from f.kunit.common import share_dir as kunit_share_dir
+from f.selftests.common import share_dir as selftests_share_dir
 
 _FIRST_BAD = "is the first bad commit"
 
@@ -70,11 +73,13 @@ def _resolve(git: Git, repo: Path, ref: str) -> str:
 def _report_candidates(payload: str, vm_name: str, sdir: Path) -> list[Path]:
     if payload == "usertests_build":
         return [sdir / "report.json"]
-    root = share_dir(vm_name)
+    root = (selftests_share_dir if payload == "selftests" else kunit_share_dir)(vm_name)
     return [root / "report.json", *root.glob("*/report.json")]
 
 
-def _fresh_verdict(candidates: list[Path], decided_at: float) -> str | None:
+def _fresh_verdict(
+    candidates: list[Path], decided_at: float, max_runtime: float = 0.0
+) -> str | None:
     """`good`/`bad`/`skip` from the newest report.json written after the last
     decision, None when no run reported (the payload never got there)."""
     best = None
@@ -86,13 +91,23 @@ def _fresh_verdict(candidates: list[Path], decided_at: float) -> str | None:
     if best is None or best.stat().st_mtime <= decided_at:
         return None
     try:
-        status = json.loads(best.read_text()).get("status")
+        report = json.loads(best.read_text())
+        status = report.get("status")
     except Exception:
         return None
     print(f"verdict source: {best}", flush=True)
-    if status == "passed":
-        return "good"
-    return "skip" if status == "untestable" else "bad"
+    if status == "untestable":
+        return "skip"
+    if status != "passed":
+        return "bad"
+    if max_runtime:
+        total = sum((i.get("runtime") or 0) for i in report.get("items") or [])
+        print(
+            f"runtime: total={round(total, 2)}s max_runtime={max_runtime}s", flush=True
+        )
+        if total > max_runtime:
+            return "bad"
+    return "good"
 
 
 def _bisect_feed(git: Git, repo: Path, verdict: str, sha: str) -> str:
@@ -116,11 +131,12 @@ def main(
     max_steps: int = 20,
     payload: str = "kunit",
     error_re: str = "",
+    max_runtime: float = 0.0,
 ) -> dict:
     suites = list(suites or [])
     if not suites:
         raise ValueError("suites must name at least one suite to bisect on")
-    if payload not in ("kunit", "usertests_build"):
+    if payload not in ("kunit", "usertests_build", "selftests"):
         raise ValueError(f"unknown payload {payload!r}")
     if payload == "usertests_build":
         from f.kernel.build_usertests import CATALOG
@@ -150,6 +166,7 @@ def main(
         or state.get("suites") != suites
         or state.get("payload", "kunit") != payload
         or state.get("error_re", "") != error_re
+        or state.get("max_runtime", 0.0) != max_runtime
         or state.get("outcome")
     )
 
@@ -171,6 +188,7 @@ def main(
             "suites": suites,
             "payload": payload,
             "error_re": error_re,
+            "max_runtime": max_runtime,
             "good_sha": _resolve(git, repo, good),
             "bad_sha": bad_sha,
             "phase": "verify_bad",
@@ -183,7 +201,10 @@ def main(
         state["candidate"] = state["bad_sha"]
     else:
         candidates = _report_candidates(payload, vm_name, sdir)
-        verdict = _fresh_verdict(candidates, float(state["decided_at"])) or "skip"
+        verdict = (
+            _fresh_verdict(candidates, float(state["decided_at"]), max_runtime)
+            or "skip"
+        )
         prev = state["candidate"]
         phase = state["phase"]
         print(f"verdict={verdict} candidate={prev} phase={phase}", flush=True)

@@ -12,15 +12,16 @@ description: |-
   bisect skip`ped, so this flow bisects suite verdicts, not boot failures.
   The state (a `--shared` clone of the Bare plus `state.json`) lives under
   `$SYSTEM_DIR/bisect/<vm_name>/` and survives for a manual `git bisect`
-  resume. Two payloads: `kunit` (the default, above) and `usertests_build`,
-  which skips the guest entirely and asks only whether the selected
-  `tools/testing` harnesses compile at the candidate
-  (`f/kernel/check_usertests`), seconds per iteration; its `error_re` knob
-  scopes the hunt to one failure signature, and a build failing without
-  that signature counts as good, so each layer of a harness carrying
-  several independent breaks bisects in its own range. Another guest
-  suite means one more branch around the run step plus its report path in
-  `f/kernel/bisect_step`.
+  resume. Three payloads: `kunit` (the default, above); `selftests`, the
+  same build-boot-run loop with kselftest collections built from each
+  candidate's own tree (`f/selftests/run`), whose `max_runtime` knob turns
+  a passing-but-slower run into a bad verdict so a runtime regression
+  bisects like a failure; and `usertests_build`, which skips the guest
+  entirely and asks only whether the selected `tools/testing` harnesses
+  compile at the candidate (`f/kernel/check_usertests`), seconds per
+  iteration, its `error_re` knob scoping the hunt to one failure signature
+  (a build failing without the signature counts as good, so each layer of
+  a harness carrying several independent breaks bisects in its own range).
 value:
   modules:
     - id: iterate
@@ -56,6 +57,9 @@ value:
                 error_re:
                   type: javascript
                   expr: flow_input.error_re ?? ""
+                max_runtime:
+                  type: javascript
+                  expr: flow_input.max_runtime ?? 0
               path: f/kernel/bisect_step
               tag_override: vm
             stop_after_if:
@@ -109,7 +113,8 @@ value:
                     {vm_name: flow_input.vm_name, home: true, shares: {},
                     home_dir: "", ssh_keys: [], user_name: "kdevops"},
                     closure: {profiles: ["devel"], overrides: [],
-                    test_suites: ["kunit"]}})'
+                    test_suites: [flow_input.payload === "selftests" ?
+                    "selftests" : "kunit"]}})'
                 boot_nvme:
                   type: javascript
                   expr: '({customize_drives: false, nvme_drive_count: 4,
@@ -122,7 +127,10 @@ value:
                     modules_install: true}, configuration: {config_method:
                     "preset", preset: "imageless_defconfig"}, worktree:
                     {custom_ref: true, git_ref: results.step.candidate,
-                    b4_series: "", custom_label: false}})'
+                    b4_series: "", custom_label: false}, selftests:
+                    flow_input.payload === "selftests" ? {enable: true,
+                    targets: flow_input.suites, extra_targets: ""} :
+                    {enable: false, targets: [], extra_targets: ""}})'
                 boot_qemu:
                   type: javascript
                   expr: '({cpu: "host", ram: 4096, cpus: 4, accel: "kvm",
@@ -170,7 +178,31 @@ value:
                     poll_interval: 5, stream_logs: true})'
               path: f/kunit/run
             skip_if:
-              expr: flow_input.payload === 'usertests_build'
+              expr: (flow_input.payload ?? 'kunit') !== 'kunit'
+          - id: run_selftests
+            summary: Run the selected collections on the candidate (f/selftests/run)
+            value:
+              type: flow
+              input_transforms:
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                collections:
+                  type: javascript
+                  expr: flow_input.suites
+                tests:
+                  type: javascript
+                  expr: '[]'
+                override_timeout:
+                  type: javascript
+                  expr: flow_input.service?.override_timeout ?? 0
+                service:
+                  type: javascript
+                  expr: '({timeout: flow_input.service?.timeout ?? 600,
+                    poll_interval: 15, stream_logs: false})'
+              path: f/selftests/run
+            skip_if:
+              expr: flow_input.payload !== 'selftests'
     - id: report
       summary: Render the bisect run (f/kernel/bisect_report)
       value:
@@ -206,7 +238,7 @@ value:
       path: f/kunit/stop
       tag_override: vm
     skip_if:
-      expr: flow_input.payload === 'usertests_build'
+      expr: (flow_input.payload ?? 'kunit') !== 'kunit'
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
@@ -216,6 +248,7 @@ schema:
     - payload
     - suites
     - error_re
+    - max_runtime
     - vm_name
     - max_steps
     - service
@@ -225,13 +258,16 @@ schema:
       description: |-
         What decides a candidate's verdict: `kunit` builds and boots the
         candidate on the bisect guest and runs the selected KUnit suites;
-        `usertests_build` never touches a guest and only asks whether the
-        selected `tools/testing` harnesses compile at the candidate
-        (seconds per iteration).
+        `selftests` does the same with kselftest collections (built from
+        the candidate's own tree), pair it with Max Runtime to hunt a
+        runtime regression; `usertests_build` never touches a guest and
+        only asks whether the selected `tools/testing` harnesses compile
+        at the candidate (seconds per iteration).
       default: kunit
       enum:
         - kunit
         - usertests_build
+        - selftests
       title: Payload
     error_re:
       type: string
@@ -242,6 +278,15 @@ schema:
         build failure is `bad`.
       default: ''
       title: Error Regex
+    max_runtime:
+      type: number
+      description: |-
+        [payload=selftests] Seconds the run's summed item runtime may take
+        before a passing candidate still counts as `bad`. Pick a value
+        between the fast and slow endpoints' runtimes to bisect a runtime
+        regression. 0 = verdict is pass/fail only.
+      default: 0
+      title: Max Runtime
     bad:
       type: object
       description: |-
@@ -285,10 +330,11 @@ schema:
     service:
       type: object
       description: |-
-        Suite-run tuning passed through to the KUnit run.
+        Suite-run tuning passed through to the KUnit or selftests run.
       default: {}
       order:
         - timeout
+        - override_timeout
       properties:
         timeout:
           type: integer
@@ -297,6 +343,15 @@ schema:
             iteration.
           default: 600
           title: Suite Timeout
+        override_timeout:
+          type: integer
+          description: |-
+            [payload=selftests] The kselftest runner's per-test timeout
+            override; 0 keeps each collection's own `settings` default
+            (45 seconds when it ships none, which kills `kmod`; give it
+            600 or more).
+          default: 0
+          title: Per-test Timeout
       title: Service
   required:
     - bad
@@ -317,12 +372,16 @@ schema:
     ) -> list:
         # KUnit payload: the guest's suites from the per-VM cache
         # f/kunit/discover writes, falling back to the union of every VM's
-        # cache. Build payload: the usertests harness catalog.
+        # cache. Build payload: the usertests harness catalog. Selftests
+        # payload: the kselftest collections picker.
         try:
             if payload == "usertests_build":
                 from f.kernel.build_usertests import CATALOG
                 needle = (filterText or "").lower()
                 return [h for h in CATALOG if needle in h]
+            if payload == "selftests":
+                from f.selftests.common import list_collections
+                return list_collections(vm_name, filterText)
             from f.kunit.common import list_suites as _list_suites
             return _list_suites(vm_name, filterText)
         except Exception:
