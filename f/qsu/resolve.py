@@ -99,7 +99,7 @@ def main(
     vm_name: str = "",
 ) -> dict:
     if qemu_reuse and not qemu_index:
-        qemu_index = store.latest_index("qemu-")
+        qemu_index = store.latest_index("qemu-") or ""
         if not qemu_index:
             raise ValueError(
                 "QEMU mode is reuse but no QEMU is in the store index: build one "
