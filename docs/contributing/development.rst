@@ -128,6 +128,24 @@ change is visible to previews only after the next ``wmill sync push``. And a
 preview executes on the real workers, so preview only read-only steps, or
 mutating steps with arguments that cannot touch live state.
 
+``nix run .#preview-smoke`` packages that workflow as the standing smoke
+suite: for every test-suite flow it previews the ``collect``, ``report``,
+and ``judge`` modules in isolation with fixture and degrade arguments that
+touch no guest and no share, and asserts the contracts the flows lean on (a
+crashed run can never read as a pass, an empty run is failed, ``report``
+returns ``render_all`` as the sole key, ``judge`` fails a red run and
+passes a green report through unchanged). ``--only <substring>`` narrows
+the run while iterating on one suite or step. Because of the import caveat
+above, a red case can also mean the deployed copy of a shared module lags a
+local fix; that is the harness catching real skew, not a false alarm.
+
+The same contracts re-verify themselves on every deploy: each suite
+carries a ``selfcheck`` step whose leading ``# test:`` annotation registers
+it as a Windmill CI test, so pushing the flow or any of the suite's scripts
+runs the deployed ``collect``/``report``/``judge`` against the shared
+fixture cases in :src:`f/common/selfcheck` and badges the deployment red
+when a contract broke.
+
 Documentation
 =============
 
