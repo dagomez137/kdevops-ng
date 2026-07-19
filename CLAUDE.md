@@ -111,8 +111,11 @@ When writing or extending Windmill flows and steps, also follow these rules:
 The Python here is kept lint-clean and consistently formatted by Ruff, the
 single linter and formatter, configured in `pyproject.toml` at line length 88.
 `nix run .#format` applies it, and the flake's `lint` check verifies it, run
-together with the rest by `nix flake check`. This covers both the repo tooling
-under `scripts/` and the hand-authored Windmill step scripts under `f/**/*.py`.
+together with the rest by `nix flake check`. This covers the repo tooling
+under `scripts/`, the hand-authored Windmill step scripts under `f/**/*.py`,
+and the fixture tests under `tests/`, which exercise the pure logic of the
+`f/` step modules (parsers, verdict rules, store reads) in the flake's
+`tests` check with no instance and no network.
 Type-checking uses Pyright (basic mode, with the `f/` rules relaxed for
 Windmill's schema-bearing `main()` signatures); it is advisory, surfaced by the
 editor and `nix develop .#checks --command pyright`, not by the gate.
@@ -212,7 +215,7 @@ All commits must follow these six rules.
    implementation.
 
 6. Before committing, run `nix flake check` (ruff lint and format,
-   generated-file drift, tree formatting) and
+   generated-file drift, fixture tests, tree formatting) and
    `nix develop .#checks --command bash scripts/check-style.sh` (trailing
    whitespace, missing end-of-file newlines, and commit-message trailer
    formatting). See `docs/contributing/development.rst`.

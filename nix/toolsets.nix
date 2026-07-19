@@ -2,7 +2,11 @@
 { pkgs }:
 let
   # PyYAML: gen-bringup and reflow-descriptions parse the wmill yaml.
-  pyEnv = pkgs.python3.withPackages (ps: [ ps.pyyaml ]);
+  # pytest: the tests/ fixture suite over the f/ step modules.
+  pyEnv = pkgs.python3.withPackages (ps: [
+    ps.pyyaml
+    ps.pytest
+  ]);
 
   # PyData theme pinned ahead of the channel via its published wheel.
   docsPython = pkgs.python3.withPackages (ps: [

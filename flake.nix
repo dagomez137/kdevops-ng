@@ -35,7 +35,15 @@
         fileset = lib.fileset.unions [
           ./scripts
           ./f
+          ./tests
           ./pyproject.toml
+        ];
+      };
+      testsSrc = lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./f
+          ./tests
         ];
       };
       generatedSrc = lib.fileset.toSource {
@@ -63,6 +71,7 @@
                 pkgs
                 lintSrc
                 generatedSrc
+                testsSrc
                 toolsets
                 ;
             }

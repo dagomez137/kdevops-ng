@@ -17,7 +17,7 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["E501"]
 
 [tool.pyright]
-include = ["scripts", "f"]
+include = ["scripts", "f", "tests"]
 exclude = ["vendor", "**/__pycache__"]
 extraPaths = ["."]
 typeCheckingMode = "basic"
