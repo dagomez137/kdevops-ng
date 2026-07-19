@@ -76,8 +76,10 @@ guest exposes (an init-only suite has no ``run`` node, so it runs only when
 picked explicitly). A form dropdown cannot reach the guest, so the picker
 reads the per-VM cache the flow's ``discover`` step writes on each run:
 after booting a different kernel the list is stale until the next run's
-``discover`` refreshes it, and before the first discovery it falls back to
-the curated set (``rust_rxarray``, ``rust_doctests_kernel``).
+``discover`` refreshes it. A guest with no cache yet (a fresh bisect guest,
+for example) falls back to the union of every guest's cache, and only with
+no caches at all to the curated set (``rust_rxarray``,
+``rust_doctests_kernel``).
 
 The **Service** group bounds the run. **Suite Timeout** (default 600
 seconds) is ``wait``'s per-suite deadline; on expiry the unit is stopped.
