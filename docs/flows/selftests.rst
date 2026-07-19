@@ -48,10 +48,12 @@ On the guest each collection runs as a template unit started with
 ``ok N selftests: <collection>: <test>`` line per test (with ``# SKIP``,
 ``# XFAIL``, ``# TIMEOUT`` or ``# exit=<rc>`` directives), and a closing
 ``# Totals:`` line. The verdict is that KTAP: the units pass
-``--no-error-on-fail``, so the unit's exit status reports only
-infrastructure errors (an unknown collection, a missing runner), never a
-test failure, and ``collect`` checks the plan against the parsed result
-lines so a journal truncated mid-run can never read as a pass.
+``--no-error-on-fail`` where the tree's runner supports it, so the unit's
+exit status reports only infrastructure errors (an unknown collection, a
+missing runner); a tree old enough to predate the flag reports test
+failures in the exit status too, with the same KTAP verdict either way.
+``collect`` checks the plan against the parsed result lines so a journal
+truncated mid-run can never read as a pass.
 
 Before starting the unit, ``start`` captures the guest journal's end-of-now
 cursor: everything after it belongs to this run, so a re-run can never
@@ -217,9 +219,11 @@ List the units a run has instantiated, and the status of one collection:
 
 ``ActiveState=activating`` means the collection is still running,
 ``inactive`` is the success terminus and ``failed`` the failure terminus.
-Remember the exit-status caveat: with ``--no-error-on-fail`` a *failed
-unit* means the runner itself could not do its job; test failures leave the
-unit successful and live in the KTAP. Read a run's full KTAP back from the
+Remember the exit-status caveat: with ``--no-error-on-fail`` (passed
+whenever the tree's runner supports it) a *failed unit* means the runner
+itself could not do its job; test failures leave the unit successful and
+live in the KTAP. On an old tree without the flag, a failed unit can be
+either; the KTAP decides. Read a run's full KTAP back from the
 journal:
 
 .. code-block:: console
