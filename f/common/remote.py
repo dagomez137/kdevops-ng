@@ -130,19 +130,29 @@ class RemoteSystemd:
         )
 
     def ssh(
-        self, *args: str, capture: bool = True, check: bool = True, quiet: bool = False
+        self,
+        *args: str,
+        capture: bool = True,
+        check: bool = True,
+        quiet: bool = False,
+        merge_stderr: bool = False,
     ):
         """Run `<args>` in the guest over the vsock-SSH transport.
 
         Logs the terse `+ ssh <vm> <args>` (the `nix develop … --command ssh -o … -o …`
         wrapper is constant boilerplate, so the devShell dispatch is logged quietly);
         `quiet` drops even that line, for the repeated polls of a wait/reboot loop.
+        `merge_stderr` folds the command's stderr into the captured output, so a tool
+        that reports on stderr (for example `xfs_info` on a device with no superblock)
+        is surfaced rather than dropped; capture only.
         """
         if not quiet:
             print(f"+ ssh {self._vm} {shlex.join(args)}", flush=True)
         argv = self._ssh_argv(*args)
         if capture:
-            return self._shell.capture(*argv, check=check, quiet=True)
+            return self._shell.capture(
+                *argv, check=check, quiet=True, merge_stderr=merge_stderr
+            )
         return self._shell.run(*argv, check=check, quiet=True)
 
     def systemctl(
