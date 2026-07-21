@@ -586,7 +586,7 @@ schema:
           type: integer
           description: |-
             Number of NVMe drives (`-device nvme` + a qcow2 file each).
-          default: 4
+          default: 5
           title: Drive Count
         nvme_drive_size_gb:
           type: integer

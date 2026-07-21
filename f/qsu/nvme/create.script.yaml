@@ -31,7 +31,7 @@ schema:
       description: |-
         Number of NVMe qcow2 files to create (`nvme0.qcow2 .. nvme<N-1>.qcow2`).
         0 skips.
-      default: 4
+      default: 5
       title: NVMe Drive Count
     nvme_drive_size_gb:
       type: integer

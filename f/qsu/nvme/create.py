@@ -28,7 +28,7 @@ from f.qsu.common import nvme_drives, state_dir
 
 def main(
     vm_name: str,
-    nvme_drive_count: int = 4,
+    nvme_drive_count: int = 5,
     nvme_drive_size_gb: int = 20,
     nvme_drives_override: list | None = None,
 ) -> dict:

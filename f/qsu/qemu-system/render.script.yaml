@@ -554,7 +554,7 @@ schema:
       description: |-
         Number of NVMe `-device nvme` drives to emit (qcow2 files created by
         nvme/create).
-      default: 4
+      default: 5
       title: NVMe Drive Count
     opt_io_size:
       type: string

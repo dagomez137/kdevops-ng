@@ -89,7 +89,7 @@ def main(
     controller_share_dir: str = "",
     controller_share_guest_mount: str = "",
     controller_share_readwrite: bool = False,
-    nvme_drive_count: int = 4,
+    nvme_drive_count: int = 5,
     # Per-drive NVMe knobs (single value or per-drive comma-list); 4kn defaults on
     # the BlockConf sizes, the rest empty/false. See NVME_*_KNOBS in f/qsu/common.
     logical_block_size: str = "4096",
