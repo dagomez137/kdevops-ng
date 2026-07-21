@@ -163,6 +163,7 @@ def main(
     stop_on_fail: bool = True,
     test_timeout: int = 0,
     test_timeouts: dict[str, int] | None = None,
+    recreate_test_dev: bool = True,
 ) -> dict:
     share = share_dir(vm_name)
 
@@ -183,7 +184,13 @@ def main(
     env_path = share / "check.env"
     _emit(
         env_path,
-        render_check_env(host_options, check_args, test_timeout, test_timeouts),
+        render_check_env(
+            host_options,
+            check_args,
+            test_timeout,
+            test_timeouts,
+            recreate_test_dev,
+        ),
     )
 
     # The editable `local_config` textarea is the source; empty falls back to the

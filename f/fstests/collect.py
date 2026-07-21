@@ -24,9 +24,9 @@ from f.fstests.common import (
     list_vms as _list_vms,
 )
 from f.fstests.common import (
+    parse_xfs_info,
     parse_xunit,
-    read_mkfs_cmd,
-    read_xfs_info,
+    read_section_devices,
     section_config,
     section_results_dir,
 )
@@ -59,16 +59,17 @@ def main(
     # The per-test/failure detail rides under `detail`, consumed only by `f/fstests/report`
     # to build the run's per-section tables; `status` folds "no report" into a failure.
     geometry = section_config(vm_name, section)
-    # Merge the realized xfs_info (feature bits) captured by f/fstests/prepare, if present.
-    xi = read_xfs_info(vm_name, section)
-    if xi:
-        geometry["features"] = xi["features"]
-        geometry["xfs_info"] = xi["raw"]
-    # The exact mkfs command prepare ran (with any injected -r rtdev=/-l logdev=), so the
-    # report shows how TEST_DEV was formatted, not just the configured MKFS_OPTIONS.
-    mkfs_cmd = read_mkfs_cmd(vm_name, section)
-    if mkfs_cmd:
-        geometry["mkfs_cmd"] = mkfs_cmd
+    # Merge the per-device geometry f/fstests/wait captured at run-end. The report's
+    # realized feature set + rtextents come from TEST_DEV's xfs_info; the raw per-device
+    # snapshots (TEST/SCRATCH filesystems, the raw realtime/log volumes) ride under
+    # detail.geometry.devices.
+    devices = read_section_devices(vm_name, section)
+    if devices:
+        geometry["devices"] = devices
+        test_xfs_info = (devices.get("TEST_DEV") or {}).get("xfs_info", "")
+        if test_xfs_info:
+            geometry["features"] = parse_xfs_info(test_xfs_info)
+            geometry["xfs_info"] = test_xfs_info
     report_present = summary["report_present"]
     # A crashed guest or an aborted (timed-out) section fails even when a report
     # exists: `start` removed the previous run's report, so anything present is

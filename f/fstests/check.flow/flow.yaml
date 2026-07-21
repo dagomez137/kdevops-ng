@@ -79,6 +79,9 @@ value:
           randomize:
             type: javascript
             expr: flow_input.check?.randomize
+          recreate_test_dev:
+            type: javascript
+            expr: flow_input.recreate_test_dev
           report:
             type: javascript
             expr: flow_input.check?.report
@@ -146,13 +149,10 @@ value:
               path: f/fstests/wipe
               tag_override: vm
           - id: prepare
-            summary: Create mount points + format TEST_DEV per FSTYP (f/fstests/prepare)
+            summary: Activate config, mount points, fs driver (f/fstests/prepare)
             value:
               type: script
               input_transforms:
-                mkfs_test_dev:
-                  type: javascript
-                  expr: flow_input.mkfs_test_dev
                 section:
                   type: javascript
                   expr: flow_input.iter.value
@@ -296,7 +296,7 @@ schema:
   type: object
   order:
     - vm_name
-    - mkfs_test_dev
+    - recreate_test_dev
     - wipe_devices
     - clean_results
     - logwrites
@@ -3654,14 +3654,16 @@ schema:
         scratch pool.
       default: true
       title: Log-writes Device
-    mkfs_test_dev:
+    recreate_test_dev:
       type: boolean
       description: |-
-        Per section, reformat `TEST_DEV` with that section's `FSTYP` before the
-        run (`./check` mkfs's only `SCRATCH_DEV`, never `TEST_DEV`). Lets a run
-        switch filesystems without rebuilding the guest.
+        Reformat `TEST_DEV` per section via xfstests' own `RECREATE_TEST_DEV`,
+        so `./check` recreates the test filesystem with that section's
+        `FSTYP`/`MKFS_OPTIONS` (attaching its realtime/external-log device)
+        before the run. On by default; off reuses the existing `TEST_DEV`
+        filesystem, which `./check` then only mounts.
       default: true
-      title: Format TEST_DEV
+      title: Recreate TEST_DEV
     reboot_guest:
       type: boolean
       description: |-

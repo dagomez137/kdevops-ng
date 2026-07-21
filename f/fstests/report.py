@@ -91,10 +91,9 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
     fstype = next((s.get("fstype") for s in sections if s.get("fstype")), "")
 
     # Table 2: one row per section: the filesystem-under-test geometry (configured size +
-    # the realized feature bits from xfs_info, when prepare captured them) then the counts.
-    # `rtextents` (from xfs_info) is the realtime proof: non-zero means TEST_DEV really got
-    # a realtime section. `mkfs` is the exact command prepare ran (with any injected
-    # -r rtdev=/-l logdev=), falling back to the configured MKFS_OPTIONS.
+    # the realized feature bits from TEST_DEV's xfs_info, captured by wait) then the counts.
+    # `rtextents` is the realtime proof: non-zero means TEST_DEV really got a realtime
+    # section. The per-device xfs_info snapshots ride in report.json's detail.geometry.
     section_rows = []
     for s in sections:
         geo = (s.get("detail") or {}).get("geometry") or {}
@@ -111,7 +110,6 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
                 "failed": int(s.get("failed", 0) or 0),
                 "notrun": int(s.get("notrun", 0) or 0),
                 "iterations": int(s.get("iterations", 1) or 1),
-                "mkfs": geo.get("mkfs_cmd") or geo.get("mkfs_options", ""),
             }
         )
 

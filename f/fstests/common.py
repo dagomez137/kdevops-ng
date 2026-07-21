@@ -446,24 +446,50 @@ def parse_xfs_info(text: str) -> dict[str, str]:
     return out
 
 
-def read_xfs_info(vm_name: str, section: str, workers: Path | None = None) -> dict:
-    """The realized `xfs_info` for `<section>`, captured by `f/fstests/prepare` to
-    `<share>/<vm>/<section>.xfs_info`. Returns `{"raw": <text>, "features": {...}}`, or
-    `{}` when absent (non-xfs section, or the capture was skipped/failed). Host-side."""
-    path = share_dir(vm_name, workers) / f"{section}.xfs_info"
+# The section's device roles, in report order. xfstests owns all formatting and
+# mounting (SCRATCH per test, TEST_DEV via RECREATE_TEST_DEV, the externals attached
+# to whichever data fs); we only read the layout back to report it per device.
+DEVICE_KEYS = (
+    "TEST_DEV",
+    "SCRATCH_DEV",
+    "SCRATCH_DEV_POOL",
+    "TEST_RTDEV",
+    "SCRATCH_RTDEV",
+    "TEST_LOGDEV",
+    "SCRATCH_LOGDEV",
+    "LOGWRITES_DEV",
+)
+
+
+def section_device_map(config_text: str, section: str) -> dict[str, str]:
+    """The section's device roles mapped to their device paths, in `DEVICE_KEYS` order.
+
+    Reads the canonical device variables from the rendered `<section>.config`
+    (`section_vars`); returns only the roles the section actually declares. Pure.
+    """
+    v = section_vars(config_text, section)
+    return {k: v[k] for k in DEVICE_KEYS if v.get(k)}
+
+
+def read_section_devices(
+    vm_name: str, section: str, workers: Path | None = None
+) -> dict:
+    """The per-device geometry `f/fstests/wait` captured to `<share>/<vm>/
+    `<section>.devices.json` at run-end: `{ROLE: {"device": path, "xfs_info": text}}`.
+
+    Each device is queried with `xfs_info` after `./check` formatted it, so `TEST_DEV`
+    and `SCRATCH_DEV` show their realized geometry and a raw realtime/log volume shows
+    the tool's own message. Returns `{}` when absent (crash before capture, or non-xfs).
+    Host-side, read-only.
+    """
+    path = share_dir(vm_name, workers) / f"{section}.devices.json"
     if not path.is_file():
         return {}
-    text = path.read_text()
-    return {"raw": text, "features": parse_xfs_info(text)}
-
-
-def read_mkfs_cmd(vm_name: str, section: str, workers: Path | None = None) -> str:
-    """The realized `mkfs` command for `<section>`, recorded by `f/fstests/prepare` to
-    `<share>/<vm>/<section>.mkfs` when it formatted `TEST_DEV`. This is the exact argv
-    that ran, including any injected `-r rtdev=`/`-l logdev=`, unlike the configured
-    `MKFS_OPTIONS`. Returns `""` when absent (mkfs skipped, or never rendered)."""
-    path = share_dir(vm_name, workers) / f"{section}.mkfs"
-    return path.read_text().strip() if path.is_file() else ""
+    try:
+        data = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def device_sector(devices: list[dict] | list[str]) -> int:
@@ -523,9 +549,10 @@ def inject_device_base(
     dedicated external device to BOTH the test and scratch filesystems, so the test
     device is a realtime (or external-log) fs too, not just scratch. Each empty var is
     filled in place from `devs[2:]` in `EXTERNAL_DEV_KEYS` order, after `TEST_DEV=
-    devs[0]` and `SCRATCH_DEV=devs[1]`; no pool. Needs `2 + <count>` devices. `prepare`
-    reads the filled `TEST_RTDEV`/`TEST_LOGDEV` to format `TEST_DEV` with the matching
-    `-r rtdev=`/`-l logdev=`, since xfstests only mkfs's the scratch device itself.
+    devs[0]` and `SCRATCH_DEV=devs[1]`; no pool. Needs `2 + <count>` devices. `./check`
+    attaches the filled `TEST_RTDEV`/`TEST_LOGDEV` to `TEST_DEV` with the matching
+    `-r rtdev=`/`-l logdev=` when its own `_test_mkfs` remakes it under
+    `RECREATE_TEST_DEV`; `prepare` no longer formats any device.
 
     Each base line is added only when its key is not already in the block, so an
     advanced user who hardcoded a device keeps it (we never override), and we add no
@@ -749,17 +776,28 @@ def render_check_env(
     check_args: str,
     test_timeout: int = 0,
     test_timeouts: dict[str, int] | None = None,
+    recreate_test_dev: bool = True,
 ) -> str:
     """The systemd `EnvironmentFile` text the `xfstests@<section>.service` reads:
     `HOST_OPTIONS=<absolute guest path>` and `XFSTESTS_CHECK_ARGS=<./check flags>`.
     RESULT_BASE is omitted; the `xfstests-check` wrapper forces it.
+
+    `RECREATE_TEST_DEV=true` (default) tells `./check` to (re)mkfs `TEST_DEV` per
+    section with that section's `FSTYP`/`MKFS_OPTIONS`, using its own `_test_mkfs`,
+    which attaches the section's realtime/external-log device (`-rrtdev=`/`-llogdev=`).
+    `false` reuses the existing `TEST_DEV` filesystem (`check` only mounts it). This is
+    the canonical xfstests knob (`common/config`), so the host never mkfs's `TEST_DEV`.
 
     The per-test watchdog vars the xfstests overlay's `check` patch reads are
     added when set:
     `TEST_TIMEOUT=<seconds>` (global, applied as each test's scope `RuntimeMaxSec`;
     0/unset = no limit) and `TEST_TIMEOUTS=<seq:sec ...>` (per-test overrides).
     """
-    lines = [f"HOST_OPTIONS={host_options}", f"XFSTESTS_CHECK_ARGS={check_args}"]
+    lines = [
+        f"HOST_OPTIONS={host_options}",
+        f"XFSTESTS_CHECK_ARGS={check_args}",
+        f"RECREATE_TEST_DEV={'true' if recreate_test_dev else 'false'}",
+    ]
     if test_timeout:
         lines.append(f"TEST_TIMEOUT={int(test_timeout)}")
     pairs = " ".join(

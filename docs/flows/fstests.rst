@@ -52,9 +52,18 @@ scratch one. Such a section carries ``USE_EXTERNAL=yes`` (the canonical xfstests
 switch) and declares the canonical device variables empty in the catalog:
 ``TEST_RTDEV=`` / ``SCRATCH_RTDEV=`` for realtime, or the ``LOGDEV`` pair for an
 external log. ``render_config`` fills the empty variables in place from the
-discovered devices, and ``prepare`` formats ``TEST_DEV`` with the matching
-``-r rtdev=`` / ``-l logdev=`` (xfstests formats only the scratch device itself,
-so the test device would otherwise have no realtime/external-log section).
+discovered devices.
+
+**xfstests owns all formatting and mounting.** ``./check`` reformats
+``SCRATCH_DEV`` before every test, mounts and unmounts both ``TEST_DEV`` and
+``SCRATCH_DEV`` itself (attaching each external device via its own
+``_test_mkfs`` / ``_scratch_mkfs``, and ``-o rtdev=`` on mount), reformatting
+``TEST_DEV`` per
+section when ``RECREATE_TEST_DEV=true`` (the **Recreate TEST_DEV** knob, on by
+default; off reuses the existing ``TEST_DEV`` filesystem). The host never mkfs's
+a device. ``prepare`` only activates the section's ``local.config``, creates the
+mount points, and loads the filesystem driver; ``wait`` snapshots each device's
+realized ``xfs_info`` at run-end, once ``./check`` has built them.
 
 An external section therefore needs four NVMe drives (a test and a scratch
 device plus their external device), or five when the ``LOGWRITES_DEV`` replay
@@ -62,11 +71,10 @@ log is on, which is why :src:`f/qsu/bringup` attaches five drives by default. A
 guest with too few drives skips the section (with the shortfall named) rather
 than running it wrong. Confirm a realtime section landed from the ``realtime``
 line of the device's ``xfs_info`` (``rtextents`` non-zero) or the ``rtdev=``
-mount option on ``/media/test``. The run report's per-section table carries
-both: an ``rtextents`` column from the captured ``xfs_info`` (the realized
-proof), and an ``mkfs`` column with the exact command that formatted the test
-device, including the injected ``-r rtdev=`` / ``-l logdev=`` (not just the
-configured ``MKFS_OPTIONS``).
+mount option on ``/media/test``. The run captures this for you: ``wait`` writes
+each device's ``xfs_info`` to ``<section>.devices.json`` (and returns it), and
+the per-section report table carries an ``rtextents`` column from ``TEST_DEV``'s
+snapshot, with the raw per-device geometry in ``report.json``.
 
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``
 template unit started with ``--no-block``, executing ``./check -s <section>``.

@@ -16,14 +16,14 @@ from f.fstests.common import (
     parse_sections,
     parse_xfs_info,
     parse_xunit,
-    read_mkfs_cmd,
-    read_xfs_info,
+    read_section_devices,
     render_check_env,
     render_local_config,
     run_status,
     section_block,
     section_block_block_size,
     section_config,
+    section_device_map,
     section_external_devs,
     section_is_v4,
     section_results_dir,
@@ -148,7 +148,13 @@ def test_render_check_env_carries_only_the_set_watchdog_vars():
     assert got == (
         "HOST_OPTIONS=/var/lib/xfstests/local.config\n"
         "XFSTESTS_CHECK_ARGS=-g auto -R xunit\n"
+        "RECREATE_TEST_DEV=true\n"
     )
+    # Off reuses the existing TEST_DEV filesystem (check only mounts it).
+    off = render_check_env(
+        "/var/lib/xfstests/local.config", "-g auto", recreate_test_dev=False
+    )
+    assert "RECREATE_TEST_DEV=false\n" in off
     got = render_check_env(
         "/var/lib/xfstests/local.config",
         "-g auto -R xunit",
@@ -469,25 +475,35 @@ def test_parse_xfs_info_reads_hyphenated_keys_and_last_value_wins():
     assert parse_xfs_info("") == {}
 
 
-def test_read_xfs_info_surfaces_the_capture_or_degrades(tmp_path):
-    d = share_dir("vm0", tmp_path)
-    d.mkdir(parents=True)
-    (d / "xfs_a.xfs_info").write_text("crc=1 reflink=1")
-    got = read_xfs_info("vm0", "xfs_a", tmp_path)
-    assert got["raw"] == "crc=1 reflink=1"
-    assert got["features"] == {"crc": "1", "reflink": "1"}
-    assert read_xfs_info("vm0", "missing", tmp_path) == {}
-
-
-def test_read_mkfs_cmd_surfaces_the_realized_command_or_degrades(tmp_path):
-    d = share_dir("vm0", tmp_path)
-    d.mkdir(parents=True)
-    (d / "xfs_rt.mkfs").write_text(
-        "mkfs --type xfs -f -r extsize=8192 -r rtdev=/dev/nvme2n1 /dev/nvme1n1\n"
+def test_section_device_map_reads_the_roles_in_order():
+    cfg = (
+        "[rt]\nFSTYP=xfs\nUSE_EXTERNAL=yes\n"
+        "TEST_RTDEV=/dev/nvme2n1\nSCRATCH_RTDEV=/dev/nvme3n1\n"
+        "TEST_DEV=/dev/nvme1n1\nSCRATCH_DEV=/dev/nvme0n1\n"
+        "LOGWRITES_DEV=/dev/nvme4n1\n"
     )
-    got = read_mkfs_cmd("vm0", "xfs_rt", tmp_path)
-    assert got.endswith("-r rtdev=/dev/nvme2n1 /dev/nvme1n1")
-    assert read_mkfs_cmd("vm0", "missing", tmp_path) == ""
+    # DEVICE_KEYS order, not the config's line order; only declared roles.
+    assert list(section_device_map(cfg, "rt").items()) == [
+        ("TEST_DEV", "/dev/nvme1n1"),
+        ("SCRATCH_DEV", "/dev/nvme0n1"),
+        ("TEST_RTDEV", "/dev/nvme2n1"),
+        ("SCRATCH_RTDEV", "/dev/nvme3n1"),
+        ("LOGWRITES_DEV", "/dev/nvme4n1"),
+    ]
+    assert section_device_map("[p]\nFSTYP=xfs\n", "p") == {}
+
+
+def test_read_section_devices_surfaces_the_snapshot_or_degrades(tmp_path):
+    d = share_dir("vm0", tmp_path)
+    d.mkdir(parents=True)
+    (d / "xfs_rt.devices.json").write_text(
+        '{"TEST_DEV": {"device": "/dev/nvme1n1", "xfs_info": "realtime =external"},'
+        ' "TEST_RTDEV": {"device": "/dev/nvme2n1", "xfs_info": "not a valid XFS"}}'
+    )
+    got = read_section_devices("vm0", "xfs_rt", tmp_path)
+    assert got["TEST_DEV"]["xfs_info"] == "realtime =external"
+    assert got["TEST_RTDEV"]["device"] == "/dev/nvme2n1"
+    assert read_section_devices("vm0", "missing", tmp_path) == {}
 
 
 GROUP_NAMES = """\

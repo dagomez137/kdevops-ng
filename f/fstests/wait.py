@@ -27,12 +27,19 @@ Equivalent commands:
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from pathlib import Path
 
 from f.common.devshell import Systemd
-from f.fstests.common import RemoteSystemd
+from f.fstests.common import (
+    RemoteSystemd,
+    _atomic_write,
+    section_device_map,
+    section_vars,
+    share_dir,
+)
 from f.fstests.common import list_vms as _list_vms
 
 _DONE = ("inactive", "failed")
@@ -43,6 +50,37 @@ _JOURNAL_LINES = 200
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_vms` entrypoint for `vm_name`: see `f.fstests.common.list_vms`."""
     return _list_vms(filterText)
+
+
+def _capture_devices(
+    remote: RemoteSystemd, vm_name: str, section: str, workers: Path
+) -> dict:
+    """Snapshot each device's realized `xfs_info` at run-end, once `./check` has
+    formatted them, into `<share>/<vm>/<section>.devices.json`:
+    `{ROLE: {"device": path, "xfs_info": text}}`.
+
+    xfs-only, and the pool is skipped (it is a device list, not one device). A raw
+    realtime/log volume has no XFS superblock, so its `xfs_info` is the tool's own
+    message (`merge_stderr` surfaces it), which confirms it is an external volume.
+    """
+    cfg = share_dir(vm_name, workers) / f"{section}.config"
+    if not cfg.is_file():
+        return {}
+    text = cfg.read_text()
+    fstyp = section_vars(text, section).get("FSTYP", "")
+    out: dict[str, dict] = {}
+    for role, dev in section_device_map(text, section).items():
+        entry: dict[str, str] = {"device": dev}
+        if fstyp == "xfs" and role != "SCRATCH_DEV_POOL":
+            entry["xfs_info"] = (
+                remote.ssh("xfs_info", dev, check=False, quiet=True, merge_stderr=True)
+                or ""
+            ).strip()
+        out[role] = entry
+    path = share_dir(vm_name, workers) / f"{section}.devices.json"
+    _atomic_write(path, json.dumps(out, indent=2) + "\n")
+    print(f"+ wrote {path} ({', '.join(out)})", flush=True)
+    return out
 
 
 def main(
@@ -172,6 +210,19 @@ def main(
         if kernel_tail:
             print(f"--- kernel (last {_JOURNAL_LINES}) ---\n{kernel_tail}", flush=True)
 
+    # Snapshot each device's realized geometry now that ./check has formatted them
+    # (TEST_DEV per RECREATE_TEST_DEV, SCRATCH_DEV per test), for the run report. Skip
+    # when the guest crashed (the transport is gone); best-effort otherwise.
+    devices: dict = {}
+    if not crashed:
+        try:
+            devices = _capture_devices(remote, vm_name, section, workers)
+        except Exception as exc:
+            print(
+                f"{vm_name}: device geometry capture failed ({exc}); continuing",
+                flush=True,
+            )
+
     result = state.get("Result", "")
     exec_status = state.get("ExecMainStatus", "")
     print(
@@ -189,4 +240,5 @@ def main(
         "timed_out": timed_out,
         "started_realtime_ms": started_realtime_ms,
         "ended_realtime_ms": ended_realtime_ms,
+        "devices": devices,
     }
