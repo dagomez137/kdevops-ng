@@ -1,5 +1,6 @@
 # Configuration file for the Sphinx documentation builder.
 import os
+import re
 
 from docutils import nodes
 
@@ -141,13 +142,22 @@ def _src_url(path):
     return None
 
 
+# Optional explicit title: ":src:`discover <f/fstests/discover>`" links the short
+# label `discover` to the step's source, so prose can name a step by its bare name
+# without spelling the whole path. Plain ":src:`f/fstests/discover`" still renders
+# and links the path itself.
+_EXPLICIT_TITLE_RE = re.compile(r"^(.+?)\s*<(.+?)>$", re.DOTALL)
+
+
 def _src_role(name, rawtext, text, lineno, inliner, options=None, content=None):
-    uri = _src_url(text)
-    code = nodes.literal(rawtext, text)
+    m = _EXPLICIT_TITLE_RE.match(text)
+    title, target = (m.group(1), m.group(2)) if m else (text, text)
+    uri = _src_url(target)
+    code = nodes.literal(rawtext, title)
     if uri is None:
         msg = inliner.reporter.error(
-            f"src: no source found for {text!r} (looked for {text}, "
-            f"{text}.flow, {text}.py under the repo root)",
+            f"src: no source found for {target!r} (looked for {target}, "
+            f"{target}.flow, {target}.py under the repo root)",
             line=lineno,
         )
         return [code], [msg]

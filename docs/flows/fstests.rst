@@ -12,18 +12,20 @@ test/scratch NVMe drives attached.
 
 The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
 
-1. ``discover``: gate the guest over vsock-SSH and enumerate its devices and
-   ``FSTYP``.
-2. ``render_config``: write ``local.config`` (``HOST_OPTIONS``) and the
-   ``check.env`` ``EnvironmentFile`` onto the host side of the share. Its
-   ``[section]`` names drive the loop.
-3. for each ``section`` in turn: ``start`` →  ``wait`` → ``collect``.
-   ``start`` first removes the section's previous ``result.xml`` from the
-   share (xfstests writes it only at run end), so a run that crashes or never
-   finishes can never inherit an old report as a false pass.
-4. ``report``: fold the per-section results into one verdict.
-5. ``judge``: fail the job unless every section passed, so a red run is a red
-   Windmill job.
+1. :src:`discover <f/fstests/discover>`: gate the guest over vsock-SSH and
+   enumerate its devices and ``FSTYP``.
+2. :src:`render_config <f/fstests/render_config>`: write ``local.config``
+   (``HOST_OPTIONS``) and the ``check.env`` ``EnvironmentFile`` onto the host
+   side of the share. Its ``[section]`` names drive the loop.
+3. for each ``section`` in turn: :src:`start <f/fstests/start>` →
+   :src:`wait <f/fstests/wait>` → :src:`collect <f/fstests/collect>`. ``start``
+   first removes the section's previous ``result.xml`` from the share (xfstests
+   writes it only at run end), so a run that crashes or never finishes can never
+   inherit an old report as a false pass.
+4. :src:`report <f/fstests/report>`: fold the per-section results into one
+   verdict.
+5. :src:`judge <f/fstests/judge>`: fail the job unless every section passed, so
+   a red run is a red Windmill job.
 
 Devices
 =======
@@ -59,9 +61,9 @@ remakes ``SCRATCH_DEV`` before every test, mounts and unmounts both filesystems
 itself, attaches each realtime or log volume through its own ``mkfs`` and
 ``-o rtdev=`` mount, and remakes ``TEST_DEV`` once per section when the
 **Recreate TEST_DEV** form knob is on (the default; off reuses the existing test
-filesystem, which ``./check`` then only mounts). ``prepare`` just lays down the
-section's ``local.config``, creates the mount points, and loads the filesystem
-driver.
+filesystem, which ``./check`` then only mounts).
+:src:`prepare <f/fstests/prepare>` just lays down the section's
+``local.config``, creates the mount points, and loads the filesystem driver.
 
 Because ``./check`` builds the filesystems, the run records their *realized*
 geometry, not the configured intent. At the end of the section ``wait``
