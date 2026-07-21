@@ -346,10 +346,11 @@ def xfs_catalog_text(feature: str | None = None, geometry: str = "matrix") -> st
     profile in catalog order, each `FSTYP=xfs`
     plus the profile's `MKFS_OPTIONS`/`MOUNT_OPTIONS` when set, sections separated by a
     blank line. An external-device profile (value has `needs`) also emits
-    `USE_EXTERNAL=yes` (the xfstests var) and `# external=<needs>` (the
-    device-agnostic marker the injector reads; xfstests ignores `#` lines).
-    Device-agnostic by design: no `TEST_DEV`/`SCRATCH_DEV`, those are injected
-    per selected section at render time.
+    `USE_EXTERNAL=yes` (the xfstests var) and the canonical external-device vars for
+    both filesystems, empty: `TEST_RTDEV=`/`SCRATCH_RTDEV=` (`needs="rtdev"`) or
+    `TEST_LOGDEV=`/`SCRATCH_LOGDEV=` (`needs="logdev"`). `render_config` fills the
+    empty vars from the guest's discovered devices. Device-agnostic by design: no
+    `TEST_DEV`/`SCRATCH_DEV`, those are injected per selected section at render time.
     """
     profiles = (
         XFS_PROFILES
@@ -365,7 +366,9 @@ def xfs_catalog_text(feature: str | None = None, geometry: str = "matrix") -> st
             lines.append(f'MOUNT_OPTIONS="{profile["mount"]}"')
         if profile.get("needs"):
             lines.append("USE_EXTERNAL=yes")
-            lines.append(f"# external={profile['needs']}")
+            suffix = "LOGDEV" if profile["needs"] == "logdev" else "RTDEV"
+            lines.append(f"TEST_{suffix}=")
+            lines.append(f"SCRATCH_{suffix}=")
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks) + "\n"
 
@@ -470,18 +473,28 @@ def _device_names(devices: list[dict] | list[str]) -> list[str]:
     return [d["name"] if isinstance(d, dict) else str(d) for d in devices]
 
 
-_EXTERNAL_RE = re.compile(r"^\s*#\s*external=(logdev|rtdev)\s*$", re.MULTILINE)
+# The canonical xfstests external-device variables (README "Additional Setup",
+# common/config), in the order `inject_device_base` fills them from the discovered
+# devices. A device-agnostic catalog section declares the ones it needs empty
+# (`KEY=` with no value); the injector fills each in place.
+EXTERNAL_DEV_KEYS = ("TEST_RTDEV", "SCRATCH_RTDEV", "TEST_LOGDEV", "SCRATCH_LOGDEV")
+
+_EMPTY_DEV_RES = {
+    key: re.compile(rf"^\s*{key}=\s*$", re.MULTILINE) for key in EXTERNAL_DEV_KEYS
+}
 
 
-def section_external(block: str) -> str | None:
-    """`"logdev"`/`"rtdev"` if the block carries a `# external=<dev>` marker, else `None`.
+def section_external_devs(block: str) -> list[str]:
+    """The canonical external-device vars a section declares empty for the injector to
+    fill: any of `TEST_RTDEV`/`SCRATCH_RTDEV`/`TEST_LOGDEV`/`SCRATCH_LOGDEV` present as
+    `KEY=` with no value. In `EXTERNAL_DEV_KEYS` order (deterministic device assignment).
 
-    The marker is the device-agnostic signal `xfs_catalog_text` emits for an
-    external-device profile; xfstests ignores the `#` line, the injector reads it
-    to bind a dedicated SCRATCH external device instead of a pool.
+    An empty external var is the device-agnostic signal `xfs_catalog_text` emits for an
+    external-device profile: xfstests treats an unset optional device as absent, and the
+    injector fills it from a discovered device. An operator-hardcoded (non-empty) var is
+    left alone and not returned, so we never override a device the user pinned.
     """
-    m = _EXTERNAL_RE.search(block or "")
-    return m.group(1) if m else None
+    return [key for key, rx in _EMPTY_DEV_RES.items() if rx.search(block or "")]
 
 
 def inject_device_base(
@@ -489,18 +502,21 @@ def inject_device_base(
 ) -> str:
     """Append the discovered-device base lines to one section's verbatim `block`.
 
-    Binds a device-agnostic section to a guest's discovered devices. With no
-    `# external=` marker (the common path): `TEST_DEV` from the first, and the rest
-    as scratch: a single `SCRATCH_DEV` with exactly two devices, or a
-    `SCRATCH_DEV_POOL` of all the extras with more. `SCRATCH_DEV` and
-    `SCRATCH_DEV_POOL` are mutually exclusive (xfstests `common/config` errors if both
-    are set); with a pool, `check` derives `SCRATCH_DEV` from its first element.
+    Binds a device-agnostic section to a guest's discovered devices. With no external
+    device vars (the common path): `TEST_DEV` from the first, and the rest as scratch:
+    a single `SCRATCH_DEV` with exactly two devices, or a `SCRATCH_DEV_POOL` of all the
+    extras with more. `SCRATCH_DEV` and `SCRATCH_DEV_POOL` are mutually exclusive
+    (xfstests `common/config` errors if both are set); with a pool, `check` derives
+    `SCRATCH_DEV` from its first element.
 
-    With a `# external=logdev`/`# external=rtdev` marker the section needs a
-    dedicated external device: `TEST_DEV=devs[0]`, a single `SCRATCH_DEV=devs[1]`,
-    and the external device on `devs[2]` (`SCRATCH_LOGDEV` or `SCRATCH_RTDEV`); no
-    pool, and `USE_EXTERNAL` is left to the catalog (the marker is what matters).
-    Needs >= 3 devices.
+    A section that declares canonical external-device vars empty (`TEST_RTDEV=`/
+    `SCRATCH_RTDEV=`, or the `LOGDEV` pair; see `section_external_devs`) binds a
+    dedicated external device to BOTH the test and scratch filesystems, so the test
+    device is a realtime (or external-log) fs too, not just scratch. Each empty var is
+    filled in place from `devs[2:]` in `EXTERNAL_DEV_KEYS` order, after `TEST_DEV=
+    devs[0]` and `SCRATCH_DEV=devs[1]`; no pool. Needs `2 + <count>` devices. `prepare`
+    reads the filled `TEST_RTDEV`/`TEST_LOGDEV` to format `TEST_DEV` with the matching
+    `-r rtdev=`/`-l logdev=`, since xfstests only mkfs's the scratch device itself.
 
     Each base line is added only when its key is not already in the block, so an
     advanced user who hardcoded a device keeps it (we never override), and we add no
@@ -511,7 +527,7 @@ def inject_device_base(
     Returns the augmented block with a trailing newline.
     """
     devs = _device_names(devices)
-    external = section_external(block)
+    externals = section_external_devs(block)
     # LOGWRITES_DEV is dm-log-writes test infrastructure (the generic/45x crash-
     # consistency replay log), not an fs feature: carve the last device for it
     # before TEST/SCRATCH bind from the rest, so it applies to every section. A
@@ -519,21 +535,27 @@ def inject_device_base(
     # test/scratch(+external) minimum.
     logwrites_line: tuple[str, str] | None = None
     if logwrites and "LOGWRITES_DEV=" not in block:
-        need = (3 if external else 2) + 1
+        need = 2 + len(externals) + 1
         if len(devs) < need:
             raise ValueError(
                 f"inject_device_base: need >= {need} devices for TEST_DEV + SCRATCH_DEV"
-                f"{' + external ' + external if external else ''} + LOGWRITES_DEV, "
-                f"got {len(devs)}"
+                f"{' + ' + ' + '.join(externals) if externals else ''}"
+                f" + LOGWRITES_DEV, got {len(devs)}"
             )
         logwrites_line = ("LOGWRITES_DEV=", f"LOGWRITES_DEV={devs[-1]}")
         devs = devs[:-1]
-    if external:
-        if len(devs) < 3:
+    if externals:
+        need = 2 + len(externals)
+        if len(devs) < need:
             raise ValueError(
-                f"inject_device_base: need >= 3 devices for TEST_DEV + SCRATCH_DEV + "
-                f"an external {external}, got {len(devs)}"
+                f"inject_device_base: need >= {need} devices for TEST_DEV + SCRATCH_DEV "
+                f"+ {', '.join(externals)}, got {len(devs)}"
             )
+        # Fill each declared-empty external var in place, keeping the catalog's line
+        # order and the canonical key names, from devs[2:] after TEST/SCRATCH bind.
+        body = block.rstrip("\n")
+        for i, key in enumerate(externals):
+            body = _EMPTY_DEV_RES[key].sub(f"{key}={devs[2 + i]}", body, count=1)
         base = [
             ("TEST_DEV=", f"TEST_DEV={devs[0]}"),
             ("TEST_DIR=", f"TEST_DIR={MEDIA_TEST}"),
@@ -541,11 +563,8 @@ def inject_device_base(
         ]
         if "SCRATCH_DEV=" not in block and "SCRATCH_DEV_POOL=" not in block:
             base.append(("SCRATCH_DEV=", f"SCRATCH_DEV={devs[1]}"))
-        ext_key = "SCRATCH_LOGDEV" if external == "logdev" else "SCRATCH_RTDEV"
-        base.append((f"{ext_key}=", f"{ext_key}={devs[2]}"))
         if logwrites_line:
             base.append(logwrites_line)
-        body = block.rstrip("\n")
         added = [line for key, line in base if key not in block]
         if added:
             body = body + "\n" + "\n".join(added)

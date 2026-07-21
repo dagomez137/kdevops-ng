@@ -51,7 +51,7 @@ from f.fstests.common import (
     render_check_env,
     section_block,
     section_block_block_size,
-    section_external,
+    section_external_devs,
     section_is_v4,
     section_results_dir,
     section_sector_size,
@@ -246,11 +246,15 @@ def main(
             print(f"+ skipped {section}: {reason}", flush=True)
             skipped.append({"name": section, "reason": reason})
             continue
-        # An external-device section (logdev/rtdev) consumes a third device beyond
-        # TEST_DEV + SCRATCH_DEV; skip it (not fail mid-run) when too few are present.
-        external = section_external(block)
-        if external and len(devices) < 3:
-            reason = f"needs 3 devices for an external {external}, have {len(devices)}"
+        # An external-device section declares canonical external-device vars empty
+        # (TEST_RTDEV=/SCRATCH_RTDEV=, or the LOGDEV pair); each consumes one device
+        # beyond TEST_DEV + SCRATCH_DEV. Skip it (not fail mid-run) when too few present.
+        externals = section_external_devs(block)
+        if externals and len(devices) < 2 + len(externals):
+            reason = (
+                f"needs {2 + len(externals)} devices for {', '.join(externals)}, "
+                f"have {len(devices)}"
+            )
             print(f"+ skipped {section}: {reason}", flush=True)
             skipped.append({"name": section, "reason": reason})
             continue
@@ -258,12 +262,12 @@ def main(
         # for the dm-log-writes replay log; skip the section, don't fail mid-run,
         # when the guest is a drive short.
         if logwrites:
-            need = (3 if external else 2) + 1
+            need = 2 + len(externals) + 1
             if len(devices) < need:
                 reason = (
                     f"needs {need} devices for "
-                    f"{'external ' + external + ' + ' if external else ''}LOGWRITES_DEV, "
-                    f"have {len(devices)}"
+                    f"{', '.join(externals) + ' + ' if externals else ''}"
+                    f"LOGWRITES_DEV, have {len(devices)}"
                 )
                 print(f"+ skipped {section}: {reason}", flush=True)
                 skipped.append({"name": section, "reason": reason})

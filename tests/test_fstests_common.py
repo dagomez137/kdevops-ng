@@ -23,7 +23,7 @@ from f.fstests.common import (
     section_block,
     section_block_block_size,
     section_config,
-    section_external,
+    section_external_devs,
     section_is_v4,
     section_results_dir,
     section_sector_size,
@@ -255,7 +255,7 @@ def test_xfs_catalog_text_renders_device_agnostic_sections():
         '[xfs_quota]\nFSTYP=xfs\nMOUNT_OPTIONS="-o usrquota,grpquota"\n'
     )
     assert xfs_catalog_text("logdev", geometry="default") == (
-        "[xfs_logdev]\nFSTYP=xfs\nUSE_EXTERNAL=yes\n# external=logdev\n"
+        "[xfs_logdev]\nFSTYP=xfs\nUSE_EXTERNAL=yes\nTEST_LOGDEV=\nSCRATCH_LOGDEV=\n"
     )
 
 
@@ -314,11 +314,17 @@ def test_section_geometry_helpers_read_the_mkfs_options():
     assert section_is_v4(CONFIG, "xfs_b") is False
 
 
-def test_section_external_reads_the_injector_marker():
-    assert section_external("[x]\n # external=rtdev \nFSTYP=xfs\n") == "rtdev"
-    assert section_external("[x]\n# external=logdev\n") == "logdev"
-    assert section_external("[x]\nFSTYP=xfs\n") is None
-    assert section_external("") is None
+def test_section_external_devs_reads_empty_canonical_vars():
+    # Empty external-device vars are the injector's fill list, in EXTERNAL_DEV_KEYS order.
+    assert section_external_devs("[x]\nFSTYP=xfs\nTEST_RTDEV=\nSCRATCH_RTDEV=\n") == [
+        "TEST_RTDEV",
+        "SCRATCH_RTDEV",
+    ]
+    assert section_external_devs("[x]\nSCRATCH_LOGDEV=\n") == ["SCRATCH_LOGDEV"]
+    # A hardcoded (non-empty) external device is left alone, not returned.
+    assert section_external_devs("[x]\nSCRATCH_RTDEV=/dev/nvme2n1\n") == []
+    assert section_external_devs("[x]\nFSTYP=xfs\n") == []
+    assert section_external_devs("") == []
 
 
 def test_device_sector_takes_the_max_and_defaults_to_512():
@@ -329,65 +335,87 @@ def test_device_sector_takes_the_max_and_defaults_to_512():
 
 
 def test_inject_device_base_binds_two_devices():
-    got = inject_device_base("[p]\nFSTYP=xfs\n", ["/dev/vdb", "/dev/vdc"])
+    got = inject_device_base("[p]\nFSTYP=xfs\n", ["/dev/nvme0n1", "/dev/nvme1n1"])
     assert got == (
         "[p]\n"
         "FSTYP=xfs\n"
-        "TEST_DEV=/dev/vdb\n"
+        "TEST_DEV=/dev/nvme0n1\n"
         "TEST_DIR=/media/test\n"
         "SCRATCH_MNT=/media/scratch\n"
-        "SCRATCH_DEV=/dev/vdc\n"
+        "SCRATCH_DEV=/dev/nvme1n1\n"
     )
 
 
 def test_inject_device_base_pools_the_extras_without_scratch_dev():
-    devs = ["/dev/vdb", "/dev/vdc", "/dev/vdd", "/dev/vde"]
+    devs = ["/dev/nvme0n1", "/dev/nvme1n1", "/dev/nvme2n1", "/dev/nvme3n1"]
     got = inject_device_base("[p]\nFSTYP=xfs\n", devs)
-    assert 'SCRATCH_DEV_POOL="/dev/vdc /dev/vdd /dev/vde"' in got
+    assert 'SCRATCH_DEV_POOL="/dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1"' in got
     assert "SCRATCH_DEV=" not in got
 
 
 def test_inject_device_base_never_overrides_a_hardcoded_device():
     block = '[p]\nFSTYP=xfs\nTEST_DEV=/dev/sda\nSCRATCH_DEV_POOL="/dev/sdb"\n'
-    got = inject_device_base(block, ["/dev/vdb", "/dev/vdc"])
+    got = inject_device_base(block, ["/dev/nvme0n1", "/dev/nvme1n1"])
     assert "TEST_DEV=/dev/sda" in got
-    assert "TEST_DEV=/dev/vdb" not in got
+    assert "TEST_DEV=/dev/nvme0n1" not in got
     assert "SCRATCH_DEV=" not in got
 
 
-def test_inject_device_base_binds_an_external_device():
-    block = "[rt]\nFSTYP=xfs\n# external=rtdev\n"
-    got = inject_device_base(block, ["/dev/vdb", "/dev/vdc", "/dev/vdd"])
+def test_inject_device_base_fills_empty_external_vars_on_test_and_scratch():
+    # The catalog declares the canonical external vars empty; the injector fills them
+    # in place (keeping their line order) from devs[2:], after TEST_DEV/SCRATCH_DEV.
+    block = "[rt]\nFSTYP=xfs\nUSE_EXTERNAL=yes\nTEST_RTDEV=\nSCRATCH_RTDEV=\n"
+    devs = ["/dev/nvme0n1", "/dev/nvme1n1", "/dev/nvme2n1", "/dev/nvme3n1"]
+    got = inject_device_base(block, devs)
     assert got == (
         "[rt]\n"
         "FSTYP=xfs\n"
-        "# external=rtdev\n"
-        "TEST_DEV=/dev/vdb\n"
+        "USE_EXTERNAL=yes\n"
+        "TEST_RTDEV=/dev/nvme2n1\n"
+        "SCRATCH_RTDEV=/dev/nvme3n1\n"
+        "TEST_DEV=/dev/nvme0n1\n"
         "TEST_DIR=/media/test\n"
         "SCRATCH_MNT=/media/scratch\n"
-        "SCRATCH_DEV=/dev/vdc\n"
-        "SCRATCH_RTDEV=/dev/vdd\n"
+        "SCRATCH_DEV=/dev/nvme1n1\n"
     )
+
+
+def test_inject_device_base_keeps_a_hardcoded_external_device():
+    # A non-empty external var is operator-pinned; the injector leaves it and its
+    # section falls back to the plain test/scratch bind (no external fill).
+    block = "[rt]\nFSTYP=xfs\nUSE_EXTERNAL=yes\nSCRATCH_RTDEV=/dev/sdz\n"
+    got = inject_device_base(block, ["/dev/nvme0n1", "/dev/nvme1n1"])
+    assert "SCRATCH_RTDEV=/dev/sdz" in got
+    assert "TEST_DEV=/dev/nvme0n1" in got
 
 
 def test_inject_device_base_reserves_the_last_device_for_logwrites():
     got = inject_device_base(
-        "[p]\nFSTYP=xfs\n", ["/dev/vdb", "/dev/vdc", "/dev/vdd"], logwrites=True
+        "[p]\nFSTYP=xfs\n",
+        ["/dev/nvme0n1", "/dev/nvme1n1", "/dev/nvme2n1"],
+        logwrites=True,
     )
-    assert got.endswith("SCRATCH_DEV=/dev/vdc\nLOGWRITES_DEV=/dev/vdd\n")
-    block = "[l]\nFSTYP=xfs\n# external=logdev\n"
-    devs = ["/dev/vdb", "/dev/vdc", "/dev/vdd", "/dev/vde"]
+    assert got.endswith("SCRATCH_DEV=/dev/nvme1n1\nLOGWRITES_DEV=/dev/nvme2n1\n")
+    block = "[l]\nFSTYP=xfs\nUSE_EXTERNAL=yes\nTEST_LOGDEV=\nSCRATCH_LOGDEV=\n"
+    devs = [f"/dev/nvme{i}n1" for i in range(5)]
     got = inject_device_base(block, devs, logwrites=True)
-    assert got.endswith("SCRATCH_LOGDEV=/dev/vdd\nLOGWRITES_DEV=/dev/vde\n")
+    assert "TEST_LOGDEV=/dev/nvme2n1\nSCRATCH_LOGDEV=/dev/nvme3n1\n" in got
+    assert got.endswith("SCRATCH_DEV=/dev/nvme1n1\nLOGWRITES_DEV=/dev/nvme4n1\n")
 
 
 def test_inject_device_base_refuses_too_few_devices():
     with pytest.raises(ValueError):
-        inject_device_base("[p]\nFSTYP=xfs\n", ["/dev/vdb"])
+        inject_device_base("[p]\nFSTYP=xfs\n", ["/dev/nvme0n1"])
+    # An external section needs 4 devices (test + scratch external pair), not 3.
     with pytest.raises(ValueError):
-        inject_device_base("[p]\n# external=rtdev\n", ["/dev/vdb", "/dev/vdc"])
+        inject_device_base(
+            "[rt]\nFSTYP=xfs\nUSE_EXTERNAL=yes\nTEST_RTDEV=\nSCRATCH_RTDEV=\n",
+            ["/dev/nvme0n1", "/dev/nvme1n1", "/dev/nvme2n1"],
+        )
     with pytest.raises(ValueError):
-        inject_device_base("[p]\nFSTYP=xfs\n", ["/dev/vdb", "/dev/vdc"], logwrites=True)
+        inject_device_base(
+            "[p]\nFSTYP=xfs\n", ["/dev/nvme0n1", "/dev/nvme1n1"], logwrites=True
+        )
 
 
 def test_share_dir_resolves_under_the_fstests_root(tmp_path, monkeypatch):

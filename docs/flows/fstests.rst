@@ -25,6 +25,45 @@ The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
 5. ``judge``: fail the job unless every section passed, so a red run is a red
    Windmill job.
 
+Devices and external-device sections
+====================================
+
+The guest's NVMe data disks (``/dev/nvme*n1``, whole-disk namespaces) are the
+test material. ``discover`` enumerates them in the guest's block-device list
+order, and ``render_config`` maps that ordered list onto the xfstests device
+roles positionally, per selected section, then writes the paths into the
+section's ``local.config``. The catalog itself is device-agnostic (no device
+paths), so the same catalog runs on any guest:
+
+.. code-block:: text
+
+   device 0  ->  TEST_DEV       (the persistent fs at /media/test)
+   device 1  ->  SCRATCH_DEV    (the mkfs-per-test fs at /media/scratch)
+   device 2  ->  TEST_RTDEV  or TEST_LOGDEV      (external sections only)
+   device 3  ->  SCRATCH_RTDEV or SCRATCH_LOGDEV (external sections only)
+   last      ->  LOGWRITES_DEV  (reserved first, if the replay log is on)
+
+A plain section uses the first two (or pools the extras as ``SCRATCH_DEV_POOL``
+with more than two). An **external-device** section (an XFS realtime or
+external-log profile, such as ``xfs_realtime_rtx2_bs4k_ss4k``) attaches its
+extra device to **both** filesystems, so the persistent ``TEST_DEV`` mount at
+``/media/test`` is itself a realtime (or external-log) filesystem, not just the
+scratch one. Such a section carries ``USE_EXTERNAL=yes`` (the canonical xfstests
+switch) and declares the canonical device variables empty in the catalog:
+``TEST_RTDEV=`` / ``SCRATCH_RTDEV=`` for realtime, or the ``LOGDEV`` pair for an
+external log. ``render_config`` fills the empty variables in place from the
+discovered devices, and ``prepare`` formats ``TEST_DEV`` with the matching
+``-r rtdev=`` / ``-l logdev=`` (xfstests formats only the scratch device itself,
+so the test device would otherwise have no realtime/external-log section).
+
+An external section therefore needs four NVMe drives (a test and a scratch
+device plus their external device), or five when the ``LOGWRITES_DEV`` replay
+log is on, which is why :src:`f/qsu/bringup` attaches five drives by default. A
+guest with too few drives skips the section (with the shortfall named) rather
+than running it wrong. Confirm a realtime section landed from the ``realtime``
+line of the device's ``xfs_info`` (``rtextents`` non-zero) or the ``rtdev=``
+mount option on ``/media/test``.
+
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``
 template unit started with ``--no-block``, executing ``./check -s <section>``.
 The unit sets :cmd:`TimeoutStartSec` to ``infinity``, so a section is never

@@ -4,8 +4,10 @@
 Activates the section's `<section>.config` as `local.config` (the unit's
 `HOST_OPTIONS`), then on the guest (re)creates the xfstests mount points, loads the
 section's filesystem driver, and formats `TEST_DEV` with the section's `FSTYP`. The
-`FSTYP` is orchestration data read from the rendered config, not baked in. For an xfs
-section it then captures the realized `xfs_info` of the formatted device to
+`FSTYP` is orchestration data read from the rendered config, not baked in. An external
+xfs section (realtime/external-log) also attaches its `TEST_RTDEV`/`TEST_LOGDEV` to the
+mkfs, so the test device is a realtime/external-log fs and not just the scratch one.
+For an xfs section it then captures the realized `xfs_info` of the formatted device to
 `<share>/<vm>/<section>.xfs_info`, so the report can show the actual feature set
 (reflink, rmapbt, bigtime, crc, ...) mkfs enabled beyond `MKFS_OPTIONS`.
 
@@ -15,7 +17,8 @@ Equivalent commands (config activation host-side, the rest against the guest):
     ssh <vm> modprobe <FSTYP>
     ssh <vm> mkdir --parents <TEST_DIR> <SCRATCH_MNT>
     ssh <vm> umount <TEST_DEV>
-    ssh <vm> mkfs --type <FSTYP> <force> <MKFS_OPTIONS...> <TEST_DEV>
+    ssh <vm> mkfs --type <FSTYP> <force> <MKFS_OPTIONS...> [-r rtdev=<TEST_RTDEV>] \
+        [-l logdev=<TEST_LOGDEV>] <TEST_DEV>
     ssh <vm> xfs_info <TEST_DEV>          # xfs only; saved as <section>.xfs_info
 """
 
@@ -104,6 +107,16 @@ def main(vm_name: str, section: str, mkfs_test_dev: bool = True) -> dict:
             argv.append(force)
         if mkfs_options:
             argv += mkfs_options.split()
+        # xfstests only mkfs's the scratch device itself (via _scratch_options mkfs);
+        # the test device is formatted here, so mirror _test_options mkfs and attach
+        # the test-fs external device, else TEST_DEV would be a plain data-only fs with
+        # no realtime/external-log section (rtdev=/logdev= on a section that never got
+        # one). Gated on USE_EXTERNAL=yes and XFS, as xfstests gates it.
+        if fstyp == "xfs" and vars_.get("USE_EXTERNAL") == "yes":
+            if test_rtdev := vars_.get("TEST_RTDEV", ""):
+                argv += ["-r", f"rtdev={test_rtdev}"]
+            if test_logdev := vars_.get("TEST_LOGDEV", ""):
+                argv += ["-l", f"logdev={test_logdev}"]
         argv.append(test_dev)
         print(f"+ {' '.join(argv)}", flush=True)
         remote.ssh(*argv)
