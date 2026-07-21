@@ -52,8 +52,15 @@ in
     # drop the patch on the version bump that includes it. The recipe
     # replaces patchPhase wholesale (postPatch would be silently ignored),
     # so append there.
+    # A second downstream patch: with RECREATE_TEST_DEV set, check mounts
+    # TEST_DEV from init_rc at startup, before the first section recreates it,
+    # so a fresh, never-formatted test device fails that mount and check exits.
+    # The patch formats TEST_DEV up front under RECREATE_TEST_DEV, so a raw
+    # device is initialised on its first run. Queued for xfstests upstream; drop
+    # on the version bump that includes it.
     patchPhase = (prevAttrs.patchPhase or "") + ''
       patch -p1 < ${./xfstests-runtime-max-sec.patch}
+      patch -p1 < ${./xfstests-recreate-test-dev-bootstrap.patch}
     '';
 
     # The recipe installs the runtime tree (check, tests, common) but drops

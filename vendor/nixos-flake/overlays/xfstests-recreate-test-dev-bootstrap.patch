@@ -1,0 +1,46 @@
+From 803fc2d6020a2372ccd647fa0eb237561ae57372 Mon Sep 17 00:00:00 2001
+From: Daniel Gomez <da.gomez@kernel.org>
+Date: Tue, 21 Jul 2026 17:50:34 +0200
+Subject: [PATCH] check: format TEST_DEV up front when RECREATE_TEST_DEV is set
+
+RECREATE_TEST_DEV recreates the test filesystem for every section, but
+check mounts TEST_DEV from init_rc at startup, before the first section
+runs. A fresh, never-formatted test device therefore fails that mount and
+check exits before it would have recreated the device, so the device
+cannot be brought up on its first run without formatting it out of band
+first.
+
+Since the device is going to be remade anyway when RECREATE_TEST_DEV is
+set, make it once up front, right after the config is sourced and before
+init_rc. init_rc then mounts the freshly made filesystem and each section
+still recreates it as before. This lets RECREATE_TEST_DEV initialise a raw
+test device on the very first run.
+
+Generated-by: Claude AI
+Signed-off-by: Daniel Gomez <da.gomez@kernel.org>
+---
+ check | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/check b/check
+index ad685edc..484d2341 100755
+--- a/check
++++ b/check
+@@ -362,6 +362,14 @@ if ! . ./common/rc; then
+ 	_fatal "check: failed to source common/rc"
+ fi
+ 
++# When RECREATE_TEST_DEV is set the test device is remade for the first section
++# anyway; make it now so a fresh, never-formatted TEST_DEV can be mounted by
++# init_rc below on the first run instead of failing that mount.
++if $RECREATE_TEST_DEV; then
++	_test_unmount 2>/dev/null
++	_test_mkfs >/dev/null
++fi
++
+ init_rc
+ 
+ # If the test config specified a soak test duration, see if there are any
+-- 
+2.53.0
+
