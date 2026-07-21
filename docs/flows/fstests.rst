@@ -62,7 +62,11 @@ log is on, which is why :src:`f/qsu/bringup` attaches five drives by default. A
 guest with too few drives skips the section (with the shortfall named) rather
 than running it wrong. Confirm a realtime section landed from the ``realtime``
 line of the device's ``xfs_info`` (``rtextents`` non-zero) or the ``rtdev=``
-mount option on ``/media/test``.
+mount option on ``/media/test``. The run report's per-section table carries
+both: an ``rtextents`` column from the captured ``xfs_info`` (the realized
+proof), and an ``mkfs`` column with the exact command that formatted the test
+device, including the injected ``-r rtdev=`` / ``-l logdev=`` (not just the
+configured ``MKFS_OPTIONS``).
 
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``
 template unit started with ``--no-block``, executing ``./check -s <section>``.

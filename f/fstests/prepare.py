@@ -100,6 +100,7 @@ def main(vm_name: str, section: str, mkfs_test_dev: bool = True) -> dict:
     remote.ssh("umount", test_dev, check=False)
 
     formatted = False
+    mkfs_cmd = ""
     if mkfs_test_dev:
         argv = ["mkfs", "--type", fstyp]
         force = MKFS_FORCE_FLAG.get(fstyp)
@@ -118,9 +119,16 @@ def main(vm_name: str, section: str, mkfs_test_dev: bool = True) -> dict:
             if test_logdev := vars_.get("TEST_LOGDEV", ""):
                 argv += ["-l", f"logdev={test_logdev}"]
         argv.append(test_dev)
-        print(f"+ {' '.join(argv)}", flush=True)
+        mkfs_cmd = " ".join(argv)
+        print(f"+ {mkfs_cmd}", flush=True)
         remote.ssh(*argv)
         formatted = True
+        # Record the realized mkfs command (with any injected external device) so the
+        # report shows what actually formatted TEST_DEV, not just the configured
+        # MKFS_OPTIONS, which omits the -r rtdev=/-l logdev= attach.
+        mk_path = share / f"{section}.mkfs"
+        _atomic_write(mk_path, mkfs_cmd + "\n")
+        print(f"+ wrote {mk_path}", flush=True)
 
     # Capture the realized filesystem geometry/feature set of the just-formatted device,
     # so the report shows what mkfs actually enabled (reflink, rmapbt, bigtime, crc, ...)
@@ -151,5 +159,6 @@ def main(vm_name: str, section: str, mkfs_test_dev: bool = True) -> dict:
         "scratch_mnt": scratch_mnt,
         "formatted": formatted,
         "mkfs_options": mkfs_options,
+        "mkfs_cmd": mkfs_cmd,
         "xfs_info": xfs_info,
     }

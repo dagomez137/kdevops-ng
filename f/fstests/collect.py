@@ -25,6 +25,7 @@ from f.fstests.common import (
 )
 from f.fstests.common import (
     parse_xunit,
+    read_mkfs_cmd,
     read_xfs_info,
     section_config,
     section_results_dir,
@@ -63,6 +64,11 @@ def main(
     if xi:
         geometry["features"] = xi["features"]
         geometry["xfs_info"] = xi["raw"]
+    # The exact mkfs command prepare ran (with any injected -r rtdev=/-l logdev=), so the
+    # report shows how TEST_DEV was formatted, not just the configured MKFS_OPTIONS.
+    mkfs_cmd = read_mkfs_cmd(vm_name, section)
+    if mkfs_cmd:
+        geometry["mkfs_cmd"] = mkfs_cmd
     report_present = summary["report_present"]
     # A crashed guest or an aborted (timed-out) section fails even when a report
     # exists: `start` removed the previous run's report, so anything present is

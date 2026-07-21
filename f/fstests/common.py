@@ -457,6 +457,15 @@ def read_xfs_info(vm_name: str, section: str, workers: Path | None = None) -> di
     return {"raw": text, "features": parse_xfs_info(text)}
 
 
+def read_mkfs_cmd(vm_name: str, section: str, workers: Path | None = None) -> str:
+    """The realized `mkfs` command for `<section>`, recorded by `f/fstests/prepare` to
+    `<share>/<vm>/<section>.mkfs` when it formatted `TEST_DEV`. This is the exact argv
+    that ran, including any injected `-r rtdev=`/`-l logdev=`, unlike the configured
+    `MKFS_OPTIONS`. Returns `""` when absent (mkfs skipped, or never rendered)."""
+    path = share_dir(vm_name, workers) / f"{section}.mkfs"
+    return path.read_text().strip() if path.is_file() else ""
+
+
 def device_sector(devices: list[dict] | list[str]) -> int:
     """The max logical sector size across `devices`, in bytes (the minimum block
     size `mkfs.xfs` enforces). Defaults to 512 when a device omits `log_sec`;

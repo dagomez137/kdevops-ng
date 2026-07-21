@@ -16,6 +16,7 @@ from f.fstests.common import (
     parse_sections,
     parse_xfs_info,
     parse_xunit,
+    read_mkfs_cmd,
     read_xfs_info,
     render_check_env,
     render_local_config,
@@ -458,11 +459,13 @@ def test_parse_xfs_info_reads_hyphenated_keys_and_last_value_wins():
         "meta-data=/dev/vdb isize=512 crc=1 finobt=1, sparse=1\n"
         "naming =version 2 bsize=4096 ascii-ci=0\n"
         "data = bsize=512 lazy-count=1\n"
+        "realtime =external extsz=8192 blocks=2048, rtextents=1024\n"
     )
     got = parse_xfs_info(text)
     assert got["meta-data"] == "/dev/vdb"
     assert (got["crc"], got["ascii-ci"], got["lazy-count"]) == ("1", "0", "1")
-    assert got["bsize"] == "512"
+    # rtextents (no space before =) is captured, the realtime proof the report shows.
+    assert got["rtextents"] == "1024"
     assert parse_xfs_info("") == {}
 
 
@@ -474,6 +477,17 @@ def test_read_xfs_info_surfaces_the_capture_or_degrades(tmp_path):
     assert got["raw"] == "crc=1 reflink=1"
     assert got["features"] == {"crc": "1", "reflink": "1"}
     assert read_xfs_info("vm0", "missing", tmp_path) == {}
+
+
+def test_read_mkfs_cmd_surfaces_the_realized_command_or_degrades(tmp_path):
+    d = share_dir("vm0", tmp_path)
+    d.mkdir(parents=True)
+    (d / "xfs_rt.mkfs").write_text(
+        "mkfs --type xfs -f -r extsize=8192 -r rtdev=/dev/nvme2n1 /dev/nvme1n1\n"
+    )
+    got = read_mkfs_cmd("vm0", "xfs_rt", tmp_path)
+    assert got.endswith("-r rtdev=/dev/nvme2n1 /dev/nvme1n1")
+    assert read_mkfs_cmd("vm0", "missing", tmp_path) == ""
 
 
 GROUP_NAMES = """\
