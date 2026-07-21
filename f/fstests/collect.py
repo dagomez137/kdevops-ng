@@ -26,7 +26,7 @@ from f.fstests.common import (
 from f.fstests.common import (
     parse_xfs_info,
     parse_xunit,
-    read_section_devices,
+    read_section_geometry,
     section_config,
     section_results_dir,
 )
@@ -59,13 +59,16 @@ def main(
     # The per-test/failure detail rides under `detail`, consumed only by `f/fstests/report`
     # to build the run's per-section tables; `status` folds "no report" into a failure.
     geometry = section_config(vm_name, section)
-    # Merge the per-device geometry f/fstests/wait captured at run-end. The report's
-    # realized feature set + rtextents come from TEST_DEV's xfs_info; the raw per-device
-    # snapshots (TEST/SCRATCH filesystems, the raw realtime/log volumes) ride under
-    # detail.geometry.devices.
-    devices = read_section_devices(vm_name, section)
-    if devices:
+    # Merge the realized geometry f/fstests/wait captured at run-end. The report's feature
+    # set + rtextents come from TEST_DEV's xfs_info; `mkfs`/`mount` are xfstests' own header
+    # lines (the exact commands it ran, rtdev= and all); the raw per-device snapshots ride
+    # under detail.geometry.devices.
+    realized = read_section_geometry(vm_name, section)
+    if realized:
+        devices = realized.get("devices") or {}
         geometry["devices"] = devices
+        geometry["mkfs"] = realized.get("mkfs_options", "")
+        geometry["mount"] = realized.get("mount_options", "")
         test_xfs_info = (devices.get("TEST_DEV") or {}).get("xfs_info", "")
         if test_xfs_info:
             geometry["features"] = parse_xfs_info(test_xfs_info)

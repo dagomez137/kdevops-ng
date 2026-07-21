@@ -75,6 +75,7 @@ cmd_links = {
     "ssh": f"{_MAN7}/ssh.1.html",
     "mkfs": f"{_MAN8}/mkfs.8.html",
     "mount": f"{_MAN8}/mount.8.html",
+    "xfs_info": f"{_MAN8}/xfs_info.8.html",
     "dmesg": f"{_MAN7}/dmesg.1.html",
     "cat": f"{_MAN7}/cat.1.html",
     "~/.ssh/config": "https://man7.org/linux/man-pages/man5/ssh_config.5.html",

@@ -93,7 +93,8 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
     # Table 2: one row per section: the filesystem-under-test geometry (configured size +
     # the realized feature bits from TEST_DEV's xfs_info, captured by wait) then the counts.
     # `rtextents` is the realtime proof: non-zero means TEST_DEV really got a realtime
-    # section. The per-device xfs_info snapshots ride in report.json's detail.geometry.
+    # section. `mkfs`/`mount` are xfstests' own header lines (the exact commands it ran,
+    # rtdev= and all). The per-device xfs_info snapshots ride in report.json's detail.
     section_rows = []
     for s in sections:
         geo = (s.get("detail") or {}).get("geometry") or {}
@@ -110,6 +111,8 @@ def main(per_section: list[dict] | None = None, vm_name: str = "") -> dict:
                 "failed": int(s.get("failed", 0) or 0),
                 "notrun": int(s.get("notrun", 0) or 0),
                 "iterations": int(s.get("iterations", 1) or 1),
+                "mkfs": geo.get("mkfs", "") or geo.get("mkfs_options", ""),
+                "mount": geo.get("mount", "") or geo.get("mount_options", ""),
             }
         )
 

@@ -12,11 +12,12 @@ from f.fstests.common import (
     device_sector,
     inject_device_base,
     list_groups,
+    parse_check_header,
     parse_group_names,
     parse_sections,
     parse_xfs_info,
     parse_xunit,
-    read_section_devices,
+    read_section_geometry,
     render_check_env,
     render_local_config,
     run_status,
@@ -493,17 +494,34 @@ def test_section_device_map_reads_the_roles_in_order():
     assert section_device_map("[p]\nFSTYP=xfs\n", "p") == {}
 
 
-def test_read_section_devices_surfaces_the_snapshot_or_degrades(tmp_path):
+def test_read_section_geometry_surfaces_the_snapshot_or_degrades(tmp_path):
     d = share_dir("vm0", tmp_path)
     d.mkdir(parents=True)
-    (d / "xfs_rt.devices.json").write_text(
-        '{"TEST_DEV": {"device": "/dev/nvme1n1", "xfs_info": "realtime =external"},'
-        ' "TEST_RTDEV": {"device": "/dev/nvme2n1", "xfs_info": "not a valid XFS"}}'
+    (d / "xfs_rt.geometry.json").write_text(
+        '{"devices": {"TEST_DEV": {"device": "/dev/nvme1n1",'
+        ' "xfs_info": "realtime =external"}},'
+        ' "mkfs_options": "-f -rrtdev=/dev/nvme3n1 /dev/nvme0n1",'
+        ' "mount_options": "-ortdev=/dev/nvme3n1 /dev/nvme0n1 /media/scratch"}'
     )
-    got = read_section_devices("vm0", "xfs_rt", tmp_path)
-    assert got["TEST_DEV"]["xfs_info"] == "realtime =external"
-    assert got["TEST_RTDEV"]["device"] == "/dev/nvme2n1"
-    assert read_section_devices("vm0", "missing", tmp_path) == {}
+    got = read_section_geometry("vm0", "xfs_rt", tmp_path)
+    assert got["devices"]["TEST_DEV"]["xfs_info"] == "realtime =external"
+    assert got["mount_options"].endswith("/media/scratch")
+    assert read_section_geometry("vm0", "missing", tmp_path) == {}
+
+
+def test_parse_check_header_reads_the_scratch_mkfs_and_mount_lines():
+    text = (
+        "SECTION       -- xfs_rt\n"
+        "FSTYP         -- xfs (debug)\n"
+        "MKFS_OPTIONS  -- -f -rrtdev=/dev/nvme3n1 -b size=4096 /dev/nvme0n1\n"
+        "MOUNT_OPTIONS -- -ortdev=/dev/nvme3n1 /dev/nvme0n1 /media/scratch\n"
+        "generic/363\n"
+    )
+    got = parse_check_header(text)
+    assert got["mkfs_options"] == "-f -rrtdev=/dev/nvme3n1 -b size=4096 /dev/nvme0n1"
+    assert got["mount_options"] == "-ortdev=/dev/nvme3n1 /dev/nvme0n1 /media/scratch"
+    # No header (crash before the section printed it) degrades to empty strings.
+    assert parse_check_header("") == {"mkfs_options": "", "mount_options": ""}
 
 
 GROUP_NAMES = """\

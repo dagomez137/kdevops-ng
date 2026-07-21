@@ -64,10 +64,14 @@ section's ``local.config``, creates the mount points, and loads the filesystem
 driver.
 
 Because ``./check`` builds the filesystems, the run records their *realized*
-geometry, not the configured intent. ``wait`` snapshots each device's
-``xfs_info`` at the end of the section to ``<section>.devices.json`` (and
-returns it). A realtime ``TEST_DEV`` shows ``rtextents`` non-zero, which the
-report's per-section table carries as a column; a realtime or log volume shows
+geometry, not the configured intent. At the end of the section ``wait``
+snapshots each device's :cmd:`xfs_info`, plus the ``MKFS_OPTIONS`` and
+``MOUNT_OPTIONS`` lines xfstests echoes in its own run header (the commands it
+ran, ``rtdev=`` and all), to ``<section>.geometry.json``. That header is read
+from the journal scoped to the run's systemd invocation id, so a re-run of the
+same section unit never matches a previous run's lines. A realtime ``TEST_DEV``
+shows ``rtextents`` non-zero, which the report's per-section table carries
+alongside the ``mkfs`` and ``mount`` commands; a realtime or log volume shows
 ``xfs_info``'s "not a valid XFS filesystem" message, confirming it is a raw
 external volume rather than a broken filesystem.
 

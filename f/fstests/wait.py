@@ -36,6 +36,7 @@ from f.common.devshell import Systemd
 from f.fstests.common import (
     RemoteSystemd,
     _atomic_write,
+    parse_check_header,
     section_device_map,
     section_vars,
     share_dir,
@@ -52,34 +53,65 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
-def _capture_devices(
-    remote: RemoteSystemd, vm_name: str, section: str, workers: Path
+def _capture_geometry(
+    remote: RemoteSystemd,
+    vm_name: str,
+    section: str,
+    workers: Path,
+    invocation_id: str,
 ) -> dict:
-    """Snapshot each device's realized `xfs_info` at run-end, once `./check` has
-    formatted them, into `<share>/<vm>/<section>.devices.json`:
-    `{ROLE: {"device": path, "xfs_info": text}}`.
+    """Snapshot the run's realized geometry at run-end, once `./check` has built the
+    filesystems, into `<share>/<vm>/<section>.geometry.json`:
+    `{"devices": {ROLE: {"device": path, "xfs_info": text}}, "mkfs_options": str,
+    "mount_options": str}`.
 
-    xfs-only, and the pool is skipped (it is a device list, not one device). A raw
-    realtime/log volume has no XFS superblock, so its `xfs_info` is the tool's own
-    message (`merge_stderr` surfaces it), which confirms it is an external volume.
+    Each device's `xfs_info` is queried read-only (xfs sections; the pool is skipped, being a
+    device list). A raw realtime/log volume has no XFS superblock, so its `xfs_info` is the
+    tool's own message (`merge_stderr` surfaces it), confirming it is an external volume.
+
+    The `mkfs_options`/`mount_options` are xfstests' own per-section header lines, read from
+    the journal scoped to THIS run's systemd invocation id (`_SYSTEMD_INVOCATION_ID`), so a
+    re-run of the same section unit can never match a previous run's header.
     """
     cfg = share_dir(vm_name, workers) / f"{section}.config"
-    if not cfg.is_file():
-        return {}
-    text = cfg.read_text()
-    fstyp = section_vars(text, section).get("FSTYP", "")
-    out: dict[str, dict] = {}
-    for role, dev in section_device_map(text, section).items():
-        entry: dict[str, str] = {"device": dev}
-        if fstyp == "xfs" and role != "SCRATCH_DEV_POOL":
-            entry["xfs_info"] = (
-                remote.ssh("xfs_info", dev, check=False, quiet=True, merge_stderr=True)
-                or ""
-            ).strip()
-        out[role] = entry
-    path = share_dir(vm_name, workers) / f"{section}.devices.json"
+    devices: dict[str, dict] = {}
+    if cfg.is_file():
+        text = cfg.read_text()
+        fstyp = section_vars(text, section).get("FSTYP", "")
+        for role, dev in section_device_map(text, section).items():
+            entry: dict[str, str] = {"device": dev}
+            if fstyp == "xfs" and role != "SCRATCH_DEV_POOL":
+                entry["xfs_info"] = (
+                    remote.ssh(
+                        "xfs_info", dev, check=False, quiet=True, merge_stderr=True
+                    )
+                    or ""
+                ).strip()
+            devices[role] = entry
+
+    header = {"mkfs_options": "", "mount_options": ""}
+    if invocation_id:
+        journal = (
+            remote.ssh(
+                "journalctl",
+                "--no-pager",
+                "--output=cat",
+                f"_SYSTEMD_INVOCATION_ID={invocation_id}",
+                check=False,
+                quiet=True,
+            )
+            or ""
+        )
+        header = parse_check_header(journal)
+
+    out = {"devices": devices, **header}
+    path = share_dir(vm_name, workers) / f"{section}.geometry.json"
     _atomic_write(path, json.dumps(out, indent=2) + "\n")
-    print(f"+ wrote {path} ({', '.join(out)})", flush=True)
+    print(
+        f"+ wrote {path} ({', '.join(devices)}; "
+        f"mkfs={'captured' if header['mkfs_options'] else 'none'})",
+        flush=True,
+    )
     return out
 
 
@@ -96,12 +128,15 @@ def main(
     unit = f"xfstests@{section}.service"
     qemu_unit = f"qemu-system@{vm_name}.service"
 
-    props = ("Result", "ExecMainStatus", "ActiveState")
+    # InvocationID scopes the run-end header capture to THIS unit start, so a re-run's
+    # journal can't leak a previous run's MKFS_OPTIONS/MOUNT_OPTIONS lines.
+    props = ("Result", "ExecMainStatus", "ActiveState", "InvocationID")
     # The run window is poll-observed wall clock, not unit-reported timestamps.
     started_realtime_ms = int(time.time() * 1000)
     deadline = time.monotonic() + int(timeout)
     state: dict[str, str] = {}
     active_state = ""
+    invocation_id = ""
     crashed = False
     timed_out = False
     poll_errors = 0
@@ -160,6 +195,10 @@ def main(
             continue
         poll_errors = 0
         drain_logs()
+        # Latch the invocation id while the unit is up; it is constant for this start and
+        # persists after it goes inactive, but a late errored poll could return stale state.
+        if state.get("InvocationID"):
+            invocation_id = state["InvocationID"]
         active_state = state.get("ActiveState", "")
         if active_state in _DONE:
             break
@@ -210,16 +249,19 @@ def main(
         if kernel_tail:
             print(f"--- kernel (last {_JOURNAL_LINES}) ---\n{kernel_tail}", flush=True)
 
-    # Snapshot each device's realized geometry now that ./check has formatted them
-    # (TEST_DEV per RECREATE_TEST_DEV, SCRATCH_DEV per test), for the run report. Skip
-    # when the guest crashed (the transport is gone); best-effort otherwise.
-    devices: dict = {}
+    # Snapshot the realized geometry now that ./check has built the filesystems
+    # (TEST_DEV per RECREATE_TEST_DEV, SCRATCH_DEV per test) plus xfstests' own
+    # MKFS_OPTIONS/MOUNT_OPTIONS header, for the run report. Skip when the guest crashed
+    # (the transport is gone); best-effort otherwise.
+    geometry: dict = {}
     if not crashed:
         try:
-            devices = _capture_devices(remote, vm_name, section, workers)
+            geometry = _capture_geometry(
+                remote, vm_name, section, workers, invocation_id
+            )
         except Exception as exc:
             print(
-                f"{vm_name}: device geometry capture failed ({exc}); continuing",
+                f"{vm_name}: geometry capture failed ({exc}); continuing",
                 flush=True,
             )
 
@@ -240,5 +282,7 @@ def main(
         "timed_out": timed_out,
         "started_realtime_ms": started_realtime_ms,
         "ended_realtime_ms": ended_realtime_ms,
-        "devices": devices,
+        "devices": geometry.get("devices", {}),
+        "mkfs_options": geometry.get("mkfs_options", ""),
+        "mount_options": geometry.get("mount_options", ""),
     }

@@ -471,18 +471,42 @@ def section_device_map(config_text: str, section: str) -> dict[str, str]:
     return {k: v[k] for k in DEVICE_KEYS if v.get(k)}
 
 
-def read_section_devices(
+_CHECK_HEADER_RE = re.compile(
+    r"^(MKFS_OPTIONS|MOUNT_OPTIONS)\s+--\s+(.*)$", re.MULTILINE
+)
+
+
+def parse_check_header(text: str) -> dict:
+    """The `MKFS_OPTIONS`/`MOUNT_OPTIONS` lines xfstests echoes in its per-section run
+    header (`check` prints `_scratch_mkfs_options`/`_scratch_mount_options`, so these are
+    the exact scratch mkfs/mount commands it used, `rtdev=` and all).
+
+    Returns `{"mkfs_options": str, "mount_options": str}`, empty strings when a line is
+    absent. The last occurrence wins (one section per invocation, but stay robust). Pure;
+    the caller scopes the journal text to the run's own invocation before parsing.
+    """
+    out = {"mkfs_options": "", "mount_options": ""}
+    for m in _CHECK_HEADER_RE.finditer(text or ""):
+        key = "mkfs_options" if m.group(1) == "MKFS_OPTIONS" else "mount_options"
+        out[key] = m.group(2).strip()
+    return out
+
+
+def read_section_geometry(
     vm_name: str, section: str, workers: Path | None = None
 ) -> dict:
-    """The per-device geometry `f/fstests/wait` captured to `<share>/<vm>/
-    `<section>.devices.json` at run-end: `{ROLE: {"device": path, "xfs_info": text}}`.
+    """The realized geometry `f/fstests/wait` captured to `<share>/<vm>/
+    `<section>.geometry.json` at run-end:
+    `{"devices": {ROLE: {"device": path, "xfs_info": text}}, "mkfs_options": str,
+    "mount_options": str}`.
 
     Each device is queried with `xfs_info` after `./check` formatted it, so `TEST_DEV`
     and `SCRATCH_DEV` show their realized geometry and a raw realtime/log volume shows
-    the tool's own message. Returns `{}` when absent (crash before capture, or non-xfs).
-    Host-side, read-only.
+    the tool's own message; `mkfs_options`/`mount_options` are xfstests' own header lines,
+    parsed from the run's own systemd invocation. Returns `{}` when absent (crash before
+    capture, or non-xfs). Host-side, read-only.
     """
-    path = share_dir(vm_name, workers) / f"{section}.devices.json"
+    path = share_dir(vm_name, workers) / f"{section}.geometry.json"
     if not path.is_file():
         return {}
     try:
