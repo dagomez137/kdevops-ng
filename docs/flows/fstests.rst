@@ -25,56 +25,51 @@ The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
 5. ``judge``: fail the job unless every section passed, so a red run is a red
    Windmill job.
 
-Devices and external-device sections
-====================================
+Devices
+=======
 
-The guest's NVMe data disks (``/dev/nvme*n1``, whole-disk namespaces) are the
-test material. ``discover`` enumerates them in the guest's block-device list
-order, and ``render_config`` maps that ordered list onto the xfstests device
-roles positionally, per selected section, then writes the paths into the
-section's ``local.config``. The catalog itself is device-agnostic (no device
-paths), so the same catalog runs on any guest:
+The guest's NVMe data disks (``/dev/nvme*n1``) are the raw material.
+``discover`` lists them in the guest's block-device order, and ``render_config``
+assigns them to the xfstests device roles by position, writing the paths into
+each section's ``local.config``. The catalog carries no device paths, so it runs
+unchanged on any guest:
 
 .. code-block:: text
 
-   device 0  ->  TEST_DEV       (the persistent fs at /media/test)
-   device 1  ->  SCRATCH_DEV    (the mkfs-per-test fs at /media/scratch)
-   device 2  ->  TEST_RTDEV  or TEST_LOGDEV      (external sections only)
-   device 3  ->  SCRATCH_RTDEV or SCRATCH_LOGDEV (external sections only)
-   last      ->  LOGWRITES_DEV  (reserved first, if the replay log is on)
+   device 0  ->  TEST_DEV       persistent fs, mounted at /media/test
+   device 1  ->  SCRATCH_DEV    throwaway fs, remade per test at /media/scratch
+   device 2  ->  TEST_RTDEV  / TEST_LOGDEV       external-device sections only
+   device 3  ->  SCRATCH_RTDEV / SCRATCH_LOGDEV  external-device sections only
+   last      ->  LOGWRITES_DEV  dm-log-writes replay log, when enabled
 
-A plain section uses the first two (or pools the extras as ``SCRATCH_DEV_POOL``
-with more than two). An **external-device** section (an XFS realtime or
-external-log profile, such as ``xfs_realtime_rtx2_bs4k_ss4k``) attaches its
-extra device to **both** filesystems, so the persistent ``TEST_DEV`` mount at
-``/media/test`` is itself a realtime (or external-log) filesystem, not just the
-scratch one. Such a section carries ``USE_EXTERNAL=yes`` (the canonical xfstests
-switch) and declares the canonical device variables empty in the catalog:
-``TEST_RTDEV=`` / ``SCRATCH_RTDEV=`` for realtime, or the ``LOGDEV`` pair for an
-external log. ``render_config`` fills the empty variables in place from the
-discovered devices.
+A plain XFS section uses the first two disks (any extras become a
+``SCRATCH_DEV_POOL``). An **external-device** section, an XFS realtime or
+external-log profile such as ``xfs_realtime_rtx2_bs4k_ss4k``, gives *both*
+filesystems a dedicated realtime or log volume: the test filesystem at
+``/media/test`` is then itself realtime, not just the scratch one. Such a
+section needs four disks, or five with the log-writes device, which is why
+:src:`f/qsu/bringup` attaches five by default. A guest with too few is short a
+role, so ``render_config`` skips that section rather than run it wrong.
 
-**xfstests owns all formatting and mounting.** ``./check`` reformats
-``SCRATCH_DEV`` before every test, mounts and unmounts both ``TEST_DEV`` and
-``SCRATCH_DEV`` itself (attaching each external device via its own
-``_test_mkfs`` / ``_scratch_mkfs``, and ``-o rtdev=`` on mount), reformatting
-``TEST_DEV`` per
-section when ``RECREATE_TEST_DEV=true`` (the **Recreate TEST_DEV** knob, on by
-default; off reuses the existing ``TEST_DEV`` filesystem). The host never mkfs's
-a device. ``prepare`` only activates the section's ``local.config``, creates the
-mount points, and loads the filesystem driver; ``wait`` snapshots each device's
-realized ``xfs_info`` at run-end, once ``./check`` has built them.
+xfstests owns formatting and mounting
+=====================================
 
-An external section therefore needs four NVMe drives (a test and a scratch
-device plus their external device), or five when the ``LOGWRITES_DEV`` replay
-log is on, which is why :src:`f/qsu/bringup` attaches five drives by default. A
-guest with too few drives skips the section (with the shortfall named) rather
-than running it wrong. Confirm a realtime section landed from the ``realtime``
-line of the device's ``xfs_info`` (``rtextents`` non-zero) or the ``rtdev=``
-mount option on ``/media/test``. The run captures this for you: ``wait`` writes
-each device's ``xfs_info`` to ``<section>.devices.json`` (and returns it), and
-the per-section report table carries an ``rtextents`` column from ``TEST_DEV``'s
-snapshot, with the raw per-device geometry in ``report.json``.
+The host never runs :cmd:`mkfs` or :cmd:`mount`; ``./check`` does it all. It
+remakes ``SCRATCH_DEV`` before every test, mounts and unmounts both filesystems
+itself, attaches each realtime or log volume through its own ``mkfs`` and
+``-o rtdev=`` mount, and remakes ``TEST_DEV`` once per section when the
+**Recreate TEST_DEV** form knob is on (the default; off reuses the existing test
+filesystem, which ``./check`` then only mounts). ``prepare`` just lays down the
+section's ``local.config``, creates the mount points, and loads the filesystem
+driver.
+
+Because ``./check`` builds the filesystems, the run records their *realized*
+geometry, not the configured intent. ``wait`` snapshots each device's
+``xfs_info`` at the end of the section to ``<section>.devices.json`` (and
+returns it). A realtime ``TEST_DEV`` shows ``rtextents`` non-zero, which the
+report's per-section table carries as a column; a realtime or log volume shows
+``xfs_info``'s "not a valid XFS filesystem" message, confirming it is a raw
+external volume rather than a broken filesystem.
 
 On the guest each ``[section]`` runs as a ``xfstests@<section>.service``
 template unit started with ``--no-block``, executing ``./check -s <section>``.

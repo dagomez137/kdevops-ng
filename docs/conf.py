@@ -70,8 +70,11 @@ html_context = {
 # there).
 _SYSTEMD = "https://www.freedesktop.org/software/systemd/man/latest"
 _MAN7 = "https://man7.org/linux/man-pages/man1"
+_MAN8 = "https://man7.org/linux/man-pages/man8"
 cmd_links = {
     "ssh": f"{_MAN7}/ssh.1.html",
+    "mkfs": f"{_MAN8}/mkfs.8.html",
+    "mount": f"{_MAN8}/mount.8.html",
     "dmesg": f"{_MAN7}/dmesg.1.html",
     "cat": f"{_MAN7}/cat.1.html",
     "~/.ssh/config": "https://man7.org/linux/man-pages/man5/ssh_config.5.html",
