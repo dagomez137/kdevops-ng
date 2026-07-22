@@ -152,6 +152,75 @@ land on the host side of the share under
 ``$WORKERS_DIR/shared/fstests/<vm>/<kver>/`` once ``collect`` runs, and the
 folded run verdict is written to ``report.json`` in that directory.
 
+Where the run lives on the guest
+================================
+
+Everything a run reads and writes lives under ``/var/lib/xfstests`` on the
+guest, the writable ``fstests`` virtiofs share the guest mounts from the host.
+The same files are visible host-side at ``$WORKERS_DIR/shared/fstests/<vm>/``,
+so the flow lays the config down and reads the results back through the shared
+directory rather than copying anything over the SSH transport: the guest and the
+host see one directory.
+
+The ``xfstests@<section>.service`` template unit reads its inputs from that
+directory at start time. The files on the share (guest paths shown; each is
+visible host-side under the same name) are:
+
+- ``local.config``: the active single-section xfstests ``HOST_OPTIONS`` config
+  for the section running now. It carries that one section's ``FSTYP``,
+  ``MKFS_OPTIONS`` and ``MOUNT_OPTIONS`` plus the injected device roles
+  (``TEST_DEV``, ``SCRATCH_DEV``, ``TEST_RTDEV`` and the rest for that section).
+  ``prepare`` writes it by copying the section's ``<section>.config`` over it.
+- ``check.env``: the unit's ``EnvironmentFile``, written by ``render_config``.
+  It holds ``HOST_OPTIONS=/var/lib/xfstests/local.config``,
+  ``XFSTESTS_CHECK_ARGS`` (the ``./check`` flags: the ``-g`` groups, a test
+  list, ``-R`` report, and the rest of the test selection), and
+  ``RECREATE_TEST_DEV`` (``true``/``false``).
+- ``<section>.config``: one device-bound single-section config per section
+  selected in the last run, also written by ``render_config``. ``prepare``
+  activates one of these as ``local.config``.
+- ``<kver>/results/<section>/``: the results tree for one section under one
+  kernel release, holding ``result.xml``, ``check.log`` and the per-test
+  ``<test>.full``, ``<test>.out.bad`` and ``<test>.dmesg``. The
+  ``xfstests-check`` wrapper forces ``RESULT_BASE=$PWD/results`` and the unit's
+  ``WorkingDirectory`` is ``/var/lib/xfstests/%v`` (``%v`` is the guest's kernel
+  release), so results are keyed by kernel version.
+
+The unit runs ``xfstests-check -s <section> $XFSTESTS_CHECK_ARGS``; the wrapper
+execs xfstests' ``./check`` in the guest, reading ``HOST_OPTIONS`` (that is,
+``local.config``). It is ``Type=oneshot`` with ``TimeoutStartSec=infinity`` and
+logs to ``journal+console`` under the ``xfstests`` syslog identifier.
+
+Running a section by hand
+=========================
+
+``local.config`` and ``check.env`` are single global files on the share, so
+exactly one section is armed at a time: whichever one the last run (or
+``prepare``) left in ``local.config``. ``systemctl cat`` resolves for any
+instance name, but ``systemctl start xfstests@<section>.service`` only produces
+a correct run when ``local.config`` currently holds that section, because the
+unit reads its ``HOST_OPTIONS`` from ``local.config`` regardless of the instance
+name.
+
+To run a different already-rendered section by hand, activate its config with
+:cmd:`cp` first (exactly what ``prepare`` does), then start the unit:
+
+.. code-block:: console
+
+   $ cp /var/lib/xfstests/<section>.config /var/lib/xfstests/local.config
+   $ systemctl start xfstests@<section>.service
+
+To change the test selection by hand, edit ``XFSTESTS_CHECK_ARGS`` in
+``/var/lib/xfstests/check.env`` and restart the unit; systemd re-reads the
+``EnvironmentFile`` on each start:
+
+.. code-block:: console
+
+   $ systemctl restart xfstests@<section>.service
+
+The normal path is to re-run the flow, which regenerates both ``local.config``
+and ``check.env`` from the form and cannot leave them inconsistent.
+
 Restarting a hung test
 ======================
 
