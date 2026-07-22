@@ -205,26 +205,31 @@ XFS_FEATURES: dict[str, dict] = {
     # reflink needs metadir); realtime_reflink re-enables it via metadir and needs
     # block >= XFS_MIN_RTEXTSIZE (4096) or mkfs silently drops reflink.
     "logdev": {"mkfs": "", "mount": "", "v4": False, "needs": "logdev"},
-    "realtime": {"mkfs": "-m reflink=0", "mount": "", "v4": False, "needs": "rtdev"},
+    "realtime": {
+        "mkfs": "-m reflink=0 -d rtinherit=1",
+        "mount": "",
+        "v4": False,
+        "needs": "rtdev",
+    },
     # Realtime extent-size variants: a realtime device with `-r extsize=<mult>*block`,
     # emitted only for blocks where mult*block clears XFS_MIN_RTEXTSIZE (rtx2 from block
     # 2k, rtx4 from 1k). The matrix loop appends the per-block extsize.
     "realtime_rtx2": {
-        "mkfs": "",
+        "mkfs": "-d rtinherit=1",
         "mount": "",
         "v4": False,
         "needs": "rtdev",
         "rt_extsize_mult": 2,
     },
     "realtime_rtx4": {
-        "mkfs": "",
+        "mkfs": "-d rtinherit=1",
         "mount": "",
         "v4": False,
         "needs": "rtdev",
         "rt_extsize_mult": 4,
     },
     "realtime_reflink": {
-        "mkfs": "-m metadir=1",
+        "mkfs": "-m metadir=1 -d rtinherit=1",
         "mount": "",
         "v4": False,
         "needs": "rtdev",

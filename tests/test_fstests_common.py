@@ -243,7 +243,7 @@ def test_xfs_profiles_matrix_rtx_variants_clear_the_min_rtextsize():
     assert list(m)[0] == "xfs_realtime_rtx2_bs2k_ss512"
     assert not any("bs1k" in name for name in m)
     assert m["xfs_realtime_rtx2_bs2k_ss512"] == {
-        "mkfs": "-b size=2048 -s size=512 -r extsize=4096",
+        "mkfs": "-d rtinherit=1 -b size=2048 -s size=512 -r extsize=4096",
         "mount": "",
         "needs": "rtdev",
     }
@@ -254,7 +254,7 @@ def test_xfs_profiles_matrix_rt_reflink_honors_its_min_block():
     assert list(m)[0] == "xfs_realtime_reflink_bs4k_ss512"
     assert not any("bs1k" in name or "bs2k" in name for name in m)
     assert m["xfs_realtime_reflink_bs4k_ss512"]["mkfs"] == (
-        "-m metadir=1 -b size=4096 -s size=512"
+        "-m metadir=1 -d rtinherit=1 -b size=4096 -s size=512"
     )
 
 
