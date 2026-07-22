@@ -15,3 +15,6 @@ workspaces:
   kdevops:
     baseUrl: http://localhost:8002/
     gitBranch: main
+  staging:                   # promote gate: push WIP here, promote to kdevops once proven
+    baseUrl: http://localhost:8002/
+    gitBranch: main
