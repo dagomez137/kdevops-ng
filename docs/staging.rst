@@ -33,6 +33,11 @@ Concepts
 - :doc:`/concepts/build-store` (add to ``docs/concepts/index.rst``)
 - :doc:`/concepts/cross-host-development` (add to ``docs/concepts/index.rst``)
 
+Deployment
+==========
+
+- :doc:`/deployment/monitoring` (add to ``docs/deployment/index.rst``)
+
 Flows
 =====
 
