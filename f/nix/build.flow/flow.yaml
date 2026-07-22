@@ -253,7 +253,7 @@ schema:
             defaults; all five are disabled in node_exporter by default.
             buddyinfo exposes the buddy allocator's per-order free block counts,
             zoneinfo the per-zone counters, and meminfo_numa the per-NUMA-node
-            meminfo.
+            meminfo. That profile is off by default.
           default: []
           items:
             type: string
@@ -269,7 +269,8 @@ schema:
           description: |-
             Run ebpf_exporter on the guest and stream its metrics through the
             same push pipeline. The kernel must expose BTF
-            (/sys/kernel/btf/vmlinux).
+            (/sys/kernel/btf/vmlinux). Applies only with the telemetry profile,
+            which is off by default.
           default: false
           title: eBPF exporter
         telemetry_ebpf_configs:
@@ -277,7 +278,8 @@ schema:
           description: |-
             ebpf_exporter example configs to load when the eBPF exporter is
             on. biolatency exports block I/O latency histograms; bio-trace
-            per-request traces.
+            per-request traces. Applies only with the telemetry profile, which
+            is off by default.
           default:
             - biolatency
           items:
@@ -291,6 +293,8 @@ schema:
           description: |-
             Loki push API endpoint the telemetry profile ships the journal to.
             The default reaches the guest's own host over the QEMU user network.
+            That profile is off by default, and ships only if a monitoring stack
+            is listening at the endpoint.
           default: http://10.0.2.2:3100/loki/api/v1/push
           title: Logs push URL
         telemetry_metrics_url:
@@ -298,7 +302,8 @@ schema:
           description: |-
             Prometheus remote_write endpoint the telemetry profile pushes
             metrics to. The default reaches the guest's own host over the QEMU
-            user network.
+            user network. That profile is off by default, and pushes only if a
+            monitoring stack is listening at the endpoint.
           default: http://10.0.2.2:9090/api/v1/write
           title: Metrics push URL
         test_suites:
