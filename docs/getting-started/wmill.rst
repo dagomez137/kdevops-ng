@@ -39,12 +39,31 @@ the workspace:
        --data '{"email":"admin@windmill.dev","password":"changeme"}')
    $ wmill workspace add kdevops kdevops "$url/" --token "$token" --create
 
-The token is saved to ``~/.config/windmill/remotes.ndjson``, so later commands
-are just ``wmill sync push``. A fresh instance seeds only a ``starter``
-workspace, so ``--create`` adds ``kdevops``. Change that default password after
+The token is saved to ``~/.config/windmill/remotes.ndjson``, so later deploys
+need no re-auth; run them through the ``deploy-*`` apps (`Deploying`_). A fresh
+instance seeds only a ``starter`` workspace, so ``--create`` adds ``kdevops``;
+add ``staging`` the same way. Change that default password after
 the first login, and mint a durable token with ``wmill token create`` if you
 want one. ``wmill init`` writes AI-assistant context and a few editor files that
 are git-ignored; it is optional.
+
+Deploying
+=========
+
+Two workspaces share the instance: ``kdevops`` for production and ``staging``
+for work in progress. Deploy through the deploy apps, not a bare
+``wmill sync push``:
+
+.. code-block:: console
+
+   $ nix run .#deploy-staging     # everything -> staging, for live testing
+   $ nix run .#deploy-kdevops     # the promoted subset -> production
+
+New or untested flows go to ``staging`` and run against live guests there.
+``deploy-kdevops`` withholds a staging-only set (listed in
+:src:`nix/apps/default.nix`) so ``kdevops`` carries only promoted work; a bare
+``wmill sync push`` to ``kdevops`` would re-add it. Promote a flow by dropping
+its entry from that list. See :doc:`/staging` for the model.
 
 Two workflows
 =============
@@ -62,7 +81,7 @@ files are kept in the canonical form described in
 
    $ wmill sync pull          # instance -> files
    $ nix run .#reflow         # keep descriptions as clean literal blocks
-   $ wmill sync push          # files -> instance
+   $ nix run .#deploy-kdevops # files -> production
    $ git add <paths> && git commit --signoff
 
 This unlocks the full engine: UI editing, ``wmill dev``, and a real pull.
@@ -70,9 +89,9 @@ This unlocks the full engine: UI editing, ``wmill dev``, and a real pull.
 Push-only
 ---------
 
-Hand-author the YAML on disk, deploy with ``wmill sync push --yes``, and never
-pull. This preserves hand-tuned formatting but does not capture UI edits back
-to git. Prefer the bidirectional flow unless you have a reason not to.
+Hand-author the YAML on disk, deploy with ``nix run .#deploy-kdevops``, and
+never pull. This preserves hand-tuned formatting but does not capture UI edits
+back to git. Prefer the bidirectional flow unless you have a reason not to.
 
 Previewing a flow
 =================
