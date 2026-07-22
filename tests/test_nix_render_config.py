@@ -301,7 +301,7 @@ def test_blank_form_rows_are_dropped(env):
         profiles=["", "devel"],
         test_suites=["", "fstests"],
         ssh_keys=["", "   "],
-        overrides=[{}],
+        source_overrides={"xfstests": {"src": ""}},
     )
     default = Path(out["default"]).read_text()
     assert "profiles.devel" in default
@@ -312,17 +312,13 @@ def test_blank_form_rows_are_dropped(env):
 
 
 def test_a_curated_override_lands_in_flake_and_overlay(env):
+    # The curated form asks only for the source; the known xfsprogs autoreconf build
+    # step is attached automatically.
     out = render_config.main(
         vm_name="ovm",
         profiles=[],
         test_suites=[],
-        overrides=[
-            {
-                "pkg": "xfsprogs",
-                "src": "/home/me/xfsprogs",
-                "attrs": {"autoreconfPhase": "make configure"},
-            }
-        ],
+        source_overrides={"xfsprogs": {"src": "/home/me/xfsprogs"}},
     )
     flake = Path(out["flake"]).read_text()
     default = Path(out["default"]).read_text()
@@ -333,6 +329,31 @@ def test_a_curated_override_lands_in_flake_and_overlay(env):
         "      xfsprogs = prev.xfsprogs.overrideAttrs "
         '(_: { src = inputs.xfsprogs-src; autoreconfPhase = "make configure"; });'
     ) in default
+
+
+def test_source_overrides_emits_only_filled_curated_packages(env):
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=[],
+        # xfstests filled (git, with ref); fio blank; an unknown key is ignored (the
+        # form only offers the curated packages, so this can't happen from the UI).
+        source_overrides={
+            "xfstests": {"src": "git+file:///home/me/xfstests", "ref": "for-next"},
+            "fio": {"src": ""},
+            "spdk": {"src": "/nope"},
+        },
+    )
+    flake = Path(out["flake"]).read_text()
+    default = Path(out["default"]).read_text()
+    assert '      url = "git+file:///home/me/xfstests";' in flake
+    assert '      ref = "for-next";' in flake
+    assert (
+        "xfstests = prev.xfstests.overrideAttrs (_: { src = inputs.xfstests-src; });"
+        in default
+    )
+    assert "fio-src" not in flake
+    assert "spdk" not in default
 
 
 def test_an_extra_override_takes_any_git_package(env):
@@ -378,13 +399,6 @@ def test_unknown_collector_and_ebpf_config_are_rejected():
         )
 
 
-def test_curated_override_must_name_a_verified_package():
-    with pytest.raises(ValueError, match="unknown override package"):
-        render_config.main(
-            profiles=[], test_suites=[], overrides=[{"pkg": "spdk", "src": "/s"}]
-        )
-
-
 def test_extra_override_needs_a_src():
     with pytest.raises(ValueError, match="missing src"):
         render_config.main(
@@ -397,7 +411,7 @@ def test_override_attrs_must_be_string_valued():
         render_config.main(
             profiles=[],
             test_suites=[],
-            overrides=[{"pkg": "fio", "src": "/s", "attrs": {"patches": ["x"]}}],
+            extra_overrides=[{"pkg": "spdk", "src": "/s", "attrs": {"patches": ["x"]}}],
         )
 
 

@@ -34,7 +34,7 @@ schema:
     - shares
     - home
     - home_dir
-    - overrides
+    - source_overrides
     - extra_overrides
     - user_name
   properties:
@@ -62,44 +62,82 @@ schema:
         what `f/qsu` serves.
       default: ''
       title: Home Dir
-    overrides:
-      type: array
+    source_overrides:
+      type: object
       description: |-
-        Rebuild a package nixos-flake builds from your own source instead of its
-        pinned version: pick the package, give a src (an absolute path or a
-        git/flake URL), and the closure picks it up while keeping the flake's
-        build recipe. fio, xfstests, xfsprogs, libbpf-tools (verified for the
-        fstests focus; more join per test suite). For any other nixpkgs package,
-        use the advanced field below.
-      default: []
-      items:
-        type: object
-        properties:
-          attrs:
-            type: object
-            description: |-
-              Advanced: extra string-valued overrideAttrs, e.g.
-              {"autoreconfPhase": "make configure"} for xfsprogs from git.
-            title: Extra build attrs
-          pkg:
-            type: string
-            enum:
-              - fio
-              - xfstests
-              - xfsprogs
-              - libbpf-tools
-            title: Package
-          ref:
-            type: string
-            description: Git ref (branch or tag) when src is a URL.
-          src:
-            type: string
-            description: |-
-              An absolute path (e.g. /home/you/src/fio) or a git/flake URL.
-            title: Source
-        required:
-          - pkg
-          - src
+        Rebuild a package from your own source instead of its pinned version.
+        Fill a package's Source (an absolute path, or a git/flake URL like
+        git+file:///path or github:owner/repo); blank keeps the pinned version,
+        and Ref applies to git sources. The flake's build recipe is kept and the
+        known extra build steps (e.g. xfsprogs from git) are applied for you.
+        For any other nixpkgs package, use the advanced field below.
+      default: {}
+      order:
+        - xfstests
+        - xfsprogs
+        - fio
+        - libbpf-tools
+      properties:
+        xfstests:
+          type: object
+          title: xfstests
+          order:
+            - src
+            - ref
+          properties:
+            src:
+              type: string
+              default: ''
+              title: xfstests Source
+            ref:
+              type: string
+              default: ''
+              title: xfstests Ref (git)
+        xfsprogs:
+          type: object
+          title: xfsprogs
+          order:
+            - src
+            - ref
+          properties:
+            src:
+              type: string
+              default: ''
+              title: xfsprogs Source
+            ref:
+              type: string
+              default: ''
+              title: xfsprogs Ref (git)
+        fio:
+          type: object
+          title: fio
+          order:
+            - src
+            - ref
+          properties:
+            src:
+              type: string
+              default: ''
+              title: fio Source
+            ref:
+              type: string
+              default: ''
+              title: fio Ref (git)
+        libbpf-tools:
+          type: object
+          title: libbpf-tools
+          order:
+            - src
+            - ref
+          properties:
+            src:
+              type: string
+              default: ''
+              title: libbpf-tools Source
+            ref:
+              type: string
+              default: ''
+              title: libbpf-tools Ref (git)
       title: Package source overrides
     profiles:
       type: array

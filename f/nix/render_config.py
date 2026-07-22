@@ -50,6 +50,41 @@ _TEST_SUITES = [
 # `extra_overrides` takes any other nixpkgs package.
 _OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools"]
 
+# nixpkgs builds these from a release tarball that ships a prepared `./configure`; a
+# raw source tree (a path or git override) has none, so xfsprogs needs its own
+# autoreconf. Attached automatically when the package is overridden from source, so the
+# curated form only has to ask for the source.
+_PKG_SOURCE_ATTRS = {
+    "xfsprogs": {"autoreconfPhase": "make configure"},
+}
+
+
+def _source_overrides_to_list(source_overrides: dict | None) -> list[dict]:
+    """The curated per-package source form (`{pkg: {src, ref}}`) as override rows.
+
+    Each overridable package (`_OVERRIDABLE_PKGS`) has its own `src` (an absolute path or
+    a git/flake URL) and optional `ref` in the form; a package with a blank src keeps its
+    pinned version. The known extra build attrs a raw tree needs (`_PKG_SOURCE_ATTRS`) are
+    attached automatically. Returns the rows in `_OVERRIDABLE_PKGS` order, so the primary
+    input is a form, never a hand-composed JSON array.
+    """
+    out: list[dict] = []
+    for pkg in _OVERRIDABLE_PKGS:
+        spec = (source_overrides or {}).get(pkg) or {}
+        src = str(spec.get("src", "") or "").strip()
+        if not src:
+            continue
+        ov: dict = {"pkg": pkg, "src": src}
+        ref = str(spec.get("ref", "") or "").strip()
+        if ref:
+            ov["ref"] = ref
+        attrs = _PKG_SOURCE_ATTRS.get(pkg)
+        if attrs:
+            ov["attrs"] = dict(attrs)
+        out.append(ov)
+    return out
+
+
 # Profiles whose effect is behind an enable gate: importing alone is inert, so we
 # turn them on when selected. devel and build-tools are active on import. controller
 # is a host role (it pulls in libvirtd) and telemetry pushes to an external
@@ -102,7 +137,7 @@ def main(
     telemetry_ebpf: bool = False,
     telemetry_ebpf_configs: list[str] | None = None,
     shares: dict | None = None,
-    overrides: list[dict] | None = None,
+    source_overrides: dict | None = None,
     extra_overrides: list[dict] | None = None,
     ssh_keys: list[str] | None = None,
     user_name: str = "kdevops",
@@ -128,15 +163,11 @@ def main(
     telemetry_ebpf_configs = [c for c in (telemetry_ebpf_configs or []) if c] or [
         "biolatency"
     ]
-    # Curated overrides name a package from the form's dropdown (_OVERRIDABLE_PKGS);
-    # extra_overrides takes any other nixpkgs package. Both are validated below.
-    overrides = [ov for ov in (overrides or []) if ov]
-    _reject_unknown(
-        "override package",
-        [ov.get("pkg", "") for ov in overrides],
-        set(_OVERRIDABLE_PKGS),
-    )
-    overrides = overrides + [ov for ov in (extra_overrides or []) if ov]
+    # The curated form gives each overridable package its own src/ref field, so a user
+    # points a package at a tree without composing JSON; extra_overrides is the gated
+    # advanced escape for any other nixpkgs package. The combined list is validated below.
+    overrides = _source_overrides_to_list(source_overrides)
+    overrides += [ov for ov in (extra_overrides or []) if isinstance(ov, dict) and ov]
     ssh_keys = [k for k in (ssh_keys or []) if k and k.strip()]
     shares = {
         m: s
