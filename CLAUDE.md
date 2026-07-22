@@ -14,9 +14,16 @@ later.
 deployment methods. `nix/` is the current default; `podman/` is retired and
 `distro/` is planned. See
 `deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
-and resources, no secrets, single `kdevops` workspace on branch `main`). `f/`
-holds the workspace content and is machine-managed by `wmill`. The root
-`flake.nix` and `scripts/` provide the checks, run with `nix flake check` (see
+and resources, no secrets; two workspaces on branch `main`, `kdevops` for
+production and `staging` for work in progress). `f/` holds the workspace
+content and is machine-managed by `wmill`. Deploy through the `deploy-staging`
+and `deploy-kdevops` nix apps, not a bare `wmill sync push`: new or untested
+work goes to `staging` via `deploy-staging`, and `deploy-kdevops` withholds a
+staging-only set (listed in `nix/apps/default.nix`) so `kdevops` carries only
+promoted work; a bare push to `kdevops` would re-add it, and promoting a flow
+is dropping its entry from that list (see
+`notes/adr/0012-staging-workspace-interim.md`). The root `flake.nix` and
+`scripts/` provide the checks, run with `nix flake check` (see
 `docs/contributing/development.rst`).
 
 ## Conventions
