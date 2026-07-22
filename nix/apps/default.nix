@@ -200,6 +200,18 @@ let
     Environment=WORKER_TAGS=vm-run
   '';
 
+  # WIP flows and scripts that live only in the staging workspace until they
+  # are promoted. deploy-kdevops prunes them from the copy of the tree it
+  # pushes, so kdevops holds only promoted work; to promote one, drop its line.
+  stagingOnlyPrune = ''
+    rm --recursive --force \
+      "$tmp/f/kunit" "$tmp/f/selftests" "$tmp/f/runtime_tests" \
+      "$tmp/f/usertests" "$tmp/f/kernel/bisect.flow"
+    rm --force \
+      "$tmp"/f/kernel/bisect_judge.* "$tmp"/f/kernel/bisect_report.* \
+      "$tmp"/f/kernel/bisect_step.* "$tmp"/f/kernel/check_usertests.*
+  '';
+
   help = {
     type = "app";
     program = lib.getExe (writeShellApplication {
@@ -247,6 +259,31 @@ in
       wmill
     ];
     text = ''python3 scripts/preview-smoke.py "$@"'';
+  };
+
+  deploy-staging = mkApp {
+    name = "kdevops-deploy-staging";
+    description = "Push the whole workspace to the staging workspace for WIP testing";
+    runtimeInputs = [ wmill ];
+    text = ''wmill sync push --workspace staging "$@"'';
+  };
+
+  deploy-kdevops = mkApp {
+    name = "kdevops-deploy-kdevops";
+    description = "Push promoted work to kdevops, holding back the staging-only WIP";
+    runtimeInputs = [
+      pkgs.coreutils
+      wmill
+    ];
+    text = ''
+      tmp="$(mktemp --directory)"
+      trap 'rm --recursive --force "$tmp"' EXIT
+      cp wmill.yaml "$tmp/"
+      if [ -f wmill-lock.yaml ]; then cp wmill-lock.yaml "$tmp/"; fi
+      cp --recursive f "$tmp/f"
+      ${stagingOnlyPrune}
+      (cd "$tmp" && wmill sync push --workspace kdevops --skip-branch-validation "$@")
+    '';
   };
 
   docs = mkApp {
