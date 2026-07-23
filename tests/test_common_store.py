@@ -46,3 +46,39 @@ def test_registered_peers_reads_the_registry(monkeypatch, tmp_path):
         {"host": "hostb", "index": "/custom/index"},
         {"host": "hostc", "index": store.DEFAULT_PEER_INDEX},
     ]
+
+
+def test_run_layers_never_offer_a_devel_layer(monkeypatch, tmp_path):
+    """A picker or a reuse fallback must not surface an artifact nothing can boot."""
+    _clear_env(monkeypatch)
+    index = tmp_path / "store-index"
+    index.mkdir()
+    monkeypatch.setenv("STORE_INDEX_DIR", str(index))
+    live = tmp_path / "live"
+    live.mkdir()
+    for name in (
+        "qemu-11.0.0-vanilla-aaaaaaaaaaaa",
+        "qemu-devel-11.0.0-vanilla-aaaaaaaaaaaa",
+        "kernel-7.1.0-vanilla-bbbbbbbbbbbb",
+        "kernel-devel-7.1.0-vanilla-bbbbbbbbbbbb",
+        # A label that merely contains the word is a run layer, not a devel layer:
+        # the exclusion is anchored at the project name.
+        "qemu-11.0.0-devel-notes-cccccccccccc",
+    ):
+        (index / name).symlink_to(live)
+
+    assert store.list_run_layers("qemu") == [
+        "qemu-11.0.0-devel-notes-cccccccccccc",
+        "qemu-11.0.0-vanilla-aaaaaaaaaaaa",
+    ]
+    assert store.list_run_layers("kernel") == ["kernel-7.1.0-vanilla-bbbbbbbbbbbb"]
+
+    # The devel layer is the newest entry under the prefix, which is exactly how the
+    # plain form auto-picked one for a reuse boot.
+    os.utime(
+        index / "qemu-devel-11.0.0-vanilla-aaaaaaaaaaaa",
+        (2**31, 2**31),
+        follow_symlinks=False,
+    )
+    assert store.latest_index("qemu-") == "qemu-devel-11.0.0-vanilla-aaaaaaaaaaaa"
+    assert store.latest_run_layer("qemu") != "qemu-devel-11.0.0-vanilla-aaaaaaaaaaaa"

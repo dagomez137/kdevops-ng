@@ -49,8 +49,8 @@ def list_kernel_index(filterText: str = "", **_: object) -> list:
 
     return [
         {"label": n, "value": n}
-        for n in store.list_index("kernel-")
-        if not n.startswith("kernel-devel-") and filterText.lower() in n.lower()
+        for n in store.list_run_layers("kernel")
+        if filterText.lower() in n.lower()
     ]
 
 
@@ -59,7 +59,7 @@ def list_qemu_index(filterText: str = "", **_: object) -> list:
 
     return [
         {"label": n, "value": n}
-        for n in store.list_index("qemu-")
+        for n in store.list_run_layers("qemu")
         if filterText.lower() in n.lower()
     ]
 

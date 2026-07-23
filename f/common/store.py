@@ -193,11 +193,47 @@ def list_index(prefix: str) -> list[str]:
     return names
 
 
+def list_run_layers(project: str) -> list[str]:
+    """`project`'s run layers in the index, with its devel layers excluded.
+
+    The two layers of one identity share a name prefix by construction, `qemu-<id>`
+    beside `qemu-devel-<id>`, so a plain `list_index(f"{project}-")` sweeps up both.
+    Everything that offers an artifact for a consumer to run (the bringup pickers, the
+    reuse fallback) wants the bootable tree alone: a devel layer surfaced there is an
+    artifact that consumer cannot use, and picking one yields a tree with no kernel and
+    no emulator in it. The exclusion is anchored at the project name so it cannot fire
+    on a build whose label merely contains the word.
+    """
+    devel = f"{project}-devel-"
+    return [n for n in list_index(f"{project}-") if not n.startswith(devel)]
+
+
+def latest_run_layer(project: str) -> str | None:
+    """The most recently indexed run layer for `project`, by GC-root mtime, else None.
+
+    The devel-layer-aware `latest_index`, and what a reuse with no explicit pick must
+    use: a freshly published devel layer is the newest entry under the project's prefix,
+    so the plain form would auto-pick it.
+    """
+    try:
+        d = store_index_dir()
+    except KeyError:
+        return None
+    best, best_mtime = None, -1.0
+    for name in list_run_layers(project):
+        mtime = (d / name).lstat().st_mtime
+        if mtime > best_mtime:
+            best, best_mtime = name, mtime
+    return best
+
+
 def latest_index(prefix: str) -> str | None:
     """The most recently indexed live entry under `prefix`, by GC-root mtime, else None.
 
     Lets a reuse with no explicit pick fall back to the freshly built or fetched
-    artifact. A pure read like `list_index`; skips dangling entries.
+    artifact. A pure read like `list_index`; skips dangling entries. Prefer
+    `latest_run_layer` when the caller wants something runnable, since this form does
+    not know a devel layer from a run layer.
     """
     try:
         d = store_index_dir()
