@@ -8,7 +8,7 @@ host (NOT in the devShell).
 
 The worktree is this worker's `workers/<WORKER_INDEX>/main/qemu`, reused
 for every ref and across runs (parallel across workers); apply b4 series over and over.
-`recreate_worktree` lays a fresh checkout.
+`recreate_build_worktree` lays a fresh checkout.
 
 The out-of-tree `build` dir and the `destdir` `--prefix` install target are both
 children of the source checkout (`qemu/build`, `qemu/destdir`), so meson emits paths
@@ -39,7 +39,7 @@ def main(
     qemu_ref: str = "v11.0.0",
     b4_series: str = "",
     label: str = "",
-    recreate_worktree: bool = False,
+    recreate_build_worktree: bool = False,
     wipe_build: bool = False,
 ) -> dict:
     qemu_ref = qemu_ref or "v11.0.0"
@@ -50,7 +50,7 @@ def main(
         ref=qemu_ref,
         b4_series=b4_series,
         label=label,
-        recreate_worktree=recreate_worktree,
+        recreate_worktree=recreate_build_worktree,
         extra_dirs=("build", "destdir"),
         wipe_dirs=wipe_dirs,
         version_file="VERSION",

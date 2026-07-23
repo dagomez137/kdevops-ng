@@ -1188,8 +1188,11 @@ schema:
           - b4_series
           - custom_label
           - label
-          - recreate_worktree
+          - recreate_build_worktree
           - wipe_build
+          - deploy_developer_worktree
+          - worktree_group
+          - recreate_developer_worktree
           properties:
             b4_series:
               type: string
@@ -1213,6 +1216,15 @@ schema:
               default: ''
               maxLength: 40
               showExpr: fields.custom_label === true
+            deploy_developer_worktree:
+              type: boolean
+              description: 'After the build, lay or refresh a developer group worktree under
+
+                WORKTREES_DIR and fetch this build''s devel layer into it for clangd
+
+                indexing. The build itself is unaffected by this toggle.'
+              default: false
+              title: Deploy Developer Worktree
             ref:
               type: object
               description: 'Branch or tag in the Bare to build, from its live ref list
@@ -1239,24 +1251,46 @@ schema:
               default: v11.0.0
               showExpr: fields.custom_ref === true
               title: QEMU Ref
-            recreate_worktree:
+            recreate_build_worktree:
               type: boolean
-              description: 'Lay a fresh detached checkout (rm the warm tree, its build dir and
+              description: 'Re-cut the worker''s build-site checkout (rm the warm tree, its build
 
-                destdir too, first) instead of reusing it. Default off keeps the
+                dir and destdir too, first) instead of reusing it. This hits only
 
-                warm tree for incremental rebuilds.'
+                the worker sandbox and never a developer worktree. Default off keeps
+
+                the warm tree for incremental rebuilds.'
               default: false
-              title: Recreate Worktree
+              title: Recreate Build Worktree
+            recreate_developer_worktree:
+              type: boolean
+              description: 'Re-cut the developer group worktree (rm the existing checkout first)
+
+                instead of reusing it. This hits only the developer worktree and
+
+                never the worker build site.'
+              default: false
+              showExpr: fields.deploy_developer_worktree === true
+              title: Recreate Developer Worktree
             wipe_build:
               type: boolean
               description: 'Wipe the build dir before building (default off = incremental
 
-                reuse). Hidden when Recreate Worktree is on, which already removes
+                reuse). Hidden when Recreate Build Worktree is on, which already
 
-                the build dir as a child of the worktree.'
+                removes the build dir as a child of the worktree.'
               default: false
-              showExpr: fields.recreate_worktree !== true
+              showExpr: fields.recreate_build_worktree !== true
+            worktree_group:
+              type: string
+              description: 'Developer group to deploy into, at WORKTREES_DIR/<group>/qemu. Used
+
+                only when Deploy Developer Worktree is on. Naming the same group the
+
+                kernel build deploys into gives that group both projects.'
+              default: vanilla
+              showExpr: fields.deploy_developer_worktree === true
+              title: Developer Group
           title: Worktree
           showExpr: fields.mode === "build"
         configuration:

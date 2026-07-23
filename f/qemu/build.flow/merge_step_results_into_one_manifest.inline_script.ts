@@ -9,6 +9,8 @@ export async function main(
   install: any,
   reuse: any,
   publish: any,
+  deploy: any,
+  devel: any,
 ) {
   // After a real install, point the emulator at its /nix/store copy (the
   // published tree is the prefix verbatim, so basenames match) so a
@@ -35,5 +37,9 @@ export async function main(
       ? install.qemu_binaries.map(storeBin)
       : null,
     compile_commands: devtools?.compile_commands ?? null,
+    // The optional developer-worktree tail: null when the toggle is off.
+    developer_worktree: deploy?.worktrees?.[0]?.worktree ?? null,
+    developer_index: devel?.compile_commands ?? null,
+    devel_layer: devel?.store_path ?? null,
   };
 }

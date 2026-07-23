@@ -15,13 +15,19 @@ description: |-
   `make --jobs=$(nproc)` (drives ninja). 4. `install`: `make install` into
   `<worktree>/destdir`. 5. `publish`: add this identity's install tree to the
   Nix store so a peer can fetch it; only after a real install (skipped on
-  reuse). 6. `collect`: merge the step results into one manifest.
+  reuse). 6. `publish_devel`: add this identity's devel layer (meson's index
+  plus the generated headers) so a worktree can be indexed from it. 7.
+  `deploy_worktree` + `fetch_devel`: the optional developer-worktree tail. 8.
+  `collect`: merge the step results into one manifest.
 
   Each worker builds in its own warm `main` worktree
   (`workers/<worker>/main/qemu`), synced to `qemu_ref` every run so rebuilds
   stay incremental and isolated builds on different workers run in parallel.
-  `recreate_worktree` forces a fresh checkout; `wipe_build` forces a clean
-  build.
+  `recreate_build_worktree` forces a fresh checkout; `wipe_build` forces a clean
+  build. A developer never reads that build site: with **Deploy Developer
+  Worktree** on, the tail lays `WORKTREES_DIR/<group>/qemu` at the built ref and
+  fetches the devel layer into it, so pointing this and `f/kernel/build` at one
+  group gives that group both projects ready to work on.
 
   Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
   `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the
@@ -44,9 +50,9 @@ value:
             type: javascript
             expr: 'flow_input.worktree?.custom_ref ? (flow_input.worktree?.qemu_ref ??
               "") : (flow_input.worktree?.ref || flow_input.worktree?.qemu_ref)'
-          recreate_worktree:
+          recreate_build_worktree:
             type: javascript
-            expr: flow_input.worktree?.recreate_worktree
+            expr: flow_input.worktree?.recreate_build_worktree
           wipe_build:
             type: javascript
             expr: flow_input.worktree?.wipe_build
@@ -236,6 +242,62 @@ value:
       timeout:
         type: static
         value: 600
+    - id: publish_devel
+      summary: publish this identity's devel layer to the Nix store
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          prefix:
+            type: javascript
+            expr: results.identity.prefix
+        path: f/qemu/publish_devel
+      skip_if:
+        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
+          !== false
+      timeout:
+        type: static
+        value: 600
+    - id: deploy_worktree
+      summary: lay the developer group worktree at the built ref
+      value:
+        type: script
+        input_transforms:
+          projects:
+            type: javascript
+            expr: '[{ project: "qemu", git_ref: results.prepare_worktree.b4_branch
+              || results.prepare_worktree.qemu_ref, b4_series: "" }]'
+          recreate_worktree:
+            type: javascript
+            expr: flow_input.worktree?.recreate_developer_worktree
+          worktree_group:
+            type: javascript
+            expr: flow_input.worktree?.worktree_group
+        path: f/workbench/worktree/init
+      skip_if:
+        expr: flow_input.worktree?.deploy_developer_worktree !== true
+      timeout:
+        type: static
+        value: 300
+    - id: fetch_devel
+      summary: fetch this build's devel layer into the developer worktree
+      value:
+        type: script
+        input_transforms:
+          prefix:
+            type: javascript
+            expr: results.identity.prefix
+          worktree:
+            type: javascript
+            expr: results.deploy_worktree.worktrees[0].worktree
+        path: f/qemu/fetch_devel
+      skip_if:
+        expr: flow_input.worktree?.deploy_developer_worktree !== true
+      timeout:
+        type: static
+        value: 1800
     - id: collect
       summary: Merge step results into one manifest
       value:
@@ -245,6 +307,12 @@ value:
           configure:
             type: javascript
             expr: results.configure
+          deploy:
+            type: javascript
+            expr: results.deploy_worktree
+          devel:
+            type: javascript
+            expr: results.fetch_devel
           devtools:
             type: javascript
             expr: results.devtools
@@ -487,8 +555,11 @@ schema:
         - b4_series
         - custom_label
         - label
-        - recreate_worktree
+        - recreate_build_worktree
         - wipe_build
+        - deploy_developer_worktree
+        - worktree_group
+        - recreate_developer_worktree
       properties:
         b4_series:
           type: string
@@ -512,6 +583,14 @@ schema:
           default: ''
           maxLength: 40
           showExpr: fields.custom_label === true
+        deploy_developer_worktree:
+          type: boolean
+          description: |-
+            After the build, lay or refresh a developer group worktree under
+            WORKTREES_DIR and fetch this build's devel layer into it for clangd
+            indexing. The build itself is unaffected by this toggle.
+          default: false
+          title: Deploy Developer Worktree
         ref:
           type: object
           description: |-
@@ -537,22 +616,41 @@ schema:
           default: v11.0.0
           showExpr: fields.custom_ref === true
           title: QEMU Ref
-        recreate_worktree:
+        recreate_build_worktree:
           type: boolean
           description: |-
-            Lay a fresh detached checkout (rm the warm tree, its build dir and
-            destdir too, first) instead of reusing it. Default off keeps the
-            warm tree for incremental rebuilds.
+            Re-cut the worker's build-site checkout (rm the warm tree, its build
+            dir and destdir too, first) instead of reusing it. This hits only
+            the worker sandbox and never a developer worktree. Default off keeps
+            the warm tree for incremental rebuilds.
           default: false
-          title: Recreate Worktree
+          title: Recreate Build Worktree
+        recreate_developer_worktree:
+          type: boolean
+          description: |-
+            Re-cut the developer group worktree (rm the existing checkout first)
+            instead of reusing it. This hits only the developer worktree and
+            never the worker build site.
+          default: false
+          showExpr: fields.deploy_developer_worktree === true
+          title: Recreate Developer Worktree
         wipe_build:
           type: boolean
           description: |-
             Wipe the build dir before building (default off = incremental
-            reuse). Hidden when Recreate Worktree is on, which already removes
-            the build dir as a child of the worktree.
+            reuse). Hidden when Recreate Build Worktree is on, which already
+            removes the build dir as a child of the worktree.
           default: false
-          showExpr: fields.recreate_worktree !== true
+          showExpr: fields.recreate_build_worktree !== true
+        worktree_group:
+          type: string
+          description: |-
+            Developer group to deploy into, at WORKTREES_DIR/<group>/qemu. Used
+            only when Deploy Developer Worktree is on. Naming the same group the
+            kernel build deploys into gives that group both projects.
+          default: vanilla
+          showExpr: fields.deploy_developer_worktree === true
+          title: Developer Group
       title: Worktree
   required: []
   x-windmill-dyn-select-code: >
