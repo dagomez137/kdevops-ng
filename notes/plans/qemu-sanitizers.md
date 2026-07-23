@@ -1,11 +1,15 @@
 <!--
 Status: PLANNED, not started (2026-07-23).
 The sanitizer facts below are verified against the QEMU source at
-~/src/qemu (ffcf1a7981) and by a real compile-and-link probe run
-inside the build-qemu devShell; do not re-derive them.
+~/wt/vanilla/qemu (v11.0.2, e545d8bb9d), the tree this project builds,
+and by real compile-and-link probes run inside the build-qemu devShell;
+do not re-derive them. An earlier revision verified them against
+~/src/qemu (ffcf1a7981, 2026-02-28), which predates v11.0.2 and got the
+LeakSanitizer suppression path wrong; see the note in that section.
 Origin: a handoff from the QEMU NVMe MDTS series work in
 ~/src/linux-kdevops/refactor/kdevops/data/qemu, branch
-align-nvme-mdts-with-linux-v2.
+align-nvme-mdts-with-linux-v2. The reproducer branch is ubsan-test in
+~/.git-bare/qemu.git (remote old-local-bare).
 Related: f/qemu/build.flow (the build), f/qemu/identity.py (the hash
 this plan extends), f/qsu/qemu-system/render (the guest runtime),
 docs/flows/qemu-build.rst (the page that documents it).
@@ -102,10 +106,20 @@ generalise that to every sanitizer without evidence.
 
 ### The suppression files
 
-`tests/tsan/suppressions.tsan` and `tests/tsan/ignore.tsan` exist. The
-LeakSanitizer suppression file is at
-`scripts/oss-fuzz/lsan_suppressions.txt`. The source handoff placed it
-at `scripts/lsan_suppressions.txt`, which does not exist in the tree.
+`tests/tsan/suppressions.tsan` and `tests/tsan/ignore.tsan` exist and
+are byte-identical across both trees checked.
+
+The LeakSanitizer suppression file moved. At v11.0.2 it is at
+`scripts/lsan_suppressions.txt`; before commit e9f55f543f ("scripts:
+Move lsan_suppressions.txt out of oss-fuzz subdir", 2026-03-06) it was
+at `scripts/oss-fuzz/lsan_suppressions.txt`. An earlier revision of
+this plan asserted the oss-fuzz path as a correction to the source
+handoff. That was wrong for the tree being built: the handoff had it
+right for v11.0.2, and the check behind the correction ran against a
+tree that predates the move. The lesson is not that one path is
+correct but that this path is version-dependent, which phase 2 has to
+handle.
+
 There is no UndefinedBehaviorSanitizer suppression file, so shift
 diagnostics surface unfiltered, which is what the MDTS verification
 wants.
@@ -216,12 +230,19 @@ ThreadSanitizer extras appearing only for that selection).
 ### Phase 2: self-contained artifacts
 
 `f/qemu/install` copies `tests/tsan/suppressions.tsan`,
-`tests/tsan/ignore.tsan` and `scripts/oss-fuzz/lsan_suppressions.txt`
-into `<prefix>/share/qemu-sanitizers/`.
+`tests/tsan/ignore.tsan` and the LeakSanitizer suppression file into
+`<prefix>/share/qemu-sanitizers/`.
 
-Without this a `suppressions=` path points into a build worktree, which
-breaks the moment the artifact is moved to a peer with `nix copy`. The
-store artifact must describe itself.
+The LeakSanitizer file is resolved by probing `scripts/` first and
+falling back to `scripts/oss-fuzz/`, because it moved between the two
+locations and the flow builds arbitrary refs on both sides of that
+move. Copying whichever exists, and naming the resolved source in the
+job log, keeps an older ref buildable without a hardcoded path that is
+wrong half the time.
+
+Without this step a `suppressions=` path points into a build worktree,
+which breaks the moment the artifact is moved to a peer with
+`nix copy`. The store artifact must describe itself.
 
 ### Phase 3: runtime options
 
@@ -248,11 +269,56 @@ verdict and report steps follow the existing shape.
 
 ### Phase 5: live fire on the MDTS claim
 
-Set `mdts` high, boot, drive I/O that reaches the check, and confirm
-that UndefinedBehaviorSanitizer reports the shift on the pre-fix state
-and is silent once the helper is wired. This validates the
-infrastructure and produces the verification the origin handoff wants
-in a single pass, which is how each of the five suites was integrated.
+The reproducer branch is `ubsan-test`: v11.0.0 (98b060da3a) plus the
+first three commits of the series, so the `nvme_max_data_size()` helper
+is defined but not yet wired into `nvme_check_mdts()`, and the
+realize-time cap is still the original one. Build it with
+`sanitizer: ubsan`, boot a guest with an NVMe drive at `mdts=32`, and
+drive any I/O.
+
+Two distinct undefined shifts are reachable on that branch with that
+one value, and both are shift-exponent violations rather than value
+overflows:
+
+`ctrl.c:8641`, the realize-time check `(1 << n->params.mdts) + 1 >
+IOV_MAX`, shifts an `int` by 32. This one fires while the device
+realizes, so it needs no guest workload at all.
+
+`ctrl.c:1699`, `len > n->page_size << mdts`, shifts a `uint32_t` by 32.
+It fires on every command that reaches the check.
+
+The second is reachable only because the first is broken. On x86 the
+shift count is masked, so `1 << 32` yields 1, the condition evaluates
+false, and the realize check passes a value it was written to reject.
+Verified by compiling the two expressions standalone with the same
+devShell GCC: at `mdts=32` and `mdts=40` both emit `shift exponent N is
+too large for 32-bit type`, and the realize condition evaluates false
+in both cases. `IOV_MAX` is 1024 in the devShell.
+
+Two numbers matter and neither is obvious. Use `mdts=32`, not the 25
+the origin handoff suggests: at 25 the realize check correctly rejects
+the device (`(1 << 25) + 1 > 1024`), the guest never starts, and
+nothing is sanitized. And `mdts=31` produces no diagnostic either,
+because GCC does not treat `1 << 31` on `int` as an error and, more
+importantly, `page_size` is a `uint32_t`, so a shift whose result
+overflows is defined modular arithmetic. That last point sharpens what
+the series should claim: below 32 the expression is well defined but
+silently wraps, at `mdts=25` all the way to zero, which rejects every
+command; at and above 32 it is undefined. Both are bugs and the helper
+fixes both, since casting to `uint64_t` moves the width to 64 and the
+`exp >= 64 - page_bits` guard stops the value overflowing too. Only the
+second is undefined behaviour, and only the second is what
+UndefinedBehaviorSanitizer will show.
+
+Then confirm the fix silences it: the same guest against a build that
+includes the wiring commit should produce neither diagnostic.
+
+This target is a better first live fire than a synthetic workload
+because the realize-time site needs nothing but a boot, which exercises
+the whole chain (build, publish, resolve, boot, journal, collect,
+report) before any workload is involved. The `mdts` field already
+exists in `f/qsu/qemu-system/render`, so no new plumbing is needed to
+set it.
 
 The reproducer is then written up so the fix can be regressed later.
 
@@ -285,10 +351,6 @@ unverified. It gates phases 3 through 5 for that selection.
 UndefinedBehaviorSanitizer carries much less risk here, which is
 another reason to lead with it.
 
-Whether QEMU accepts a large `mdts` value at all, and which value
-actually reaches the vulnerable shift, is unverified. It gates the
-reproducer.
-
 Whether AddressSanitizer and UndefinedBehaviorSanitizer builds need
 `--disable-werror` against the nixpkgs toolchain is unverified.
 Upstream disables it for ThreadSanitizer only, so it is not added
@@ -305,3 +367,10 @@ record the result here. The origin handoff was written after a session
 that invented a configure flag, and its standing rule applies to this
 plan too: confirm every flag by running the tool or reading the build
 system, and label any claim that has not been confirmed.
+
+Add one rule this revision earned: pin the tree a fact was checked
+against. The whole sanitizer surface is identical between v11.0.2 and
+a tree from two months earlier, apart from one file that moved, and
+that single difference was enough to put a wrong path into the plan.
+Facts about a moving source have a version attached whether or not it
+is written down.
