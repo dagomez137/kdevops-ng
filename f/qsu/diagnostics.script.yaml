@@ -1,0 +1,17 @@
+summary: Parse QEMU sanitizer diagnostics
+description: |-
+  Library module imported by `f/qsu/collect_diagnostics` (`from f.qsu import
+  diagnostics`). Not a runnable step on its own. Turns a guest's QEMU journal
+  message lines into structured sanitizer findings and a verdict, and derives a
+  build's sanitizer selection from its store name. Everything here is pure (no
+  journal, no systemd, no environment), so the parse and verdict rules are
+  tested against fixed strings with no instance. Deduplicates findings by source
+  location, because a sanitizer reports each location once per process.
+lock: '!inline f/qsu/diagnostics.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

@@ -1,0 +1,59 @@
+summary: Collect a guest's QEMU sanitizer diagnostics
+description: |-
+  Read a guest's `qemu-system@<vm>.service` journal on the host `systemd --user`
+  manager and return the sanitizer diagnostics QEMU itself emitted. A QEMU built
+  under a sanitizer (the `f/qemu/build` `sanitizer` knob) reports undefined
+  behaviour or memory errors in the emulator to its standard error, which the
+  guest unit routes to the journal; this step parses those lines through
+  `f.qsu.diagnostics` and rules on them. It is a property of any guest run on a
+  sanitized emulator, not a special test, so it stands alone and also composes
+  as a tail step in `f/qsu/boot` and `f/qsu/bringup`.
+
+  The read is scoped to the unit's current InvocationID by default (this run's
+  diagnostics, not an accumulation across restarts); `scope=unit` reads the
+  whole unit history. The build's `sanitizer` selection decides how a quiet run
+  is read; a flow passes it from the build manifest, and a standalone call
+  derives it best-effort from the VM's recorded `qemu_binary` store name.
+lock: '!inline f/qsu/collect_diagnostics.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - sanitizer
+    - scope
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        VM to read (`qemu-system@<vm_name>`). The dropdown lists the running VMs
+        plus any with a rendered `<vm>.env`.
+      format: dynselect-list_vms
+      title: VM Name
+    sanitizer:
+      type: string
+      description: |-
+        The build's sanitizer selection, so a quiet run reads as `clean` (a
+        sanitized build) rather than `not_sanitized` (a stock build). Empty
+        (default) derives it best-effort from the VM's recorded `qemu_binary`.
+      default: ''
+      enum:
+        - ''
+        - none
+        - ubsan
+        - asan
+        - asan+ubsan
+        - tsan
+    scope:
+      type: string
+      description: |-
+        `invocation` (default) reads only the unit's current run;
+        `unit` reads the whole unit journal history.
+      default: invocation
+      enum:
+        - invocation
+        - unit
+  required:
+    - vm_name
+tag: vm
