@@ -16,6 +16,17 @@ process, and each process re-reports its once); pass `scope=unit` for the whole 
 history. The worker reads the host journal directly because a worker is an ordinary
 `systemd --user` service of the same user, not a container.
 
+`wait_boot_secs` waits for the guest to finish booting before reading, because the
+two kinds of diagnostic fire at different times: a device-realize one during QEMU
+init (present the moment the unit is active), and a per-I/O one only once the guest
+drives I/O to the device. The `boot` step returns as soon as the QEMU process is
+active, which is before the guest OS has booted, so a read then catches the first
+kind and misses the second. Polling the guest's `systemctl is-system-running` until
+it settles (the shared "guest booted" signal) lets the guest's own boot I/O trip the
+per-I/O site first. It never fails or hangs past the budget: an unreachable guest or
+a timeout just falls through to the read. It stays 0 (no wait) for a standalone call
+against a guest already up; the boot tail sets it.
+
 The build's sanitizer selection decides how to read a quiet run (a sanitized build
 that stayed clean, versus a stock build where a diagnostic was never possible). A
 flow passes it from the build manifest; a standalone call leaves it empty and this
@@ -36,10 +47,16 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 from f.common.devshell import Systemd
+from f.common.remote import RemoteSystemd
 from f.qsu import diagnostics
+
+# systemd system states that mean the guest OS finished booting (matches
+# f/fstests/discover). `starting`/`initializing` mean it is still coming up.
+_BOOTED = ("running", "degraded")
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -69,6 +86,29 @@ def _messages(records_json: str) -> list[str]:
     return out
 
 
+def _wait_for_guest_boot(workers: Path, vm_name: str, budget: int) -> None:
+    """Poll the guest's `systemctl is-system-running` until it settles or `budget` runs out.
+
+    Best-effort: a guest with no vsock cid (not reachable this way) or one that never
+    settles just returns, so the caller reads whatever the journal already holds rather
+    than failing or hanging. The point is to let the guest's own boot I/O trip a per-I/O
+    diagnostic before the read, not to gate on a healthy boot.
+    """
+    try:
+        remote = RemoteSystemd(workers, vm_name)
+    except ValueError as exc:
+        print(f"{vm_name}: not waiting for guest boot ({exc})", flush=True)
+        return
+    deadline = time.monotonic() + budget
+    while time.monotonic() < deadline:
+        state = remote.is_system_running(quiet=True)
+        if state in _BOOTED:
+            print(f"{vm_name}: guest booted (is-system-running={state})", flush=True)
+            return
+        time.sleep(3)
+    print(f"{vm_name}: guest not settled within {budget}s; reading anyway", flush=True)
+
+
 def _detect_sanitizer(workers: Path, vm_name: str) -> str:
     """Best-effort sanitizer selection from the VM's recorded `qemu_binary` store name."""
     sidecar = workers / "shared/vm" / f"{vm_name}.vars.json"
@@ -88,11 +128,15 @@ def main(
     vm_name: str,
     sanitizer: str = "",
     scope: str = "invocation",
+    wait_boot_secs: int = 0,
     boot: dict | None = None,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     systemd = Systemd(workers)
     unit = f"qemu-system@{vm_name}.service"
+
+    if wait_boot_secs > 0:
+        _wait_for_guest_boot(workers, vm_name, wait_boot_secs)
 
     if not sanitizer:
         sanitizer = _detect_sanitizer(workers, vm_name)

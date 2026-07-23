@@ -297,6 +297,9 @@ value:
           vm_name:
             type: javascript
             expr: results.render_qemu_system.vm_name
+          wait_boot_secs:
+            type: javascript
+            expr: flow_input.orchestration?.wait_timeout ?? 180
           boot:
             type: javascript
             expr: results.boot
@@ -304,7 +307,7 @@ value:
         tag_override: vm
       timeout:
         type: static
-        value: 120
+        value: 420
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

@@ -23,6 +23,7 @@ schema:
     - vm_name
     - sanitizer
     - scope
+    - wait_boot_secs
     - boot
   properties:
     vm_name:
@@ -55,6 +56,16 @@ schema:
       enum:
         - invocation
         - unit
+    wait_boot_secs:
+      type: integer
+      description: |-
+        Wait up to this many seconds for the guest to finish booting
+        (`systemctl is-system-running` settled) before reading, so its own
+        boot I/O trips a per-I/O diagnostic first. `0` (default) reads
+        immediately; the boot tail sets it. Best-effort: an unreachable guest
+        or a timeout falls through to the read.
+      default: 0
+      title: Wait Boot Seconds
     boot:
       type: object
       description: |-
