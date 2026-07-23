@@ -23,6 +23,7 @@ schema:
     - vm_name
     - sanitizer
     - scope
+    - boot
   properties:
     vm_name:
       type: object
@@ -54,6 +55,14 @@ schema:
       enum:
         - invocation
         - unit
+    boot:
+      type: object
+      description: |-
+        The preceding boot result, when this runs as a flow tail. Returned
+        verbatim with a `diagnostics` key added, so the flow result stays the
+        boot access banner enriched with the verdict. Omit for a standalone
+        call, which returns the verdict alone.
+      default: null
   required:
     - vm_name
 tag: vm

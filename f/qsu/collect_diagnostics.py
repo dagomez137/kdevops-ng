@@ -21,6 +21,11 @@ that stayed clean, versus a stock build where a diagnostic was never possible). 
 flow passes it from the build manifest; a standalone call leaves it empty and this
 step derives it best-effort from the VM's recorded `qemu_binary` store name.
 
+As a flow tail (`f/qsu/boot`, `f/qsu/bringup`) the step is passed the preceding
+`boot` result and returns it verbatim with a `diagnostics` key added, so the flow
+result stays the boot access banner enriched with the verdict rather than being
+replaced by it. Called standalone (no `boot`), it returns the verdict alone.
+
 Equivalent commands, against the host `systemd --user` manager:
 
     systemctl --user show qemu-system@<vm>.service --property=InvocationID --value
@@ -83,6 +88,7 @@ def main(
     vm_name: str,
     sanitizer: str = "",
     scope: str = "invocation",
+    boot: dict | None = None,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     systemd = Systemd(workers)
@@ -116,8 +122,8 @@ def main(
         match, "--output=json", "--no-pager", capture=True, check=False
     )
     findings = diagnostics.parse(_messages(records))
-    result = diagnostics.verdict(findings, sanitizer)
-    result["vm_name"] = vm_name
+    verdict = diagnostics.verdict(findings, sanitizer)
+    verdict["vm_name"] = vm_name
 
     for f in findings:
         site = f"{f['file']}:{f['line']}" if f["file"] else f["sanitizer"]
@@ -125,8 +131,13 @@ def main(
             f"  [{f['sanitizer']}/{f['category']}] {site}: {f['message']}", flush=True
         )
     print(
-        f"{vm_name}: {result['status']} "
-        f"({result['count']} diagnostic(s), {len(result['locations'])} site(s))",
+        f"{vm_name}: {verdict['status']} "
+        f"({verdict['count']} diagnostic(s), {len(verdict['locations'])} site(s))",
         flush=True,
     )
-    return result
+    # As a flow tail the boot result is passed through as-is with the verdict added,
+    # so the flow result stays the boot access banner rather than being replaced by
+    # the verdict; standalone (no boot) returns the verdict alone.
+    if boot:
+        return {**boot, "diagnostics": verdict}
+    return verdict

@@ -289,6 +289,22 @@ value:
       timeout:
         type: static
         value: 600
+    - id: collect_diagnostics
+      summary: Collect QEMU sanitizer diagnostics (f/qsu/collect_diagnostics)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: results.render_qemu_system.vm_name
+          boot:
+            type: javascript
+            expr: results.boot
+        path: f/qsu/collect_diagnostics
+        tag_override: vm
+      timeout:
+        type: static
+        value: 120
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
