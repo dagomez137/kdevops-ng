@@ -1,8 +1,9 @@
 summary: Compute a QEMU build identity
 description: |-
   Hash the inputs that fix a QEMU build's bytes (the target list, the configure
-  flags, the compiler, the toolchain, which is the `build-qemu` devShell's
-  derivation path, and the source commit) into a 12-hex identity, and return the
+  flags, the compiler, the sanitizer selection, the toolchain, which is the
+  `build-qemu` devShell's derivation path, and the source commit) into a 12-hex
+  identity, and return the
   per-identity install root as `prefix`, version-first (the version from
   `<worktree>/VERSION`): `destdir/<version>-<label>-<identity>` when a readable
   label is given (the `qemu-<version>-<label>-<identity>` store key follows),
@@ -23,6 +24,7 @@ schema:
     - target_list
     - configure_args
     - compiler
+    - sanitizer
     - label
   properties:
     compiler:
@@ -45,6 +47,19 @@ schema:
         Readable build-identity name prefixed to the install prefix and store
         key (from prepare_worktree); cosmetic, not hashed.
       default: ''
+    sanitizer:
+      type: string
+      description: |-
+        Sanitizer the build is configured with; hashed into the digest (it
+        changes the emitted code, so it must not share a prefix with a stock
+        build) and appended to the prefix after the label.
+      default: none
+      enum:
+        - none
+        - ubsan
+        - asan
+        - asan+ubsan
+        - tsan
     target_list:
       type: array
       description: |-

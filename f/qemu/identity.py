@@ -4,8 +4,13 @@
 QEMU has no kernelrelease/LOCALVERSION to bake the identity into, so the build
 identity keys the install prefix instead: a 12-hex hash over the inputs that fix a
 QEMU build's bytes (the target list, the configure flags, the compiler, the
-toolchain, which is the `build-qemu` devShell's derivation path, and the source
-tree) names the per-identity install root. The QEMU version (from
+sanitizer selection, the toolchain, which is the `build-qemu` devShell's derivation
+path, and the source tree) names the per-identity install root. The sanitizer is
+hashed because it changes the emitted code: leaving it out would let a sanitizer
+build and a stock build of one ref share a prefix, and `reuse_check` would hand
+back whichever landed there first. Its name is also a prefix segment, so the
+selection is legible in the store key and the reuse picker, not just in the digest.
+The QEMU version (from
 `<worktree>/VERSION`, e.g. `11.0.0`, the analog of the kernel's `make
 kernelversion`) leads it and a readable label follows when present, giving
 `destdir/<version>-<label>-<identity>` (else `destdir/<version>-<identity>`), and
@@ -28,9 +33,9 @@ Equivalent bash:
 
     toolchain=$(nix eval --raw "path:$flake#devShells.$system.build-qemu.drvPath")
     tree=$(git -C "$worktree" rev-parse "HEAD^{tree}")
-    identity=$(printf '%s\\0%s\\0%s\\0%s\\0%s' \\
-        "$target_list" "$configure_args" "$compiler" "$toolchain" "$tree" \\
-        | sha256sum | cut -c1-12)
+    identity=$(printf '%s\\0%s\\0%s\\0%s\\0%s\\0%s' \\
+        "$target_list" "$configure_args" "$compiler" "$sanitizer" \\
+        "$toolchain" "$tree" | sha256sum | cut -c1-12)
     version=$(cat "$worktree/VERSION")            # e.g. 11.0.0
     prefix="$destdir/$version-${label:+$label-}$identity"
 """
@@ -43,6 +48,7 @@ from pathlib import Path
 
 from f.common.devshell import Git, Nix, vendor_dir
 from f.common.worktree import _slug, _split_trailing_version
+from f.qemu import sanitizers
 
 
 def main(
@@ -51,16 +57,26 @@ def main(
     target_list: list[str] | None = None,
     configure_args: str = "",
     compiler: str = "gcc",
+    sanitizer: str = "none",
     label: str = "",
 ) -> dict:
     targets = ",".join(target_list or [])
+    name = sanitizers.checked(sanitizer)
     tree = Git().capture("-C", worktree, "rev-parse", "HEAD^{tree}").strip()
-    blob = "\0".join([targets, configure_args, compiler, _toolchain(), tree]).encode()
+    blob = "\0".join(
+        [targets, configure_args, compiler, name, _toolchain(), tree]
+    ).encode()
     identity = hashlib.sha256(blob).hexdigest()[:12]
     version = _read_version(worktree)
-    prefix = str(Path(destdir) / _prefix_basename(version, label, identity))
+    segment = sanitizers.prefix_segment(name)
+    prefix = str(Path(destdir) / _prefix_basename(version, label, identity, segment))
     print(f"build identity {identity} -> prefix {prefix}", flush=True)
-    return {"identity": identity, "prefix": prefix, "destdir": destdir}
+    return {
+        "identity": identity,
+        "prefix": prefix,
+        "destdir": destdir,
+        "sanitizer": name,
+    }
 
 
 def _read_version(worktree: str) -> str:
@@ -70,15 +86,18 @@ def _read_version(worktree: str) -> str:
     return path.read_text().strip() if path.is_file() else ""
 
 
-def _prefix_basename(version: str, label: str, identity: str) -> str:
+def _prefix_basename(
+    version: str, label: str, identity: str, sanitizer: str = ""
+) -> str:
     """Lead the install prefix with the QEMU version, mirroring the kernel's
     version-first release: `<version>-<label>-<identity>` with a label,
-    `<version>-<identity>` without. The label slug takes a flat 64-char sanity cap
-    (no uname budget here), but a matched `-v<N>` revision suffix is preserved
-    through that cap. A missing VERSION falls back to the label-only form."""
+    `<version>-<identity>` without. A sanitizer selection follows the label as its
+    own segment. The label slug takes a flat 64-char sanity cap (no uname budget
+    here), but a matched `-v<N>` revision suffix is preserved through that cap. A
+    missing VERSION falls back to the label-only form."""
     head, suffix = _split_trailing_version(_slug(label))
     slug = head[: 64 - len(suffix)].rstrip("-._") + suffix
-    parts = [p for p in (version, slug) if p]
+    parts = [p for p in (version, slug, sanitizer) if p]
     parts.append(identity)
     return "-".join(parts)
 

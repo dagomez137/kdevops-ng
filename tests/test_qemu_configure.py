@@ -21,3 +21,13 @@ def test_unknown_compiler_is_rejected_before_any_work(tmp_path):
             destdir=str(tmp_path),
             compiler="tcc",
         )
+
+
+def test_unknown_sanitizer_is_rejected_before_any_work(tmp_path):
+    with pytest.raises(ValueError, match="sanitizer must be one of"):
+        configure.main(
+            worktree=str(tmp_path),
+            build_dir=str(tmp_path),
+            destdir=str(tmp_path),
+            sanitizer="msan",
+        )

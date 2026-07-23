@@ -24,6 +24,11 @@ provides both toolchains plus meson, ninja, pkg-config, glib and pixman
 The target list is comma-joined into a single `--target-list=` argv element
 (QEMU normalizes the commas to spaces) so multiple targets never word-split.
 
+`sanitizer` selects a build under one of QEMU's sanitizers, adding the
+`--enable-*` flags `f.qemu.sanitizers` maps it to (plus `--disable-werror` and
+`-O0` for ThreadSanitizer, matching upstream's own `tests/docker/test-tsan`).
+They land before `configure_args`, so a hand-passed flag still wins.
+
 With `reproducible` on (default), one `-ffile-prefix-map=<prefix>=/qemu` is added to
 `--extra-cflags` and `--extra-cxxflags`, where `<prefix>` is the common parent of the
 worktree and build dir. It maps the host-specific source/build path to the constant
@@ -40,6 +45,7 @@ Equivalent bash, run inside the nixos-flake build devShell:
         --cc="ccache gcc" --cxx="ccache g++" \
         --extra-cflags=-ffile-prefix-map=<prefix>=/qemu \
         --extra-cxxflags=-ffile-prefix-map=<prefix>=/qemu \
+        --enable-ubsan \
         --disable-download \
         $configure_args )
 """
@@ -51,6 +57,7 @@ import shlex
 from pathlib import Path
 
 from f.common.devshell import DevShell, write_ccache_conf
+from f.qemu import sanitizers
 
 # Map the compiler choice to its C and C++ driver names on the devShell PATH.
 _TOOLCHAIN = {"gcc": ("gcc", "g++"), "clang": ("clang", "clang++")}
@@ -62,6 +69,7 @@ def main(
     destdir: str,
     target_list: list[str] | None = None,
     compiler: str = "gcc",
+    sanitizer: str = "none",
     reproducible: bool = True,
     ccache: bool = True,
     ccache_max_size: int = 10,
@@ -70,6 +78,7 @@ def main(
     if compiler not in _TOOLCHAIN:
         raise ValueError(f"compiler must be gcc or clang, got {compiler!r}")
     base_cc, base_cxx = _TOOLCHAIN[compiler]
+    san_args = sanitizers.configure_args(sanitizer)
 
     # target_list is a native list of QEMU targets; empty falls back to a single
     # x86_64 softmmu target.
@@ -123,6 +132,7 @@ def main(
         f"--cxx={cxx}",
         *quiet_args,
         *repro_args,
+        *san_args,
         "--disable-download",
         *extra_args,
         cwd=build_dir,
@@ -137,5 +147,6 @@ def main(
         "destdir": destdir,
         "target_list": targets,
         "compiler": compiler,
+        "sanitizer": sanitizers.checked(sanitizer),
         "ccache_conf": ccache_conf,
     }

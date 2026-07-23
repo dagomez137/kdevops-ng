@@ -1,0 +1,19 @@
+summary: QEMU sanitizer selections
+description: |-
+  Library module imported by the QEMU build steps (`from f.qemu import
+  sanitizers`). Not a runnable step on its own. Holds the one table of sanitizer
+  selections a QEMU build offers and what each adds to `configure`, so the build
+  flow's picker, the configure argv and the build identity all read the same
+  source. QEMU's meson refuses ThreadSanitizer alongside either other sanitizer,
+  so a selection is one entry from the table (`none`, `ubsan`, `asan`,
+  `asan+ubsan`, `tsan`) rather than independent switches. `configure_args`
+  returns the flags a selection adds, and `prefix_segment` returns the segment
+  that names it in the install prefix and the store key.
+lock: '!inline f/qemu/sanitizers.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

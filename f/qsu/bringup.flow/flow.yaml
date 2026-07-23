@@ -1327,6 +1327,7 @@ schema:
           default: {}
           order:
           - target_list
+          - sanitizer
           - configure_args
           - skip_configure
           properties:
@@ -1336,6 +1337,30 @@ schema:
 
                 `--disable-werror` against the bleeding-edge nixpkgs toolchain.'
               default: ''
+            sanitizer:
+              type: string
+              description: 'Build the emulator under a sanitizer, so undefined behaviour and
+
+                memory errors in QEMU itself are reported at run time to the
+
+                guest''s `qemu-system@<vm>.service` journal. `ubsan` is the cheap
+
+                one to reach for. QEMU''s meson refuses the thread sanitizer
+
+                alongside either other, so this is one choice and not three
+
+                switches. The selection is hashed into the build identity and
+
+                names the install prefix and store key, so a sanitized build never
+
+                collides with a stock build of the same ref.'
+              default: none
+              enum:
+              - none
+              - ubsan
+              - asan
+              - asan+ubsan
+              title: Sanitizer
             skip_configure:
               type: boolean
               description: 'Skip configure and recompile the existing build dir (incremental
