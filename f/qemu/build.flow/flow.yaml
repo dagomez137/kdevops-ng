@@ -297,6 +297,9 @@ value:
           prefix:
             type: javascript
             expr: results.identity.prefix
+          required:
+            type: static
+            value: true
           worktree:
             type: javascript
             expr: results.deploy_worktree.worktrees[0].worktree

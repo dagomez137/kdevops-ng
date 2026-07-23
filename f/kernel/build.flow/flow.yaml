@@ -508,6 +508,9 @@ value:
       value:
         type: script
         input_transforms:
+          required:
+            type: static
+            value: true
           uts_release:
             type: javascript
             expr: results.configure.kernelrelease

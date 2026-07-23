@@ -61,6 +61,7 @@ def main(
     remote: str = "",
     remote_index: str = "",
     build_dir: str = "",
+    required: bool = False,
 ) -> dict:
     wt = Path(worktree)
     if not (wt / "VERSION").is_file():
@@ -79,6 +80,12 @@ def main(
 
     sp = store.resolve(name, workers, remote, remote_index)
     if sp is None:
+        if required:
+            raise FileNotFoundError(
+                f"devel layer {name} not found locally or on the peer; a worktree "
+                "asked to be indexed cannot be, so this is a failure rather than a "
+                "bare checkout. Build this identity with reuse off to publish it."
+            )
         print(f"devel layer {identity}: not found locally or on the peer", flush=True)
         return {
             "fetched": False,

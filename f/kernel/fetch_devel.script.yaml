@@ -21,6 +21,7 @@ schema:
     - remote
     - remote_index
     - build_dir
+    - required
   properties:
     build_dir:
       type: string
@@ -28,6 +29,13 @@ schema:
         Where the devel layer lands; defaults to `<worktree>/build`. Must stay
         under the worktree.
       default: ''
+    required:
+      type: boolean
+      description: |-
+        Fail when the layer cannot be resolved instead of returning
+        `fetched: false`. The build flow sets it, because a worktree that was
+        asked to be indexed and is not is a failure, not a bare checkout.
+      default: false
     remote:
       type: string
       description: |-
