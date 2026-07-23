@@ -111,11 +111,22 @@ schema:
       default: {}
       order:
         - sections
+        - arm_all_sections
         - local_config
         - clean_results
         - logwrites
         - devices
       properties:
+        arm_all_sections:
+          type: boolean
+          description: |-
+            Lay down a `<section>.config` + `<section>.env` for every
+            geometry-valid section in the config, not just the run's, so any can
+            be started by hand on the guest. Armed-only sections get a `-g auto`
+            default; the share is pruned to mirror the config. Off: only the run
+            sections are shipped.
+          default: false
+          title: Arm all sections
         clean_results:
           type: boolean
           description: |-

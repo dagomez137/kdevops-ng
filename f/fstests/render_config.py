@@ -28,9 +28,16 @@ that drive the flow's per-section forloop (the run set), plus any skipped sectio
 guest's `./check` creates its own `RESULT_BASE`; this step only cleans/rotates a prior
 run's results under that kernel. The host never contacts the guest.
 
+With `arm_all_sections`, every device-valid catalog section (not just the run's
+selection) gets its `<section>.config`/`.env` laid down, so the share mirrors the catalog
+and a later `-s <section>` run needs no re-render; the flow still runs only the selection,
+and an armed-only section's env carries a plain `-g auto` default. A stale config/env for
+a section no longer in the catalog is pruned, along with the retired pre-per-section-env
+leftovers (`check.env`, `local.config`, `*.mkfs`, `*.xfs_info`).
+
 Equivalent commands:
 
-    cat  > "$WORKERS_DIR/shared/fstests/<vm>/<section>.config"   # one per selected section
+    cat  > "$WORKERS_DIR/shared/fstests/<vm>/<section>.config"   # one per armed section
     cat  > "$WORKERS_DIR/shared/fstests/<vm>/<section>.env"      # XFSTESTS_CHECK_ARGS, HOST_OPTIONS
 """
 
@@ -143,6 +150,33 @@ def _rotate_failure_artifacts(section_dir: Path, n: int) -> int:
     return count
 
 
+def _prune_share(share: Path, armed_sections: list[str], mirror: bool) -> None:
+    """Drop dead leftovers so the share matches the per-section-env model.
+
+    The pre-per-section-env global `check.env`/`local.config` and the pre-geometry.json
+    `*.mkfs`/`*.xfs_info` sidecars are always removed. With `mirror` (arm-all) any stale
+    `<name>.config`/`.env` whose section has left the catalog is removed too, so the share
+    mirrors it; the `<kver>/` results trees and `<name>.geometry.json` are left untouched.
+    """
+
+    def _remove(path: Path) -> None:
+        if path.is_file():
+            path.unlink()
+            print(f"+ removed {path}", flush=True)
+
+    for name in ("check.env", "local.config"):
+        _remove(share / name)
+    for pattern in ("*.mkfs", "*.xfs_info"):
+        for path in sorted(share.glob(pattern)):
+            _remove(path)
+    if mirror:
+        armed = set(armed_sections)
+        for suffix in (".config", ".env"):
+            for path in sorted(share.glob(f"*{suffix}")):
+                if path.is_file() and path.stem not in armed:
+                    _remove(path)
+
+
 def main(
     vm_name: str,
     kernel_version: str,
@@ -164,6 +198,7 @@ def main(
     test_timeout: int = 0,
     test_timeouts: dict[str, int] | None = None,
     recreate_test_dev: bool = True,
+    arm_all_sections: bool = False,
 ) -> dict:
     share = share_dir(vm_name)
 
@@ -190,12 +225,16 @@ def main(
 
     # A `sections` selection narrows to that subset (dropping any name not in the
     # config); empty/None runs every section the config declares.
-    selected = [s for s in (sections or available) if s in available]
-    if not selected:
+    run_selection = [s for s in (sections or available) if s in available]
+    if not run_selection:
         raise ValueError(
             f"none of the requested sections {sections} match a [section] in local.config; "
             f"pick from the Sections dropdown (it lists what local.config declares)"
         )
+
+    # arm-all lays down every catalog section's config/env (the device-valid ones), so a
+    # later `-s <section>` run needs no re-render; otherwise arm only what this run drives.
+    arm_selection = available if arm_all_sections else run_selection
 
     if not devices or len(devices) < 2:
         raise ValueError(
@@ -209,9 +248,9 @@ def main(
     # `-s` has no sector floor of its own; gate it on block size alone.
     sector = device_sector(devices)
     skipped: list[dict] = []
-    run_sections: list[str] = []
+    armed_sections: list[str] = []
     section_text: dict[str, str] = {}
-    for section in selected:
+    for section in arm_selection:
         block = section_block(cfg, section)
         bsize = section_block_block_size(block, section)
         ssize = section_sector_size(block, section)
@@ -266,51 +305,62 @@ def main(
                 print(f"+ skipped {section}: {reason}", flush=True)
                 skipped.append({"name": section, "reason": reason})
                 continue
-        run_sections.append(section)
+        armed_sections.append(section)
         section_text[section] = inject_device_base(block, devices, logwrites=logwrites)
+    # The valid sections this run actually drives; arm-all may lay down more.
+    run_sections = [s for s in armed_sections if s in run_selection]
     if not run_sections:
         raise ValueError(
             f"all selected sections skipped: device sector {sector} exceeds the "
-            f"block/sector size of {', '.join(s['name'] for s in skipped)}; bring the "
-            f"guest up with `boot_nvme.logical_block_size=512` for a 512-byte-sector "
-            f"device that runs the sub-4K block and sector sizes"
+            f"block/sector size of "
+            f"{', '.join(s['name'] for s in skipped if s['name'] in run_selection)}; "
+            f"bring the guest up with `boot_nvme.logical_block_size=512` for a "
+            f"512-byte-sector device that runs the sub-4K block and sector sizes"
         )
 
     # One single-section config per section, plus that section's own EnvironmentFile
     # pointing HOST_OPTIONS at its config, so `xfstests@<section>` is self-contained.
+    # Every armed section is laid down; result rotation touches only the run set.
     section_configs = []
     section_envs = []
     rotated: dict[str, int] = {}
     archived_failures: dict[str, int] = {}
     cleaned: list[str] = []
-    for section in run_sections:
-        # Prior results live on the VM's share, keyed by the guest's kernel
-        # release: <share>/<kver>/results/<section>. The guest recreates this at
-        # run time (unit WorkingDirectory=.../%v + ./check's mkdir), so
-        # clean/rotate here only touch a prior run's data.
-        section_dir = section_results_dir(vm_name, kernel_version, section)
-        if clean_results and section_dir.is_dir():
-            # Opposite of rotate-preserve: a fresh start, dropping prior .out.bad /
-            # result.xml / cores / .NNNN rotations. The guest's ./check (RESULT_BASE)
-            # recreates section_dir at run time, so don't pre-create it here.
-            shutil.rmtree(section_dir, ignore_errors=True)
-            print(f"+ cleaned {section_dir} (clean_results)", flush=True)
-            cleaned.append(section)
-        else:
-            kept = _rotate_results(section_dir)
-            if kept is not None:
-                rotated[section] = kept
-                print(
-                    f"+ kept prior {section} results as result.{kept:04d}.xml / check.{kept:04d}.log",
-                    flush=True,
-                )
-                archived = _rotate_failure_artifacts(section_dir, kept)
-                if archived > 0:
-                    archived_failures[section] = archived
+    run_set = set(run_sections)
+    # An armed-only section (never run this time) gets a plain `-g auto -R <report>` env.
+    default_args = build_check_args(
+        "groups", ["auto"], "", "", report, False, "", 1, 0, True
+    )
+    for section in armed_sections:
+        is_run = section in run_set
+        if is_run:
+            # Prior results live on the VM's share, keyed by the guest's kernel
+            # release: <share>/<kver>/results/<section>. The guest recreates this at
+            # run time (unit WorkingDirectory=.../%v + ./check's mkdir), so
+            # clean/rotate here only touch a prior run's data.
+            section_dir = section_results_dir(vm_name, kernel_version, section)
+            if clean_results and section_dir.is_dir():
+                # Opposite of rotate-preserve: a fresh start, dropping prior .out.bad /
+                # result.xml / cores / .NNNN rotations. The guest's ./check (RESULT_BASE)
+                # recreates section_dir at run time, so don't pre-create it here.
+                shutil.rmtree(section_dir, ignore_errors=True)
+                print(f"+ cleaned {section_dir} (clean_results)", flush=True)
+                cleaned.append(section)
+            else:
+                kept = _rotate_results(section_dir)
+                if kept is not None:
+                    rotated[section] = kept
                     print(
-                        f"+ kept {archived} prior {section} failure artifacts as <base>.{kept:04d}.<suffix>",
+                        f"+ kept prior {section} results as result.{kept:04d}.xml / check.{kept:04d}.log",
                         flush=True,
                     )
+                    archived = _rotate_failure_artifacts(section_dir, kept)
+                    if archived > 0:
+                        archived_failures[section] = archived
+                        print(
+                            f"+ kept {archived} prior {section} failure artifacts as <base>.{kept:04d}.<suffix>",
+                            flush=True,
+                        )
         # Lay down the one-section config (whichever branch ran above) and its own
         # EnvironmentFile, HOST_OPTIONS pointing at this section's guest-side config.
         path = share / f"{section}.config"
@@ -321,7 +371,7 @@ def main(
             env_path,
             render_section_env(
                 f"{GUEST_STATE_DIR}/{section}.config",
-                check_args,
+                check_args if is_run else default_args,
                 test_timeout,
                 test_timeouts,
                 recreate_test_dev,
@@ -329,7 +379,9 @@ def main(
         )
         section_envs.append(str(env_path))
 
-    print(f"sections: {run_sections}", flush=True)
+    _prune_share(share, armed_sections, arm_all_sections)
+
+    print(f"run {run_sections}; armed {len(armed_sections)} section(s)", flush=True)
     return {
         "vm_name": vm_name,
         "kernel_version": kernel_version,
@@ -338,6 +390,7 @@ def main(
             section_results_dir(vm_name, kernel_version, run_sections[0]).parent
         ),
         "sections": run_sections,
+        "armed": armed_sections,
         "skipped": skipped,
         "rotated": rotated,
         "archived_failures": archived_failures,

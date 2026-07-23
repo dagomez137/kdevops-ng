@@ -209,6 +209,12 @@ but ``systemctl start xfstests@<section>.service`` produces a run only once
 
    $ systemctl start xfstests@<section>.service
 
+By default ``render_config`` lays down only the sections the run executes. Turn
+on **Arm all sections** to lay down a ``<section>.config`` + ``<section>.env``
+for every geometry-valid section in the config instead, so any of them is a
+one-command start; the sections outside the **Sections** selection get a
+``-g auto`` default, and the share is pruned to mirror the config.
+
 The mount points and the filesystem driver come from ``prepare``, a flow step,
 so a section run purely by hand after a fresh boot wants those in place first;
 re-running the flow is the simplest way. To change one section's test selection

@@ -44,6 +44,9 @@ value:
       value:
         type: script
         input_transforms:
+          arm_all_sections:
+            type: javascript
+            expr: flow_input.check?.arm_all_sections
           clean_results:
             type: javascript
             expr: flow_input.clean_results
@@ -319,6 +322,7 @@ schema:
         - edit_local_config
         - local_config
         - sections
+        - arm_all_sections
         - report
         - randomize
         - iterations
@@ -3580,6 +3584,16 @@ schema:
           default: []
           format: dynmultiselect-list_sections
           title: Sections
+        arm_all_sections:
+          type: boolean
+          description: |-
+            Ship every geometry-valid `[section]` in the config, not just the
+            ones this run executes, so any of them can be started by hand on the
+            guest (`systemctl start xfstests@<section>`). Sections not in
+            **Sections** get a `-g auto` default; the share is pruned to mirror
+            the config. Off: only the sections that run are shipped.
+          default: false
+          title: Arm all sections
         loop_on_fail:
           type: integer
           description: |-
