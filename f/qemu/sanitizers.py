@@ -11,9 +11,14 @@ entry from this table rather than three independent switches: the combination th
 cannot build cannot be named. `asan+ubsan` is the pairing upstream's own
 `tests/docker/test-debug` builds.
 
-ThreadSanitizer additionally takes `--disable-werror` and `-O0`, matching
-`tests/docker/test-tsan`. The other selections keep the project's default warning
-posture, because upstream does not relax it for them either. ThreadSanitizer also
+Every selection takes `--disable-werror`, and ThreadSanitizer additionally takes
+`-O0`, matching `tests/docker/test-tsan`. Upstream relaxes werror for
+ThreadSanitizer alone, but its CI toolchain is older than this project's: with GCC
+15.2 and glibc 2.42, `-fsanitize=undefined` at `-O2` perturbs inlining enough that
+the fortified `memcpy` in `block/vhdx-log.c` trips `-Werror=array-bounds` on a
+false positive, and the build dies at the second object file. Werror is a
+compile-time policy and the sanitizer's signal is a run-time report, so relaxing it
+costs no coverage. ThreadSanitizer also
 wants a glib built with `-fsanitize=thread` to avoid false positives on GMutex
 (`docs/devel/testing/main.rst`), which the build devShell does not carry, so the
 build flow withholds that selection while this table keeps it for a direct run of
@@ -29,9 +34,9 @@ from __future__ import annotations
 # Selection -> the configure arguments it adds, in the order configure receives them.
 SANITIZERS: dict[str, tuple[str, ...]] = {
     "none": (),
-    "ubsan": ("--enable-ubsan",),
-    "asan": ("--enable-asan",),
-    "asan+ubsan": ("--enable-asan", "--enable-ubsan"),
+    "ubsan": ("--enable-ubsan", "--disable-werror"),
+    "asan": ("--enable-asan", "--disable-werror"),
+    "asan+ubsan": ("--enable-asan", "--enable-ubsan", "--disable-werror"),
     "tsan": ("--enable-tsan", "--disable-werror", "--extra-cflags=-O0"),
 }
 

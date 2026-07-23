@@ -25,9 +25,9 @@ The target list is comma-joined into a single `--target-list=` argv element
 (QEMU normalizes the commas to spaces) so multiple targets never word-split.
 
 `sanitizer` selects a build under one of QEMU's sanitizers, adding the
-`--enable-*` flags `f.qemu.sanitizers` maps it to (plus `--disable-werror` and
-`-O0` for ThreadSanitizer, matching upstream's own `tests/docker/test-tsan`).
-They land before `configure_args`, so a hand-passed flag still wins.
+`--enable-*` flags `f.qemu.sanitizers` maps it to, plus `--disable-werror` for
+every selection and `-O0` for ThreadSanitizer. They land before
+`configure_args`, so a hand-passed flag still wins.
 
 With `reproducible` on (default), one `-ffile-prefix-map=<prefix>=/qemu` is added to
 `--extra-cflags` and `--extra-cxxflags`, where `<prefix>` is the common parent of the

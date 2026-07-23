@@ -11,11 +11,12 @@ def test_none_adds_no_configure_flags():
 
 
 def test_each_selection_maps_to_its_upstream_flags():
-    assert sanitizers.configure_args("ubsan") == ["--enable-ubsan"]
-    assert sanitizers.configure_args("asan") == ["--enable-asan"]
+    assert sanitizers.configure_args("ubsan") == ["--enable-ubsan", "--disable-werror"]
+    assert sanitizers.configure_args("asan") == ["--enable-asan", "--disable-werror"]
     assert sanitizers.configure_args("asan+ubsan") == [
         "--enable-asan",
         "--enable-ubsan",
+        "--disable-werror",
     ]
 
 
@@ -35,10 +36,15 @@ def test_no_selection_combines_tsan_with_another_sanitizer():
             assert "--enable-ubsan" not in args, name
 
 
-def test_werror_is_relaxed_for_tsan_only():
-    """Upstream disables it for the thread sanitizer alone; do not generalise."""
+def test_werror_is_relaxed_for_every_sanitizer_and_only_those():
+    """A sanitizer build trips array-bounds false positives on this toolchain."""
     relaxed = {n for n, a in sanitizers.SANITIZERS.items() if "--disable-werror" in a}
-    assert relaxed == {"tsan"}
+    assert relaxed == set(sanitizers.SANITIZERS) - {"none"}
+
+
+def test_only_tsan_drops_the_optimisation_level():
+    lowered = {n for n, a in sanitizers.SANITIZERS.items() if "--extra-cflags=-O0" in a}
+    assert lowered == {"tsan"}
 
 
 def test_empty_selection_normalizes_to_none():
