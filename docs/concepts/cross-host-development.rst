@@ -136,6 +136,39 @@ This is the symmetric counterpart to the push above. Push is the default
 developer flow; fetch is available when a host needs to pull a peer's branches
 into its own ``refs/remotes/<peer>/*`` namespace.
 
+From a machine that is not a peer
+=================================
+
+Peer remotes are the provisioned, symmetric case, and they exist so the *other*
+host's workers can build a branch. Reading work back out needs none of that. The
+Bare is an ordinary bare repository served over SSH, so any machine that can
+:cmd:`ssh` to this host can add it as a remote and fetch from it, with nothing
+provisioned on either side and no workbench, no ``SYSTEM_DIR`` and no peers
+entry on the client. A laptop with a plain checkout is enough:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ git remote add <name> ssh://<user>@<host>//<SYSTEM_DIR>/bare/<project>.git
+   $ git fetch <name>
+    * [new branch]      ubsan-test -> <name>/ubsan-test
+
+Note the doubled slash after the host. An :cmd:`ssh` URL with one slash names a
+path relative to the login home, so an absolute path needs the second one. Both
+forms work; they simply address different places.
+
+What the client sees is the Bare's ``refs/heads/*``, which is exactly the
+durable development-branch namespace: the branch a worktree published by
+committing is fetchable from another machine the moment it exists, with no push
+and no extra copy. The client picks its own remote name and refspec, since the
+``refs/remotes/<peer>/*`` convention above is a provisioning choice on a
+workbench host, not a property of the Bare.
+
+Use :cmd:`git remote` this way when a machine wants to *read* the work. Use a
+peer remote when that machine's workers must *build* it, because a worker
+resolves a local ``refs/heads/*`` ref and a fetched
+``refs/remotes/<peer>/*`` entry is not one.
+
 The durable Bare
 ================
 
