@@ -197,37 +197,50 @@ reading ``HOST_OPTIONS`` from that section's own ``<section>.config``. It is
 Running a section by hand
 =========================
 
-Because each unit reads its own ``<section>.env`` (systemd's ``%i`` resolves to
-the section), any section the flow has rendered starts on its own, with its own
-devices and its own flags, and no shared active-config file to swap.
-``systemctl cat`` resolves for any instance name because the unit is a template,
-but ``systemctl start xfstests@<section>.service`` produces a run only once
-``render_config`` has laid down that section's ``<section>.config`` and
-``<section>.env``:
+``render_config`` arms every geometry-valid section by default, so the guest is
+a complete bench: each section already carries its own ``<section>.config`` and
+``<section>.env`` on the share, which the systemd unit reads via ``%i``. Any
+section is therefore a one-command run with its own devices and flags, no
+shared active-config to swap and no re-render. List the armed sections and
+start one, following its journal:
 
 .. code-block:: console
 
-   $ systemctl start xfstests@<section>.service
+   # ls /var/lib/xfstests/*.env
+   # systemctl start xfstests@<section>.service
+   # journalctl --unit=xfstests@<section>.service --follow
 
-By default ``render_config`` lays down only the sections the run executes. Turn
-on **Arm all sections** to lay down a ``<section>.config`` + ``<section>.env``
-for every geometry-valid section in the config instead, so any of them is a
-one-command start; the sections outside the **Sections** selection get a
-``-g auto`` default, and the share is pruned to mirror the config.
+``systemctl cat`` resolves for any instance name (the unit is a template), but
+a ``start`` only runs once that section's ``.config`` and ``.env`` are on the
+share; with **Arm all sections** off, only the sections a run executed are
+armed.
+
+To try one test or group against a section without a flow round-trip, edit its
+``<section>.env`` and start. The env carries the three knobs ``./check`` reads:
+
+.. code-block:: text
+
+   HOST_OPTIONS=/var/lib/xfstests/<section>.config
+   XFSTESTS_CHECK_ARGS=-R xunit generic/362 generic/363
+   RECREATE_TEST_DEV=true
+
+``XFSTESTS_CHECK_ARGS`` is the verbatim ``./check`` tail, so narrow it to what
+you are chasing: a test list (``generic/362 generic/363``), a group
+(``-g quick``), iterations (``-I 5``), and so on; an armed-only section ships
+with ``-g auto``. ``RECREATE_TEST_DEV=true`` remakes ``TEST_DEV`` for the run,
+``false`` reuses the existing filesystem. Leave ``HOST_OPTIONS`` alone (it
+points at the section's own device-bound config). systemd re-reads the
+``EnvironmentFile`` on each start, so edit, then restart:
+
+.. code-block:: console
+
+   # systemctl restart xfstests@<section>.service
 
 The mount points and the filesystem driver come from ``prepare``, a flow step,
 so a section run purely by hand after a fresh boot wants those in place first;
-re-running the flow is the simplest way. To change one section's test selection
-by hand, edit ``XFSTESTS_CHECK_ARGS`` in that section's
-``/var/lib/xfstests/<section>.env`` and restart the unit; systemd re-reads the
-``EnvironmentFile`` on each start:
-
-.. code-block:: console
-
-   $ systemctl restart xfstests@<section>.service
-
-The normal path is to re-run the flow, which regenerates every section's config
-and env from the form.
+re-running the flow is the simplest way to (re)create them. The flow is the
+canonical path anyway: it regenerates every section's config and env from the
+form, so by-hand edits are a scratch pad, overwritten on the next run.
 
 Restarting a hung test
 ======================

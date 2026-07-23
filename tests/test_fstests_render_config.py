@@ -51,7 +51,7 @@ def _render(**overrides):
 
 
 def test_arm_off_writes_only_the_selected_sections(workers):
-    out = _render(sections=["xfs_a", "xfs_c"])
+    out = _render(sections=["xfs_a", "xfs_c"], arm_all_sections=False)
     share = Path(out["share_dir"])
     assert out["sections"] == ["xfs_a", "xfs_c"]
     assert out["armed"] == ["xfs_a", "xfs_c"]

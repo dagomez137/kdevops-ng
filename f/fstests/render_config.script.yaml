@@ -124,8 +124,8 @@ schema:
             geometry-valid section in the config, not just the run's, so any can
             be started by hand on the guest. Armed-only sections get a `-g auto`
             default; the share is pruned to mirror the config. Off: only the run
-            sections are shipped.
-          default: false
+            sections are shipped. On by default.
+          default: true
           title: Arm all sections
         clean_results:
           type: boolean

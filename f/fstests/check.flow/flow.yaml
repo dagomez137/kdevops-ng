@@ -3591,8 +3591,9 @@ schema:
             ones this run executes, so any of them can be started by hand on the
             guest (`systemctl start xfstests@<section>`). Sections not in
             **Sections** get a `-g auto` default; the share is pruned to mirror
-            the config. Off: only the sections that run are shipped.
-          default: false
+            the config. Off: only the sections that run are shipped. On by
+            default.
+          default: true
           title: Arm all sections
         loop_on_fail:
           type: integer

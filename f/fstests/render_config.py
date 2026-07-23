@@ -28,7 +28,7 @@ that drive the flow's per-section forloop (the run set), plus any skipped sectio
 guest's `./check` creates its own `RESULT_BASE`; this step only cleans/rotates a prior
 run's results under that kernel. The host never contacts the guest.
 
-With `arm_all_sections`, every device-valid catalog section (not just the run's
+By default (`arm_all_sections`), every device-valid catalog section (not just the run's
 selection) gets its `<section>.config`/`.env` laid down, so the share mirrors the catalog
 and a later `-s <section>` run needs no re-render; the flow still runs only the selection,
 and an armed-only section's env carries a plain `-g auto` default. A stale config/env for
@@ -198,7 +198,7 @@ def main(
     test_timeout: int = 0,
     test_timeouts: dict[str, int] | None = None,
     recreate_test_dev: bool = True,
-    arm_all_sections: bool = False,
+    arm_all_sections: bool = True,
 ) -> dict:
     share = share_dir(vm_name)
 
