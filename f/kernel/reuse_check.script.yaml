@@ -5,7 +5,10 @@ description: |-
   the destdir, then in the Nix store via the `store-index` entry (where
   `fetch_identity` leaves a peer's build). When both are present the build flow
   skips compile/install/modules and the manifest points at them, reusing the
-  prior build. Returns `present` plus the resolved `bzImage`/`boot`/`modules`
+  prior build. The devel layer (`kernel-devel-<release>`) is probed and reported
+  apart from it as `devel_present`, because the two are independent store paths
+  and a present run layer does not imply a published devel layer. Returns
+  `present` and `devel_present` plus the resolved `bzImage`/`boot`/`modules`
   (under the destdir or the store path) and `destdir`.
 lock: '!inline f/kernel/reuse_check.script.lock'
 kind: script

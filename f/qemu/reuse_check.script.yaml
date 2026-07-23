@@ -4,8 +4,11 @@ description: |-
   prefix (`destdir/<identity>`), then in the Nix store via the `store-index`
   entry (where `fetch_identity` leaves a peer's build). When present the build
   flow skips configure/compile/install and the manifest points at it, reusing
-  the prior build. Filesystem only: no devShell, robust if neither the prefix
-  nor a store entry exists. Returns `present` plus the resolved
+  the prior build. The devel layer (`qemu-devel-<identity>`) is probed and
+  reported apart from it as `devel_present`, because the two are independent
+  store paths and a present run layer does not imply a published devel layer.
+  Filesystem only: no devShell, robust if neither the prefix nor a store entry
+  exists. Returns `present` and `devel_present` plus the resolved
   `prefix`/`qemu_binary` (under the prefix or the store path).
 lock: '!inline f/qemu/reuse_check.script.lock'
 kind: script

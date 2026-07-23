@@ -289,6 +289,7 @@ def test_reuse_check_absent_identity(monkeypatch, tmp_path):
     dest.mkdir()
     assert reuse_check.main(str(dest), RELEASE) == {
         "present": False,
+        "devel_present": False,
         "uts_release": RELEASE,
         "bzImage": None,
         "boot": None,
@@ -303,6 +304,7 @@ def test_reuse_check_finds_the_local_install(monkeypatch, tmp_path):
     _run_layer(dest, RELEASE)
     assert reuse_check.main(str(dest), RELEASE) == {
         "present": True,
+        "devel_present": False,
         "uts_release": RELEASE,
         "bzImage": str(dest / "boot" / f"bzImage-{RELEASE}"),
         "boot": str(dest / "boot"),
@@ -335,6 +337,7 @@ def test_reuse_check_falls_back_to_the_store(monkeypatch, tmp_path):
     real = Path(os.path.realpath(target))
     assert reuse_check.main(str(dest), RELEASE) == {
         "present": True,
+        "devel_present": False,
         "uts_release": RELEASE,
         "bzImage": str(real / "boot" / f"bzImage-{RELEASE}"),
         "boot": str(real / "boot"),
