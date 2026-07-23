@@ -125,6 +125,14 @@ already published this identity, reads its catalog entry over SSH, pulls the
 store path with ``nix copy``, and indexes it locally, leaving the run layer in
 the store for ``reuse_check`` to resolve.
 
+When a developer worktree is requested, the flow also sets ``devel`` and the
+sweep repeats for the devel layer, skipped when this host already has it. Both
+layers therefore land before ``reuse_check`` probes them. Without this, a peer's
+run layer would arrive on its own, ``devel_present`` would be false, and the
+rule below would rebuild the whole thing locally to regenerate a layer the peer
+had already published. It stays off by default so a boot-oriented build never
+drags the much larger devel layer across the wire.
+
 publish and publish_devel
 -------------------------
 
