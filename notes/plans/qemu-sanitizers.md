@@ -41,6 +41,48 @@ five suite executors turned guest-side kernel failures into verdicts.
 So the work is sequenced as infrastructure first, with the MDTS claim
 as its first live-fire validation.
 
+## Status (2026-07-23)
+
+Phase 1 is done, deployed, and live-validated. A `sanitizer` enum
+(`none`/`ubsan`/`asan`/`asan+ubsan`, `tsan` withheld) drives the
+configure argv and enters the build identity, and a `sanitizer: ubsan`
+build of the `ubsan-test` branch published as
+`qemu-11.0.0-ubsan-test-ubsan-274d18f9c692`.
+
+The MDTS live fire (planned as phase 5) is effectively done too, by
+hand and ahead of the infrastructure. A guest booted on that build with
+`mdts=32` produced exactly the two predicted diagnostics in the host
+journal and nothing else:
+
+    ../hw/nvme/ctrl.c:8641:32: runtime error: shift exponent 32 is too
+        large for 32-bit type 'int'
+    ../hw/nvme/ctrl.c:1699:36: runtime error: shift exponent 32 is too
+        large for 32-bit type 'unsigned int'
+
+Right sites, right types, right value, and the causal chain held: the
+realize check at 8641 was written to reject a large `mdts` but its own
+masked shift lets 32 through, which is what exposes 1699 on I/O. The
+series' undefined-behaviour claim is now demonstrated, not argued.
+
+Two findings from the run reshape what remains:
+
+The diagnostic reached the journal with **zero configuration**. UBSan
+writes to stderr, the unit sets no `StandardError=`, so systemd routes
+it to the journal under `SyslogIdentifier=qemu-system@%i`. So phase 3
+(runtime options) is not a prerequisite for observing anything, only a
+refinement.
+
+UBSan reports **each source location once per process**, verified by
+driving one site five times and counting one report. A collector must
+treat presence-of-a-location as the signal and must not read severity
+or frequency from a count, and it cannot tell "tripped once" from
+"tripped on every command" without `halt_on_error=1` and a per-run
+bisect. That is a constraint on the phase-4 verdict, not on capture.
+
+Re-prioritisation follows below: phase 4 (a standalone diagnostics
+primitive) is next; phases 2 and 3 are deferred because they serve
+sanitizers (TSan, LSan, ASan) that are not yet in use.
+
 ## Verified facts (do not re-derive)
 
 ### The configure options
@@ -205,29 +247,41 @@ vulnerable path, only a value in a field that is already there.
 
 ## The plan
 
-### Phase 1: build-side selection
+### Phase 1: build-side selection (DONE)
 
-Add a `sanitizer` enum to the `configuration` group of
-`f/qemu/build.flow`, defaulting to `none`, with `ubsan`, `asan` and
-`asan+ubsan` as the initial members and `tsan` withheld until the glib
-override exists. The enum encodes the mutual exclusion in the type, so
-an unsupported combination cannot be expressed.
+A `sanitizer` enum in the `configuration` group of `f/qemu/build.flow`,
+defaulting to `none`, with `ubsan`, `asan` and `asan+ubsan` as members
+and `tsan` withheld until the glib override exists. The enum encodes the
+mutual exclusion in the type, so an unsupported combination cannot be
+expressed.
 
-`f/qemu/configure` derives the `--enable-*` arguments from the
-selection and appends them to the argv it already composes. It derives
-`--disable-werror` and `--extra-cflags=-O0` for ThreadSanitizer only,
-matching upstream's driver; the other selections keep the project's
-default warning posture until evidence says otherwise.
+`f/qemu/configure` derives the `--enable-*` arguments from a shared
+`f/qemu/sanitizers` table and appends them to the argv it already
+composes. Every selection also takes `--disable-werror`, and
+ThreadSanitizer additionally `--extra-cflags=-O0`. This diverged from
+the plan under evidence: the first build failed to compile because
+`-fsanitize=undefined` at `-O2` turns the fortified `memcpy` in
+`block/vhdx-log.c` into a `-Werror=array-bounds` false positive on GCC
+15.2 / glibc 2.42. Upstream relaxes werror for ThreadSanitizer alone,
+but its CI toolchain predates the one this project pins. Werror is a
+compile-time policy and the sanitizer reports at run time, so relaxing
+it loses no coverage.
 
 `f/qemu/identity` hashes the selection, and `_prefix_basename` appends
 it as its own segment after the label.
 
-Fixture tests extend `tests/test_qemu_identity.py` (a distinct identity
-per selection, and the segment landing in the prefix basename) and
-`tests/test_qemu_configure.py` (the derived argv, and the
-ThreadSanitizer extras appearing only for that selection).
+Fixture tests cover the selection table (`tests/test_qemu_sanitizers.py`),
+the identity (`tests/test_qemu_identity.py`: a distinct identity per
+selection, the segment landing in the prefix basename), and the
+configure validation (`tests/test_qemu_configure.py`).
 
-### Phase 2: self-contained artifacts
+### Phase 2: self-contained artifacts (DEFERRED)
+
+Deferred until a sanitizer that reads a suppression file is in use. The
+suppression files serve ThreadSanitizer and LeakSanitizer;
+UndefinedBehaviorSanitizer, the only selection exercised so far, has no
+suppression file, so this phase pays off nothing on the current path.
+Kept here because it becomes real the moment ASan or TSan is used.
 
 `f/qemu/install` copies `tests/tsan/suppressions.tsan`,
 `tests/tsan/ignore.tsan` and the LeakSanitizer suppression file into
@@ -244,32 +298,58 @@ Without this step a `suppressions=` path points into a build worktree,
 which breaks the moment the artifact is moved to a peer with
 `nix copy`. The store artifact must describe itself.
 
-### Phase 3: runtime options
+### Phase 3: runtime options (DEFERRED)
 
-The vendored `vm.env.j2` emits the `UBSAN_OPTIONS` and `ASAN_OPTIONS`
-variables, fed by the render step from the selection and the prefix.
+Deferred, and partly reconsidered. The live fire showed the diagnostic
+reaches the journal with no options set at all, so this phase is a
+refinement, not a prerequisite. When it lands, the vendored `vm.env.j2`
+emits `UBSAN_OPTIONS`/`ASAN_OPTIONS` fed by the render step.
 
-The defaults are `halt_on_error=0` and `print_stacktrace=1`, so a
-diagnostic records itself without killing a guest in the middle of a
-workload, and the verdict is deferred to the collection step. This is
-the same honest-red discipline the suite executors use: observe
-everything, then judge once, rather than failing at the first sign of
-trouble and losing the rest of the evidence.
+The plan's proposed `print_stacktrace=1` default is dropped. A UBSan
+report already carries `file:line:column`, and because each location is
+reported once per process, a trace shows only whichever of a helper's
+several call sites fired first and stays silent about the rest, which
+reads as certainty it does not have. It becomes useful only paired with
+`halt_on_error=1`. Keep both as off-by-default knobs, not defaults.
+`halt_on_error` is the meaningful one: `=1` aborts QEMU at the first
+diagnostic (for the realize-time site, the guest never boots, which is
+the loudest possible proof), at the cost of the rest of a run's
+evidence. The default stays `0`, with the verdict deferred to capture.
 
-### Phase 4: the test loop
+### Phase 4: standalone diagnostics primitive (NEXT)
 
-A thin `f/qemu/check.flow` composing `f/qemu/build` and `f/qsu/boot` as
-subflows, then a guest workload, then `collect_diagnostics` (journal
-read and parse), `judge` and `report`.
+Revised from the plan's "thin `f/qemu/check.flow`". A sanitizer
+diagnostic is a property of *any* guest run on a sanitized QEMU, not of
+a special test, so the primitive is a standalone step, not a flow.
 
-Structurally this is the suite-executor pattern with one inversion: the
-evidence is host-side, produced by the QEMU process itself, rather than
-guest-side. That difference is confined to the collection step; the
-verdict and report steps follow the existing shape.
+`f/qsu/collect_diagnostics` takes a `vm_name`, reads that guest's
+`qemu-system@<vm>.service` journal over the host user bus, parses the
+sanitizer runtime's `file:line:column: runtime error: ...` lines into
+structured findings (deduplicated by source location, since UBSan emits
+each once), and returns a verdict plus the findings. It is callable on
+its own against a guest already running, and composable as a tail step
+in `f/qsu/boot` and `f/qsu/bringup`, gated so it runs only when the
+booted QEMU carries a sanitizer.
 
-### Phase 5: live fire on the MDTS claim
+The verdict rule respects the once-per-location finding: presence of
+any diagnostic is the signal; the step reports the set of locations,
+never a severity inferred from a count. A build's sanitizer selection
+comes from its manifest (or the store-key segment), so the step knows
+whether to expect diagnostics and can distinguish "clean sanitized run"
+from "stock build, nothing to collect".
 
-The reproducer branch is `ubsan-test`: v11.0.0 (98b060da3a) plus the
+A dedicated build-boot-workload-collect flow, if wanted later, becomes
+a thin composition over this step rather than the other way round.
+
+The pure parse-and-verdict logic goes in a `f/qsu` module with fixture
+tests in `tests/`, matching how every suite executor's parser is tested
+with no instance and no journal.
+
+### Phase 5: live fire on the MDTS claim (DONE by hand)
+
+Done ahead of the infrastructure and out of order (see Status above);
+recorded here for the reproducer detail. The reproducer branch is
+`ubsan-test`: v11.0.0 (98b060da3a) plus the
 first three commits of the series, so the `nvme_max_data_size()` helper
 is defined but not yet wired into `nvme_check_mdts()`, and the
 realize-time cap is still the original one. Build it with
@@ -347,20 +427,21 @@ hacking the reproducer together first and generalising afterwards.
 ## Open risks (verify, do not assume)
 
 Whether a QEMU built with AddressSanitizer runs under `-accel kvm` is
-unverified. It gates phases 3 through 5 for that selection.
-UndefinedBehaviorSanitizer carries much less risk here, which is
-another reason to lead with it.
+still unverified. It gates the AddressSanitizer path.
+UndefinedBehaviorSanitizer, now proven end to end, carries much less
+risk, which is why it led.
 
-Whether AddressSanitizer and UndefinedBehaviorSanitizer builds need
-`--disable-werror` against the nixpkgs toolchain is unverified.
-Upstream disables it for ThreadSanitizer only, so it is not added
-preemptively; the qemu-build page already documents `--disable-werror`
-as the remedy when a build hits a warning.
+Settled: every sanitizer build needs `--disable-werror` on this
+toolchain, not ThreadSanitizer alone. The first UndefinedBehaviorSanitizer
+build failed on a `-Werror=array-bounds` false positive in
+`block/vhdx-log.c`; see phase 1. This diverges from upstream, whose CI
+toolchain is older.
 
-Whether the diagnostics are better captured from the journal or from a
-sanitizer `log_path=` is undecided. The journal matches the existing
-collection pattern and is the starting assumption; ThreadSanitizer's
-volume may later argue for files.
+Settled: the journal is sufficient for UndefinedBehaviorSanitizer
+capture. The diagnostic lands there through
+`SyslogIdentifier=qemu-system@%i` with no runtime option set. A
+`log_path=` file may still be worth it for ThreadSanitizer's volume, but
+that is a ThreadSanitizer question, deferred with that sanitizer.
 
 Each of these is a cheap experiment. Run it rather than assuming, and
 record the result here. The origin handoff was written after a session
