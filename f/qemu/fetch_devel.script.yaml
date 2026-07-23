@@ -1,0 +1,58 @@
+summary: Fetch the devel layer from the Nix store
+description: |-
+  Index a developer worktree against a QEMU build identity without rebuilding.
+  Resolve the `qemu-devel-<version>-<label>-<identity>` store path (from the
+  local index, or pulled with `nix copy` from a peer's `store-index` over the
+  `transfer` devShell), copy the developer subset (meson's
+  `compile_commands.json` plus the generated headers and sources) into the
+  worktree's build dir, then relocate it: the builder's build dir and worktree
+  are substituted out of the index and out of the layer's symlinks, so
+  `clangd` reads this worktree's own source. The companion to
+  `f/qemu/publish_devel`. Where `f/kernel/fetch_devel` regenerates its index
+  from kbuild's `.cmd` database, meson leaves only the finished index, so it is
+  rewritten instead. The build dir defaults to the worktree's own `build` child
+  and must stay under it (the index's relative include paths resolve against
+  it). Returns `fetched` plus the resolved
+  `worktree`/`build_dir`/`compile_commands`/`entries`/`relinked`.
+lock: '!inline f/qemu/fetch_devel.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - prefix
+    - remote
+    - remote_index
+    - build_dir
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        Where the devel layer lands; defaults to `<worktree>/build`. Must stay
+        under the worktree.
+      default: ''
+    prefix:
+      type: string
+      description: |-
+        The build identity's install prefix (or just its
+        `<version>-<label>-<identity>` basename) whose devel layer to fetch.
+    remote:
+      type: string
+      description: |-
+        SSH host of the peer builder; empty resolves from the local store only.
+      default: ''
+    remote_index:
+      type: string
+      description: |-
+        The peer builder's `store-index` directory, read over ssh to learn the
+        devel layer's store path; empty resolves from the local store only.
+      default: ''
+    worktree:
+      type: string
+      description: |-
+        Local QEMU source checkout that receives the devel layer and a
+        relocated compile_commands.json.
+  required:
+    - worktree
+    - prefix
