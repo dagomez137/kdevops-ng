@@ -251,8 +251,10 @@ value:
           attempts: 2
           seconds: 10
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
-          !== false
+        expr: results.reuse_check?.present === true &&
+          flow_input.reuse?.reuse !== false &&
+          (flow_input.worktree?.deploy_developer_worktree !== true ||
+          results.reuse_check?.devel_present === true)
       timeout:
         type: static
         value: 3600
@@ -471,8 +473,10 @@ value:
             expr: results.configure.kernelrelease
         path: f/kernel/publish_devel
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
-          !== false
+        expr: results.reuse_check?.devel_present === true ||
+          (results.reuse_check?.present === true &&
+          flow_input.reuse?.reuse !== false &&
+          flow_input.worktree?.deploy_developer_worktree !== true)
       timeout:
         type: static
         value: 600

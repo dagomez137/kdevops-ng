@@ -160,7 +160,9 @@ value:
       skip_if:
         expr: (flow_input.configuration?.skip_configure === true) ||
           (results.reuse_check?.present === true &&
-          flow_input.reuse?.reuse !== false)
+          flow_input.reuse?.reuse !== false &&
+          (flow_input.worktree?.deploy_developer_worktree !== true ||
+          results.reuse_check?.devel_present === true))
       timeout:
         type: static
         value: 900
@@ -178,8 +180,10 @@ value:
           attempts: 2
           seconds: 10
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
-          !== false
+        expr: results.reuse_check?.present === true &&
+          flow_input.reuse?.reuse !== false &&
+          (flow_input.worktree?.deploy_developer_worktree !== true ||
+          results.reuse_check?.devel_present === true)
       timeout:
         type: static
         value: 3600
@@ -255,8 +259,10 @@ value:
             expr: results.identity.prefix
         path: f/qemu/publish_devel
       skip_if:
-        expr: results.reuse_check?.present === true && flow_input.reuse?.reuse
-          !== false
+        expr: results.reuse_check?.devel_present === true ||
+          (results.reuse_check?.present === true &&
+          flow_input.reuse?.reuse !== false &&
+          flow_input.worktree?.deploy_developer_worktree !== true)
       timeout:
         type: static
         value: 600
