@@ -541,6 +541,12 @@ value:
           configure:
             type: javascript
             expr: results.configure
+          deploy:
+            type: javascript
+            expr: results.deploy_worktree
+          devel:
+            type: javascript
+            expr: results.fetch_devel
           devtools:
             type: javascript
             expr: results.devtools

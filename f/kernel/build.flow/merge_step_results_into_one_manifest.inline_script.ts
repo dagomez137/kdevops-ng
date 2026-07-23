@@ -13,6 +13,8 @@ export async function main(
   publish: any,
   selftests: any,
   usertests: any,
+  deploy: any,
+  devel: any,
 ) {
   return {
     worker: prepare?.worker ?? null,
@@ -37,12 +39,16 @@ export async function main(
     boot: publish?.boot ?? install?.boot ?? reuse?.boot ?? null,
     modules: publish?.modules ?? modules?.modules ?? reuse?.modules ?? null,
     source: modules?.source ?? null,
-    compile_commands: devtools?.compile_commands ?? null,
+    worker_index: devtools?.compile_commands ?? null,
     vmlinux_gdb: devtools?.vmlinux_gdb ?? null,
     rust_project: devtools?.rust_project ?? null,
     kselftests: selftests?.store_path ?? null,
     kselftests_name: selftests?.name ?? null,
     usertests: usertests?.store_path ?? null,
     usertests_name: usertests?.name ?? null,
+    // The optional developer-worktree tail: null when the toggle is off.
+    developer_worktree: deploy?.worktrees?.[0]?.worktree ?? null,
+    developer_index: devel?.compile_commands ?? null,
+    devel_layer: devel?.store_path ?? null,
   };
 }

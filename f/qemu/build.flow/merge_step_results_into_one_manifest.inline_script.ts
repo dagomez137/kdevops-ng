@@ -36,7 +36,7 @@ export async function main(
     qemu_binaries: install?.qemu_binaries
       ? install.qemu_binaries.map(storeBin)
       : null,
-    compile_commands: devtools?.compile_commands ?? null,
+    worker_index: devtools?.compile_commands ?? null,
     // The optional developer-worktree tail: null when the toggle is off.
     developer_worktree: deploy?.worktrees?.[0]?.worktree ?? null,
     developer_index: devel?.compile_commands ?? null,
