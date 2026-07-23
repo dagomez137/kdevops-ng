@@ -194,6 +194,15 @@ The form surfaces the choices a maintainer actually makes:
    ``--cxx`` (see the toolchain note below: the environment ``CC`` does not
    work here).
 
+``sanitizer``
+   Build the emulator under one of QEMU's sanitizers so undefined behaviour
+   or memory errors in QEMU *itself* are reported at run time to the guest's
+   ``qemu-system@<vm>.service`` journal. ``none`` (default), ``ubsan``,
+   ``asan``, or ``asan+ubsan``. It is a single choice, not three switches,
+   because QEMU's meson refuses the thread sanitizer alongside either other
+   one; the thread sanitizer is withheld from the form until the devShell
+   carries a matching instrumented glib. See `Sanitizers`_ below.
+
 ``ccache`` and ``ccache_max_size``
    Compile through ccache the documented QEMU way
    (``--cc="ccache <cc>"``, word-split into the meson compiler array). On by
@@ -305,6 +314,63 @@ default, builds clean. Clang/LLVM additionally gets ``-Qunused-arguments``
 (via ``--extra-cflags`` and ``--extra-ldflags``) to silence the spurious
 ``-Wunused-command-line-argument`` it emits on link steps for the devShell's
 GCC-oriented ``-Wa,--compress-debug-sections``.
+
+Sanitizers
+==========
+
+The ``sanitizer`` input builds the emulator under one of QEMU's sanitizers.
+The selection maps to configure flags through the one ``f/qemu/sanitizers``
+table that the configure argv and the build identity both read:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 40 22
+
+   * - Selection
+     - Adds to ``configure``
+     - Reports
+   * - ``none``
+     - nothing (default)
+     - the ordinary build
+   * - ``ubsan``
+     - ``--enable-ubsan``
+     - undefined behaviour (shifts, overflow, misalignment)
+   * - ``asan``
+     - ``--enable-asan``
+     - memory errors (use-after-free, out-of-bounds)
+   * - ``asan+ubsan``
+     - both ``--enable-*``
+     - both, the pairing upstream's own ``tests/docker/test-debug`` builds
+
+The thread sanitizer is not offered by the form. QEMU's meson refuses it
+alongside either other sanitizer, and it needs a glib built with the same
+instrumentation to avoid false positives on ``GMutex``, which the ``.#build``
+devShell does not carry.
+
+A sanitized build also passes ``--disable-werror``, because the sanitizer
+provokes ``-Werror`` false positives on this project's toolchain. With
+``--enable-ubsan`` at ``-O2``, GCC 15.2 and glibc 2.42 turn the fortified
+``memcpy`` in ``block/vhdx-log.c`` into a fatal ``-Werror=array-bounds``. This
+is the same werror escape hatch documented above, applied automatically:
+``-Werror`` is a compile-time policy and the sanitizer's report is a run-time
+event, so relaxing it costs no coverage. Upstream relaxes werror for the
+thread sanitizer alone, but its CI toolchain is older than the one tracked
+here.
+
+The selection enters the build identity, so a sanitized build never shares a
+prefix with a stock build of the same ref, and it names itself: a
+``ubsan`` build of ``v11.0.0`` installs under and publishes as
+``qemu-11.0.0-<label>-ubsan-<identity>`` (see `The output contract`_). Because
+the digest hashes the *selection* and not the flags it expands to, changing
+the werror or optimisation handling for a selection does not disturb any
+identity already published.
+
+The report reaches the operator through the guest, not this flow. A sanitizer
+writes to the emulator's standard error, and the guest's
+``qemu-system@<vm>.service`` routes that to the journal under
+``SyslogIdentifier=qemu-system@%i`` with no extra configuration, so a
+diagnostic in QEMU appears in ``journalctl --user-unit=qemu-system@<vm>``
+while the guest runs. For inspecting a running guest see :doc:`/flows/guests`.
 
 The output contract
 ====================
