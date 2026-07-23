@@ -90,7 +90,9 @@ without the config-method branch, because QEMU has a single configure path:
 
 ::
 
-   prepare_worktree -> configure -> compile -> devtools -> install -> collect
+   prepare_worktree -> identity -> fetch_identity -> reuse_check -> configure ->
+   compile -> devtools -> install -> publish -> publish_devel ->
+   deploy_worktree -> fetch_devel -> collect
 
 .. list-table::
    :header-rows: 1
@@ -102,6 +104,18 @@ without the config-method branch, because QEMU has a single configure path:
    * - ``prepare_worktree``
      - Sync this worker's warm ``main`` worktree of QEMU to ``ref`` off the
        Bare; create ``build/`` and ``destdir/``.
+     - Host
+   * - ``identity``
+     - Hash the build inputs and key the install prefix on the result (see
+       `The output contract`_).
+     - Host
+   * - ``fetch_identity``
+     - With ``use_peers``, fetch this identity's install tree from a registered
+       peer's Nix store so a local reuse hit can land. Otherwise a no-op.
+     - ``.#transfer``
+   * - ``reuse_check``
+     - Report whether this identity is already installed, under its prefix or
+       in this host's Nix store.
      - Host
    * - ``configure``
      - ``meson subprojects download`` in the source, then
@@ -119,6 +133,23 @@ without the config-method branch, because QEMU has a single configure path:
      - ``make install`` in ``build/`` into ``destdir/`` (user-writable, no
        ``sudo``).
      - ``.#build``
+   * - ``publish``
+     - Add this identity's install tree to the Nix store so a peer can fetch
+       it; only after a real install.
+     - Host
+   * - ``publish_devel``
+     - Add this identity's devel layer (meson's index plus the generated
+       headers, minus every binary) to the Nix store so ``fetch_devel`` can
+       index a worktree; only after a real build.
+     - Host
+   * - ``deploy_worktree``
+     - Lay the developer-group worktree at the built ref; only when a developer
+       worktree is requested.
+     - Host
+   * - ``fetch_devel``
+     - Materialize the devel layer into that developer worktree and relocate
+       its ``clangd`` index onto it.
+     - ``.#transfer``
    * - ``collect``
      - Write ``result.json`` and return it as the flow result.
      - Host
@@ -177,14 +208,54 @@ The form surfaces the choices a maintainer actually makes:
 ``configure_args``
    Free-form extra ``--enable-*`` and ``--disable-*`` flags.
 
-``shared``
-   ``false`` (default, this worker's own tree) or ``true`` (a shared named
-   tree), with the same semantics as the kernel build.
+``recreate_build_worktree``
+   Re-cut the worker's build-site checkout instead of re-syncing it, discarding
+   ``build/`` and ``destdir/``. It names the build site to keep it distinct from
+   ``recreate_developer_worktree`` below; the two never touch the same tree.
+
+``wipe_build``
+   Remove and recreate ``build/`` before configuring, forcing a clean build.
+
+``deploy_developer_worktree``, ``worktree_group`` and
+``recreate_developer_worktree``
+   Drive the optional developer-worktree tail, described next.
 
 The source URL is not a flow input: it is fixed by the mirror, exactly as the
 kernel build takes a ref but not a URL. Build parallelism is
 ``make -j$(nproc)``, governed by the container cgroup so concurrent builds
 self-balance.
+
+The developer-worktree tail
+===========================
+
+The build runs in a worker worktree, which is a build site a developer never
+reads: it lives in the worker's sandbox under the fixed ``main`` group and is
+re-synced to the ref on every run. What a developer works in is a *developer
+worktree* under ``WORKTREES_DIR/<group>/qemu``, and whether one exists is
+independent of where the build ran (:doc:`/concepts/terms`). Turning on
+**Deploy Developer Worktree** connects the two:
+
+``deploy_worktree``
+   Reuses :src:`f/workbench/worktree/init` to lay or refresh
+   ``WORKTREES_DIR/<group>/qemu`` at the ref this build actually built, or at
+   the ``b4/<slug>`` branch the worker published when a series was applied.
+
+``fetch_devel``
+   Materializes this build's devel layer into that worktree and relocates the
+   index onto it, so ``clangd`` resolves the generated headers without the
+   developer ever building QEMU themselves.
+
+``worktree_group`` names the group (default ``vanilla``), and
+``recreate_developer_worktree`` re-cuts it rather than reusing it. Because a
+worktree-group holds one worktree per project a topic involves, naming the same
+group here and in :doc:`kernel-build` is what makes that group carry both
+``linux`` and ``qemu``, each indexed against the build that produced it.
+
+The tail leaves the build untouched, and it is off by default. Two things to
+know before turning it on: laying the worktree checks it out with
+``git checkout --detach --force``, and the fetch copies over the worktree's
+``build/``. Neither is a merge. Keep uncommitted work committed or on a branch,
+or point the toggle at a group you keep for indexing.
 
 Toolchain notes
 ===============

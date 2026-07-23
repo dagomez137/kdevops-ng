@@ -61,14 +61,28 @@ consumer fetches only what it needs.
      - boot image plus ``lib/modules/<release>``, or the QEMU install tree
      - booting a VM (:src:`f/qsu`)
    * - devel
-     - ``kernel-devel-<release>``
-     - the build dir's ``.cmd`` command database and generated headers
-     - the clangd or LSP index on a worktree
+     - ``kernel-devel-<release>`` /
+       ``qemu-devel-<version>-<label>-<identity>``
+     - the build dir's ``.cmd`` command database and generated headers, or
+       meson's ``compile_commands.json`` and the generated headers
+     - the clangd or LSP index on a developer worktree
 
 Keeping the layers apart means a boot fetch stays lean and never drags the much
-larger devel layer (roughly 190 MB), while a developer fetching an index never
-pulls boot images. The devel layer's composition, and the allowlist that builds
-it, live in :src:`f/kernel/publish_devel.py`.
+larger devel layer (roughly 190 MB for the kernel, roughly 24 MB for QEMU),
+while a developer fetching an index never pulls boot images. Each devel layer's
+composition, and the allowlist that builds it, live in
+:src:`f/kernel/publish_devel.py` and :src:`f/qemu/publish_devel.py`.
+
+The two differ in what the build system leaves behind. kbuild writes a ``.cmd``
+command database, so the kernel layer ships the database and
+:src:`fetch_devel <f/kernel/fetch_devel>` replays it locally with the kernel's
+own ``gen_compile_commands.py``, producing an index that already names the
+consuming worktree. Meson writes no such database: it emits the finished
+``compile_commands.json`` when it configures, with the builder's absolute paths
+recorded in it. So the QEMU layer ships that index and
+:src:`fetch_devel <f/qemu/fetch_devel>` relocates it, substituting the
+builder's build dir and worktree for the consuming ones in the index and in the
+layer's symlinks.
 
 The catalog
 ===========
@@ -120,10 +134,14 @@ layer and the devel layer, respectively, to the Nix store and the catalog.
 fetch_devel
 -----------
 
-``fetch_devel`` is a standalone developer step. It resolves
-``kernel-devel-<release>`` (locally or from a peer), copies the developer subset
-into the worktree's build dir, and regenerates ``compile_commands.json`` locally
-so the index points at that worktree's own source.
+``fetch_devel`` resolves the devel layer (locally or from a peer) and copies the
+developer subset into a developer worktree's build dir, leaving an index that
+points at that worktree's own source. It runs standalone, and it also runs as
+the tail of either build flow when **Deploy Developer Worktree** is on, after
+:src:`f/workbench/worktree/init` has laid the group worktree at the built ref.
+Pointing both build flows at one worktree-group is how that group comes to hold
+both projects, ``linux`` and ``qemu``, each indexed against the build that
+produced it.
 
 Cross-host fetch
 ================
