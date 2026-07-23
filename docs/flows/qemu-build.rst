@@ -261,6 +261,14 @@ each indexed against the build that produced it. Left automatic, a patched
 kernel and a stock QEMU land in different groups, which is correct for what
 each build is but is not one topic.
 
+The tail interacts with reuse in one way worth knowing: if this identity's run
+layer is already present but its devel layer was never published, the tail
+cannot be satisfied from the Store, so the run rebuilds rather than reusing.
+``install`` and ``publish`` still skip, since the run layer really is there;
+only ``configure``, ``compile`` and ``publish_devel`` run, and the next run of
+the same identity is fast again. Without the tail requested, a run-layer hit
+reuses exactly as before. See :doc:`/concepts/build-store`.
+
 The tail leaves the build untouched, and it is off by default. Two things to
 know before turning it on: laying the worktree checks it out with
 ``git checkout --detach --force``, and the fetch copies over the worktree's

@@ -330,8 +330,13 @@ between ``configure`` and ``compile``. ``reuse_check`` resolves
 ``kernel-<uts_release>`` in the worker ``destdir`` or this host's Nix store
 (where a local build published it, or ``fetch_identity`` left a peer's), and a
 present identity short-circuits ``compile``, ``install``, ``install_modules``,
-``publish``, and ``publish_devel``: the manifest points at the existing copy
-rather than rebuilding it. Refs and the build inputs cross hosts by ``git``;
+and ``publish``: the manifest points at the existing copy rather than rebuilding
+it. ``publish_devel`` short-circuits on the **devel** layer's own presence
+instead, which ``reuse_check`` reports as ``devel_present``, because the two
+layers are independent store paths. When a developer worktree is requested and
+the devel layer is missing, the run-layer hit is not accepted: ``compile`` and
+``publish_devel`` run so there is a layer to index with, while ``install`` and
+``publish`` still skip. Refs and the build inputs cross hosts by ``git``;
 the run-layer outputs cross by ``nix copy``. See :doc:`/concepts/build-store`.
 
 The output contract

@@ -128,8 +128,20 @@ the store for ``reuse_check`` to resolve.
 publish and publish_devel
 -------------------------
 
-``publish`` and ``publish_devel`` run after a real install. They add the run
-layer and the devel layer, respectively, to the Nix store and the catalog.
+``publish`` adds the run layer after a real install. ``publish_devel`` adds the
+devel layer, and skips on the **devel** layer's own presence rather than on the
+run layer's, because the two are independent: an identity built before the devel
+layer existed, or one whose run layer was fetched from a peer, has one and not
+the other. Gating the devel publish on the run layer would be self-perpetuating,
+since the run layer's presence is exactly what would keep the devel layer from
+ever being published.
+
+For the same reason ``reuse_check`` reports ``devel_present`` alongside
+``present``, and a run with a developer worktree requested does not accept a
+run-layer hit when the devel layer is missing: it rebuilds, publishes the devel
+layer, and indexes the worktree. Install and publish stay skipped in that case,
+since the run layer really is present. Once the devel layer exists, the fast
+reuse path returns.
 
 fetch_devel
 -----------
