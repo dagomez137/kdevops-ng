@@ -12,12 +12,12 @@ description: |-
   1. `discover`: gate the guest over vsock (`systemctl --host <vm>
   is-system-running`, the `xfstests@.service` template present, `./check`
   executable) and enumerate its `/dev/nvme*n1` devices and supported `FSTYP`. 2.
-  `render_config`: write the `HOST_OPTIONS` config (`local.config`) and the
-  `check.env` `EnvironmentFile` onto the host side of the share; its `[section]`
-  names drive the loop. 3. for each `section`, sequentially (sections share
-  `TEST_DEV`/`SCRATCH_DEV`): `start` (remove the section's previous `result.xml`
-  from the share, then `systemctl --host <vm> start --no-block
-  xfstests@<section>`) → `wait` (poll `show
+  `render_config`: write, per selected section, its one-section `HOST_OPTIONS`
+  config and its own `EnvironmentFile` onto the host side of the share; its
+  `[section]` names drive the loop. 3. for each `section`, sequentially
+  (sections share `TEST_DEV`/`SCRATCH_DEV`): `start` (remove the section's
+  previous `result.xml` from the share, then `systemctl --host <vm> start
+  --no-block xfstests@<section>`) → `wait` (poll `show
   --property=Result,ExecMainStatus,ActiveState` to terminal, crash-check the
   host `qemu-system@<vm>`) → `collect` (parse the `-R xunit` report from the
   share, gated by the run's crash/timeout outcome). 4. `report`: aggregate the
@@ -40,7 +40,7 @@ value:
         path: f/fstests/discover
         tag_override: vm
     - id: render_config
-      summary: Write local.config + check.env on the share (f/fstests/render_config)
+      summary: Write per-section configs + env files on the share (f/fstests/render_config)
       value:
         type: script
         input_transforms:

@@ -18,8 +18,8 @@ from f.fstests.common import (
     parse_xfs_info,
     parse_xunit,
     read_section_geometry,
-    render_check_env,
     render_local_config,
+    render_section_env,
     run_status,
     section_block,
     section_block_block_size,
@@ -144,20 +144,20 @@ def test_build_check_args_iteration_flag_tracks_stop_on_fail():
     assert build_check_args(iterations=1, report="") == ""
 
 
-def test_render_check_env_carries_only_the_set_watchdog_vars():
-    got = render_check_env("/var/lib/xfstests/local.config", "-g auto -R xunit")
+def test_render_section_env_carries_only_the_set_watchdog_vars():
+    got = render_section_env("/var/lib/xfstests/xfs_4k.config", "-g auto -R xunit")
     assert got == (
-        "HOST_OPTIONS=/var/lib/xfstests/local.config\n"
+        "HOST_OPTIONS=/var/lib/xfstests/xfs_4k.config\n"
         "XFSTESTS_CHECK_ARGS=-g auto -R xunit\n"
         "RECREATE_TEST_DEV=true\n"
     )
     # Off reuses the existing TEST_DEV filesystem (check only mounts it).
-    off = render_check_env(
-        "/var/lib/xfstests/local.config", "-g auto", recreate_test_dev=False
+    off = render_section_env(
+        "/var/lib/xfstests/xfs_4k.config", "-g auto", recreate_test_dev=False
     )
     assert "RECREATE_TEST_DEV=false\n" in off
-    got = render_check_env(
-        "/var/lib/xfstests/local.config",
+    got = render_section_env(
+        "/var/lib/xfstests/xfs_4k.config",
         "-g auto -R xunit",
         test_timeout=300,
         test_timeouts={"generic/001": 60, "": 5, "generic/002": 0},

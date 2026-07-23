@@ -79,7 +79,6 @@ cmd_links = {
     "xfs_info": f"{_MAN8}/xfs_info.8.html",
     "dmesg": f"{_MAN7}/dmesg.1.html",
     "cat": f"{_MAN7}/cat.1.html",
-    "cp": f"{_MAN7}/cp.1.html",
     "~/.ssh/config": "https://man7.org/linux/man-pages/man5/ssh_config.5.html",
     "socat": "http://www.dest-unreach.org/socat/doc/socat.html",
     "systemctl": f"{_SYSTEMD}/systemctl.html",

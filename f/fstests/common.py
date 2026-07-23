@@ -6,8 +6,9 @@
 #
 # The contract with the guest side (kept verbatim on both ends):
 #   * guest mount: /var/lib/xfstests (GUEST_STATE_DIR), share tag `fstests`;
-#   * <share>/local.config  = the xfstests HOST_OPTIONS config (sections);
-#   * <share>/check.env      = systemd EnvironmentFile (HOST_OPTIONS=<guest path>,
+#   * <share>/<section>.config = the one-section xfstests HOST_OPTIONS config;
+#   * <share>/<section>.env     = the systemd EnvironmentFile the unit reads for %i
+#                              (HOST_OPTIONS=<section>.config guest path,
 #                              XFSTESTS_CHECK_ARGS=<./check flags>);
 #   * <share>/<kver>/results/<section>/ = RESULT_BASE, keyed by the guest's kernel
 #                              release (unit WorkingDirectory=.../%v); the guest
@@ -103,7 +104,7 @@ def run_status(per_section: list[dict]) -> str:
 
 def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
     """Write via a hidden temp file + rename so a concurrent reader on the shared
-    dir (the guest's virtiofsd) never sees a half-written `local.config`/`check.env`."""
+    dir (the guest's virtiofsd) never sees a half-written `<section>.config`/`.env`."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
@@ -800,16 +801,19 @@ def build_check_args(
     return " ".join(args)
 
 
-def render_check_env(
+def render_section_env(
     host_options: str,
     check_args: str,
     test_timeout: int = 0,
     test_timeouts: dict[str, int] | None = None,
     recreate_test_dev: bool = True,
 ) -> str:
-    """The systemd `EnvironmentFile` text the `xfstests@<section>.service` reads:
-    `HOST_OPTIONS=<absolute guest path>` and `XFSTESTS_CHECK_ARGS=<./check flags>`.
-    RESULT_BASE is omitted; the `xfstests-check` wrapper forces it.
+    """The per-section systemd `EnvironmentFile` text (`<section>.env`) the
+    `xfstests@<section>.service` reads for its `%i` instance:
+    `HOST_OPTIONS=<absolute guest path>` (that section's own `<section>.config`) and
+    `XFSTESTS_CHECK_ARGS=<./check flags>`. Each rendered section gets its own file, so
+    `systemctl start xfstests@<section>` is self-contained; there is no shared
+    `check.env`. RESULT_BASE is omitted; the `xfstests-check` wrapper forces it.
 
     `RECREATE_TEST_DEV=true` (default) tells `./check` to (re)mkfs `TEST_DEV` per
     section with that section's `FSTYP`/`MKFS_OPTIONS`, using its own `_test_mkfs`,

@@ -14,9 +14,9 @@ The flow is thin and mirrors xfstests/systemd vocabulary one-to-one:
 
 1. :src:`discover <f/fstests/discover>`: gate the guest over vsock-SSH and
    enumerate its devices and ``FSTYP``.
-2. :src:`render_config <f/fstests/render_config>`: write ``local.config``
-   (``HOST_OPTIONS``) and the ``check.env`` ``EnvironmentFile`` onto the host
-   side of the share. Its ``[section]`` names drive the loop.
+2. :src:`render_config <f/fstests/render_config>`: write, per selected section,
+   its one-section ``HOST_OPTIONS`` config and its own ``EnvironmentFile`` onto
+   the host side of the share. Its ``[section]`` names drive the loop.
 3. for each ``section`` in turn: :src:`start <f/fstests/start>` →
    :src:`wait <f/fstests/wait>` → :src:`collect <f/fstests/collect>`. ``start``
    first removes the section's previous ``result.xml`` from the share (xfstests
@@ -33,7 +33,7 @@ Devices
 The guest's NVMe data disks (``/dev/nvme*n1``) are the raw material.
 ``discover`` lists them in the guest's block-device order, and ``render_config``
 assigns them to the xfstests device roles by position, writing the paths into
-each section's ``local.config``. The catalog carries no device paths, so it runs
+each section's own config. The catalog carries no device paths, so it runs
 unchanged on any guest:
 
 .. code-block:: text
@@ -62,8 +62,9 @@ itself, attaches each realtime or log volume through its own ``mkfs`` and
 ``-o rtdev=`` mount, and remakes ``TEST_DEV`` once per section when the
 **Recreate TEST_DEV** form knob is on (the default; off reuses the existing test
 filesystem, which ``./check`` then only mounts).
-:src:`prepare <f/fstests/prepare>` just lays down the section's
-``local.config``, creates the mount points, and loads the filesystem driver.
+:src:`prepare <f/fstests/prepare>` just creates the mount points and loads the
+filesystem driver; each unit reads its section's own config through its env
+file, so nothing needs activating.
 
 Because ``./check`` builds the filesystems, the run records their *realized*
 geometry, not the configured intent. At the end of the section ``wait``
@@ -101,8 +102,8 @@ tools in :doc:`guests` (``systemctl --host <vm> …`` for the units, ``ssh <vm>
 journalctl …`` for their logs):
 
 - ``xfstests@<section>.service``: one per ``[section]``, running
-  ``./check -s <section>``. The ``<section>`` is the name as it appears in
-  ``local.config``, for example ``xfs_realtime_rtx2_bs4k_ss4k``.
+  ``./check -s <section>``. The ``<section>`` is the xfstests section name, for
+  example ``xfs_realtime_rtx2_bs4k_ss4k``.
 - ``fs<test>.scope``: the transient scope wrapping the single test
   currently executing inside that section, for example
   ``fsgeneric-310.scope``.
@@ -163,22 +164,22 @@ directory rather than copying anything over the SSH transport: the guest and the
 host see one directory.
 
 The ``xfstests@<section>.service`` template unit reads its inputs from that
-directory at start time. The files on the share (guest paths shown; each is
-visible host-side under the same name) are:
+directory at start time, each keyed by the section name, so every instance is
+self-contained. The files on the share (guest paths shown; each is visible
+host-side under the same name) are:
 
-- ``local.config``: the active single-section xfstests ``HOST_OPTIONS`` config
-  for the section running now. It carries that one section's ``FSTYP``,
-  ``MKFS_OPTIONS`` and ``MOUNT_OPTIONS`` plus the injected device roles
-  (``TEST_DEV``, ``SCRATCH_DEV``, ``TEST_RTDEV`` and the rest for that section).
-  ``prepare`` writes it by copying the section's ``<section>.config`` over it.
-- ``check.env``: the unit's ``EnvironmentFile``, written by ``render_config``.
-  It holds ``HOST_OPTIONS=/var/lib/xfstests/local.config``,
-  ``XFSTESTS_CHECK_ARGS`` (the ``./check`` flags: the ``-g`` groups, a test
-  list, ``-R`` report, and the rest of the test selection), and
-  ``RECREATE_TEST_DEV`` (``true``/``false``).
-- ``<section>.config``: one device-bound single-section config per section
-  selected in the last run, also written by ``render_config``. ``prepare``
-  activates one of these as ``local.config``.
+- ``<section>.config``: that section's one-section xfstests ``HOST_OPTIONS``
+  config, written by ``render_config``, one per section selected in the run. It
+  carries the section's ``FSTYP``, ``MKFS_OPTIONS`` and ``MOUNT_OPTIONS`` plus
+  the injected device roles (``TEST_DEV``, ``SCRATCH_DEV``, ``TEST_RTDEV`` and
+  the rest for that section).
+- ``<section>.env``: the unit's per-instance ``EnvironmentFile`` (read as
+  ``%i.env``), also written by ``render_config``. It holds
+  ``HOST_OPTIONS=/var/lib/xfstests/<section>.config`` (the section's own config
+  above), ``XFSTESTS_CHECK_ARGS`` (the ``./check`` flags: the ``-g`` groups, a
+  test list, ``-R`` report, and the rest of the test selection), and
+  ``RECREATE_TEST_DEV`` (``true``/``false``). Being per-instance, each section
+  carries its own config path and its own flags.
 - ``<kver>/results/<section>/``: the results tree for one section under one
   kernel release, holding ``result.xml``, ``check.log`` and the per-test
   ``<test>.full``, ``<test>.out.bad`` and ``<test>.dmesg``. The
@@ -186,40 +187,41 @@ visible host-side under the same name) are:
   ``WorkingDirectory`` is ``/var/lib/xfstests/%v`` (``%v`` is the guest's kernel
   release), so results are keyed by kernel version.
 
-The unit runs ``xfstests-check -s <section> $XFSTESTS_CHECK_ARGS``; the wrapper
-execs xfstests' ``./check`` in the guest, reading ``HOST_OPTIONS`` (that is,
-``local.config``). It is ``Type=oneshot`` with ``TimeoutStartSec=infinity`` and
-logs to ``journal+console`` under the ``xfstests`` syslog identifier.
+The unit reads ``EnvironmentFile=-/var/lib/xfstests/%i.env`` (systemd expands
+``%i`` to the section) and runs ``xfstests-check -s <section>
+$XFSTESTS_CHECK_ARGS``; the wrapper execs xfstests' ``./check`` in the guest,
+reading ``HOST_OPTIONS`` from that section's own ``<section>.config``. It is
+``Type=oneshot`` with ``TimeoutStartSec=infinity`` and logs to
+``journal+console`` under the ``xfstests`` syslog identifier.
 
 Running a section by hand
 =========================
 
-``local.config`` and ``check.env`` are single global files on the share, so
-exactly one section is armed at a time: whichever one the last run (or
-``prepare``) left in ``local.config``. ``systemctl cat`` resolves for any
-instance name, but ``systemctl start xfstests@<section>.service`` only produces
-a correct run when ``local.config`` currently holds that section, because the
-unit reads its ``HOST_OPTIONS`` from ``local.config`` regardless of the instance
-name.
-
-To run a different already-rendered section by hand, activate its config with
-:cmd:`cp` first (exactly what ``prepare`` does), then start the unit:
+Because each unit reads its own ``<section>.env`` (systemd's ``%i`` resolves to
+the section), any section the flow has rendered starts on its own, with its own
+devices and its own flags, and no shared active-config file to swap.
+``systemctl cat`` resolves for any instance name because the unit is a template,
+but ``systemctl start xfstests@<section>.service`` produces a run only once
+``render_config`` has laid down that section's ``<section>.config`` and
+``<section>.env``:
 
 .. code-block:: console
 
-   $ cp /var/lib/xfstests/<section>.config /var/lib/xfstests/local.config
    $ systemctl start xfstests@<section>.service
 
-To change the test selection by hand, edit ``XFSTESTS_CHECK_ARGS`` in
-``/var/lib/xfstests/check.env`` and restart the unit; systemd re-reads the
+The mount points and the filesystem driver come from ``prepare``, a flow step,
+so a section run purely by hand after a fresh boot wants those in place first;
+re-running the flow is the simplest way. To change one section's test selection
+by hand, edit ``XFSTESTS_CHECK_ARGS`` in that section's
+``/var/lib/xfstests/<section>.env`` and restart the unit; systemd re-reads the
 ``EnvironmentFile`` on each start:
 
 .. code-block:: console
 
    $ systemctl restart xfstests@<section>.service
 
-The normal path is to re-run the flow, which regenerates both ``local.config``
-and ``check.env`` from the form and cannot leave them inconsistent.
+The normal path is to re-run the flow, which regenerates every section's config
+and env from the form.
 
 Restarting a hung test
 ======================

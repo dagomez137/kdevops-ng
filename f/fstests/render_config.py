@@ -1,25 +1,25 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Render an xfstests run's host-side config onto the `fstests` virtiofs share.
 
-Writes onto `/var/lib/xfstests` (the share mount) the files the guest's
-`xfstests@<section>.service` reads:
+Writes onto `/var/lib/xfstests` (the share mount), per selected section, the two
+files the guest's `xfstests@<section>.service` reads:
 
-  - one `<section>.config` per selected section: a one-section xfstests
-    `HOST_OPTIONS` config. `f/fstests/prepare` activates the running section's
-    file as `local.config`; a one-section config is required because
-    `./check -s <section>` on a multi-section file sets up TEST_DEV with the
-    wrong FSTYP. There is ONE editable `local.config` (the `local_config` field;
-    default = the shipped XFS starter catalog), device-agnostic: `FSTYP=xfs` plus
-    each section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`, no `TEST_DEV`/`SCRATCH_DEV`.
-    The section list is auto-discovered from that config; `sections` narrows the
-    run to a subset (empty = all). `render_config` injects the discovered
-    `devices` into each selected section. A section whose filesystem block size
-    is smaller than the device's logical sector size is skipped (mkfs.xfs would
-    refuse it), not run.
-  - `check.env`: the systemd `EnvironmentFile`: `HOST_OPTIONS=/var/lib/xfstests/
-    local.config` (the GUEST path, since `./check` runs in the guest) and
-    `XFSTESTS_CHECK_ARGS=<./check flags>` composed from the `check` inputs. The
-    `xfstests-check` wrapper forces `RESULT_BASE=$PWD/results` with the unit's
+  - `<section>.config`: a one-section xfstests `HOST_OPTIONS` config. A one-section
+    config is required because `./check -s <section>` on a multi-section file sets
+    up TEST_DEV with the wrong FSTYP. There is ONE editable `local.config` (the
+    `local_config` field; default = the shipped XFS starter catalog),
+    device-agnostic: `FSTYP=xfs` plus each section's `MKFS_OPTIONS`/`MOUNT_OPTIONS`,
+    no `TEST_DEV`/`SCRATCH_DEV`. The section list is auto-discovered from that
+    config; `sections` narrows the run to a subset (empty = all). `render_config`
+    injects the discovered `devices` into each selected section. A section whose
+    filesystem block size is smaller than the device's logical sector size is
+    skipped (mkfs.xfs would refuse it), not run.
+  - `<section>.env`: the section's own systemd `EnvironmentFile`, so
+    `xfstests@<section>.service` is self-contained. `HOST_OPTIONS=/var/lib/xfstests/
+    <section>.config` (the GUEST path, since `./check` runs in the guest) points at
+    that section's own config, and `XFSTESTS_CHECK_ARGS=<./check flags>` is composed
+    from the `check` inputs (the same run-wide value in each). The `xfstests-check`
+    wrapper forces `RESULT_BASE=$PWD/results` with the unit's
     `WorkingDirectory=.../%v`, so results are keyed by the guest's kernel release at
     `<share>/<kver>/results/<section>`, read back by `f/fstests/collect`.
 
@@ -31,7 +31,7 @@ run's results under that kernel. The host never contacts the guest.
 Equivalent commands:
 
     cat  > "$WORKERS_DIR/shared/fstests/<vm>/<section>.config"   # one per selected section
-    cat  > "$WORKERS_DIR/shared/fstests/<vm>/check.env"          # XFSTESTS_CHECK_ARGS, HOST_OPTIONS
+    cat  > "$WORKERS_DIR/shared/fstests/<vm>/<section>.env"      # XFSTESTS_CHECK_ARGS, HOST_OPTIONS
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ from f.fstests.common import (
     device_sector,
     inject_device_base,
     parse_sections,
-    render_check_env,
+    render_section_env,
     section_block,
     section_block_block_size,
     section_external_devs,
@@ -167,7 +167,6 @@ def main(
 ) -> dict:
     share = share_dir(vm_name)
 
-    host_options = f"{GUEST_STATE_DIR}/local.config"
     check_args = build_check_args(
         test_selection,
         groups,
@@ -179,18 +178,6 @@ def main(
         iterations,
         loop_on_fail,
         stop_on_fail,
-    )
-
-    env_path = share / "check.env"
-    _emit(
-        env_path,
-        render_check_env(
-            host_options,
-            check_args,
-            test_timeout,
-            test_timeouts,
-            recreate_test_dev,
-        ),
     )
 
     # The editable `local_config` textarea is the source; empty falls back to the
@@ -289,9 +276,10 @@ def main(
             f"device that runs the sub-4K block and sector sizes"
         )
 
-    # One single-section config per section; prepare activates the running one as
-    # local.config (the unit's HOST_OPTIONS).
+    # One single-section config per section, plus that section's own EnvironmentFile
+    # pointing HOST_OPTIONS at its config, so `xfstests@<section>` is self-contained.
     section_configs = []
+    section_envs = []
     rotated: dict[str, int] = {}
     archived_failures: dict[str, int] = {}
     cleaned: list[str] = []
@@ -323,10 +311,23 @@ def main(
                         f"+ kept {archived} prior {section} failure artifacts as <base>.{kept:04d}.<suffix>",
                         flush=True,
                     )
-        # Lay down the one-section config (whichever branch ran above).
+        # Lay down the one-section config (whichever branch ran above) and its own
+        # EnvironmentFile, HOST_OPTIONS pointing at this section's guest-side config.
         path = share / f"{section}.config"
         _emit(path, section_text[section])
         section_configs.append(str(path))
+        env_path = share / f"{section}.env"
+        _emit(
+            env_path,
+            render_section_env(
+                f"{GUEST_STATE_DIR}/{section}.config",
+                check_args,
+                test_timeout,
+                test_timeouts,
+                recreate_test_dev,
+            ),
+        )
+        section_envs.append(str(env_path))
 
     print(f"sections: {run_sections}", flush=True)
     return {
@@ -342,7 +343,6 @@ def main(
         "archived_failures": archived_failures,
         "cleaned": cleaned,
         "section_configs": section_configs,
-        "host_options": host_options,
-        "check_env_path": str(env_path),
+        "section_envs": section_envs,
         "check_args": check_args,
     }

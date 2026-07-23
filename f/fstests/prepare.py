@@ -1,23 +1,23 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Prepare a booted guest for one xfstests section over vsock-SSH.
 
-Activates the section's `<section>.config` as `local.config` (the unit's
-`HOST_OPTIONS`), creates the xfstests mount points, and loads the section's
-filesystem driver. It does NOT format or mount any device: xfstests owns that.
-`./check` reformats `SCRATCH_DEV` before every test, mounts and unmounts both
-`TEST_DEV` and `SCRATCH_DEV` itself (`init_rc` mounts `TEST_DEV` with its
-`-o rtdev=`), and reformats `TEST_DEV` per section when `RECREATE_TEST_DEV=true`
-(the default, set in `check.env` by `f/fstests/render_config`), attaching the
-section's realtime/external-log device via its own `_test_mkfs`. The external
-volumes are never separately formatted; they are attached to the data fs.
+Loads the section's filesystem driver and creates the xfstests mount points for
+the section whose `xfstests@<section>.service` reads its own `<section>.config`
+(via `<section>.env`); this step no longer writes `local.config`. It does NOT
+format or mount any device: xfstests owns that. `./check` reformats `SCRATCH_DEV`
+before every test, mounts and unmounts both `TEST_DEV` and `SCRATCH_DEV` itself
+(`init_rc` mounts `TEST_DEV` with its `-o rtdev=`), and reformats `TEST_DEV` per
+section when `RECREATE_TEST_DEV=true` (the default, set in the section's `.env` by
+`f/fstests/render_config`), attaching the section's realtime/external-log device
+via its own `_test_mkfs`. The external volumes are never separately formatted;
+they are attached to the data fs.
 
 `f/fstests/wait` captures each device's realized `xfs_info` at run-end (once
 `./check` has formatted them), so the report shows what the run built. This step
 only reports the section's configured device layout for reference.
 
-Equivalent commands (config activation host-side, the rest against the guest):
+Equivalent commands (against the guest):
 
-    cp <section>.config local.config
     ssh <vm> modprobe <FSTYP>
     ssh <vm> mkdir --parents <TEST_DIR> <SCRATCH_MNT>
 """
@@ -29,7 +29,6 @@ from pathlib import Path
 
 from f.fstests.common import (
     RemoteSystemd,
-    _atomic_write,
     section_device_map,
     section_vars,
     share_dir,
@@ -54,12 +53,6 @@ def main(vm_name: str, section: str) -> dict:
         )
     config_text = config.read_text()
     vars_ = section_vars(config_text, section)
-
-    # Activate this section as the unit's HOST_OPTIONS (local.config): one section
-    # per config, so check resolves its FSTYP without multi-section interference.
-    local = share / "local.config"
-    _atomic_write(local, config_text)
-    print(f"+ wrote {local} ([{section}])", flush=True)
 
     fstyp = vars_.get("FSTYP", "")
     test_dev = vars_.get("TEST_DEV", "")

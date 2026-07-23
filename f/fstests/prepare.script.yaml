@@ -1,18 +1,17 @@
 summary: 'Prepare a section''s mounts and fs driver'
 description: |-
-  Make an xfstests run self-contained on a booted guest over vsock-SSH. From
-  the section's resolved `local.config` vars, activate it as the unit's
-  `HOST_OPTIONS`, (re)create the xfstests mount points (`TEST_DIR`,
-  `SCRATCH_MNT`; they live on the guest's tmpfs root and are lost each boot),
-  and load the section's `FSTYP` driver. No device is formatted or mounted
-  here: `./check` owns that. It reformats `SCRATCH_DEV` per test, mounts and
-  unmounts both devices itself, and reformats `TEST_DEV` per section when
-  `RECREATE_TEST_DEV=true` (attaching the section's realtime/external-log
-  device via its own `_test_mkfs`). `f/fstests/wait` captures each device's
-  realized `xfs_info` at run-end for the report.
+  Make an xfstests run self-contained on a booted guest over vsock-SSH.
+  (Re)create the xfstests mount points (`TEST_DIR`, `SCRATCH_MNT`; they live on
+  the guest's tmpfs root and are lost each boot) and load the section's `FSTYP`
+  driver. The unit reads the section's own config through its `<section>.env`,
+  so nothing is activated here. No device is formatted or mounted here:
+  `./check` owns that. It reformats `SCRATCH_DEV` per test, mounts and unmounts
+  both devices itself, and reformats `TEST_DEV` per section when
+  `RECREATE_TEST_DEV=true` (attaching the section's realtime/external-log device
+  via its own `_test_mkfs`). `f/fstests/wait` captures each device's realized
+  `xfs_info` at run-end for the report.
 
-  Returns `{vm, section, fstyp, test_dir, scratch_mnt, use_external,
-  devices}`.
+  Returns `{vm, section, fstyp, test_dir, scratch_mnt, use_external, devices}`.
 lock: '!inline f/fstests/prepare.script.lock'
 kind: script
 schema:
@@ -25,8 +24,7 @@ schema:
     section:
       type: string
       description: |-
-        xfstests config-section name (the `[section]` header) to prepare from
-        `local.config`.
+        xfstests config-section name (the `[section]` header) to prepare.
     vm_name:
       type: object
       description: Booted VM to prepare the xfstests section on, over vsock-SSH.
