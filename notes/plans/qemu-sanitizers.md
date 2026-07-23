@@ -83,6 +83,21 @@ Re-prioritisation follows below: phase 4 (a standalone diagnostics
 primitive) is next; phases 2 and 3 are deferred because they serve
 sanitizers (TSan, LSan, ASan) that are not yet in use.
 
+Update: phase 4 is now done. `f/qsu/collect_diagnostics` reads a guest's
+`qemu-system@<vm>` journal on the host user manager, scoped to the
+unit's current InvocationID, parses the sanitizer lines through the pure
+`f/qsu/diagnostics` module, and returns a verdict; it is wired as a boot
+tail (which reaches bringup through the subflow) and is callable
+standalone. Validated live against the running `ubsan-test` guest: both
+nvme shift sites returned, sanitizer auto-detected from the store name.
+
+One design fact corrected in the doing: a worker **can** read the host
+journal. The boot step's comment says it cannot, which was true under
+the retired podman worker; a worker is now an ordinary `systemd --user`
+service of the same user, so the same-user journal is readable. Verified
+by reading this guest's diagnostics through the exact runner path. (The
+boot step's stale comment is left for a separate change.)
+
 ## Verified facts (do not re-derive)
 
 ### The configure options
@@ -316,7 +331,7 @@ diagnostic (for the realize-time site, the guest never boots, which is
 the loudest possible proof), at the cost of the rest of a run's
 evidence. The default stays `0`, with the verdict deferred to capture.
 
-### Phase 4: standalone diagnostics primitive (NEXT)
+### Phase 4: standalone diagnostics primitive (DONE)
 
 Revised from the plan's "thin `f/qemu/check.flow`". A sanitizer
 diagnostic is a property of *any* guest run on a sanitized QEMU, not of
@@ -344,6 +359,16 @@ a thin composition over this step rather than the other way round.
 The pure parse-and-verdict logic goes in a `f/qsu` module with fixture
 tests in `tests/`, matching how every suite executor's parser is tested
 with no instance and no journal.
+
+As built: the collector is `f/qsu/collect_diagnostics`, the pure module
+`f/qsu/diagnostics` (parser, verdict, and best-effort sanitizer
+detection from a store name), tested in `tests/test_qsu_diagnostics.py`
+against the exact journal strings the live fire produced. It runs as a
+boot tail that reaches bringup through the boot subflow, so one wiring
+point covers both, and it returns the boot access banner enriched with a
+`diagnostics` key rather than replacing it, so the flow result contract
+is preserved. The verdict keys on the presence of a source location and
+never a count.
 
 ### Phase 5: live fire on the MDTS claim (DONE by hand)
 
