@@ -243,6 +243,25 @@ def fetch(workers: Path, remote: str, sp: str) -> None:
     )
 
 
+def fetch_from_peers(workers: Path, name: str) -> tuple[str, str] | None:
+    """Pull `name` from the first registered peer carrying it, indexed here, else None.
+
+    The registry sweep half of the transport, and the counterpart to `resolve`, which
+    targets one named peer: walk `registered_peers()` in order, ask each for its index
+    entry over ssh, and copy the first hit into this store and root it, so this host
+    becomes a source for it too. Returns `(host, store_path)`.
+    """
+    for peer in registered_peers():
+        host = peer["host"]
+        sp = peer_path(workers, host, peer["index"], name)
+        if sp is None:
+            continue
+        fetch(workers, host, sp)
+        link_local(name, sp)
+        return host, sp
+    return None
+
+
 def resolve(
     name: str, workers: Path, remote: str = "", remote_index: str = ""
 ) -> str | None:

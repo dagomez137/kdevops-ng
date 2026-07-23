@@ -16,7 +16,17 @@ schema:
   order:
     - prefix
     - use_peers
+    - devel
   properties:
+    devel:
+      type: boolean
+      description: |-
+        Also fetch this identity's devel layer
+        (`qemu-devel-<version>-<label>-<identity>`), which the run-layer sweep
+        does not carry. The build flow sets it when a developer worktree is
+        requested; off keeps a boot-oriented build from dragging it.
+      default: false
+      title: Devel layer
     prefix:
       type: string
       description: |-

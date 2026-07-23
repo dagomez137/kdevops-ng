@@ -99,6 +99,9 @@ value:
           prefix:
             type: javascript
             expr: results.identity.prefix
+          devel:
+            type: javascript
+            expr: flow_input.worktree?.deploy_developer_worktree === true
           use_peers:
             type: javascript
             expr: flow_input.reuse?.use_peers

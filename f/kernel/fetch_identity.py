@@ -15,6 +15,13 @@ layer from the store path with no copy.
 `use_peers=False` (or no registered peer carrying the identity) does nothing; the build
 proceeds locally.
 
+With `devel` on (the build flow sets it when a developer worktree is requested) the
+sweep repeats for `kernel-devel-<release>`, skipped when this host already has it. The
+two layers are independent, so a peer's run layer says nothing about its devel layer;
+fetching both here is what lets `reuse_check` report them both present and spares a full
+rebuild whose only purpose would be to regenerate a layer the peer already published. It
+stays off by default so a boot-oriented build never drags the much larger devel layer.
+
 Equivalent bash, run inside the nixos-flake transfer devShell, for each registered peer:
 
     sp=$(ssh "$host" readlink "$index"/kernel-"$uts_release")
@@ -30,28 +37,39 @@ from pathlib import Path
 from f.common import store
 
 
-def main(destdir: str, uts_release: str, use_peers: bool = True) -> dict:
+def main(
+    destdir: str, uts_release: str, use_peers: bool = True, devel: bool = False
+) -> dict:
     if not use_peers:
         print(f"identity {uts_release}: peer fetch off, building locally", flush=True)
         return {"fetched": False, "uts_release": uts_release, "destdir": destdir}
 
     workers = Path(os.environ["WORKERS_DIR"])
-    name = f"kernel-{uts_release}"
-    for peer in store.registered_peers():
-        host = peer["host"]
-        sp = store.peer_path(workers, host, peer["index"], name)
-        if sp is None:
-            continue
-        store.fetch(workers, host, sp)
-        store.link_local(name, sp)
-        print(f"fetched run layer {uts_release} from {host} into the store", flush=True)
-        return {
-            "fetched": True,
-            "uts_release": uts_release,
-            "destdir": destdir,
-            "remote": host,
-            "store_path": sp,
-        }
+    out = {"fetched": False, "uts_release": uts_release, "destdir": destdir}
 
-    print(f"identity {uts_release}: no registered peer has it", flush=True)
-    return {"fetched": False, "uts_release": uts_release, "destdir": destdir}
+    hit = store.fetch_from_peers(workers, f"kernel-{uts_release}")
+    if hit is None:
+        print(f"identity {uts_release}: no registered peer has it", flush=True)
+    else:
+        host, sp = hit
+        print(f"fetched run layer {uts_release} from {host} into the store", flush=True)
+        out.update({"fetched": True, "remote": host, "store_path": sp})
+
+    if devel:
+        out.update(_fetch_devel(workers, uts_release))
+    return out
+
+
+def _fetch_devel(workers: Path, uts_release: str) -> dict:
+    """Sweep the peers for the devel layer too, unless this host already has it."""
+    name = f"kernel-devel-{uts_release}"
+    if store.local_path(name) is not None:
+        print(f"devel layer {uts_release}: already in this store", flush=True)
+        return {"devel_fetched": False}
+    hit = store.fetch_from_peers(workers, name)
+    if hit is None:
+        print(f"devel layer {uts_release}: no registered peer has it", flush=True)
+        return {"devel_fetched": False}
+    host, sp = hit
+    print(f"fetched devel layer {uts_release} from {host} into the store", flush=True)
+    return {"devel_fetched": True, "devel_remote": host, "devel_store_path": sp}

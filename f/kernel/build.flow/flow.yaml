@@ -201,6 +201,9 @@ value:
           destdir:
             type: javascript
             expr: results.prepare_worktree.destdir
+          devel:
+            type: javascript
+            expr: flow_input.worktree?.deploy_developer_worktree === true
           use_peers:
             type: javascript
             expr: flow_input.reuse?.use_peers
