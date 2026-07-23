@@ -189,6 +189,7 @@ schema:
           - custom_label
           - label
           - deploy_developer_worktree
+          - custom_group
           - worktree_group
           - recreate_developer_worktree
           properties:
@@ -199,6 +200,14 @@ schema:
                 checkout via `b4 am`, published to the Bare as `b4/<slug>`.'
               default: ''
               title: b4 Series
+            custom_group:
+              type: boolean
+              description: 'Name the developer group yourself instead of taking the build''s own
+
+                auto-derived vanilla/series name.'
+              default: false
+              showExpr: fields.deploy_developer_worktree === true
+              title: Custom Developer Group
             custom_label:
               type: boolean
               description: 'Set a custom build-identity name instead of the auto-derived
@@ -282,11 +291,17 @@ schema:
               showExpr: fields.recreate_build_worktree !== true
             worktree_group:
               type: string
-              description: 'Developer group to deploy into, at WORKTREES_DIR/<group>/linux. Used
+              description: 'Developer group to deploy into, at WORKTREES_DIR/<group>/linux. Left
 
-                only when Deploy Developer Worktree is on.'
+                automatic it takes the build''s own auto-derived name, so a series or
+
+                a branch spins its own topic group and never lands in `vanilla`,
+
+                which asserts an unmodified baseline. Name it to gather several
+
+                projects into one topic.'
               default: vanilla
-              showExpr: fields.deploy_developer_worktree === true
+              showExpr: fields.deploy_developer_worktree === true && fields.custom_group === true
               title: Developer Group
           title: Worktree
           showExpr: fields.mode === "build"
@@ -1191,6 +1206,7 @@ schema:
           - recreate_build_worktree
           - wipe_build
           - deploy_developer_worktree
+          - custom_group
           - worktree_group
           - recreate_developer_worktree
           properties:
@@ -1201,6 +1217,14 @@ schema:
                 checkout via `b4 am`, published to the Bare as `b4/<slug>`.'
               default: ''
               title: b4 Series
+            custom_group:
+              type: boolean
+              description: 'Name the developer group yourself instead of taking the build''s own
+
+                auto-derived vanilla/series name.'
+              default: false
+              showExpr: fields.deploy_developer_worktree === true
+              title: Custom Developer Group
             custom_label:
               type: boolean
               description: 'Set a custom build-identity name instead of the auto-derived
@@ -1283,13 +1307,17 @@ schema:
               showExpr: fields.recreate_build_worktree !== true
             worktree_group:
               type: string
-              description: 'Developer group to deploy into, at WORKTREES_DIR/<group>/qemu. Used
+              description: 'Developer group to deploy into, at WORKTREES_DIR/<group>/qemu. Left
 
-                only when Deploy Developer Worktree is on. Naming the same group the
+                automatic it takes the build''s own auto-derived name, so a series or
 
-                kernel build deploys into gives that group both projects.'
+                a branch spins its own topic group and never lands in `vanilla`,
+
+                which asserts an unmodified baseline. Name it, here and in
+
+                `f/kernel/build`, to gather both projects into one topic.'
               default: vanilla
-              showExpr: fields.deploy_developer_worktree === true
+              showExpr: fields.deploy_developer_worktree === true && fields.custom_group === true
               title: Developer Group
           title: Worktree
           showExpr: fields.mode === "build"

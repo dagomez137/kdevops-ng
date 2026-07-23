@@ -274,7 +274,9 @@ value:
             expr: flow_input.worktree?.recreate_developer_worktree
           worktree_group:
             type: javascript
-            expr: flow_input.worktree?.worktree_group
+            expr: 'flow_input.worktree?.custom_group ?
+              (flow_input.worktree?.worktree_group ?? "") :
+              (results.prepare_worktree.label || "vanilla")'
         path: f/workbench/worktree/init
       skip_if:
         expr: flow_input.worktree?.deploy_developer_worktree !== true
@@ -558,6 +560,7 @@ schema:
         - recreate_build_worktree
         - wipe_build
         - deploy_developer_worktree
+        - custom_group
         - worktree_group
         - recreate_developer_worktree
       properties:
@@ -568,6 +571,14 @@ schema:
             checkout via `b4 am`, published to the Bare as `b4/<slug>`.
           default: ''
           title: b4 Series
+        custom_group:
+          type: boolean
+          description: |-
+            Name the developer group yourself instead of taking the build's own
+            auto-derived vanilla/series name.
+          default: false
+          showExpr: fields.deploy_developer_worktree === true
+          title: Custom Developer Group
         custom_label:
           type: boolean
           description: |-
@@ -645,11 +656,14 @@ schema:
         worktree_group:
           type: string
           description: |-
-            Developer group to deploy into, at WORKTREES_DIR/<group>/qemu. Used
-            only when Deploy Developer Worktree is on. Naming the same group the
-            kernel build deploys into gives that group both projects.
+            Developer group to deploy into, at WORKTREES_DIR/<group>/qemu. Left
+            automatic it takes the build's own auto-derived name, so a series or
+            a branch spins its own topic group and never lands in `vanilla`,
+            which asserts an unmodified baseline. Name it, here and in
+            `f/kernel/build`, to gather both projects into one topic.
           default: vanilla
-          showExpr: fields.deploy_developer_worktree === true
+          showExpr: fields.deploy_developer_worktree === true &&
+            fields.custom_group === true
           title: Developer Group
       title: Worktree
   required: []

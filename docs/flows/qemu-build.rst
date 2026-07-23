@@ -216,8 +216,7 @@ The form surfaces the choices a maintainer actually makes:
 ``wipe_build``
    Remove and recreate ``build/`` before configuring, forcing a clean build.
 
-``deploy_developer_worktree``, ``worktree_group`` and
-``recreate_developer_worktree``
+``deploy_developer_worktree`` and the group knobs
    Drive the optional developer-worktree tail, described next.
 
 The source URL is not a flow input: it is fixed by the mirror, exactly as the
@@ -245,11 +244,22 @@ independent of where the build ran (:doc:`/concepts/terms`). Turning on
    index onto it, so ``clangd`` resolves the generated headers without the
    developer ever building QEMU themselves.
 
-``worktree_group`` names the group (default ``vanilla``), and
-``recreate_developer_worktree`` re-cuts it rather than reusing it. Because a
-worktree-group holds one worktree per project a topic involves, naming the same
-group here and in :doc:`kernel-build` is what makes that group carry both
-``linux`` and ``qemu``, each indexed against the build that produced it.
+The group is not asked for by default: it takes the build's own auto-derived
+name, the same one that labels the build identity. So a stock tag build deploys
+into ``vanilla``, a ``b4`` series deploys into a group named for the series
+title, and a developer branch into one named for the ref. That is deliberate.
+``vanilla`` asserts an unmodified baseline (ADR-0008), so a patched tree must
+not land there by default, and a real topic gets its own group without anyone
+having to name it.
+
+Turn on ``custom_group`` to name the group yourself, and
+``recreate_developer_worktree`` to re-cut it rather than reuse it. Naming it is
+what ties projects together: because a worktree-group holds one worktree per
+project a topic involves, setting the same name here and in
+:doc:`kernel-build` is what makes that group carry both ``linux`` and ``qemu``,
+each indexed against the build that produced it. Left automatic, a patched
+kernel and a stock QEMU land in different groups, which is correct for what
+each build is but is not one topic.
 
 The tail leaves the build untouched, and it is off by default. Two things to
 know before turning it on: laying the worktree checks it out with

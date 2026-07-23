@@ -149,10 +149,17 @@ Worktree
 ``wipe_build``
    Remove and recreate ``build/`` before configuring, forcing a clean build.
 
-``worktree_group`` and the ``deploy_*`` knobs
+``deploy_developer_worktree`` and the group knobs
    Drive the optional developer-worktree tail (``deploy_worktree``,
-   ``fetch_devel``): lay a checkout of the built ref under a named worktree
-   group for a human to open in an editor, indexed by the fetched devel layer.
+   ``fetch_devel``): lay a checkout of the built ref under a worktree group for
+   a human to open in an editor, indexed by the fetched devel layer. The group
+   is not asked for by default; it takes the build's own auto-derived name, so
+   a stock tag deploys into ``vanilla``, a ``b4`` series into a group named for
+   the series title, and a branch into one named for the ref. ``vanilla``
+   asserts an unmodified baseline (ADR-0008), so a patched tree must not land
+   there by default. Turn on ``custom_group`` to name it, which is also how the
+   same group comes to hold both ``linux`` and ``qemu``; see
+   :doc:`qemu-build`.
 
 Configuration
 -------------
