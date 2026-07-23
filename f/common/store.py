@@ -12,7 +12,12 @@ fetcher reads the peer's index entry over ssh to learn the store path, pulls it 
 `nix copy --from ssh://<remote>`, and registers the path under its own index so it
 becomes a source for the next host. The fetched run layer is consumed in place from
 the store (the `reuse_check` step resolves the local index entry), so nothing is
-copied out of it.
+copied out of it. `resolve` is that whole local-then-peer cascade in one call.
+
+A devel layer (the subset of a build dir that re-indexes a source tree) publishes the
+same way through `publish_subset`, which first stages an allowlisted copy of the tree
+so no compiled output reaches the store. The allowlist itself is the caller's: only
+the build system knows which of its outputs a source index needs.
 
 Store paths are absolute and identical on every host, so the path read from a peer
 is the path to copy, with no rewriting.
@@ -31,7 +36,11 @@ Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host
 
 from __future__ import annotations
 
+import fnmatch
 import os
+import shutil
+import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from f.common.devshell import DevShell, Nix, store_index_dir, system_dir
@@ -82,6 +91,58 @@ def publish(name: str, tree: str) -> str:
     Nix().run("build", sp, "--out-link", str(entry))
     print(f"published {name} -> {sp}", flush=True)
     return sp
+
+
+def subset_filter(
+    root: str, keep: tuple[str, ...], drop_trees: tuple[str, ...] = ()
+) -> Callable[[str, list[str]], list[str]]:
+    """A `copytree` ignore that keeps only `keep`-matching files, minus `drop_trees`.
+
+    A file is kept when its basename fnmatches one of `keep`; a directory named in
+    `drop_trees` is dropped only where it sits at the root of `root`, so a same-named
+    directory deeper in the tree survives. Symlinks are always kept, whatever their
+    name: they cost nothing and a build dir's links are part of the layer.
+    """
+    top = os.path.realpath(root)
+
+    def ignore(dirpath: str, names: list[str]) -> list[str]:
+        at_root = os.path.realpath(dirpath) == top
+        drop = []
+        for n in names:
+            full = os.path.join(dirpath, n)
+            if os.path.islink(full):
+                continue
+            if os.path.isdir(full):
+                if at_root and n in drop_trees:
+                    drop.append(n)
+                continue
+            if not any(fnmatch.fnmatch(n, pat) for pat in keep):
+                drop.append(n)
+        return drop
+
+    return ignore
+
+
+def publish_subset(
+    name: str, tree: str, keep: tuple[str, ...], drop_trees: tuple[str, ...] = ()
+) -> str:
+    """Publish an allowlisted subset of a tree, returning the store path.
+
+    Stages the `subset_filter` copy under a temporary dir (symlinks preserved), adds
+    that staged tree with `publish`, and removes the staging area either way. The
+    allowlist keeps the store path lean and, more importantly, bounded: a build dir
+    grows outputs the publisher never anticipated, so only what matches ships.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix=f"{name}-"))
+    try:
+        stage = tmp / name
+        shutil.copytree(
+            tree, stage, symlinks=True, ignore=subset_filter(tree, keep, drop_trees)
+        )
+        print(f"staged {name} -> {stage}", flush=True)
+        return publish(name, str(stage))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def link_local(name: str, sp: str) -> None:
@@ -180,3 +241,22 @@ def fetch(workers: Path, remote: str, sp: str) -> None:
         sp,
         "--no-check-sigs",
     )
+
+
+def resolve(
+    name: str, workers: Path, remote: str = "", remote_index: str = ""
+) -> str | None:
+    """The store path for `name`, from the local index or pulled from a peer, else None.
+
+    The cascade every consumer runs: the local index first, then, when both `remote`
+    and `remote_index` are given, the peer's index over ssh, whose hit is pulled with
+    `nix copy` and indexed here so this host becomes a source for it. Empty `remote`
+    or `remote_index` means local-only, so a same-host caller passes nothing.
+    """
+    sp = local_path(name)
+    if sp is None and remote and remote_index:
+        sp = peer_path(workers, remote, remote_index, name)
+        if sp is not None:
+            fetch(workers, remote, sp)
+            link_local(name, sp)
+    return sp

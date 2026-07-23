@@ -10,9 +10,9 @@ worktree's own source.
 
 Same-host leaves `remote`/`remote_index` empty and resolves the layer from the local
 index. Cross-host sets `remote` to an ssh host and `remote_index` to that builder's
-`store-index` directory: read the peer's index entry over ssh to learn the store path,
-pull it with `nix copy`, and index it locally. `build_dir` defaults to the worktree's own
-`build` child and must stay under it.
+`store-index` directory, and `store.resolve` reads the peer's index entry over ssh to
+learn the store path, pulls it with `nix copy`, and indexes it locally. `build_dir`
+defaults to the worktree's own `build` child and must stay under it.
 
 Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host half:
 
@@ -57,12 +57,7 @@ def main(
     workers = Path(os.environ["WORKERS_DIR"])
     name = f"kernel-devel-{uts_release}"
 
-    sp = store.local_path(name)
-    if sp is None and remote and remote_index:
-        sp = store.peer_path(workers, remote, remote_index, name)
-        if sp is not None:
-            store.fetch(workers, remote, sp)
-            store.link_local(name, sp)
+    sp = store.resolve(name, workers, remote, remote_index)
     if sp is None:
         print(
             f"devel layer {uts_release}: not found locally or on the peer", flush=True

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import f.kernel.compile as compile_step
+from f.common import store
 from f.kernel import (
     build_selftests,
     build_usertests,
@@ -254,7 +255,12 @@ def test_devel_stage_filter_keeps_only_the_index(tmp_path):
     (build / "source").symlink_to(tmp_path / "nowhere")
     stage = tmp_path / "stage"
     shutil.copytree(
-        build, stage, symlinks=True, ignore=publish_devel._stage_filter(str(build))
+        build,
+        stage,
+        symlinks=True,
+        ignore=store.subset_filter(
+            str(build), publish_devel._DEVEL_KEEP, publish_devel._DROP_TREES
+        ),
     )
     kept = sorted(str(p.relative_to(stage)) for p in stage.rglob("*"))
     assert kept == [
