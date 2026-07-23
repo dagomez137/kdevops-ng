@@ -132,10 +132,11 @@ def main(
         # A restart that returns 0 only means systemd started the unit; a Type=simple
         # qemu that exits right after (bad -device, unbootable kernel, missing share)
         # lands in `failed` moments later. Fail the job; otherwise the flow reports
-        # success on a VM that never booted. systemctl reaches the host manager over
-        # D-Bus so the unit's exit status is available, but the qemu stderr that holds
-        # the actual reason is in the host journal, which the worker cannot read; point
-        # the operator at the journalctl command that shows it on the host.
+        # success on a VM that never booted. The failure carries the unit's exit
+        # status inline and points at the journal for the qemu stderr that holds the
+        # actual reason (a worker reads the host user journal directly, being a
+        # `systemd --user` service of the same user; `f/qsu/collect_diagnostics` does
+        # exactly that).
         props = (
             (
                 systemd.systemctl(
