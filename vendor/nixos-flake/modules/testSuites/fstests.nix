@@ -316,10 +316,14 @@ in
   # polls `show --property=Result,ExecMainStatus,ActiveState`.
   #
   # The section's config and the rest of the ./check flags are read at
-  # start time from ${stateDir}/check.env (an EnvironmentFile carrying
-  # HOST_OPTIONS=<local.config> and XFSTESTS_CHECK_ARGS), laid down on
-  # the shared dir beforehand — so the set of sections and flags is
-  # data on the share, not part of the closure.
+  # start time from a per-instance ${stateDir}/%i.env EnvironmentFile
+  # (carrying HOST_OPTIONS=<that section's config> and
+  # XFSTESTS_CHECK_ARGS), laid down on the shared dir beforehand, so the
+  # set of sections and flags is data on the share, not part of the
+  # closure. Each instance reads only its own env, so any section whose
+  # env has been laid down runs on its own without touching a shared
+  # active-config file. The `-` prefix tolerates an instance whose env
+  # file is absent.
   #
   # Results are keyed by the running kernel's release so the same closure,
   # direct-booted with different kernels, never overwrites another kernel's
@@ -345,8 +349,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       WorkingDirectory = "-${stateDir}/%v";
-      EnvironmentFile = "${stateDir}/check.env";
-      ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${stateDir}/%v";
+      EnvironmentFile = "-${stateDir}/%i.env";
+      ExecStartPre = "${pkgs.coreutils}/bin/mkdir --parents ${stateDir}/%v";
       ExecStart = "${pkgs.xfstests}/bin/xfstests-check -s %i $XFSTESTS_CHECK_ARGS";
       StandardOutput = "journal+console";
       StandardError = "journal+console";
