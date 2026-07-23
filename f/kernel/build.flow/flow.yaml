@@ -491,7 +491,7 @@ value:
           projects:
             type: javascript
             expr: '[{ project: "linux", git_ref: results.prepare_worktree.b4_branch
-              || flow_input.worktree?.git_ref, b4_series: "" }]'
+              || results.prepare_worktree.git_ref, b4_series: "" }]'
           recreate_worktree:
             type: javascript
             expr: flow_input.worktree?.recreate_developer_worktree
