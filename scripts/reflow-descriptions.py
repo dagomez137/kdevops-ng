@@ -132,7 +132,9 @@ def process(path, write):
         key_indent, start, end = block_region(lines, i)
         if write:
             value = value_of(lines, start, end, key_indent)
-            if needs_block(value, key_indent):
+            # Only rewrap a description that overflows, so --write's scope matches
+            # --check's and it never churns a region already within the limit.
+            if needs_block(value, key_indent) and overlong_lines(lines, start, end):
                 replacement = literal_block(value, key_indent)
                 if replacement != lines[start:end]:
                     changed = True
