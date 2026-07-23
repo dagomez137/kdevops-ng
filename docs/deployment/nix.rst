@@ -40,6 +40,8 @@ expands specifiers in the executable path but not environment variables. It
 runs:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ pkgs=~/.local/state/windmill/pkgs
    $ nix build .#windmill       --out-link "$pkgs/windmill"
@@ -70,6 +72,7 @@ templates without the source checkout, so a worker-only host needs only the
 state directory:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ cp deploy/nix/systemd/*.service ~/.config/systemd/user/
    $ cp deploy/nix/Caddyfile ~/.config/windmill/Caddyfile
@@ -84,6 +87,7 @@ enables and starts them. ``enable --now`` enables (creates the ``[Install]``
 symlinks so they start at login) and starts in one step:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --user daemon-reload
    $ loginctl enable-linger "$USER"
@@ -101,6 +105,7 @@ the LSP gateway on ``127.0.0.1:3001``, and caddy fronts both on
 the host is remote, forward the port over SSH first:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
 
@@ -128,6 +133,7 @@ Override either by editing that file or with a drop-in. ``systemctl edit`` opens
 built-in default, so set one to use your editor:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ SYSTEMD_EDITOR=hx systemctl --user edit windmill.service
 
@@ -232,6 +238,7 @@ build concurrency, or ``vm-run`` instances to raise the test-run cap. Drop a
 per-instance override in, then enable it:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --user edit windmill-worker@0004   # then in the drop-in:
 
@@ -258,6 +265,7 @@ because a worker-only host has no local database to default to; set it, then
 enable as many instances as you want:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#windmill-worker-install
    $ systemctl --user edit windmill-worker@
@@ -369,6 +377,7 @@ stops everything by glob, then disables each unit that has an install symlink
 (the worker template instances included):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --user stop 'windmill*'
    $ for link in ~/.config/systemd/user/default.target.wants/windmill*; do
@@ -387,6 +396,7 @@ Uninstall
 drop-ins, and the Caddyfile, then reloads the manager:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ rm --force ~/.config/systemd/user/windmill*.service
    $ rm --recursive --force ~/.config/systemd/user/windmill-worker@.service.d
@@ -402,6 +412,7 @@ build-area workbench (also under the state directory) alone. Run it after
 deactivate so the cluster is stopped:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ state=~/.local/state/windmill
    $ rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"

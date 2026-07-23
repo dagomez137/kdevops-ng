@@ -13,6 +13,8 @@ anywhere inside the checkout.
 reference.
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ nix flake show           # apps, packages, checks, shells, formatter
    $ nix run                  # a short pointer to the gate, formatter, and list
@@ -39,6 +41,7 @@ install. ``nix develop .#checks`` is the same toolchain without ``wmill``
 own. Use a shell for ad-hoc work, or run a single tool without entering it:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix develop --command wmill --version       # wmill from Nix, not the host
    $ nix develop .#checks --command ruff check scripts f
@@ -52,6 +55,7 @@ defines: ``ruff`` lint and format verification, generated-file drift, the
 fixture tests, and tree formatting. CI runs the same single command.
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix flake check                              # the whole source gate
    $ nix build .#checks.x86_64-linux.lint         # just the ruff check
@@ -67,6 +71,7 @@ The whitespace, end-of-file, and commit-trailer checks need the git repository,
 so they cannot be a sandboxed flake check; run them from the checks shell:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix develop .#checks --command bash scripts/check-style.sh
 
@@ -82,6 +87,7 @@ for Python, at the line length in ``pyproject.toml``. It only formats; to
 ``nix fmt --check``, which is not a flag.
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix fmt                  # format Nix and Python in place
    $ nix run .#format         # ruff lint-fix (import order) and format Python
@@ -95,6 +101,7 @@ gate, because a Windmill step's ``main()`` annotations are the UI form schema
 rather than ordinary typing.
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix develop .#checks --command pyright
 
@@ -102,6 +109,7 @@ Documentation
 =============
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#docs           # render reStructuredText to docs/_build/html
    $ nix run .#serve -- 8001  # serve the built HTML on 127.0.0.1:8001
@@ -127,6 +135,7 @@ store paths nothing roots. The deploy out-links under
 build, remove its out-link or ``result`` first, then collect:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix store gc                 # delete unrooted store paths
    $ rm result && nix store gc    # drop a build, then reclaim it
@@ -135,5 +144,6 @@ Other
 =====
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#maintainers -- f/fstests/report.py   # who to Cc for a change

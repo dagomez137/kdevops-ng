@@ -118,6 +118,8 @@ List the sections currently running on a guest, and the per-test scope inside
 the live section:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ systemctl --host <vm> list-units 'xfstests@*'
    $ systemctl --host <vm> list-units --type=scope    # the fs<test>.scope
@@ -126,6 +128,7 @@ Full status of one section (the cgroup line shows the running ``./check`` and
 the current test's helper processes):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> status xfstests@<section>.service
 
@@ -133,6 +136,7 @@ The three properties the ``wait`` step polls to decide a section is done are
 ``Result``, ``ExecMainStatus`` and ``ActiveState``; read them the same way:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> show xfstests@<section>.service \
        --property=Result --property=ExecMainStatus --property=ActiveState
@@ -143,6 +147,7 @@ The three properties the ``wait`` step polls to decide a section is done are
 journal of a section, the same stream the job log shows:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <vm> journalctl --unit=xfstests@<section>.service --follow
 
@@ -205,6 +210,8 @@ shared active-config to swap and no re-render. List the armed sections and
 start one, following its journal:
 
 .. code-block:: console
+   :caption: guest
+   :class: cmd-guest
 
    # ls /var/lib/xfstests/*.env
    # systemctl start xfstests@<section>.service
@@ -233,6 +240,7 @@ points at the section's own device-bound config). systemd re-reads the
 ``EnvironmentFile`` on each start, so edit, then restart:
 
 .. code-block:: console
+   :class: cmd-guest
 
    # systemctl restart xfstests@<section>.service
 
@@ -261,10 +269,12 @@ longer than the test should take. Find the in-flight scope and confirm which
 test it is:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> list-units --type=scope
 
 .. code-block:: text
+   :class: cmd-guest
 
    UNIT                  ACTIVE SUB      DESCRIPTION
    fsgeneric-310.scope   active running  [systemd-run] ... generic/310
@@ -272,13 +282,17 @@ test it is:
 Kill that scope:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> kill --signal=SIGKILL fsgeneric-310.scope
 
 ``check`` sees the test killed, records it as a failure, and proceeds to the
 next test. The failure surfaces as an output mismatch with exit status 137
 (128 + SIGKILL), the diff naming the killed ``systemd-run --scope`` command, for
-example::
+example:
+
+.. code-block:: text
+   :class: cmd-guest
 
    generic/310  [failed, exit status 137]- output mismatch
      -*** done
@@ -291,6 +305,7 @@ is the documented fallback in :src:`f/fstests/stop.py`, and also what the flow's
 ``failure_module`` runs when you cancel the Windmill job):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> stop         xfstests@<section>.service
    $ systemctl --host <vm> reset-failed xfstests@<section>.service

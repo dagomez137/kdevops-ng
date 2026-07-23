@@ -70,6 +70,8 @@ VM is ordinary systemd state. The equivalent manual workflow, once the
 units are rendered, against the host ``systemd --user`` manager:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ systemctl --user daemon-reload
    $ systemctl --user start qemu-system@<vm>

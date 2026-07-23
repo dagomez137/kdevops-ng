@@ -103,6 +103,8 @@ keyed by the guest's kernel release, so the verdict is recoverable from the
 share alone:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ cat "$WORKERS_DIR/shared/kunit/<vm>/<kver>/report.json"
 
@@ -156,6 +158,7 @@ write their KTAP to the kernel log at boot (init-only suites can run
 nowhere else); read that output from the kernel journal:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <vm> journalctl --dmesg --output=cat
 
@@ -183,6 +186,7 @@ The flow's ``start`` step is one ``systemctl start``; the same command runs a
 suite without the flow, and the journal carries its KTAP:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> start --no-block kunit@<suite>.service
    $ ssh <vm> journalctl --unit=kunit@<suite>.service --follow
@@ -198,6 +202,7 @@ Querying suite status and logs
 List the suites the guest exposes, and the units a run has instantiated:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <vm> ls /sys/kernel/debug/kunit
    $ systemctl --host <vm> list-units 'kunit@*'
@@ -206,6 +211,7 @@ Full status of one suite's unit (its state, the last run's result, and the
 tail of its journal):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> status kunit@<suite>.service
 
@@ -217,6 +223,7 @@ check while a suite runs: ``ActiveState=activating`` means still running,
 ``inactive`` is the success terminus and ``failed`` the failure terminus.
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> show kunit@<suite>.service --property=ActiveState
 
@@ -226,6 +233,7 @@ Read back the suite's full KTAP after the run (the job log shows this same
 KTAP inside the merged unit and kernel journal the ``wait`` step streams):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <vm> journalctl --unit=kunit@<suite>.service --output=cat
 
@@ -243,9 +251,11 @@ without any systemd unit at all. A re-run is a **write** to the suite's
 always in ``results``:
 
 .. code-block:: console
+   :caption: guest
+   :class: cmd-guest
 
-   $ echo 1 > /sys/kernel/debug/kunit/<suite>/run     # on the guest, as root
-   $ cat   /sys/kernel/debug/kunit/<suite>/results
+   # echo 1 > /sys/kernel/debug/kunit/<suite>/run
+   # cat   /sys/kernel/debug/kunit/<suite>/results
 
 The suite is the granularity: the ``run`` node re-runs every test in it, and
 the kernel accepts no per-test filter through debugfs (``kunit.filter_glob``
@@ -262,6 +272,7 @@ To abort a suite, stop its unit (the documented fallback in
 cancel the Windmill job):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> stop         kunit@<suite>.service
    $ systemctl --host <vm> reset-failed kunit@<suite>.service

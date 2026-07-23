@@ -14,6 +14,8 @@ Deploy
 Build and run the whole stack under ``systemd --user``:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ nix run .#windmill-deploy                  # build, install, activate
    $ ssh -L 8000:localhost:8000 <user>@<host>   # only if the host is remote
@@ -29,6 +31,7 @@ Run wmill
 than a host install:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix develop --command wmill --version     # wmill from Nix
    $ nix develop --command wmill sync push     # files -> instance

@@ -13,8 +13,9 @@ extensions = [
     "sphinx_design",
 ]
 
-# Show the "$ " prompt but strip it (and follow "\" continuations) on copy.
-copybutton_prompt_text = r"\$ "
+# Show the "$ " host / "# " guest prompt but strip it (and follow "\"
+# continuations) on copy.
+copybutton_prompt_text = r"[$#] "
 copybutton_prompt_is_regexp = True
 copybutton_line_continuation_character = "\\"
 
@@ -25,6 +26,7 @@ exclude_patterns = [
 html_theme = "pydata_sphinx_theme"
 html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 html_favicon = "_static/favicon.ico"
 html_theme_options = {
     "logo": {

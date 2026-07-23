@@ -116,6 +116,8 @@ lose a crashing test's context). ``report`` renders the usual sortable
 tables with the ``time(s)`` column, and the rollup lands host-side:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ cat "$WORKERS_DIR/shared/usertests/<vm>/<kver>/report.json"
 
@@ -126,6 +128,7 @@ An item is ``<dir>/<binary>``, so the unit instance is its
 :cmd:`systemd-escape` form:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> start --no-block \
        usertests@"$(systemd-escape 'radix-tree/main')".service

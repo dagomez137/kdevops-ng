@@ -29,6 +29,8 @@ Build, install, activate
 run on their own, mirroring the Windmill apps:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ nix run .#monitoring-build      # out-links under the state dir
    $ nix run .#monitoring-install    # units, configs, provisioning
@@ -40,6 +42,7 @@ Four units land: ``monitoring-grafana.service``,
 only. Reach the UI over an SSH forward, exactly like the Windmill UI:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh -L 3000:localhost:3000 <host>
 
@@ -115,6 +118,7 @@ Mint the credential as a Grafana service account (role ``Editor``) with one
 token; both are one-time actions, over the SSH forward or on the host:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ curl --silent --user admin:<password> \
        --header 'Content-Type: application/json' \
@@ -155,6 +159,7 @@ Deactivate
 ==========
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#monitoring-deactivate
 

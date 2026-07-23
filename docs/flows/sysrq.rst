@@ -70,6 +70,8 @@ with ``qmp_capabilities``, then send the Alt + SysRq + ``t`` chord as one
 keypress:
 
 .. code-block:: text
+   :caption: host
+   :class: cmd-host
 
    $ printf '%s\n' \
        '{"execute":"qmp_capabilities"}' \
@@ -113,6 +115,7 @@ the console's ANSI escapes and bare carriage returns, so strip those and grep
 for the SysRq markers:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ journalctl --user-unit 'qemu-system@<vm>.service' --no-pager --all \
        --output=cat \
@@ -138,6 +141,8 @@ could not surface the cause quickly: the stuck task was in ``D`` state and the
 task at once:
 
 .. code-block:: text
+   :caption: guest
+   :class: cmd-guest
 
    task:chroot  state:D  pid:441  ppid:1
     __schedule / schedule / io_schedule

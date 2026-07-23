@@ -70,6 +70,8 @@ Run :src:`f/workbench/init` (which drives :src:`f/workbench/fetch`) with a
 ``peers`` list of the SSH-host aliases of the other hosts:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ wmill flow run f/workbench/init --data '{"peers": ["hetzie"]}'
 
@@ -97,6 +99,7 @@ Push from a developer worktree on A. The worktree shares A's Bare, so it
 inherits the ``<peer>`` remote:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ git -C <worktree> push B HEAD:refs/heads/<branch>
 
@@ -108,6 +111,7 @@ Build it on the peer
 Run B's build flow with the branch as the ref:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ wmill flow run f/kernel/build --data '{"worktree":{"git_ref":"<branch>"}}'
 
@@ -124,6 +128,7 @@ The ``+refs/heads/*:refs/remotes/<peer>/*`` refspec also lets a host fetch a
 peer's development branches in the read direction:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ git -C <bare> fetch <peer>
 

@@ -102,6 +102,8 @@ Pyright
 How to run them:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ nix flake check                           # lint and format check
    $ nix run .#format                          # apply lint and format fixes

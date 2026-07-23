@@ -128,6 +128,8 @@ state. The same rollup lands on the host side of the share as
 ``report.json``, keyed by the guest's kernel release:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ cat "$WORKERS_DIR/shared/selftests/<vm>/<kver>/report.json"
 
@@ -186,6 +188,7 @@ The flow's ``start`` step is one ``systemctl start``; the same command runs
 a collection without the flow, and the journal carries its KTAP:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> start --no-block kselftest@seccomp.service
    $ ssh <vm> journalctl --unit=kselftest@seccomp.service --follow
@@ -194,6 +197,7 @@ For a name that needs escaping, let :cmd:`systemd-escape` produce the
 instance:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> start --no-block \
        kselftest@"$(systemd-escape 'net/forwarding')".service
@@ -203,6 +207,7 @@ so each ``start`` invokes the runner again. List what the installed tree
 can run straight from the share, or from the guest:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ cat "$WORKERS_DIR/shared/selftests/<vm>/<kver>/tree/kselftest-list.txt"
    $ ssh <vm> /var/lib/kselftests/<kver>/tree/run_kselftest.sh --list
@@ -213,6 +218,7 @@ Querying collection status and logs
 List the units a run has instantiated, and the status of one collection:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> list-units 'kselftest@*'
    $ systemctl --host <vm> status kselftest@seccomp.service
@@ -227,6 +233,7 @@ either; the KTAP decides. Read a run's full KTAP back from the
 journal:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <vm> journalctl --unit=kselftest@seccomp.service --output=cat
 
@@ -257,6 +264,7 @@ To abort a collection, stop its unit (the documented fallback in
 when you cancel the Windmill job):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> stop         kselftest@seccomp.service
    $ systemctl --host <vm> reset-failed kselftest@seccomp.service

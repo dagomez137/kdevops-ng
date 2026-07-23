@@ -72,6 +72,8 @@ kernel or closure changes; pass ``nix_lock.update_lock=true`` so a
 vendored-flake edit reaches the closure.
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ wmill flow run f/qsu/bringup -d '{
    $   "kernel_source": "build", "closure_source": "build",
@@ -97,10 +99,12 @@ NVMe controllers to ``vfio-pci``; ``allow_unsafe_interrupts`` is already set by
 the ``devel`` profile, so no manual sysfs poke is needed.
 
 .. code-block:: console
+   :caption: guest
+   :class: cmd-guest
 
-   $ SPDK=$(dirname $(dirname $(readlink -f $(command -v spdk_nvme_identify))))
-   $ HUGEMEM=1024 "$SPDK"/scripts/setup.sh   # bind vfio-pci + hugepages
-   $ "$SPDK"/scripts/setup.sh status         # list the NVMe BDFs
+   # SPDK=$(dirname $(dirname $(readlink -f $(command -v spdk_nvme_identify))))
+   # HUGEMEM=1024 "$SPDK"/scripts/setup.sh   # bind vfio-pci + hugepages
+   # "$SPDK"/scripts/setup.sh status         # list the NVMe BDFs
 
 The BDFs shift with the vIOMMU. Pick a controller BDF from ``status`` (with
 ``intel-iommu`` they are ``0000:00:04.0`` through ``0000:00:07.0``).
@@ -111,12 +115,13 @@ Identify
 This proves SPDK drives the device over VFIO and reports CMB/PMR:
 
 .. code-block:: console
+   :class: cmd-guest
 
-   $ spdk_nvme_identify -r 'trtype:PCIe traddr:0000:00:04.0' \
+   # spdk_nvme_identify -r 'trtype:PCIe traddr:0000:00:04.0' \
        | grep --ignore-case --extended-regexp \
            'Memory Buffer|Persistent Memory'
-   # Controller Memory Buffer Support
-   # Persistent Memory Region Support
+   Controller Memory Buffer Support
+   Persistent Memory Region Support
 
 PMR persistence
 ---------------
@@ -125,10 +130,11 @@ The ``-p`` device, ``-n`` nsid, ``-r``/``-w`` LBAs, and ``-l`` count are all
 mandatory:
 
 .. code-block:: console
+   :class: cmd-guest
 
-   $ spdk_nvme_pmr_persistence -p 0000:00:04.0 -n 1 -r 0 -l 1 -w 0
-   # attach_cb - attached 0000:00:04.0!
-   # PMR Data is Persistent across Controller Reset
+   # spdk_nvme_pmr_persistence -p 0000:00:04.0 -n 1 -r 0 -l 1 -w 0
+   attach_cb - attached 0000:00:04.0!
+   PMR Data is Persistent across Controller Reset
 
 CMB copy
 --------
@@ -138,10 +144,11 @@ buffer. The parameters are ``<pci>-<ns>-<startLBA>-<nLBAs>``; ``-c`` is the
 controller whose CMB to use:
 
 .. code-block:: console
+   :class: cmd-guest
 
-   $ spdk_nvme_cmb_copy -r 0000:00:04.0-1-0-16 -w 0000:00:05.0-1-0-16 \
+   # spdk_nvme_cmb_copy -r 0000:00:04.0-1-0-16 -w 0000:00:05.0-1-0-16 \
        -c 0000:00:04.0
-   # attached 0000:00:04.0! / attached 0000:00:05.0!  (exit 0)
+   attached 0000:00:04.0! / attached 0000:00:05.0!  (exit 0)
 
 When done, return the controllers to the kernel with
 ``"$SPDK"/scripts/setup.sh reset``.
@@ -160,10 +167,11 @@ The kernel registers the CMB as P2P memory and places I/O submission queues in
 it. This needs ``CONFIG_PCI_P2PDMA=y``, which the imageless preset sets:
 
 .. code-block:: console
+   :class: cmd-guest
 
-   $ cat /sys/bus/pci/devices/0000:00:04.0/p2pmem/{size,published,available}
-   $ cat /sys/class/nvme/nvme0/cmb       # cmbsz bit0 (SQS) set => SQs in CMB
-   $ dd if=/dev/nvme0n1 of=/dev/null bs=1M count=8   # exercise the CMB SQ path
+   # cat /sys/bus/pci/devices/0000:00:04.0/p2pmem/{size,published,available}
+   # cat /sys/class/nvme/nvme0/cmb       # cmbsz bit0 (SQS) set => SQs in CMB
+   # dd if=/dev/nvme0n1 of=/dev/null bs=1M count=8   # exercise the CMB SQ path
 
 An ``available`` below ``size`` is the kernel having allocated SQs out of the
 CMB. If ``PCI_P2PDMA`` were off, :cmd:`dmesg` would show ``failed to register
@@ -193,6 +201,7 @@ in the per-VM ``StateDirectory``, proving persistence:
 Confirm on the host that the guest write appears in the backing file:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ grep --text PMRTEST ~/.local/state/qemu-system/<vm>/nvme-pmr-1.img
 

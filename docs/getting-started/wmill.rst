@@ -16,6 +16,8 @@ install. Enter the development shell with ``nix develop`` to put it on
 prefix a single command with ``nix develop --command``:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ nix develop --command wmill --version
 
@@ -32,6 +34,7 @@ so fetch one token from the seeded superadmin (``admin@windmill.dev`` /
 the workspace:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ url=http://localhost:8002
    $ token=$(curl --silent --request POST "$url/api/auth/login" \
@@ -55,6 +58,7 @@ for work in progress. Deploy through the deploy apps, not a bare
 ``wmill sync push``:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#deploy-staging     # everything -> staging, for live testing
    $ nix run .#deploy-kdevops     # the promoted subset -> production
@@ -78,6 +82,7 @@ files are kept in the canonical form described in
 :doc:`/reference/wmill-yaml`, the round-trip has no diff:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ wmill sync pull          # instance -> files
    $ nix run .#reflow         # keep descriptions as clean literal blocks
@@ -101,6 +106,7 @@ UI edits straight back to disk, one flow at a time, which is gentler than a bulk
 pull:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ wmill dev --path f/qsu/boot
 

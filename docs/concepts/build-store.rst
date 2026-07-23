@@ -176,6 +176,8 @@ inspects and prunes it directly, with no extra tooling. The directory is
 ``STORE_INDEX_DIR`` is not set in your own shell):
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ idx=~/.local/state/windmill/workbench/system/store-index
 
@@ -183,6 +185,7 @@ List every cached build by size, largest first. ``nix path-info`` resolves each
 catalog symlink to its store path for you:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix path-info --closure-size --human-readable "$idx"/* \
        | sort --human-numeric-sort --key=2 --reverse
@@ -193,6 +196,7 @@ symlink, so resolve the entry once with ``readlink`` (substitute a real name
 from the list above):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ sp=$(readlink --canonicalize "$idx"/kernel-7.1.0-vanilla-<hash>)
    $ nix path-info --closure-size --human-readable "$sp"
@@ -206,6 +210,7 @@ diff-closures`` still reports their release names and the size delta, a quick
 "are these different, and by how much":
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix store diff-closures \
        "$idx"/kernel-7.1.0-vanilla-<hashA> \
@@ -214,6 +219,7 @@ diff-closures`` still reports their release names and the size delta, a quick
 Read the whole catalog as JSON for scripting:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix path-info --json --closure-size "$idx"/* | jq
 
@@ -223,6 +229,7 @@ root); the store path itself survives until the next collection, which is why
 preview a collection before running it:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ find -L "$idx" -maxdepth 1 -type l    # dangling: the store path is gone
    $ rm "$idx"/kernel-7.1.0-vanilla-<hash> # forget one build
@@ -232,6 +239,7 @@ preview a collection before running it:
 A peer's catalog is the same directory read over ssh:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <host> ls "$idx"
 

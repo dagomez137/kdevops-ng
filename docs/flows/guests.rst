@@ -37,6 +37,8 @@ over the same ``ssh`` transport. Most systemd client tools (:cmd:`systemctl`,
 ``-H``/``--host <vm>`` and work this way, talking to the guest's system bus:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ systemctl --host <vm> status <unit>      # units, services, scopes
    $ timedatectl --host <vm>                  # clock and timezone
@@ -52,6 +54,7 @@ reading the journal goes through plain ``ssh``, running ``journalctl`` as a
 remote command on the guest:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ ssh <vm> journalctl --unit=<unit> --follow
 
@@ -73,6 +76,7 @@ machine. That registry is per-user, so :cmd:`machinectl` needs ``--user`` to
 reach it (systemd v259 or newer):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ machinectl --user list             # registered machines (VMs, containers)
    $ machinectl --user status <vm>      # one VM's PID, cgroup, service
@@ -83,6 +87,7 @@ units directly; the unit list is authoritative, independent of the machined
 registry:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --user list-units 'qemu-system@*'   # VMs on this host
    $ systemctl --user status qemu-system@<vm>      # one VM's service state
@@ -91,6 +96,7 @@ Read a VM's host-side log (boot console on ``ttyS0``, QEMU and virtiofsd
 messages) through the user journal:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ journalctl --user-unit=qemu-system@<vm>.service --follow   # one VM, live
    $ journalctl --user-unit='qemu-system@*.service' --no-hostname --follow
@@ -99,6 +105,7 @@ A persistent VM also exposes a virtio console socket for interactive access;
 attach with :cmd:`socat` (disconnect with ``Ctrl-]``, the VM keeps running):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ socat -,raw,echo=0,escape=0x1d \
        UNIX-CONNECT:$XDG_RUNTIME_DIR/qemu-system/<vm>/console.sock
@@ -108,6 +115,7 @@ escalating to ``SIGKILL`` if it overruns the stop timeout; ``restart`` does that
 stop, then boots a fresh guest (it is how a VM is re-launched):
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --user restart qemu-system@<vm>               # fresh reboot
    $ systemctl --user stop qemu-system@<vm>                  # graceful stop
@@ -119,6 +127,7 @@ To check a guest's own health from the host instead, point ``systemctl`` and
 :cmd:`hostnamectl` through ``--host`` into its system bus:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> is-system-running   # guest systemd state
    $ hostnamectl --host <vm>                   # guest identity

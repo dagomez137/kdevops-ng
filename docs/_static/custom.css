@@ -1,0 +1,68 @@
+/* SPDX-License-Identifier: copyleft-next-0.3.1 */
+
+/* Origin accent for docs code blocks: green marks guest content (a command run
+   on the VM as root, or output that comes from the VM), blue marks host content
+   (a command run on the operator machine). The colour is the primary cue; the
+   :caption: on the first block of each kind names it. */
+
+:root {
+    --cb-guest: #4caf50;
+    --cb-guest-ink: #2f7d3a;
+    --cb-guest-wash: rgba(76, 175, 80, 0.1);
+    --cb-host: #2196f3;
+    --cb-host-ink: #1f5fae;
+    --cb-host-wash: rgba(33, 150, 243, 0.1);
+}
+
+html[data-theme="dark"] {
+    --cb-guest-ink: #6fce7c;
+    --cb-guest-wash: rgba(76, 175, 80, 0.16);
+    --cb-host-ink: #6ab0f5;
+    --cb-host-wash: rgba(33, 150, 243, 0.16);
+}
+
+/* The coloured left rail on every guest/host block, command or output. It sits
+   on the outer .cmd-* container (not the inner .highlight) so it lines up with
+   the caption's rail above it. */
+.cmd-guest,
+.cmd-host {
+    border-left-width: 4px;
+    border-left-style: solid;
+}
+
+.cmd-guest {
+    border-left-color: var(--cb-guest);
+}
+
+.cmd-host {
+    border-left-color: var(--cb-host);
+}
+
+/* The caption on the first block of each kind: an uppercase label in the accent
+   colour on a faint wash, its rail continuous with the code below. The caption
+   is a sibling of the .cmd-* div inside .literal-block-wrapper, so scope it with
+   :has(). */
+.literal-block-wrapper:has(> .cmd-guest) > .code-block-caption,
+.literal-block-wrapper:has(> .cmd-host) > .code-block-caption {
+    margin: 0;
+    padding: 0.3rem 0.75rem;
+    border-bottom: 0;
+    border-left-width: 4px;
+    border-left-style: solid;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.literal-block-wrapper:has(> .cmd-guest) > .code-block-caption {
+    color: var(--cb-guest-ink);
+    background: var(--cb-guest-wash);
+    border-left-color: var(--cb-guest);
+}
+
+.literal-block-wrapper:has(> .cmd-host) > .code-block-caption {
+    color: var(--cb-host-ink);
+    background: var(--cb-host-wash);
+    border-left-color: var(--cb-host);
+}

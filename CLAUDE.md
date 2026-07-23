@@ -190,6 +190,23 @@ guest over the SSH transport, querying machine and VM status) belongs in the
 shared `docs/flows/guests.rst`, linked from the per-flow pages, never copied
 into each one.
 
+Code blocks say where they run and where their output comes from. A
+`.. code-block::` of commands run on the guest (a `#` root prompt over the SSH
+transport), or of output the guest produced (a unit listing, a KTAP or failure
+diff, a SysRq stack), carries `:class: cmd-guest`; one run on or produced by
+the operator host (a `$` prompt, including the `systemctl --host <vm>` and
+`ssh <vm> ...` forms that target a guest) carries `:class: cmd-host`. The class
+draws a colored left accent (guest green, host blue) defined once in
+`docs/_static/custom.css`. Caption only the first block of each kind on a page
+(`:caption: guest` / `:caption: host`), whether that first block is a command or
+its output; later blocks of that kind take the accent alone, so the label is
+introduced once and the color carries the rest. A doc diagram, a config
+fragment, or a file-content sample is not host or guest content and stays
+unlabelled. The prompt is not decisive: classify by where the content
+originates, so an on-guest `echo ... > /sys/...` is `cmd-guest` with a `#`
+prompt even where a source shows it with `$`, and a guest's output is
+`cmd-guest` in a plain `text` block with no prompt at all.
+
 ## Commit rules
 
 All commits must follow these six rules.

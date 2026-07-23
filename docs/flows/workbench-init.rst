@@ -54,6 +54,8 @@ The flow's result carries what each step provisioned, including the
 ``systemd --user`` state on the host:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ systemctl --user list-timers 'git-mirror@*'
    $ journalctl --user-unit=git-mirror@linux.service

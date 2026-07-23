@@ -23,6 +23,8 @@ Nix
 Install Nix with the recommended multi-user (daemon) installation:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install \
        | sh -s -- --daemon
@@ -35,6 +37,7 @@ The flake uses the unified ``nix`` CLI, which needs the experimental features
 enabled once:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ mkdir --parents ~/.config/nix
    $ echo 'experimental-features = nix-command flakes' \
@@ -48,6 +51,7 @@ once. Add yourself to the ``kvm`` group for ``/dev/kvm`` (QEMU's ``-accel kvm``)
 and ``systemd-journal`` to read service logs without sudo:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ sudo usermod --append --groups kvm,systemd-journal "$(whoami)"
 
@@ -66,6 +70,7 @@ First list the host PCI devices and note the address of each candidate. The
 first column is the address, with the ``0000:`` domain shown by ``-D``:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ lspci -nn -D
    0000:2d:00.0 Non-Volatile memory controller [0108]: Samsung ... [144d:a80a]
@@ -90,6 +95,7 @@ guide for the syntax and the kernel `VFIO`_ docs for the framework.
 Load the ``vfio-pci`` driver:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ sudo cp vendor/qemu-system-units/files/vfio-pci.conf \
        /etc/modules-load.d/vfio-pci.conf
@@ -101,6 +107,7 @@ so the
 ``kvm`` group can open ``/dev/vfio``, with a per-device block for each address:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix develop --command minijinja-cli --trim-blocks \
        vendor/qemu-system-units/templates/vfio-udev.rules.j2 passthrough.yaml \
@@ -109,6 +116,7 @@ so the
 Reload udev so the rule takes effect:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ sudo udevadm control --reload-rules
    $ sudo udevadm trigger --subsystem-match=pci

@@ -96,6 +96,8 @@ run finishes, ``report`` renders the three sortable tables and writes the
 kver-keyed rollup:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ cat "$WORKERS_DIR/shared/runtime-tests/<vm>/<kver>/report.json"
 
@@ -107,6 +109,7 @@ template; the same command runs a suite by hand, and the kernel journal
 carries its summary:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ systemctl --host <vm> start modprobe@test_xarray.service
    $ ssh <vm> journalctl --dmesg --output=cat | grep "tests passed"

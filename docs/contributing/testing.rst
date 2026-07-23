@@ -29,6 +29,8 @@ The tests run hermetically, with no instance and no network, as the
 before anything is deployed:
 
 .. code-block:: console
+   :caption: host
+   :class: cmd-host
 
    $ nix build .#checks.x86_64-linux.tests        # just the fixture tests
    $ nix develop .#checks --command pytest tests  # directly, while iterating
@@ -45,6 +47,7 @@ contracts end to end, as Windmill preview jobs on the real workers, without
 deploying anything:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#preview-smoke
    $ nix run .#preview-smoke -- --only fstests    # narrow while iterating
@@ -104,6 +107,7 @@ which is the fastest way to exercise a step's degrade paths against real
 worker state:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#wmill -- lint
    $ nix run .#wmill -- script preview f/common/store.py --silent
@@ -120,6 +124,7 @@ Before submitting
 The order that catches problems earliest:
 
 .. code-block:: console
+   :class: cmd-host
 
    $ nix run .#format                                        # format first
    $ nix flake check                              # gate: lint, tests, drift
