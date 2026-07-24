@@ -398,7 +398,15 @@ Namespace properties (maps to `-device nvme-ns`): `nsid`, `uuid`,
 `zoned.numzrwa`, `zoned.zrwas`, `zoned.zrwafg`, `ms`, `mset`, `pi`,
 `pil`, `pif`, `mssrl`, `mcl`, `msrc`, `fdp.ruhs`, `atomic.nawun`,
 `atomic.nawupf`, `atomic.nabsn`, `atomic.nabspf`, `atomic.nabo`,
-`opts`.
+`atomic.mam`, `opts`.
+
+The `atomic.*` namespace knobs set the NVM Command Set atomic-write
+geometry (atomic write unit and atomic boundary, in 0-based logical
+blocks). `atomic.mam` sets Identify-Namespace NSFEAT bit 6 (Multiple
+Atomicity Mode), advertising the atomic boundary alongside the atomic
+write unit. It needs a QEMU built with MAM support and the geometry
+the device gates it on (`atomic.nawun`/`atomic.nawupf` set, the
+boundary equal to the unit, `atomic.nabo=0`). See `hw/nvme/ns.c`.
 
 See: `<qemu_binary> -device nvme,help`,
 `<qemu_binary> -device nvme-ns,help`, man qemu-system.
