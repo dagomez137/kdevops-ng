@@ -201,7 +201,10 @@ def prepare(
 
     result = {
         "project": project,
-        "worktree_group": worktree_group,
+        # The group the worktree actually landed in, not the requested one: a worker
+        # always builds under the fixed `main` group (ADR-0010) regardless of the
+        # argument, so returning the argument would name a path that was not laid.
+        "worktree_group": group,
         "developer": developer,
         "ref": ref,
         "commit": commit,

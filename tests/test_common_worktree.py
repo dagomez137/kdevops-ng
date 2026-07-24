@@ -74,11 +74,16 @@ def test_worktrees_dir_relocates_the_developer_groups(build_area, monkeypatch):
 def test_worker_worktree_roots_under_the_fixed_main_group(build_area, monkeypatch):
     monkeypatch.setenv("WORKER_INDEX", "3")
     result = worktree.prepare(
-        project="linux", ref="v6.9", extra_dirs=("build", "destdir")
+        project="linux",
+        ref="v6.9",
+        worktree_group="ignored",
+        extra_dirs=("build", "destdir"),
     )
     expected = build_area / "workers" / "3" / "main" / "linux"
     assert result["worktree"] == str(expected)
     assert result["worker"] == "3"
+    # The reported group is the one built in, the fixed `main`, not any argument.
+    assert result["worktree_group"] == "main"
     assert result["build_dir"] == str(expected / "build")
     assert result["destdir"] == str(expected / "destdir")
 
