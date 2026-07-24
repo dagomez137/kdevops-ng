@@ -112,6 +112,7 @@ def main(
     atomic_nabsn: str = "",
     atomic_nabspf: str = "",
     atomic_nabo: str = "",
+    atomic_mam: bool = False,
     kernel: dict | None = None,
     closure: dict | None = None,
     emit_vars_yaml_snapshot: bool = False,
@@ -174,6 +175,7 @@ def main(
         "atomic_nabsn": atomic_nabsn,
         "atomic_nabspf": atomic_nabspf,
         "atomic_nabo": atomic_nabo,
+        "atomic_mam": atomic_mam,
     }
     if bool(kernel_image) != bool(modules_dir):
         raise ValueError(

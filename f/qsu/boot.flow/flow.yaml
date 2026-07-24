@@ -53,6 +53,9 @@ value:
           atomic_dn:
             type: javascript
             expr: flow_input.nvme?.atomic_dn
+          atomic_mam:
+            type: javascript
+            expr: flow_input.nvme?.atomic_mam
           atomic_nabo:
             type: javascript
             expr: flow_input.nvme?.atomic_nabo
@@ -465,6 +468,7 @@ schema:
         - atomic_nabsn
         - atomic_nabspf
         - atomic_nabo
+        - atomic_mam
       properties:
         atomic_awun:
           type: string
@@ -493,6 +497,17 @@ schema:
           default: false
           showExpr: fields.customize_drives === true
           title: Disable Normal (DN)
+        atomic_mam:
+          type: boolean
+          description: |-
+            Multiple Atomicity Mode (MAM): `-device nvme-ns,atomic.mam=on`. Set
+            = Identify-Namespace NSFEAT bit 6 on every namespace, advertising
+            the atomic boundary alongside the atomic write unit (needs the
+            per-namespace NAWUN/NAWUPF geometry, boundary equal to unit,
+            NABO=0). Off = QEMU default (Single Atomicity Mode).
+          default: false
+          showExpr: fields.customize_drives === true
+          title: Multiple Atomicity Mode (MAM)
         atomic_nabo:
           type: string
           description: |-

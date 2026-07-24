@@ -349,6 +349,25 @@ def test_nvme_drives_ns_knobs_force_explicit_namespaces():
     ]
 
 
+def test_nvme_drives_atomic_mam_marks_every_namespace():
+    fi = {
+        "nvme_drive_count": 2,
+        "atomic_nawun": "15",
+        "atomic_nawupf": "15",
+        "atomic_nabsn": "15",
+        "atomic_nabspf": "15",
+        "atomic_mam": True,
+    }
+    drives = common.nvme_drives(fi)
+    assert all(d["namespaces"][0]["atomic.mam"] is True for d in drives)
+
+
+def test_nvme_drives_atomic_mam_off_is_not_set():
+    fi = {"nvme_drive_count": 1, "atomic_nawun": "15", "atomic_mam": False}
+    ns = common.nvme_drives(fi)[0]["namespaces"][0]
+    assert "atomic.mam" not in ns
+
+
 def test_nvme_drives_cmb_applies_per_drive():
     fi = {"nvme_drive_count": 2, "cmb_size_mb": "64,0", "legacy_cmb": True}
     drives = common.nvme_drives(fi)

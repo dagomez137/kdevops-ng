@@ -339,6 +339,9 @@ def _nvme_drives(fi: dict) -> list[dict]:
         # atomic.dn is a controller boolean, not a comma-list.
         if fi.get("atomic_dn"):
             ctrl["atomic.dn"] = True
+        # atomic.mam is a namespace boolean, not a comma-list.
+        if fi.get("atomic_mam"):
+            ns["atomic.mam"] = True
         # CMB (controller memory buffer, BAR 2): a per-drive size in MiB; 0 or an empty
         # comma-list part means no CMB on that drive ("64,0" -> drive 0 only), unlike the
         # generic knobs where 0 is a meaningful value. legacy-cmb (v1.3 register scheme) is a
