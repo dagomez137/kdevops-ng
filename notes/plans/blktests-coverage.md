@@ -375,6 +375,49 @@ Phase 4, promotion: fixture/preview/selfcheck complete, docs page out
 of staging, prune lines deleted (staging -> kdevops), roadmap updated,
 memory + handoff notes refreshed.
 
+## Progress log
+
+Append one entry per phase with the conclusion and results.
+
+### Phase 0: guest foundation (2026-08-02, DONE)
+
+Landed as eight atomic commits (99e2004..9224643 on main), pushed to
+the staging workspace, workers' vendor copy re-synced.
+
+- Package: `pkgs/blktests.nix` pinned to upstream fc6e3ffbd58c;
+  builds all src/ helpers including miniublk and the liburing pair.
+  Found and fixed an upstream install-layout defect: `make install`
+  flattens the sg/ helpers into src/, where scsi/001 and scsi/002
+  resolve `src/sg/<name>` and silently skip; postInstall restores
+  the layout. Upstream fix candidate.
+- Scope patch: `pkgs/blktests-runtime-max-sec.patch`, validated live
+  on the dev host before shipping. Two findings from probing:
+  StartTransientUnit only queues the cgroup migration, so children
+  forked before membership escape the scope (the patch polls
+  `/proc/$BASHPID/cgroup`); and bash delivers the deferred TERM trap
+  inside the active output redirection, so the watchdog message
+  lands in the test's `.out` and thus in the failure diff, which
+  check echoes to stdout and the journal. End-to-end: a synthetic
+  hanging test died at 2.17 s of a 2 s deadline, recorded as a fail
+  row with `reason output`, and the following test ran and passed.
+  A timed-out scope stays `failed` until reset; the patch
+  reset-fails before start and the flow's stop step will too.
+- Module: `blktests@` renders exactly to spec in the composed
+  imageless closure (checked the generated unit file); vendored
+  `nix flake check` green.
+- Fragments: cgroup IO controllers into block-layer, ublk pair,
+  FAIL_IO_TIMEOUT, all mirrored into `imageless_defconfig` in
+  savedefconfig order. `verify_config.sh` 25/25 on a full
+  default-list merge; a baseline diff proved the pre-existing
+  mismatches on the v6.19 host tree are unchanged by this work.
+- Wiring: share end to end, source override (patches survive),
+  nvme-fabrics and ublk into the default fragment set, bringup
+  regenerated, 489 fixture tests green, all repo gates green.
+- Operational gotcha recorded: never reference this repo root as a
+  `path:` flake; it copies the workbench kernel worktrees into the
+  Nix store (three 9.9 GiB copies filled the disk; deleted, 27.8
+  GiB freed). Use the git-based `.#` refs.
+
 ## Honest exclusions (recorded, not silent)
 
 - `nvme/056`: needs `KERNELSRC`, the ynl CLI, and `CONFIG_ULP_DDP`
