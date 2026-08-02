@@ -1,0 +1,386 @@
+# Plan: full blktests coverage in kdevops-ng
+
+Working note, 2026-08-02. The mission: integrate blktests as the sixth
+test suite, following `docs/contributing/test-suites.rst` (the law) and
+the fstests worked example, with no wrapper around the suite: every UI
+knob maps one-to-one to a `./check` option or a `config` variable that
+blktests itself defines.
+
+Upstream: `https://github.com/linux-blktests/blktests`, local expert
+tree at `~/src/blktests` (fc6e3ffbd58c, 2026-08-02): 15 groups, 211
+tests, `check` is 1285 lines of bash, no external runner.
+
+## Current state (audited)
+
+What exists today:
+
+- `vendor/nixos-flake/modules/testSuites/blktests.nix` installs only
+  runtime dependencies (nvme-cli, sg3_utils, multipath-tools, dmraid,
+  lvm2, mdadm, targetcli-fb, fio, sysstat). No blktests package, no
+  unit, no share, no state dir.
+- `blktests` is a `test_suites` enum entry in the closure forms
+  (`f/nix/render_config.py:33`, `render_config.script.yaml`,
+  `f/nix/build.flow`, `f/qsu/bringup.flow`), so the module import
+  already lands in the guest closure by default.
+- Kernel fragments already cover: null_blk (+fault injection), loop,
+  brd, nbd, scsi_debug, dm targets, md raid, zoned, NVMe core, NVMe
+  fabrics incl. fcloop (enum-only, not in the default fragment list),
+  blktrace, bcache (=m).
+
+What is missing: the blktests package itself, the `blktests@` unit, the
+share, the `f/blktests/` flow, source-override plumbing, fragments for
+throtl/ublk/srp/rnbd, the docs page, fixtures, and the small patch
+described below. nixpkgs has no blktests package (verified against
+`~/src/nix/nixpkgs`), so the recipe is ours.
+
+## Upstream facts that shape the design
+
+- Invocation: `./check [options] [group-or-test...]`. Options are only
+  `--device-only`, `--output=DIR`, `--quick[=SECS]`, `--exclude=X`
+  (repeatable), `--config=FILE` (repeatable), `--cmd-trace`. Everything
+  else is a `config` variable (a sourced bash file); precedence is
+  command line > config file > environment > default. `config.example`
+  is the canonical annotated knob list.
+- No args runs every group except `meta`. Filters accept `group` or
+  `group/nnn`. Tests named explicitly bypass EXCLUDE, DEVICE_ONLY and
+  QUICK_RUN. EXCLUDE is exact-match only, no globs.
+- Results: one TSV file per test at
+  `$OUTPUT/<devdir>/<group>/<nnn>` (`status` pass/fail/"not run",
+  `reason` output/exit/dmesg/kmemleak, `runtime`, `date`), plus
+  `.full`, `.out.bad`, `.dmesg`, `.kmemleak` companions. `<devdir>` is
+  `nodev` or the device basename, suffixed by the `set_conditions`
+  variant (`nodev_tr_tcp_bd_file`), so one nvme test yields several
+  result rows. The golden `.out` lives in the source tree, not results.
+- `check` exits 1 only if a test failed; "not run" and dropped tests do
+  not affect it. There is NO final summary, no total count, no
+  machine-readable stream. Skip reasons go to stdout only; a failed
+  `group_requires` prints one line, writes no file, and exits 0.
+- Silent drops: device tests with empty `TEST_DEVS` produce neither
+  output nor files; QUICK_RUN/DEVICE_ONLY/EXCLUDE filtering likewise.
+- `TIMEOUT` is advisory: `check` never enforces it; only QUICK/TIMED
+  tests honor it. Several tests default to 900 to 1200 seconds. A hung
+  test hangs the run; there is no per-test scope, kill, or watchdog.
+- Live progress signals that DO exist: a start line per test on stdout,
+  and a `run blktests <test> at <ts>` marker written to `/dev/kmsg` at
+  each test start. Under `StandardOutput=journal+console` both land in
+  the journal our `wait` step already streams, so live per-test
+  progress needs no patch.
+- Each test runs in its own subshell; the test body is a sourced bash
+  function, not a separate executable (this constrains the scope
+  patch, see below).
+- Root is required by every group except bcache, meta, rnbd. A
+  `NORMAL_USER` account is needed by a few tests.
+- srp/nbd/nvme-fabrics tests build their own targets (LIO, nbd-server,
+  nvmet configfs); srp refuses to run if multipathd/srp_daemon are
+  already active. `tlshd` (ktls-utils) is needed only by nvme TLS
+  tests.
+
+## The gap patch: per-test scopes and an enforced watchdog
+
+fstests precedent: upstream xfstests `check` creates `fs<test>.scope`
+itself and our overlay adds only RuntimeMaxSec driven by
+`TEST_TIMEOUT`/`TEST_TIMEOUTS` (carried verbatim in
+`vendor/nixos-flake/overlays/xfstests-runtime-max-sec.patch`).
+blktests has no scope support at all, so our patch adds the whole
+mechanism, kept minimal and shaped for upstream submission:
+
+- At the top of the per-test subshell, when systemd is running and the
+  feature-detect passes, move the subshell into a fresh transient scope
+  named for the test (`blktests-<group>-<nnn>.scope`). Because the test
+  body is an in-process function, `systemd-run --scope <cmd>` does not
+  fit; the small implementation is a StartTransientUnit call (via
+  `busctl call`) enrolling `$BASHPID`, with `RuntimeMaxSec` set from
+  `TEST_TIMEOUT` (global) or `TEST_TIMEOUTS` ("group/nnn:secs ..."),
+  exactly the fstests knob names. An alternative shape, re-executing
+  the test under `systemd-run --scope`, is bigger and needs function
+  export; prefer the busctl shape unless review says otherwise.
+- Effect: `systemctl list-units --type=scope` names the in-flight
+  test; a hung test dies surgically on the watchdog or by hand with
+  `systemctl kill`; the parent loop sees the killed subshell and the
+  flow records the test as failed (a started test with no result file
+  is a kill/hang, never a pass).
+- Carried as a patch in the vendored flake next to the package recipe,
+  applied through the recipe's `patches` list, so a source-overridden
+  tree still gets it (the override overlay replaces only `src`).
+- Upstream candidates, in order of value: this scope/watchdog support;
+  a final summary tally; a `status=running` stamp at test start. Mail
+  to linux-block/linux-blktests once live-fired, then drop the carried
+  copy on the version bump that includes it.
+
+## Layer 1: kernel configuration (vendor/linux-config-fragments)
+
+New fragments, each with its `builtin/` mirror, tristates `=m`:
+
+- blk-cgroup/throttle: `BLK_CGROUP=y`, `BLK_DEV_THROTTLING=y`,
+  `BLK_CGROUP_IOCOST=y` (throtl group and block iocost test). Decide
+  in review whether this extends `storage/block-layer.config` (whose
+  comment deliberately leaves some BLK_CGROUP knobs to `select`) or is
+  a new `storage/blk-cgroup.config`.
+- `storage/ublk.config`: `BLK_DEV_UBLK=m`.
+- `storage/srp-target.config`: `INFINIBAND_SRP=m`, `INFINIBAND_SRPT=m`,
+  `INFINIBAND_USER_MAD=m`, `INFINIBAND_IPOIB=m`, `TARGET_CORE=m`,
+  `TCM_IBLOCK=m`, `DM_MULTIPATH=m` (+`_QL`/`_ST`), `DM_UEVENT=y`,
+  `SCSI_DH_ALUA/EMC/RDAC=m` (srp group; RDMA_SIW/RXE already exist in
+  nvme-fabrics.config).
+- `storage/rnbd.config`: `BLK_DEV_RNBD_CLIENT=m`,
+  `BLK_DEV_RNBD_SERVER=m`.
+- bcache: add `BCACHE_DEBUG=y` where BCACHE lives (its rc checks it).
+- Promote `storage/nvme-fabrics.config` from enum-only into the
+  DEFAULT fragment list (`f/kernel/configure_fragments.script.yaml`
+  defaults, mirrored in `f/kernel/build.flow` and bringup): the nvme
+  group's default loop/tcp transports need it.
+- `FAIL_IO_TIMEOUT=y` joins the existing fault-injection set in
+  `storage/block-test-devices.config` (nvme/050, block).
+- Optional, later: `DEBUG_KMEMLEAK` as a debug fragment (blktests
+  auto-enables kmemleak checking when present).
+
+Run `verify_config.sh` on a merged config before committing, per that
+project's rules. Kernel rebuild required to live-validate.
+
+## Layer 2: guest closure (vendor/nixos-flake)
+
+New package `pkgs/blktests.nix` (callPackage, registered in
+`pkgs/default.nix` and the flake `packages` output, exactly the
+libbpf-tools precedent):
+
+- `src = fetchFromGitHub` pinned to a recent tag/rev; `make` builds the
+  `src/` C helpers (buildInputs: liburing for the uring helpers; the
+  in-tree miniublk builds against kernel headers >= 6.4);
+  `make prefix=$out install` lands `check`, `tests/`, `common/`,
+  `src/` under `$out/blktests`. No wrapper binary: the unit sets the
+  working directory instead. `patches = [ ./blktests-scope.patch ]`.
+- Since this is our own mkDerivation there is no nixpkgs
+  patchPhase-replacement gotcha (that trap is specific to the nixpkgs
+  xfstests recipe).
+
+Extend `modules/testSuites/blktests.nix` (mirror `fstests.nix`):
+
+- `stateDir = "/var/lib/blktests"`; tmpfiles `d` rule for it.
+- `environment.systemPackages`: add `pkgs.blktests` plus the probed
+  tools the module does not yet carry: nbd, blktrace, xfsprogs
+  (xfs_io), parted, e2fsprogs, f2fs-tools, btrfs-progs, dosfstools,
+  cryptsetup, util-linux, gawk, bc, expect, keyutils; ktls-utils
+  (tlshd) when the TLS tests join. Keep the module self-contained even
+  where devel overlaps.
+- A `blktests` unprivileged account for `NORMAL_USER` tests.
+- The unit, on the `xfstests@` shape:
+
+      systemd.services."blktests@" = {
+        description = "blktests check (group %i)";
+        path = [ "/run/current-system/sw" ];
+        serviceConfig = {
+          Type = "oneshot";                # no RemainAfterExit
+          WorkingDirectory = "${pkgs.blktests}/blktests";
+          EnvironmentFile = "-/var/lib/blktests/%i.env";
+          ExecStart = "${pkgs.blktests}/blktests/check --config=/var/lib/blktests/config --output=/var/lib/blktests/%v/results $BLKTESTS_ARGS";
+          StandardOutput = "journal+console";
+          StandardError = "journal+console";
+          TimeoutStartSec = "infinity";    # the flow's wait owns the deadline
+          SyslogIdentifier = "blktests";
+          StartLimitIntervalSec = 0;
+          Documentation = "https://github.com/linux-blktests/blktests";
+        };
+      };
+
+  `%i` is the group (names the instance and keys the env file), `%v`
+  keys results by kernel release as fstests does. `$BLKTESTS_ARGS`
+  carries only positionals (the group, or an explicit test list); all
+  tunables live in the rendered `config`, which sidesteps the getopt
+  optional-argument trap on `--quick` entirely. The source tree in the
+  store stays read-only: with `--config` and `--output` pointed at the
+  share, `check` writes nothing else (its tmpdir lives under OUTPUT).
+- Register nothing new in the vendored flake (the module is already in
+  `nixosModules.testSuites` and the `imageless-blktests` check).
+
+Source override (patches still applied):
+
+- Add `"blktests"` to `_OVERRIDABLE_PKGS` in `f/nix/render_config.py`
+  and to the curated `source_overrides` form (render_config sidecar,
+  `f/nix/build.flow`, bringup via the generator). The generated
+  `lib.mkAfter` overlay does `prev.blktests.overrideAttrs (_: { src =
+  inputs.blktests-src; })` on top of the composed default overlay, so
+  the carried patch and build inputs survive a custom tree, and
+  `lock_config` re-locks `blktests-src` to branch tip on every build.
+  No `_PKG_SOURCE_ATTRS` entry needed (make-only build, no configure).
+
+Share: `/var/lib/blktests`, tag `blktests`, host side
+`$WORKERS_DIR/shared/blktests/<vm>/`. Contract:
+
+    <share>/config              rendered blktests config (bash)
+    <share>/<group>.env         BLKTESTS_ARGS for instance %i
+    <share>/<kver>/results/...  OUTPUT tree (TSV files + companions)
+    <share>/<kver>/report.json  report rollup
+
+## Layer 3: the flow (f/blktests/)
+
+`f/blktests/check.flow` composing verb steps, all on the fstests
+chassis (vsock-SSH remote, devshell runners, vm/vm-run tag split):
+
+1. `discover` (vm): gate `is-system-running`, the `blktests@` template,
+   `check` executable; enumerate devices and the installed group
+   catalog (`tests/*/rc` under the package path); capture
+   `uname -r`; refuse an empty enumeration; write the per-VM cache the
+   pickers read.
+2. `render_config` (vm): render `config` from the curated knobs (only
+   set what the user set; `TEST_DEVS=( ... )` array syntax), write
+   per-group `.env` files, optionally clean results, prune stale share
+   entries. When the gated raw-config override is set it replaces the
+   curated rendering wholesale, fstests-style.
+3. Sequential `forloopflow` over selected groups, `skip_failures:
+   true` (per the RST; note fstests still carries `false`):
+   `wipe` (vm, only when TEST_DEVS were chosen and wipe_devices is on)
+   -> `start` (vm) -> `wait` (vm-run) -> `collect` (vm).
+   - `start`: run identity first: remove `<kver>/results/*/<group>`
+     subtrees so anything present afterwards is this run's; then
+     `systemctl start --no-block blktests@<group>`.
+   - `wait`: poll unit properties to terminal state, host
+     `qemu-system@<vm>` liveness as the death authority, stream the
+     merged unit+kernel journal (the kmsg `run blktests <test>`
+     markers make the job log a live per-test view), stop on deadline.
+   - `collect`: walk the group's result TSVs; a group is `passed` only
+     if the unit finished, at least one result file exists, no file
+     says `fail`, and neither `crashed` nor `timed_out` is set.
+     Zero files is `notrun` and never a pass (this catches the
+     upstream group_requires exit-0 vacuous pass). Scrape skip reasons
+     and the group_requires line from the journal as row annotations
+     (they exist nowhere else). Rows carry group, devdir/condition
+     variant, test, status, reason, runtime, failures first.
+4. `report` (vm): `render_all` as the sole key (run info, one row per
+   group, one row per test), atomic `report.json` write.
+5. `annotate` (vm): `f/monitoring/annotate` with suite `blktests`.
+6. `judge` (vm): shared `run_status` in `f/blktests/common.py`.
+7. `failure_module` `stop` (vm): stop + reset-failed every selected
+   `blktests@<group>`, and stop lingering `blktests-*.scope` units
+   (scope processes live outside the service cgroup, so a unit stop
+   alone can orphan a scoped test); idempotent, never fails.
+
+`common.py` holds: share paths (kver-keyed, traversal-hardened), the
+static curated group catalog (15 groups, descriptions from each rc,
+test counts), the config renderer, `build_check_args` (positional
+list; enforce the groups-versus-tests exclusivity `check` does not),
+the seqres TSV parser, the results-tree walker, `run_status`.
+`selfcheck.py` arms `selfcheck.check("blktests", "per_group",
+"group")`.
+
+## The UI: one-to-one knobs
+
+Knob names are blktests' own keywords; schema `title:` fixes casing
+(NVMe, RDMA, TCP). No invented abstractions.
+
+| Form knob | blktests interface |
+|---|---|
+| `vm_name` | (ours) dynselect-list_vms |
+| `test_selection` groups\|tests | positional args |
+| `groups` | positional group list; dynmultiselect from discover cache, static catalog fallback; default = all except `meta` (upstream default) |
+| `tests` | positional `group/nnn` list |
+| `exclude` | `EXCLUDE` (exact group or group/nnn; note no globs) |
+| `test_devs` | `TEST_DEVS` (dynmultiselect from discovered devices; default empty = nodev run; destructive, pairs with `wipe_devices`) |
+| `device_only` | `DEVICE_ONLY` |
+| `quick_run` | `QUICK_RUN` |
+| `timeout` | `TIMEOUT` (advisory upstream; enforced only via our watchdog knobs) |
+| `run_zoned_tests` | `RUN_ZONED_TESTS` |
+| `normal_user` | `NORMAL_USER` (default: the module's `blktests` user) |
+| `nvmet_trtypes` | `NVMET_TRTYPES` multiselect loop/tcp/rdma/fc (default loop) |
+| `nvmet_blkdev_types` | `NVMET_BLKDEV_TYPES` multiselect device/file |
+| `nvme_img_size` | `NVME_IMG_SIZE` |
+| `nvme_num_iter` | `NVME_NUM_ITER` |
+| `use_rxe` | `USE_RXE` (off = siw; rnbd requires on) |
+| `throtl_blkdev_types` | `THROTL_BLKDEV_TYPES` |
+| `edit_config` + `config` | gated raw config replacing the form |
+| Service group | `timeout` 86400, `poll_interval` 15, `stream_logs`, `test_timeout`/`test_timeouts` (the patch's TEST_TIMEOUT/TEST_TIMEOUTS), `reboot_timeout` |
+
+Advanced/deferred knobs: `TEST_CASE_DEV_ARRAY` (md/003, bcache, zbd
+arrays; an advanced object knob or raw-config-only at first),
+`NVME_TARGET_CONTROL`, `KERNELSRC` (nvme/056 needs a kernel source
+tree on the guest; excluded with reason).
+
+## Registration and wiring checklist
+
+- `f/nix/render_config.py`: share auto-add
+  (`"blktests" in test_suites` -> `/var/lib/blktests`, tag
+  `blktests`); `_OVERRIDABLE_PKGS` += blktests.
+- `f/qsu/common.py`: `CANONICAL_SHARE_TAGS` += `blktests`; `_shares()`
+  branch for `$WORKERS_DIR/shared/blktests/<vm>`.
+- `f/qsu/bringup.flow` flags expression: add the blktests include line
+  (via `scripts/gen-bringup.py` where generated; the source_overrides
+  and closure schema changes flow through the generator, then
+  `python3 scripts/gen-bringup.py` and the `generated` check).
+- `nix/apps/default.nix`: new `f/blktests/**` objects join the
+  `stagingOnlyPrune` list until promoted (ADR 0012).
+- Deploy mechanics: after any `vendor/` edit run
+  `nix run .#windmill-install`; publish `f/**` with
+  `nix run .#deploy-staging` (never a bare push to kdevops); promotion
+  is deleting the prune lines.
+
+## Tests and gates
+
+- `tests/test_blktests_common.py`: seqres TSV parse (pass/fail/notrun,
+  reason, runtime, custom keys), missing/truncated file degradation,
+  results-tree walk with devdir/condition fan-out, config renderer
+  (array syntax, only-set-what-is-set, raw override verbatim),
+  positional builder exclusivity, `run_status` refuses vacuous runs,
+  path traversal guards, catalog ordering.
+- `scripts/preview-smoke.py` SUITES += `("blktests",
+  "f/blktests/check.flow", "per_group", "group")`.
+- Vendored gates: `nix flake check` in `vendor/nixos-flake` (the
+  imageless-blktests check now pulls the package + unit),
+  `verify_config.sh` in the fragments project; repo gates
+  `nix flake check` + `scripts/check-style.sh`.
+- Commit series is atomic per tree and layer, each vendored project
+  under its own message rules (50-char subjects in nixos-flake).
+
+## Layer 4: documentation
+
+`docs/flows/blktests.rst`, staged `:orphan:` in `docs/staging.rst`,
+UI-first, mirroring `docs/flows/fstests.rst`'s heading arc: run form;
+devices (nodev groups create their own null_blk/scsi_debug/nvme-loop
+devices; `TEST_DEVS` runs are destructive); blktests owns device
+setup; service units to query (`blktests@<group>.service`,
+`blktests-<group>-<nnn>.scope`); querying status and logs; where the
+run lives on the guest (the share contract); running a group by hand;
+restarting a hung test (watchdog knobs). Shared guest content links to
+`docs/flows/guests.rst`. `cmd_links` additions: `blktests`,
+`nbd-server`, `blkzone`, `tlshd` as needed; `:src:` on our unit and
+flow sources. Update `docs/roadmap.rst` (blktests moves out of
+planned) on promotion.
+
+## Phasing to full coverage
+
+Phase 0, guest foundation: package + patch, module extension (unit,
+share, state dir, user, tools), share wiring in f/nix + f/qsu,
+fragments for throtl/ublk + nvme-fabrics into defaults, kernel + VM
+rebuild. Exit: `systemctl --host <vm> start blktests@loop` by hand is
+green with results on the share.
+
+Phase 1, flow MVP on device-free groups: full step chain + docs draft;
+live-validate loop, nbd, block (nodev), throtl, blktrace, ublk, nvme
+on loop+tcp transports; negative paths (hung test bounded by wait,
+group-requires skip is a red judge, killed VM is `crashed`). Exit: the
+RST's definition of done for these groups, tables and journal
+streaming verified.
+
+Phase 2, device runs: `TEST_DEVS` picker + wipe on the VM's spare NVMe
+disks, `DEVICE_ONLY`, zbd (zoned null_blk fallback plus a real zoned
+null_blk TEST_DEV), scsi via a scsi_debug or virtio-scsi TEST_DEV
+(the SCSI target stack is already enabled in the imageless kernel),
+dm, md (single-dev tests), meta as an opt-in integration selfcheck.
+
+Phase 3, the long tail: `TEST_CASE_DEV_ARRAY` (md/003, bcache with
+bcache-tools + BCACHE_DEBUG, zbd arrays), srp (fragment + multipathd
+constraints), rnbd (fragment + USE_RXE), nvme rdma + fc transports,
+nvme auth/TLS (tlshd service), watchdog patch live-fire and upstream
+submission, rublk as an alternative `UBLK_PROG`.
+
+Phase 4, promotion: fixture/preview/selfcheck complete, docs page out
+of staging, prune lines deleted (staging -> kdevops), roadmap updated,
+memory + handoff notes refreshed.
+
+## Honest exclusions (recorded, not silent)
+
+- `nvme/056`: needs `KERNELSRC`, the ynl CLI, and `CONFIG_ULP_DDP`
+  (not in mainline); excluded with reason.
+- `meta` group stays out of the default set (upstream's own default);
+  it runs on request and in integration selfchecks.
+- Tests that skip for missing hardware (real SCSI, large NVMe) stay
+  visible as `not run` rows with journal-scraped reasons, never
+  dropped from the report.
