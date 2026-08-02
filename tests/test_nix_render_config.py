@@ -48,7 +48,7 @@ def test_the_curated_registries_hold_their_shape():
     suites = render_config._TEST_SUITES
     assert suites == sorted(suites)
     assert len(suites) == len(set(suites))
-    assert {"fstests", "selftests", "usertests"} <= set(suites)
+    assert {"blktests", "fstests", "selftests", "usertests"} <= set(suites)
     assert render_config._FEATURED_TEST_SUITES == suites
     assert render_config._FEATURED_TEST_SUITES is not suites
     profiles = render_config._PROFILES
@@ -180,6 +180,7 @@ def test_main_renders_the_featured_defaults(env):
     assert (
         'nixos-flake.shares."/var/lib/usertests" = { tag = "usertests"; };' in default
     )
+    assert 'nixos-flake.shares."/var/lib/blktests" = { tag = "blktests"; };' in default
     assert "authorizedKeys" not in default
     assert out["vm_name"] == "nixos"
 
@@ -354,6 +355,26 @@ def test_source_overrides_emits_only_filled_curated_packages(env):
     )
     assert "fio-src" not in flake
     assert "spdk" not in default
+
+
+def test_a_blktests_override_keeps_the_recipe_and_swaps_only_src(env):
+    # blktests is a custom nixos-flake package carrying the scope patch; the
+    # override overlay swaps only src, so the patch still applies to the tree.
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=["blktests"],
+        source_overrides={"blktests": {"src": "/home/me/blktests"}},
+    )
+    flake = Path(out["flake"]).read_text()
+    default = Path(out["default"]).read_text()
+    assert "    blktests-src = {" in flake
+    assert '      path = "/home/me/blktests";' in flake
+    assert (
+        "blktests = prev.blktests.overrideAttrs (_: { src = inputs.blktests-src; });"
+        in default
+    )
+    assert 'nixos-flake.shares."/var/lib/blktests" = { tag = "blktests"; };' in default
 
 
 def test_an_extra_override_takes_any_git_package(env):

@@ -77,6 +77,7 @@ schema:
         - xfsprogs
         - fio
         - libbpf-tools
+        - blktests
       properties:
         xfstests:
           type: object
@@ -138,6 +139,21 @@ schema:
               type: string
               default: ''
               title: libbpf-tools Ref (git)
+        blktests:
+          type: object
+          title: blktests
+          order:
+            - src
+            - ref
+          properties:
+            src:
+              type: string
+              default: ''
+              title: blktests Source
+            ref:
+              type: string
+              default: ''
+              title: blktests Ref (git)
       title: Package source overrides
     profiles:
       type: array

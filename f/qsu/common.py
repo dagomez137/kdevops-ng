@@ -35,6 +35,7 @@ CANONICAL_SHARE_TAGS = [
     "fstests",
     "selftests",
     "usertests",
+    "blktests",
     "home",
     "controller-share",
 ]
@@ -245,6 +246,20 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
             raise ValueError(f"usertests share needs a valid vm_name, got {vm!r}")
         shares.append(
             {"tag": "usertests", "dir": str(udir), "mount": "/var/lib/usertests"}
+        )
+    # Predefined `blktests` share, the fstests analog: a writable per-VM dir the
+    # blktests suite reads its config from and writes results to. Added when the
+    # guest runs the blktests suite (`fi["blktests"]`, derived from the closure's
+    # test_suites; render_config declares the matching /var/lib/blktests mount).
+    # Host dir: $WORKERS_DIR/shared/blktests/<vm>.
+    if fi.get("blktests"):
+        vm = fi.get("vm_name") or ""
+        root = _workers() / "shared/blktests"
+        bdir = (root / vm).resolve()
+        if not vm or root.resolve() not in bdir.parents:
+            raise ValueError(f"blktests share needs a valid vm_name, got {vm!r}")
+        shares.append(
+            {"tag": "blktests", "dir": str(bdir), "mount": "/var/lib/blktests"}
         )
     # Predefined `home` share: the operator's host home shared into the guest at the
     # SAME absolute path (so host/guest paths match). Toggled by `fi["home_share"]`;

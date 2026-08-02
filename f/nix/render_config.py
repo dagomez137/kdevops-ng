@@ -44,11 +44,11 @@ _TEST_SUITES = [
 ]
 
 # Packages whose nixos-flake recipe a src override composes with, build-verified
-# from a git checkout, scoped to the fstests focus: fio, xfstests and xfsprogs
-# (overlays) and libbpf-tools (custom pkg, src from iovisor/bcc). Packages for other
-# suites (spdk, xnvme, nfstest, pynfs, ...) join as verified. The advanced
-# `extra_overrides` takes any other nixpkgs package.
-_OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools"]
+# from a git checkout: fio, xfstests and xfsprogs (overlays), libbpf-tools (custom
+# pkg, src from iovisor/bcc), and blktests (custom pkg, carries the scope patch).
+# Packages for other suites (spdk, xnvme, nfstest, pynfs, ...) join as verified.
+# The advanced `extra_overrides` takes any other nixpkgs package.
+_OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools", "blktests"]
 
 # nixpkgs builds these from a release tarball that ships a prepared `./configure`; a
 # raw source tree (a path or git override) has none, so xfsprogs needs its own
@@ -186,6 +186,9 @@ def main(
     #  - usertests: auto whenever the closure runs the usertests suite.
     if "usertests" in test_suites:
         shares.setdefault("/var/lib/usertests", {"tag": "usertests"})
+    #  - blktests: auto whenever the closure runs the blktests suite.
+    if "blktests" in test_suites:
+        shares.setdefault("/var/lib/blktests", {"tag": "blktests"})
     #  - home: the operator's host home (tag `home`, served once by qsu) mounted at
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
     #    in your home (writable via the root->operator virtiofsd uid-map, with no extra

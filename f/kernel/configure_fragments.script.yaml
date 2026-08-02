@@ -80,8 +80,10 @@ schema:
         - storage/dm-targets.config
         - storage/md-raid.config
         - storage/nvme.config
+        - storage/nvme-fabrics.config
         - storage/zoned.config
         - storage/scsi-debug.config
+        - storage/ublk.config
         - virt/virtio-net.config
         - virt/virtio-fs.config
         - virt/virtio-extras.config
@@ -128,6 +130,7 @@ schema:
           - builtin/storage/md-raid.config
           - builtin/storage/nvme.config
           - builtin/storage/nvme-fabrics.config
+          - builtin/storage/ublk.config
           - builtin/virt/kvm.config
           - builtin/virt/virtio-fs.config
           - builtin/virt/virtio-net.config
@@ -205,6 +208,7 @@ schema:
           - storage/nvme-fabrics.config
           - storage/nvme-tls.config
           - storage/scsi-debug.config
+          - storage/ublk.config
           - storage/zoned.config
           - test/kunit.config
           - test/modules-testing.config

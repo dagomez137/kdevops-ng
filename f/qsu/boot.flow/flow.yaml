@@ -74,6 +74,9 @@ value:
           auto_vm_name:
             type: javascript
             expr: flow_input.vm?.auto_vm_name
+          blktests:
+            type: javascript
+            expr: flow_input.sharing?.blktests
           closure:
             type: javascript
             expr: flow_input.kernel_boot?.closure

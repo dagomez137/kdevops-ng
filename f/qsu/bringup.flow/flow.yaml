@@ -124,7 +124,7 @@ value:
           expr: '({...flow_input.boot_qemu, qemu_source: (flow_input.qemu?.mode === "build" || flow_input.qemu?.mode === "reuse") ? "qemu-build" : "nixpkgs", qemu_binary: flow_input.qemu?.mode === "build" ? results.build_qemu?.qemu_binary : (flow_input.qemu?.mode === "reuse" ? results.resolve?.qemu_binary : null)})'
         sharing:
           type: javascript
-          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), usertests: (flow_input.closure?.closure?.test_suites || []).includes("usertests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
+          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), usertests: (flow_input.closure?.closure?.test_suites || []).includes("usertests"), blktests: (flow_input.closure?.closure?.test_suites || []).includes("blktests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
         kernel_boot:
           type: javascript
           expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_parameters: flow_input.boot_kernel?.kernel_parameters})'
@@ -399,8 +399,10 @@ schema:
               - storage/dm-targets.config
               - storage/md-raid.config
               - storage/nvme.config
+              - storage/nvme-fabrics.config
               - storage/zoned.config
               - storage/scsi-debug.config
+              - storage/ublk.config
               - virt/virtio-net.config
               - virt/virtio-fs.config
               - virt/virtio-extras.config
@@ -447,6 +449,7 @@ schema:
                 - builtin/storage/md-raid.config
                 - builtin/storage/nvme.config
                 - builtin/storage/nvme-fabrics.config
+                - builtin/storage/ublk.config
                 - builtin/virt/kvm.config
                 - builtin/virt/virtio-fs.config
                 - builtin/virt/virtio-net.config
@@ -524,6 +527,7 @@ schema:
                 - storage/nvme-fabrics.config
                 - storage/nvme-tls.config
                 - storage/scsi-debug.config
+                - storage/ublk.config
                 - storage/zoned.config
                 - test/kunit.config
                 - test/modules-testing.config
@@ -960,6 +964,7 @@ schema:
               - xfsprogs
               - fio
               - libbpf-tools
+              - blktests
               properties:
                 xfstests:
                   type: object
@@ -1021,6 +1026,21 @@ schema:
                       type: string
                       default: ''
                       title: libbpf-tools Ref (git)
+                blktests:
+                  type: object
+                  title: blktests
+                  order:
+                  - src
+                  - ref
+                  properties:
+                    src:
+                      type: string
+                      default: ''
+                      title: blktests Source
+                    ref:
+                      type: string
+                      default: ''
+                      title: blktests Ref (git)
             profiles:
               type: array
               description: 'nixos-flake profile modules to import (fully featured by default;

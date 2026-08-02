@@ -193,6 +193,7 @@ def test_shares_explicit_list_replaces_everything(monkeypatch):
         ("fstests", "fstests", "/var/lib/xfstests"),
         ("selftests", "selftests", "/var/lib/kselftests"),
         ("usertests", "usertests", "/var/lib/usertests"),
+        ("blktests", "blktests", "/var/lib/blktests"),
     ],
 )
 def test_shares_suite_dirs_are_per_vm_under_workers(
@@ -205,7 +206,7 @@ def test_shares_suite_dirs_are_per_vm_under_workers(
     assert {"tag": tag, "dir": expect, "mount": mount} in shares
 
 
-@pytest.mark.parametrize("knob", ["fstests", "selftests", "usertests"])
+@pytest.mark.parametrize("knob", ["fstests", "selftests", "usertests", "blktests"])
 def test_shares_suite_without_a_vm_name_raises(monkeypatch, tmp_path, knob):
     _clear_env(monkeypatch)
     monkeypatch.setenv("WORKERS_DIR", str(tmp_path))
@@ -270,6 +271,7 @@ def test_predefined_share_tags_stay_within_the_canonical_set(monkeypatch, tmp_pa
         "fstests": True,
         "selftests": True,
         "usertests": True,
+        "blktests": True,
         "home_share": True,
         "controller_share": True,
     }
