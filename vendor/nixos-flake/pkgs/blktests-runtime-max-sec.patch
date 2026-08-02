@@ -1,0 +1,125 @@
+From 79b768773ed1a8f90600686bec948f15e2116cf7 Mon Sep 17 00:00:00 2001
+From: Daniel Gomez <da.gomez@kernel.org>
+Date: Sun, 2 Aug 2026 21:01:48 +0200
+Subject: [PATCH] check: run each test in a transient scope with a
+ RuntimeMaxSec bound
+
+A test that hangs (a livelock, or a process wedged in uninterruptible
+sleep) blocks the whole run indefinitely, because the advisory TIMEOUT
+only limits tests that choose to honor it and nothing bounds a test
+from the outside. There is also no way to observe which test is in
+flight, or to kill one surgically, short of picking apart the process
+tree by hand.
+
+When systemd is running, move each test's runner subshell into its own
+transient scope named after the test (blktests-<group>-<nnn>.scope).
+The scope is created over the bus with StartTransientUnit rather than
+systemd-run because the test body is a shell function sharing state
+with the runner: it cannot be re-executed as a child command, so the
+running subshell enrolls itself instead. StartTransientUnit only
+queues the job, so the runner waits for the cgroup migration before
+sourcing the test; processes forked earlier would escape the scope.
+
+The scope's RuntimeMaxSec comes from a timeout the operator can
+configure: the global TEST_TIMEOUT (seconds) applies to every test,
+and a per-test entry in TEST_TIMEOUTS ("group/nnn:seconds", space
+separated) overrides it; 0 or unset arms no limit and the scope only
+provides observability. Unlike TIMEOUT this is a hard deadline: when
+it expires systemd sends SIGTERM to everything in the scope, the
+test's processes die, and the runner, which handles the signal, stays
+alive to record the failure and let the run carry on. A process that
+survives SIGTERM is SIGKILLed by systemd's regular escalation, taking
+the runner with it, which a caller observes as a test with no result.
+
+A timed-out scope stays loaded in the failed state, so the runner
+resets the unit before starting it and falls back to an unscoped run
+if the scope cannot be created, keeping non-systemd systems working
+unchanged.
+
+Generated-by: Claude AI
+Signed-off-by: Daniel Gomez <da.gomez@kernel.org>
+---
+ check | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)
+
+diff --git a/check b/check
+index 61524a5..8be4273 100755
+--- a/check
++++ b/check
+@@ -860,6 +860,64 @@ _check_and_call_test_device_array() {
+ 	return $ret
+ }
+ 
++# Look up the hard per-test deadline: a "group/nnn:seconds" entry in
++# TEST_TIMEOUTS wins over the global TEST_TIMEOUT. Unlike the advisory
++# TIMEOUT, these bound the test from outside.
++_scope_runtime_max() {
++	local entry
++
++	for entry in ${TEST_TIMEOUTS:-}; do
++		if [[ ${entry%%:*} == "$TEST_NAME" ]]; then
++			echo "${entry##*:}"
++			return
++		fi
++	done
++	echo "${TEST_TIMEOUT:-0}"
++}
++
++# Move the running test into its own transient systemd scope, so an
++# external monitor can watch the in-flight test by unit name and a hung
++# test can be killed surgically (systemctl kill), automatically when a
++# TEST_TIMEOUT/TEST_TIMEOUTS deadline arms RuntimeMaxSec. Best-effort:
++# without systemd or without bus access the run is simply unscoped.
++_scope_enter() {
++	local unit="blktests-${TEST_NAME//\//-}.scope"
++	local -a props=(PIDs au 1 "$BASHPID" Description s "blktests $TEST_NAME")
++	local nprops=2 max i
++
++	[[ -d /run/systemd/system ]] || return 0
++	command -v busctl >/dev/null || return 0
++
++	max=$(_scope_runtime_max)
++	if [[ $max =~ ^[0-9]+$ ]] && ((max > 0)); then
++		props+=(RuntimeMaxUSec t $((max * 1000000)))
++		nprops=3
++	fi
++
++	# A previous timed-out run leaves the unit in the failed state,
++	# which would make starting the same name fail.
++	busctl call --quiet org.freedesktop.systemd1 \
++		/org/freedesktop/systemd1 org.freedesktop.systemd1.Manager \
++		ResetFailedUnit s "$unit" &>/dev/null
++	busctl call --quiet org.freedesktop.systemd1 \
++		/org/freedesktop/systemd1 org.freedesktop.systemd1.Manager \
++		StartTransientUnit 'ssa(sv)a(sa(sv))' "$unit" fail \
++		"$nprops" "${props[@]}" 0 2>/dev/null || return 0
++
++	# StartTransientUnit only queues the job; wait for the cgroup
++	# migration, or processes forked before it escape the scope.
++	for ((i = 0; i < 100; i++)); do
++		grep -q "$unit" "/proc/$BASHPID/cgroup" && break
++		sleep 0.01
++	done
++
++	# When the scope is stopped, everything in it gets SIGTERM. The
++	# test's processes die with it; handling the signal here keeps the
++	# runner alive to record the failed test before systemd's final
++	# SIGKILL escalation.
++	trap 'echo "${TEST_NAME}: killed by scope watchdog" >&2' TERM
++}
++
+ _run_test() {
+ 	TEST_NAME="$1"
+ 	CAN_BE_ZONED=0
+@@ -876,6 +934,8 @@ _run_test() {
+ 	# runs to suppress job status output.
+ 	set +m
+ 
++	_scope_enter
++
+ 	# shellcheck disable=SC1090
+ 	. "tests/${TEST_NAME}"
+ 
+-- 
+2.53.0
+

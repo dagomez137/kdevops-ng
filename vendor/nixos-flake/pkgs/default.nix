@@ -12,6 +12,7 @@
 #
 # Reference: https://nix.dev/tutorials/callpackage
 pkgs: {
+  blktests = pkgs.callPackage ./blktests.nix { };
   cpupower = pkgs.callPackage ./cpupower.nix { };
   damo = pkgs.callPackage ./damo.nix { };
   ebpf_exporter = pkgs.callPackage ./ebpf_exporter.nix { };

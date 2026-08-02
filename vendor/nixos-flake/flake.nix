@@ -112,6 +112,7 @@
       # built without going through a NixOS configuration.
       packages = forAllSystems (pkgs: {
         inherit (pkgs)
+          blktests
           cpupower
           damo
           ebpf_exporter
