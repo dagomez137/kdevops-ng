@@ -148,7 +148,7 @@ _TEST_NAME_RE = re.compile(r"^([a-zA-Z0-9_-]+)/([0-9]{3})$")
 def build_args(
     test_selection: str = "groups",
     groups: list[str] | None = None,
-    tests: str = "",
+    tests: str | list | None = "",
 ) -> dict[str, str]:
     """Compose the per-group `BLKTESTS_ARGS` positionals, one entry per
     `blktests@<group>.service` instance: `{"<group>": "<positionals>"}`.
@@ -164,7 +164,10 @@ def build_args(
     group or test name raises rather than silently running nothing.
     """
     if test_selection == "tests":
-        names = (tests or "").split()
+        if isinstance(tests, str):
+            names = (tests or "").split()
+        else:
+            names = [t for t in (tests or []) if t]
         if not names:
             raise ValueError("tests mode selected but no tests given")
         out: dict[str, list[str]] = {}
@@ -394,13 +397,26 @@ def run_status(per_group: list[dict]) -> str:
 
 
 def groups_cache(vm_name: str, workers: Path | None = None) -> Path:
-    """Per-VM cache of the guest's installed blktests group names.
+    """Per-VM cache of the guest's installed blktests enumeration.
 
-    `f/blktests/discover` writes the `tests/*/rc` enumeration here; the run
-    form's `list_groups` picker reads it, since a form dynselect cannot reach
-    the guest over vsock.
+    `f/blktests/discover` writes `{groups, tests, devices}` here; the run
+    form's pickers read it, since a form dynselect cannot reach the guest
+    over vsock.
     """
     return share_dir(vm_name, workers) / "groups.json"
+
+
+def _cache(vm_name: str) -> dict:
+    vm = (vm_name or "").strip()
+    if not vm:
+        return {}
+    try:
+        data = json.loads(groups_cache(vm).read_text())
+    except Exception:
+        return {}
+    if isinstance(data, list):
+        return {"groups": data}
+    return data if isinstance(data, dict) else {}
 
 
 def _cached_names(cache: Path) -> list[str]:
@@ -408,7 +424,100 @@ def _cached_names(cache: Path) -> list[str]:
         data = json.loads(cache.read_text())
     except Exception:
         return []
+    if isinstance(data, dict):
+        data = data.get("groups") or []
     return [g for g in data if isinstance(g, str) and g]
+
+
+# Static fallback of the upstream test numbers per group (first, last,
+# missing), a snapshot of the pinned package so the Tests and Exclude
+# pickers are never an empty box; the per-VM cache discover writes wins
+# after the first discovery.
+_TEST_RANGES: dict[str, tuple[int, int, tuple[int, ...]]] = {
+    "bcache": (1, 1, ()),
+    "blktrace": (1, 2, ()),
+    "block": (1, 46, (13, 26)),
+    "dm": (1, 3, ()),
+    "loop": (1, 13, ()),
+    "md": (1, 4, ()),
+    "meta": (1, 24, ()),
+    "nbd": (1, 4, ()),
+    "nvme": (2, 69, (7, 9, 11, 13, 15, 20, 24)),
+    "rnbd": (1, 2, ()),
+    "scsi": (1, 11, (3,)),
+    "srp": (1, 16, (15,)),
+    "throtl": (1, 8, ()),
+    "ublk": (1, 6, ()),
+    "zbd": (1, 14, ()),
+}
+
+
+def catalog_tests() -> list[str]:
+    """Every upstream test name (`group/nnn`), in catalog group order."""
+    out: list[str] = []
+    for g in group_names():
+        first, last, missing = _TEST_RANGES.get(g, (0, -1, ()))
+        out += [f"{g}/{n:03d}" for n in range(first, last + 1) if n not in missing]
+    return out
+
+
+# The qsu data disks every bringup guest carries; the safe pre-discovery
+# fallback for the Test Devs picker (the guest's root is tmpfs and its
+# store is virtiofs, so on these guests the NVMe disks exist only for
+# testing).
+_FALLBACK_DEVICES = [f"/dev/nvme{i}n1" for i in range(5)]
+
+
+def _pick(entries: list[dict], filterText: str) -> list[dict]:
+    needle = (filterText or "").lower()
+    return [
+        e
+        for e in entries
+        if needle in e["value"].lower() or needle in e["label"].lower()
+    ]
+
+
+def list_tests(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_tests` entrypoint: the guest's individual tests.
+
+    Reads the per-VM cache `f/blktests/discover` writes; before the first
+    discovery it falls back to the static catalog snapshot. Never raises.
+    """
+    tests = [t for t in _cache(vm_name).get("tests") or [] if isinstance(t, str)]
+    names = tests or catalog_tests()
+    return _pick([{"value": t, "label": t} for t in names], filterText)
+
+
+def list_devices(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_devices` entrypoint for `TEST_DEVS`: the guest's
+    NVMe data disks, labeled with their size from discover's enumeration;
+    before the first discovery, the canonical qsu data-disk paths. Never
+    raises."""
+    devs = [d for d in _cache(vm_name).get("devices") or [] if isinstance(d, dict)]
+    if devs:
+        entries = [
+            {
+                "value": d.get("name", ""),
+                "label": f"{d.get('name', '')} ({d.get('size', '?')})",
+            }
+            for d in devs
+            if d.get("name")
+        ]
+    else:
+        entries = [
+            {"value": n, "label": f"{n} (qsu data disk)"} for n in _FALLBACK_DEVICES
+        ]
+    return _pick(entries, filterText)
+
+
+def list_exclude(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_exclude` entrypoint for `EXCLUDE`: whole groups
+    first (labeled from the catalog), then every individual test, matching
+    the two forms upstream accepts (exact `group` or `group/nnn`). Never
+    raises."""
+    labels = {g["name"]: f"{g['name']}: whole group" for g in GROUPS}
+    groups = [{"value": n, "label": labels[n]} for n in group_names()]
+    return _pick(groups, filterText) + list_tests(vm_name, filterText)
 
 
 def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:

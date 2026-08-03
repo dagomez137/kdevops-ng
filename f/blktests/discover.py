@@ -82,6 +82,18 @@ def _groups(remote: RemoteSystemd, package_dir: str) -> list[str]:
     )
 
 
+def _tests(remote: RemoteSystemd, package_dir: str) -> list[str]:
+    """The installed individual tests (`group/nnn`), for the form's pickers."""
+    script = f"ls {package_dir}/tests/*/[0-9][0-9][0-9]"
+    out = remote.ssh("sh", "-c", script, check=False) or ""
+    prefix = f"{package_dir}/tests/"
+    return sorted(
+        p.removeprefix(prefix)
+        for p in out.split()
+        if p.startswith(prefix) and p.split("/")[-1].isdigit()
+    )
+
+
 def _devices(remote: RemoteSystemd) -> list[dict]:
     """The guest's NVMe data disks (`/dev/nvme*n1`) as `{name, size, log_sec}`, file order.
 
@@ -156,11 +168,18 @@ def main(vm_name: str) -> dict:
             f"{vm_name}: no test groups under {package_dir}/tests: the packaged "
             f"blktests ships nothing to run; a run would silently test nothing"
         )
-    cache = groups_cache(vm_name)
-    _atomic_write(cache, json.dumps(groups) + "\n")
-    print(f"+ wrote {cache} ({len(groups)} groups for the run form)", flush=True)
-
+    tests = _tests(remote, package_dir)
     devices = _devices(remote)
+    cache = groups_cache(vm_name)
+    _atomic_write(
+        cache,
+        json.dumps({"groups": groups, "tests": tests, "devices": devices}) + "\n",
+    )
+    print(
+        f"+ wrote {cache} ({len(groups)} groups, {len(tests)} tests, "
+        f"{len(devices)} devices for the run form's pickers)",
+        flush=True,
+    )
     if not devices:
         print("note: 0 NVMe data disks; a TEST_DEVS run needs at least one", flush=True)
     kernel_version = _kernel_release(remote)

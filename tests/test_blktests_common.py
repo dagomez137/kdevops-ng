@@ -151,6 +151,39 @@ def test_build_args_groups_mode_one_positional_per_group():
     assert "meta" not in got
 
 
+def test_build_args_tests_mode_accepts_a_list():
+    got = build_args("tests", None, ["block/002", "nvme/010", "block/005"])
+    assert got == {"block": "block/002 block/005", "nvme": "nvme/010"}
+
+
+def test_the_picker_catalog_and_fallbacks_hold_their_shape():
+    from f.blktests import common
+
+    tests = common.catalog_tests()
+    assert len(tests) == 211
+    assert tests[0].startswith("block/") and all("/" in t for t in tests)
+    devs = common.list_devices("")
+    assert [d["value"] for d in devs] == [f"/dev/nvme{i}n1" for i in range(5)]
+    excl = common.list_exclude("")
+    assert excl[0]["value"] == "block" and len(excl) == 15 + 211
+
+
+def test_pickers_read_the_discover_cache(monkeypatch, tmp_path):
+    from f.blktests import common
+
+    monkeypatch.setenv("WORKERS_DIR", str(tmp_path))
+    cache = common.groups_cache("demo")
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        '{"groups": ["loop"], "tests": ["loop/001"], '
+        '"devices": [{"name": "/dev/nvme2n1", "size": "10G"}]}'
+    )
+    assert [g["value"] for g in common.list_groups("demo")] == ["loop"]
+    assert [t["value"] for t in common.list_tests("demo")] == ["loop/001"]
+    devs = common.list_devices("demo")
+    assert devs == [{"value": "/dev/nvme2n1", "label": "/dev/nvme2n1 (10G)"}]
+
+
 def test_build_args_tests_mode_splits_per_group_and_ignores_groups():
     got = build_args("tests", ["loop"], "block/002 nvme/010 block/005")
     assert got == {"block": "block/002 block/005", "nvme": "nvme/010"}

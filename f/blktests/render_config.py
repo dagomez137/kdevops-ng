@@ -73,7 +73,7 @@ def main(
     kernel_version: str,
     test_selection: str = "groups",
     groups: list[str] | None = None,
-    tests: str = "",
+    tests: str | list | None = "",
     test_devs: list[str] | None = None,
     exclude: list[str] | None = None,
     device_only: bool = False,

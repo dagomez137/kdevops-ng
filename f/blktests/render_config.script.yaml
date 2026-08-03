@@ -197,13 +197,15 @@ schema:
       default: {}
       title: Per-test Timeout Overrides
     tests:
-      type: string
+      type: array
       description: |-
-        Explicit tests to run, space-separated `group/nnn` names (e.g.
-        `block/002 block/005`); each test's group instance runs its own list.
+        Explicit tests to run, `group/nnn` names (a space-separated string is
+        also accepted); each test's group instance runs its own list.
         Explicit tests bypass EXCLUDE, DEVICE_ONLY, and QUICK_RUN, per
         upstream.
-      default: ''
+      default: []
+      items:
+        type: string
       title: Tests
     throtl_blkdev_types:
       type: array

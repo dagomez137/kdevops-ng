@@ -329,14 +329,14 @@ schema:
           default: false
           title: Edit Config
         exclude:
-          type: array
+          type: object
           description: |-
             blktests `EXCLUDE`: tests or groups to exclude (exact `group` or
-            `group/nnn` names, no globs; rendered as a bash array).
-            Explicitly named Tests bypass it.
+            `group/nnn` names, no globs; rendered as a bash array). The
+            dropdown offers whole groups first, then every individual test
+            from the guest's enumeration. Explicitly named Tests bypass it.
           default: []
-          items:
-            type: string
+          format: dynmultiselect-list_exclude
           showExpr: fields.test_selection === 'groups'
           title: EXCLUDE
         groups:
@@ -434,13 +434,15 @@ schema:
             - tests
           title: Test selection
         tests:
-          type: string
+          type: object
           description: |-
-            Explicit tests to run, space-separated `group/nnn` names (e.g.
-            `block/002 block/005`); each test's group instance runs its own
-            list. Explicit tests bypass EXCLUDE, DEVICE_ONLY, and QUICK_RUN,
-            per upstream.
-          default: ''
+            Explicit tests to run (`group/nnn` names); each test's group
+            instance runs its own list. The dropdown lists the guest's
+            installed tests from `discover`'s cache (the upstream catalog
+            before the first discovery). Explicit tests bypass EXCLUDE,
+            DEVICE_ONLY, and QUICK_RUN, per upstream.
+          default: []
+          format: dynmultiselect-list_tests
           showExpr: fields.test_selection === 'tests'
           title: Tests
         throtl_blkdev_types:
@@ -536,16 +538,16 @@ schema:
           title: Group Timeout
       title: Service
     test_devs:
-      type: array
+      type: object
       description: |-
-        blktests `TEST_DEVS`: block devices to run the device tests against
-        (e.g. `/dev/nvme1n1`; `discover` lists the guest's NVMe data disks).
-        DESTRUCTIVE: data on these devices is lost. Empty = the default
-        `nodev` run, where the groups create their own
+        blktests `TEST_DEVS`: block devices to run the device tests against.
+        The dropdown lists the guest's NVMe data disks with their sizes from
+        `discover`'s cache (the canonical qsu data-disk paths before the
+        first discovery). DESTRUCTIVE: data on these devices is lost. Empty
+        = the default `nodev` run, where the groups create their own
         null_blk/scsi_debug/nvme-loop devices.
       default: []
-      items:
-        type: string
+      format: dynmultiselect-list_devices
       title: TEST_DEVS
     vm_name:
       type: object
@@ -615,4 +617,39 @@ schema:
                 for name, desc in _FALLBACK
                 if needle in name.lower() or needle in desc.lower()
             ]
+
+
+    def list_tests(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The guest's installed tests (group/nnn) from the same per-VM cache;
+        # degrades to the shared module's static catalog snapshot. Never raises.
+        try:
+            from f.blktests.common import list_tests as _list_tests
+            return _list_tests(vm_name, filterText)
+        except Exception:
+            return []
+
+
+    def list_devices(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The guest's NVMe data disks with sizes from the per-VM cache; before
+        # the first discovery, the canonical qsu data-disk paths. Never raises.
+        try:
+            from f.blktests.common import list_devices as _list_devices
+            return _list_devices(vm_name, filterText)
+        except Exception:
+            needle = (filterText or "").lower()
+            return [
+                {"label": f"/dev/nvme{i}n1 (qsu data disk)", "value": f"/dev/nvme{i}n1"}
+                for i in range(5)
+                if needle in f"nvme{i}n1"
+            ]
+
+
+    def list_exclude(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # Whole groups first, then individual tests, the two forms EXCLUDE
+        # accepts. Never raises.
+        try:
+            from f.blktests.common import list_exclude as _list_exclude
+            return _list_exclude(vm_name, filterText)
+        except Exception:
+            return list_groups(vm_name, filterText)
   x-windmill-dyn-select-lang: python3
