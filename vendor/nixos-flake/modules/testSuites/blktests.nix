@@ -85,6 +85,12 @@ in
     description = "blktests unprivileged test user";
   };
 
+  # blktests gates many groups on kernel config symbols, read from
+  # /proc/config.gz; with IKCONFIG built as a module that file only
+  # exists once `configs` is loaded, and without it whole groups
+  # skip with "kernel config not found". Load it at boot.
+  boot.kernelModules = [ "configs" ];
+
   # mdadm assembles arrays with udev's help: its rules create the
   # /dev/md/<name> symlink an mdadm --create waits on, and without
   # them in the active ruleset the create times out and the md tests
