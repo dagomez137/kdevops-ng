@@ -111,6 +111,9 @@ cmd_links = {
     "git fetch": f"{_MAN7}/git-fetch.1.html",
     "qemu-img": "https://www.qemu.org/docs/master/tools/qemu-img.html",
     "virtiofsd": "https://gitlab.com/virtio-fs/virtiofsd",
+    "wipefs": f"{_MAN8}/wipefs.8.html",
+    "blkdiscard": f"{_MAN8}/blkdiscard.8.html",
+    "EnvironmentFile": f"{_SYSTEMD}/systemd.exec.html#EnvironmentFile=",
 }
 
 

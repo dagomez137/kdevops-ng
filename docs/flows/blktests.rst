@@ -18,8 +18,8 @@ The flow is thin and mirrors blktests/systemd vocabulary one-to-one:
 2. :src:`render_config <f/blktests/render_config>`: write the suite's one
    ``config`` file (blktests' own sourced configuration, every form knob a
    config variable under its upstream name) and, per selected group, its own
-   ``EnvironmentFile`` onto the host side of the share. The group names drive
-   the loop.
+   :cmd:`EnvironmentFile` onto the host side of the share. The group names
+   drive the loop.
 3. for each ``group`` in turn: :src:`wipe <f/blktests/wipe>` →
    :src:`start <f/blktests/start>` → :src:`wait <f/blktests/wait>` →
    :src:`collect <f/blktests/collect>`. ``start`` first removes the group's
@@ -40,15 +40,15 @@ Most of blktests brings its own devices: the ``loop``, ``nbd``, ``throtl``,
 files, NVMe fabrics targets or NBD servers as they run, so the zero-config
 run needs no test device at all.
 
-The **Test Devs** form field maps to blktests' ``TEST_DEVS`` config variable:
-real block devices (the guest's spare ``/dev/nvme*n1`` disks, as enumerated by
-``discover``) that the device-driven tests then run against, once per device.
-Those tests are **destructive** to the named devices, which is why the field
-is empty by default and pairs with the **Wipe Devices** knob (``wipefs`` and
-``blkdiscard`` before the run, exactly as the fstests flow wipes its disks).
-A test that needs a device while ``TEST_DEVS`` is empty is simply not run,
-blktests' own behavior. **Device Only** (``DEVICE_ONLY``) inverts the focus
-and runs only the device tests.
+The **TEST_DEVS** form field maps to blktests' config variable of the same
+name: real block devices (the guest's spare ``/dev/nvme*n1`` disks, as
+enumerated by ``discover``) that the device-driven tests then run against,
+once per device. Those tests are **destructive** to the named devices, which
+is why the field is empty by default and pairs with the **Wipe Devices** knob
+(:cmd:`wipefs` and :cmd:`blkdiscard` at the start of each group, exactly as
+the fstests flow wipes its disks). A test that needs a device while
+``TEST_DEVS`` is empty is simply not run, blktests' own behavior.
+**DEVICE_ONLY** inverts the focus and runs only the device tests.
 
 blktests owns device setup
 ==========================
@@ -57,10 +57,11 @@ The host never creates a null_blk instance, configures an nvmet target, or
 formats anything; ``./check`` and the test scripts do it all, and each test
 restores what it changed (module unloads, sysfs queue attributes, cgroup
 state) before the next one runs. The flow's only device mutation is the
-optional pre-run wipe of the ``TEST_DEVS`` disks.
+optional per-group wipe of the ``TEST_DEVS`` disks.
 
 On the guest each selected group runs as a ``blktests@<group>.service``
-template unit started with ``--no-block``, executing ``check`` for exactly
+template unit (:src:`vendor/nixos-flake/modules/testSuites/blktests.nix`)
+started with ``--no-block``, executing ``check`` for exactly
 that group with ``--config=/var/lib/blktests/config`` and
 ``--output=/var/lib/blktests/<kver>/results``. The unit sets
 :cmd:`TimeoutStartSec` to ``infinity``, so a group is never bounded by
@@ -102,7 +103,7 @@ the live group:
    :class: cmd-host
 
    $ systemctl --host <vm> list-units 'blktests@*'
-   $ systemctl --host <vm> list-units --type=scope    # blktests-<test>.scope
+   $ systemctl --host <vm> list-units --type=scope    # the per-test scopes
 
 The three properties the ``wait`` step polls to decide a group is done are
 ``Result``, ``ExecMainStatus`` and ``ActiveState``; read them the same way:
@@ -114,8 +115,8 @@ The three properties the ``wait`` step polls to decide a group is done are
        --property=Result --property=ExecMainStatus --property=ActiveState
 
 ``ActiveState=activating`` means the group is still running, ``inactive`` or
-``failed`` is terminal. Follow the live journal of a group, the same stream
-the job log shows:
+``failed`` is terminal. Follow the live unit journal of a group (the job log
+streams the same entries, merged with the kernel log):
 
 .. code-block:: console
    :class: cmd-host
@@ -148,7 +149,7 @@ the same name) are:
   ``NVMET_TRTYPES``, and the rest), so the file reads exactly like the
   ``config`` documented by blktests itself, plus the watchdog pair
   ``TEST_TIMEOUT``/``TEST_TIMEOUTS`` the carried patch reads. The gated
-  **Edit Config** override replaces the rendered file wholesale.
+  **Edit config** override replaces the rendered file wholesale.
 - ``<group>.env``: the unit's per-instance ``EnvironmentFile`` (read as
   ``%i.env``), also written by ``render_config``. It holds only
   ``BLKTESTS_ARGS``, the positional argument list ``check`` receives: the
@@ -158,8 +159,9 @@ the same name) are:
   ``<devdir>/<group>/<nnn>``, a small key/value record carrying ``status``
   (``pass``, ``fail`` or ``not run``), the failure ``reason`` (``output``,
   ``exit``, ``dmesg`` or ``kmemleak``) and the ``runtime``, beside its
-  ``.full`` log and, on failure, the ``.out.bad`` diff and ``.dmesg``
-  excerpt. ``<devdir>`` is ``nodev`` for self-contained tests, the device
+  ``.full`` log and, on failure, the ``.out.bad`` diff, ``.dmesg`` excerpt
+  or ``.kmemleak`` report. ``<devdir>`` is ``nodev`` for self-contained
+  tests, the device
   basename for ``TEST_DEVS`` tests, and grows a variant suffix when a test
   repeats per transport or backend (``nodev_tr_tcp_bd_file``), so one test
   number can yield several result rows.
