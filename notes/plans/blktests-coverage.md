@@ -476,6 +476,34 @@ over):
   for triage on the next pass (the zbd cluster may be the advisory
   30 s budget biting, which the armed watchdog run will tell).
 
+### Phase 2: device runs, watchdog sweep, curated pickers (2026-08-03, DONE)
+
+On the srp/rnbd/bcache kernel with an 8 GiB guest, all driven and
+verified through Windmill runs in staging:
+
+- The remaining-groups sweep with the scope watchdog armed: throtl
+  14/0/0 (the 4 GiB OOM does not recur at 8 GiB, so it is guest
+  sizing guidance, not an upstream bug), ublk 6/0/0 on the new
+  driver, blktrace passing; honest reds for nbd (userland bug), md
+  (md/001 now a real failure to triage), rnbd (both notrun: the run
+  must arm USE_RXE=1), and bcache/srp whole-group skips (the device
+  array knob gap; srp's group_requires reason still to fetch).
+- The first destructive TEST_DEVS run (two NVMe disks, wiped):
+  block ran 37 green across nodev plus both devices with per-device
+  rows, dm's device tests passed on them, zbd's fallback zoned
+  null_blk appears as its own devdir with a stable 005/006/011
+  failure cluster to triage, and scsi went all-notrun under
+  TEST_DEVS (a scsi_debug leftover interaction, queued).
+- Curated pickers now cover every list knob: TEST_DEVS is a device
+  dropdown labeled with sizes, Tests picks from the guest's 211
+  installed tests, EXCLUDE offers groups then tests; discover
+  caches all three enumerations together and the pre-discovery
+  fallbacks are the static catalog snapshot and the canonical qsu
+  disk paths. Validated live: a tests-mode run through the new list
+  input executed exactly the picked tests per group instance, and
+  the deployed pickers read the fresh cache (15 groups, 211 tests,
+  5 devices at 20G).
+
 ## Honest exclusions (recorded, not silent)
 
 - `nvme/056`: needs `KERNELSRC`, the ynl CLI, and `CONFIG_ULP_DDP`
