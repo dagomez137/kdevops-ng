@@ -138,8 +138,8 @@ in
     # profile on PATH; it carries everything this module adds to
     # environment.systemPackages.
     path = [ "/run/current-system/sw" ];
-    # A driver may restart one instance in quick succession; never
-    # rate-limit it.
+    # Programmatic re-runs of one group may exceed the default start
+    # rate limit (5 starts per 10 s).
     startLimitIntervalSec = 0;
     serviceConfig = {
       Type = "oneshot";
@@ -149,8 +149,7 @@ in
       StandardOutput = "journal+console";
       StandardError = "journal+console";
       # A full group can run for hours; never let systemd bound the
-      # run. The driver owns the deadline and stops the unit on
-      # expiry.
+      # run: only the caller's own deadline can act.
       TimeoutStartSec = "infinity";
       SyslogIdentifier = "blktests";
     };
