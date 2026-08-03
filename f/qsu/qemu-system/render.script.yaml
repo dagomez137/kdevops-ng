@@ -675,6 +675,7 @@ schema:
         `blktests`. Set automatically by `f/qsu/bringup` when the closure's
         test suites include `blktests`; no manual knob.
       default: false
+      title: blktests
     virtiofsd_binary:
       type: string
       description: |-
