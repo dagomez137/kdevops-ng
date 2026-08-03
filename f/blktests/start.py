@@ -12,9 +12,12 @@ belongs to this run, and zero files afterwards is a `notrun`.
 Then starts `blktests@<group>.service` on the guest with `--no-block`: the
 unit is `Type=oneshot`, so a blocking `start` would not return until the whole
 group's `./check` run finished (hours). `--no-block` returns immediately;
-`f/blktests/wait` polls for the outcome. After starting, we read back
-`ActiveState` and assert it is `activating`/`active` so a start that never took
-(e.g. a bad group) fails here rather than silently in the wait step.
+`f/blktests/wait` polls for the outcome. The `ActiveState` read-back is
+informational only: a small group (or an all-skip one) can finish between the
+start and the read-back, so a terminal state here is a legitimate
+already-finished run, never a start failure. A start that does not take at
+all fails the `systemctl start` call itself; the verdict belongs to wait and
+to the result files collect reads.
 
 Equivalent commands:
 
@@ -56,12 +59,6 @@ def main(vm_name: str, group: str, kernel_version: str = "") -> dict:
 
     remote.systemctl("start", "--no-block", unit)
     active_state = remote.show(unit, "ActiveState").get("ActiveState", "")
-    if active_state not in ("activating", "active"):
-        raise RuntimeError(
-            f"{vm_name}: {unit} did not start (ActiveState={active_state!r}, "
-            f"expected activating/active)"
-        )
-
     print(f"{vm_name}: started {unit} (ActiveState={active_state})", flush=True)
     return {
         "vm": vm_name,
