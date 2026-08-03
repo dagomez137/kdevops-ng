@@ -504,6 +504,38 @@ verified through Windmill runs in staging:
   the deployed pickers read the fresh cache (15 groups, 211 tests,
   5 devices at 20G).
 
+### Phase 3: triage queue (2026-08-03, IN PROGRESS)
+
+Diagnoses from the banked artifacts and the guest journal, each with
+its fix or disposition:
+
+- md/001: mdadm's create times out waiting for the /dev/md symlink
+  its udev rules make; the rules never reached the guest's ruleset
+  (systemPackages does not install rules). FIXED: the module
+  registers mdadm with udev.
+- zbd/005 and 006: `echo deadline > .../queue/scheduler` fails with
+  EINVAL because the preset disabled MQ_IOSCHED_DEADLINE, the
+  scheduler that serializes zoned writes. FIXED: the preset accepts
+  the Kconfig default (y). zbd/011 (dm-crypt over zoned) retests
+  after this.
+- srp whole-group skip and the scsi all-notrun: one root cause,
+  "scsi_debug is already loaded before test", a leftover module
+  from earlier groups in the same boot. The reboot each bringup
+  performs clears it; a run-hygiene knob (unload or reboot before
+  the loop) is an open design choice. The nvme disks are correctly
+  rejected as non-SCSI test devices; real scsi device tests need a
+  SCSI-attached disk (open: a virtio-scsi drive in bringup).
+- Transport-death gap: FIXED in wait, twenty consecutive failed
+  polls with qemu alive now end the group as crashed instead of
+  retrying to the deadline.
+- rnbd: retesting with USE_RXE=1 armed.
+- block/046: its failure diff was consumed by a later run's
+  identity wipe; rerunning to recapture.
+- Open, deferred with reasons: the nbd-client --help segfault
+  (nixpkgs nbd 3.27.1; overlay fix or bump), the loop/010 and 013
+  udevd-mask refusal on NixOS (upstream-facing discussion), the
+  TEST_CASE_DEV_ARRAY advanced knob for bcache and md/003.
+
 ## Honest exclusions (recorded, not silent)
 
 - `nvme/056`: needs `KERNELSRC`, the ynl CLI, and `CONFIG_ULP_DDP`
