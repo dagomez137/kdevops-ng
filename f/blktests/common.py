@@ -461,8 +461,8 @@ def catalog_tests() -> list[str]:
     return out
 
 
-# The qsu data disks every bringup guest carries; the safe pre-discovery
-# fallback for the Test Devs picker (the guest's root is tmpfs and its
+# The data disks every bringup guest carries; the safe pre-discovery
+# fallback for the TEST_DEVS picker (the guest's root is tmpfs and its
 # store is virtiofs, so on these guests the NVMe disks exist only for
 # testing).
 _FALLBACK_DEVICES = [f"/dev/nvme{i}n1" for i in range(5)]
@@ -491,7 +491,7 @@ def list_tests(vm_name: str = "", filterText: str = "", **_: object) -> list[dic
 def list_devices(vm_name: str = "", filterText: str = "", **_: object) -> list[dict]:
     """`dynmultiselect-list_devices` entrypoint for `TEST_DEVS`: the guest's
     NVMe data disks, labeled with their size from discover's enumeration;
-    before the first discovery, the canonical qsu data-disk paths. Never
+    before the first discovery, the canonical guest data-disk paths. Never
     raises."""
     devs = [d for d in _cache(vm_name).get("devices") or [] if isinstance(d, dict)]
     if devs:
@@ -505,7 +505,7 @@ def list_devices(vm_name: str = "", filterText: str = "", **_: object) -> list[d
         ]
     else:
         entries = [
-            {"value": n, "label": f"{n} (qsu data disk)"} for n in _FALLBACK_DEVICES
+            {"value": n, "label": f"{n} (guest data disk)"} for n in _FALLBACK_DEVICES
         ]
     return _pick(entries, filterText)
 
