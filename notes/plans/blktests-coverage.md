@@ -418,6 +418,64 @@ the staging workspace, workers' vendor copy re-synced.
   Nix store (three 9.9 GiB copies filled the disk; deleted, 27.8
   GiB freed). Use the git-based `.#` refs.
 
+### Phase 1: flow MVP, live-validated (2026-08-03, DONE)
+
+The `f/blktests/check` flow is live in the staging workspace and
+validated end to end on VM `blktests-check` across three kernel
+rebuilds (the preset gained NVMe fabrics, then the block test
+drivers, each derived via the savedefconfig round-trip). Evidence,
+all driven through Windmill runs:
+
+- By hand first (the Phase 0 exit criterion): `blktests@loop` on the
+  armed share ran 13 tests, 11 pass and 2 honest reds, with
+  `blktests-loop-006.scope` naming the in-flight test mid-run (the
+  scope patch live on a guest).
+- Red path through the flow: the loop group run produced
+  failures-first rows with runtimes, a red judge, and the failure
+  module stopping the unit.
+- Green path: the blktrace group passed through the full chain
+  (rows, tables, green-to-judge), blktrace/002 an honest notrun.
+- The quick-run sweep (14 groups selected; cancelled at the throtl
+  guest OOM, see findings) banked six groups from the share:
+  block 25/1/3 (pass/fail/notrun), nvme 42/0/6, srp all-notrun
+  (kernel then lacked the modules), zbd 4/5/2, loop 10/2/0,
+  scsi 5/0/1. The nvme number is the fabrics defconfig work paying
+  off: the whole loop-transport matrix runs green.
+
+Live-run fixes folded back in: discover probes the unit template
+through a throwaway instance (`systemctl show` refuses a bare
+template name), and start's ActiveState assertion is gone (a
+sub-second all-skip group finishes before the read-back; the
+verdict belongs to wait and the result files). Both were found by
+the flow's own first runs, exactly what staging is for.
+
+Findings ledger (honest reds and environment bugs, none papered
+over):
+
+- loop/010 and loop/013: `systemctl mask systemd-udevd` refuses on
+  NixOS because the /etc unit path is already a store symlink; the
+  mask noise fails the output diff, and 013's partition-reuse check
+  fails downstream of the unmasked udevd. Guest-module or upstream
+  fix candidate.
+- nbd group: nixpkgs nbd 3.27.1's `nbd-client --help` segfaults on
+  every help spelling (host and guest, reproduced on the shared
+  store binary), so blktests' `-L` capability probe sees nothing
+  and the group skips. nixpkgs/upstream bug candidate; overlay fix
+  or version bump is the Phase 3 path.
+- throtl/005 OOMs a 4 GiB tmpfs-root guest within ~25 s (writeback
+  throttling accumulates dirty pages; the OOM killer took an sshd
+  session and the vsock transport with it). The rerun boots with
+  8 GiB and arms the scope watchdog; if it recurs at 8 GiB it is an
+  upstream finding.
+- Flow hardening gap exposed by that OOM: with the host
+  `qemu-system@` unit still active, a transport-dead guest makes
+  `wait` retry SSH failures until the flow deadline; the run needed
+  an operator cancel. Same semantics as fstests today; a bounded
+  transport-failure budget is a candidate hardening.
+- block/046 failed and zbd went 4/5/2 in quick mode; both queued
+  for triage on the next pass (the zbd cluster may be the advisory
+  30 s budget biting, which the armed watchdog run will tell).
+
 ## Honest exclusions (recorded, not silent)
 
 - `nvme/056`: needs `KERNELSRC`, the ynl CLI, and `CONFIG_ULP_DDP`
