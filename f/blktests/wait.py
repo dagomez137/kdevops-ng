@@ -40,6 +40,10 @@ from f.common.devshell import Systemd
 
 _DONE = ("inactive", "failed")
 _ALIVE = ("active", "activating", "reloading", "refreshing")
+
+# Consecutive failed polls before a transport-dead guest (qemu alive, SSH gone)
+# counts as crashed; at the default 15 s interval this is five minutes.
+_TRANSPORT_BUDGET = 20
 _JOURNAL_LINES = 200
 
 
@@ -104,7 +108,10 @@ def main(
         # A long run's guest can be too busy under test load to answer the vsock-SSH
         # poll within the connect timeout (ssh exits 255). That is not the run failing
         # (the host qemu crash-check above is the authority on a dead guest), so a transient
-        # poll error just retries; only the deadline (or a real crash) ends the wait.
+        # poll error just retries; only the deadline, a real crash, or an exhausted
+        # transport budget ends the wait. The budget covers the guest that dies with
+        # its qemu still alive (an OOM storm that takes sshd, a panic without reboot):
+        # a whole run of consecutive transport failures is a dead guest, not a blip.
         try:
             state = remote.show(unit, *props)
         except Exception as exc:
@@ -114,6 +121,14 @@ def main(
                 f"(consecutive errors: {poll_errors})",
                 flush=True,
             )
+            if poll_errors >= _TRANSPORT_BUDGET:
+                crashed = True
+                print(
+                    f"{vm_name}: transport dead for {poll_errors} consecutive polls "
+                    f"with qemu still up; treating the guest as crashed",
+                    flush=True,
+                )
+                break
             if time.monotonic() >= deadline:
                 timed_out = True
                 print(
