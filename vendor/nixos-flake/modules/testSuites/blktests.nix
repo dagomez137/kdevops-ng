@@ -85,6 +85,13 @@ in
     description = "blktests unprivileged test user";
   };
 
+  # mdadm assembles arrays with udev's help: its rules create the
+  # /dev/md/<name> symlink an mdadm --create waits on, and without
+  # them in the active ruleset the create times out and the md tests
+  # fail. Putting mdadm in systemPackages does not install rules;
+  # register the package with udev explicitly.
+  services.udev.packages = [ pkgs.mdadm ];
+
   # The device-mapper tests drive dm through libdevmapper, which
   # serializes operations via a udev cookie semaphore: dmsetup
   # increments it and udevd decrements it from lvm2's dm udev
