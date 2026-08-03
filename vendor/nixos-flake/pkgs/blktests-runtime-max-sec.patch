@@ -97,7 +97,7 @@ index 61524a5..8be4273 100755
 +	# StartTransientUnit only queues the job; wait for the cgroup
 +	# migration, or processes forked before it escape the scope.
 +	for ((i = 0; i < 100; i++)); do
-+		grep -q "$unit" "/proc/$BASHPID/cgroup" && break
++		grep --quiet "$unit" "/proc/$BASHPID/cgroup" && break
 +		sleep 0.01
 +	done
 +
