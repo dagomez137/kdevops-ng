@@ -1,0 +1,46 @@
+summary: Start a group on a guest
+description: |-
+  Remove the group's previous result subtrees (`results/*/<group>`) from the
+  host side of the share (`./check` writes one TSV file per test only as it
+  runs, and a failed `group_requires` writes zero files while exiting 0, so a
+  leftover tree from an earlier run of the same group on the same kernel would
+  otherwise read as a false pass for a run that skipped or never started),
+  then start `blktests@<group>.service` on the guest over vsock-SSH with
+  `--no-block`. The unit is `Type=oneshot`, so a blocking `start` would not
+  return until the whole group finished (hours); `--no-block` returns
+  immediately and `f/blktests/wait` polls for the outcome. After starting,
+  reads back `ActiveState` and asserts it is `activating`/`active`, so a start
+  that never took fails here.
+
+  Returns `{vm, group, unit, active_state}`.
+lock: '!inline f/blktests/start.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - group
+    - kernel_version
+  properties:
+    group:
+      type: string
+      description: |-
+        blktests group name to start as `blktests@<group>.service`.
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); selects
+        which `<kver>` subtree's stale result subtrees to remove before the
+        start.
+      default: ''
+      title: Kernel Version
+    vm_name:
+      type: object
+      description: Booted VM to start the blktests group on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - group
+tag: vm

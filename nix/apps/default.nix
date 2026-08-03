@@ -206,7 +206,7 @@ let
   stagingOnlyPrune = ''
     rm --recursive --force \
       "$tmp/f/kunit" "$tmp/f/selftests" "$tmp/f/runtime_tests" \
-      "$tmp/f/usertests" "$tmp/f/kernel/bisect.flow"
+      "$tmp/f/usertests" "$tmp/f/blktests" "$tmp/f/kernel/bisect.flow"
     rm --force \
       "$tmp"/f/kernel/bisect_judge.* "$tmp"/f/kernel/bisect_report.* \
       "$tmp"/f/kernel/bisect_step.* "$tmp"/f/kernel/check_usertests.*

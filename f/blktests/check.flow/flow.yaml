@@ -1,0 +1,618 @@
+summary: Run a blktests check
+description: |-
+  Run blktests `./check` against an already-booted, blktests-ready guest: the
+  Windmill equivalent of a blktests `./check` run. The guest is produced
+  separately by `f/qsu/bringup` with the `blktests` test suite in the closure
+  and a writable `blktests` virtiofs share mounted at `/var/lib/blktests`;
+  this flow drives many groups against it without rebooting. Every knob maps
+  one-to-one to a `./check` positional or a `config` variable blktests itself
+  defines; there is no wrapper vocabulary.
+
+  Steps mirror blktests/systemd vocabulary 1:1:
+
+  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
+  is-system-running`, the `blktests@.service` template present, the packaged
+  `./check` executable) and enumerate its `/dev/nvme*n1` devices, installed
+  groups, and kernel release. 2. `render_config`: write the one rendered
+  blktests `config` and each selected group's `BLKTESTS_ARGS`
+  `EnvironmentFile` onto the host side of the share; the ordered groups drive
+  the loop. 3. for each `group`, sequentially: `wipe` (chosen `TEST_DEVS`
+  only, doubly gated) → `start` (remove the group's previous
+  `results/*/<group>` subtrees from the share, then `systemctl --host <vm>
+  start --no-block blktests@<group>`) → `wait` (poll `show
+  --property=Result,ExecMainStatus,ActiveState` to terminal, crash-check the
+  host `qemu-system@<vm>`) → `collect` (walk the group's per-test TSV rows
+  from the share, gated by the run's crash/timeout/unit outcome; zero result
+  files is `notrun`, never a pass). 4. `report`: aggregate the per-group
+  results into one summary. 5. `judge`: fail the job unless every group
+  passed.
+
+  The lifecycle and control steps run on the `vm` worker tag (the dedicated
+  worker that reaches the guest over the vsock-SSH transport); the long-lived
+  `wait` poll runs on `vm-run`. Returns the `report` summary.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + enumerate groups (f/blktests/discover)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/blktests/discover
+        tag_override: vm
+    - id: render_config
+      summary: Write the config + per-group env files on the share (f/blktests/render_config)
+      value:
+        type: script
+        input_transforms:
+          clean_results:
+            type: javascript
+            expr: flow_input.clean_results
+          config:
+            type: javascript
+            expr: flow_input.check?.config
+          device_only:
+            type: javascript
+            expr: flow_input.check?.device_only
+          edit_config:
+            type: javascript
+            expr: flow_input.check?.edit_config
+          exclude:
+            type: javascript
+            expr: flow_input.check?.exclude
+          groups:
+            type: javascript
+            expr: flow_input.check.groups
+          kernel_version:
+            type: javascript
+            expr: results.discover.kernel_version
+          nvme_img_size:
+            type: javascript
+            expr: flow_input.check?.nvme_img_size
+          nvme_num_iter:
+            type: javascript
+            expr: flow_input.check?.nvme_num_iter
+          nvmet_blkdev_types:
+            type: javascript
+            expr: flow_input.check?.nvmet_blkdev_types
+          nvmet_trtypes:
+            type: javascript
+            expr: flow_input.check?.nvmet_trtypes
+          quick_run:
+            type: javascript
+            expr: flow_input.check?.quick_run
+          run_zoned_tests:
+            type: javascript
+            expr: flow_input.check?.run_zoned_tests
+          test_devs:
+            type: javascript
+            expr: flow_input.test_devs
+          test_selection:
+            type: javascript
+            expr: flow_input.check.test_selection
+          test_timeout:
+            type: javascript
+            expr: flow_input.service?.test_timeout
+          test_timeouts:
+            type: javascript
+            expr: flow_input.service?.test_timeouts
+          tests:
+            type: javascript
+            expr: flow_input.check.tests
+          throtl_blkdev_types:
+            type: javascript
+            expr: flow_input.check?.throtl_blkdev_types
+          timeout:
+            type: javascript
+            expr: flow_input.check?.timeout
+          use_rxe:
+            type: javascript
+            expr: flow_input.check?.use_rxe
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/blktests/render_config
+        tag_override: vm
+    - id: groups
+      summary: Run each group sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        modules:
+          - id: wipe
+            summary: Wipe the chosen TEST_DEVS before this group (f/blktests/wipe)
+            value:
+              type: script
+              input_transforms:
+                test_devs:
+                  type: javascript
+                  expr: flow_input.test_devs
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+                wipe_devices:
+                  type: javascript
+                  expr: flow_input.wipe_devices
+              path: f/blktests/wipe
+              tag_override: vm
+          - id: start
+            summary: Start blktests@<group> detached (f/blktests/start)
+            value:
+              type: script
+              input_transforms:
+                group:
+                  type: javascript
+                  expr: flow_input.iter.value
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/blktests/start
+              tag_override: vm
+          - id: wait
+            summary: Poll the unit to terminal + crash-check (f/blktests/wait)
+            value:
+              type: script
+              input_transforms:
+                group:
+                  type: javascript
+                  expr: flow_input.iter.value
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/blktests/wait
+              tag_override: vm-run
+          - id: collect
+            summary: Walk the group's TSV results (f/blktests/collect)
+            value:
+              type: script
+              input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
+                ended_realtime_ms:
+                  type: javascript
+                  expr: results.wait.ended_realtime_ms
+                group:
+                  type: javascript
+                  expr: flow_input.iter.value
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                started_realtime_ms:
+                  type: javascript
+                  expr: results.wait.started_realtime_ms
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
+                unit_ok:
+                  type: javascript
+                  expr: results.wait.result === 'success'
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/blktests/collect
+              tag_override: vm
+        iterator:
+          type: javascript
+          expr: results.render_config.groups
+        parallel: false
+        skip_failures: true
+    - id: report
+      summary: Aggregate per-group results (f/blktests/report)
+      value:
+        type: script
+        input_transforms:
+          per_group:
+            type: javascript
+            expr: results.groups
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/blktests/report
+        tag_override: vm
+    - id: annotate
+      summary: Post the run window to Grafana (f/monitoring/annotate)
+      value:
+        type: script
+        input_transforms:
+          kernel:
+            type: javascript
+            expr: results.discover.kernel_version ?? ""
+          per_item:
+            type: javascript
+            expr: results.groups
+          suite:
+            type: static
+            value: blktests
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/monitoring/annotate
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every group passed (f/blktests/judge)
+      value:
+        type: script
+        input_transforms:
+          per_group:
+            type: javascript
+            expr: results.groups
+          report:
+            type: javascript
+            expr: results.report
+        path: f/blktests/judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop blktests@<group>.service on failure or cancel (f/blktests/stop)
+    value:
+      type: script
+      input_transforms:
+        groups:
+          type: javascript
+          expr: results?.render_config?.groups ?? []
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/blktests/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - test_devs
+    - wipe_devices
+    - clean_results
+    - check
+    - service
+  properties:
+    check:
+      type: object
+      description: |-
+        The `./check` positionals and `config` variables, one-to-one under
+        blktests' own names (the config is a sourced bash file the unit passes
+        via `--config`; the positionals travel per group as `BLKTESTS_ARGS`).
+      default: {}
+      order:
+        - test_selection
+        - groups
+        - tests
+        - exclude
+        - device_only
+        - quick_run
+        - timeout
+        - run_zoned_tests
+        - nvmet_trtypes
+        - nvmet_blkdev_types
+        - nvme_img_size
+        - nvme_num_iter
+        - use_rxe
+        - throtl_blkdev_types
+        - edit_config
+        - config
+      properties:
+        config:
+          type: string
+          description: |-
+            Raw blktests config text (the `config.example` variables, a
+            sourced bash file), replacing the rendered config WHOLESALE when
+            Edit Config is on and this is non-empty.
+          default: ''
+          showExpr: fields.edit_config === true
+          title: config
+        device_only:
+          type: boolean
+          description: |-
+            blktests `DEVICE_ONLY`: only run tests that use one of the
+            TEST_DEVS.
+          default: false
+          title: DEVICE_ONLY
+        edit_config:
+          type: boolean
+          description: |-
+            Reveal the raw config below and use it INSTEAD of the curated
+            knobs (which are ignored while it is on and non-empty).
+          default: false
+          title: Edit Config
+        exclude:
+          type: array
+          description: |-
+            blktests `EXCLUDE`: tests or groups to exclude (exact `group` or
+            `group/nnn` names, no globs; rendered as a bash array).
+            Explicitly named Tests bypass it.
+          default: []
+          items:
+            type: string
+          showExpr: fields.test_selection === 'groups'
+          title: EXCLUDE
+        groups:
+          type: object
+          description: |-
+            The groups to run, one `blktests@<group>.service` instance each,
+            sourced from the guest's installed `tests/*/rc` catalog (static
+            catalog before the first discover). Default: every group except
+            `meta`, upstream's own default.
+          default:
+            - block
+            - nvme
+            - srp
+            - zbd
+            - loop
+            - scsi
+            - throtl
+            - ublk
+            - nbd
+            - md
+            - dm
+            - rnbd
+            - blktrace
+            - bcache
+          format: dynmultiselect-list_groups
+          showExpr: fields.test_selection === 'groups'
+          title: Groups
+        nvme_img_size:
+          type: string
+          description: |-
+            blktests `NVME_IMG_SIZE`: size of the nvme fabrics backing image
+            or device (e.g. `1G`).
+          default: 1G
+          title: NVME_IMG_SIZE
+        nvme_num_iter:
+          type: integer
+          description: |-
+            blktests `NVME_NUM_ITER`: iteration count for the nvme tests that
+            loop.
+          default: 1000
+          title: NVME_NUM_ITER
+        nvmet_blkdev_types:
+          type: array
+          description: |-
+            blktests `NVMET_BLKDEV_TYPES`: the nvme target backend types to
+            exercise.
+          default:
+            - device
+            - file
+          items:
+            type: string
+            enum:
+              - device
+              - file
+          title: NVMET_BLKDEV_TYPES
+        nvmet_trtypes:
+          type: array
+          description: |-
+            blktests `NVMET_TRTYPES`: the nvme fabrics transports to
+            exercise; each nvme test fans out one result row per transport.
+          default:
+            - loop
+          items:
+            type: string
+            enum:
+              - loop
+              - tcp
+              - rdma
+              - fc
+          title: NVMET_TRTYPES
+        quick_run:
+          type: boolean
+          description: |-
+            blktests `QUICK_RUN`: do a quick run, capping the timed tests at
+            `TIMEOUT` seconds.
+          default: false
+          title: QUICK_RUN
+        run_zoned_tests:
+          type: boolean
+          description: |-
+            blktests `RUN_ZONED_TESTS`: also run the zoned variants of the
+            tests that support zoned block devices.
+          default: false
+          title: RUN_ZONED_TESTS
+        test_selection:
+          type: string
+          description: |-
+            Run blktests by whole **groups** (one `blktests@<group>` unit
+            each) or by an explicit **tests** list (`group/nnn` names).
+            `./check` takes only positionals, so pick one mode; the other
+            field hides.
+          default: groups
+          enum:
+            - groups
+            - tests
+          title: Test selection
+        tests:
+          type: string
+          description: |-
+            Explicit tests to run, space-separated `group/nnn` names (e.g.
+            `block/002 block/005`); each test's group instance runs its own
+            list. Explicit tests bypass EXCLUDE, DEVICE_ONLY, and QUICK_RUN,
+            per upstream.
+          default: ''
+          showExpr: fields.test_selection === 'tests'
+          title: Tests
+        throtl_blkdev_types:
+          type: array
+          description: |-
+            blktests `THROTL_BLKDEV_TYPES`: the block device types the
+            throtl group exercises.
+          default:
+            - nullb
+            - sdebug
+          items:
+            type: string
+            enum:
+              - nullb
+              - sdebug
+          title: THROTL_BLKDEV_TYPES
+        timeout:
+          type: integer
+          description: |-
+            blktests `TIMEOUT` (seconds): the cap the QUICK_RUN/TIMED tests
+            honor (advisory upstream; only the Service group's Per-test
+            Timeout enforces a kill). 0 = unset.
+          default: 0
+          title: TIMEOUT
+        use_rxe:
+          type: boolean
+          description: |-
+            blktests `USE_RXE`: use the rxe soft-RoCE driver for the rdma
+            transport instead of siw (rnbd requires it on).
+          default: false
+          title: USE_RXE
+      title: Check
+    clean_results:
+      type: boolean
+      description: |-
+        Before the run, DELETE the share's whole `<kver>/results` tree for a
+        clean start. Off = keep prior runs (each started group's own
+        `results/*/<group>` subtrees are removed regardless, the run-identity
+        rule).
+      default: false
+      title: Clean Results
+    service:
+      type: object
+      description: |-
+        Timeouts for the run: `wait`'s group polling
+        (`timeout`/`poll_interval`), log streaming, and the per-test scope
+        watchdog (`test_timeout`/`test_timeouts`; the unit is
+        `TimeoutStartSec=infinity` and upstream `TIMEOUT` is advisory, so a
+        hung test would otherwise block until the group timeout).
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+        - test_timeout
+        - test_timeouts
+      properties:
+        poll_interval:
+          type: integer
+          description: |-
+            Seconds between `wait`'s unit-status polls and log drains.
+          default: 15
+          title: Poll Interval
+        stream_logs:
+          type: boolean
+          description: |-
+            Each poll, print the guest's new unit + kernel journal (merged,
+            from boot) into the job log, so per-test progress and dmesg are
+            visible live. Off = only a bounded tail at the end.
+          default: true
+          title: Stream Logs
+        test_timeout:
+          type: integer
+          description: |-
+            Per-test watchdog (seconds): the packaged `check` sets it as each
+            test's scope `RuntimeMaxSec`, so a hung test is killed and the
+            run continues. 0 = no limit.
+          default: 0
+          title: Per-test Timeout
+        test_timeouts:
+          type: object
+          description: |-
+            Per-test overrides, mapping a test to seconds, e.g. {"block/002":
+            30}. Empty = the global Per-test Timeout applies.
+          default: {}
+          title: Per-test Timeout Overrides
+        timeout:
+          type: integer
+          description: |-
+            Seconds to poll a group's unit to a terminal state; on expiry
+            `wait` aborts the group (`systemctl stop blktests@<group>`).
+          default: 86400
+          title: Group Timeout
+      title: Service
+    test_devs:
+      type: array
+      description: |-
+        blktests `TEST_DEVS`: block devices to run the device tests against
+        (e.g. `/dev/nvme1n1`; `discover` lists the guest's NVMe data disks).
+        DESTRUCTIVE: data on these devices is lost. Empty = the default
+        `nodev` run, where the groups create their own
+        null_blk/scsi_debug/nvme-loop devices.
+      default: []
+      items:
+        type: string
+      title: TEST_DEVS
+    vm_name:
+      type: object
+      description: |-
+        Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown
+        lists all guests; it must be blktests-ready (the `blktests` test
+        suite in the closure, the `blktests` share at `/var/lib/blktests`);
+        `discover` gates that.
+      format: dynselect-list_vms
+      title: VM Name
+    wipe_devices:
+      type: boolean
+      description: |-
+        `wipefs --all` + `blkdiscard --force` every chosen TEST_DEVS device
+        at the start of EACH group. Only the chosen TEST_DEVS are touched;
+        the `nodev` groups never need it. Off by default; doubly gated on
+        TEST_DEVS being non-empty.
+      default: false
+      title: Wipe Devices
+  required:
+    - vm_name
+  x-windmill-dyn-select-code: |
+    import os
+
+    from pathlib import Path
+
+
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the source f/qsu/bringup lists).
+        d = Path(os.environ["WORKERS_DIR"]) / "shared/vm"
+        vms = sorted(p.name.removesuffix(".vars.json") for p in d.glob("*.vars.json")) if d.is_dir() else []
+        return [{"label": v, "value": v} for v in vms if filterText.lower() in v.lower()]
+
+
+    _FALLBACK = [
+        ("block", "Generic block layer tests"),
+        ("nvme", "NVMe device and fabrics tests"),
+        ("meta", "Testing framework self-tests"),
+        ("srp", "SRP over RDMA tests"),
+        ("zbd", "Zoned block device tests"),
+        ("loop", "Loop device tests"),
+        ("scsi", "SCSI generic device tests"),
+        ("throtl", "blk-throttle tests"),
+        ("ublk", "ublk driver tests"),
+        ("nbd", "NBD tests"),
+        ("md", "md raid tests"),
+        ("dm", "Device-mapper tests"),
+        ("rnbd", "RNBD tests"),
+        ("blktrace", "blktrace infrastructure tests"),
+        ("bcache", "bcache tests"),
+    ]
+
+
+    def list_groups(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The guest's installed groups from the per-VM cache f/blktests/discover
+        # writes; degrades to the static catalog before the first discovery.
+        # `groups` is nested under `check`, yet vm_name (a top-level input) reaches
+        # this helper because the run form spreads root args into nested dynselect
+        # helpers. Never raises.
+        try:
+            from f.blktests.common import list_groups as _list_groups
+            return _list_groups(vm_name, filterText)
+        except Exception:
+            needle = (filterText or "").lower()
+            return [
+                {"label": f"{name}: {desc}", "value": name}
+                for name, desc in _FALLBACK
+                if needle in name.lower() or needle in desc.lower()
+            ]
+  x-windmill-dyn-select-lang: python3

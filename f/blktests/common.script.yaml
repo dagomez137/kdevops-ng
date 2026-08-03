@@ -1,0 +1,18 @@
+summary: blktests share config and result helpers
+description: |-
+  Library module imported by the `f/blktests/*` steps (`from f.blktests.common
+  import share_dir, build_args, parse_seqres, ...`). Not a runnable step on its
+  own. Holds the host end of the single rw `blktests` virtiofs share the guest
+  mounts at `/var/lib/blktests`: the curated group catalog, the rendered
+  blktests `config` (a sourced bash file passed to `./check` via `--config`),
+  the per-group `BLKTESTS_ARGS` positional builder, the per-test TSV result
+  parser and results-tree walker, and the shared `group_status`/`run_status`
+  verdict rules. Never contacts the guest.
+lock: '!inline f/blktests/common.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

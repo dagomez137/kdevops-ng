@@ -1,0 +1,35 @@
+summary: Fail the job unless the run passed
+description: |-
+  Apply `f.blktests.common.run_status` (the one rule `f/blktests/report` also
+  uses) to the per-group collect results and raise unless every group passed,
+  so a red run is a red Windmill job: schedules, callers, and flows embedding
+  this one see the verdict in the job state, not only in the report tables. On
+  a pass, return the report rollup unchanged, keeping the report's tables as
+  the flow result. The report step's own result stays viewable either way.
+lock: '!inline f/blktests/judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - per_group
+    - report
+  properties:
+    per_group:
+      type: array
+      description: |-
+        The `f/blktests/collect` result objects, one per group; their statuses
+        decide the verdict.
+      default: []
+      items:
+        type: object
+      title: Per Group
+    report:
+      type: object
+      description: |-
+        The `f/blktests/report` rollup, passed through unchanged on a pass so
+        its tables stay the flow result.
+      default: {}
+      title: Report
+  required: []
+tag: vm

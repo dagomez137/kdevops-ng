@@ -1,0 +1,63 @@
+summary: Wait for a group to finish
+description: |-
+  Poll `blktests@<group>.service` on a booted guest over vsock-SSH until its
+  `ActiveState` settles to `inactive` (the `Type=oneshot` success terminus) or
+  `failed`, or the timeout elapses. The outcome is read from `Result`
+  (systemd's enum: `success`/`exit-code`/`signal`/`core-dump`/`timeout`/...)
+  and `ExecMainStatus` (the `./check` exit code, 1 only when a test failed).
+
+  Each poll also checks the host `qemu-system@<vm>.service` (the host `systemd
+  --user` unit running QEMU): any not-alive state (`failed` is a panic,
+  `inactive` a clean outside stop) means the guest is gone; polling stops and
+  `crashed` is set. Each poll streams the merged unit + kernel journal into
+  the job log (the per-test start lines and the `run blktests <test>` kmsg
+  markers make it a live per-test view); without streaming, a bounded tail is
+  dumped at the end.
+
+  Returns `{vm, group, result, exec_status, active_state, crashed, timed_out,
+  started_realtime_ms, ended_realtime_ms}` (the `*_realtime_ms` pair is the
+  poll-observed wall-clock window in milliseconds since the epoch).
+lock: '!inline f/blktests/wait.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - group
+    - timeout
+    - poll_interval
+    - stream_logs
+  properties:
+    group:
+      type: string
+      description: |-
+        blktests group name whose `blktests@<group>.service` to poll.
+    poll_interval:
+      type: integer
+      description: |-
+        Seconds between polls of the unit's `ActiveState` (and the host crash
+        check).
+      default: 15
+    stream_logs:
+      type: boolean
+      description: |-
+        Each poll, print the guest's new unit + kernel journal (merged, from
+        boot) into the job log. Off = only a bounded tail at the end.
+      default: true
+      title: Stream Logs
+    timeout:
+      type: integer
+      description: |-
+        Maximum seconds to wait for the group to finish before giving up
+        (`timed_out`; the unit is then stopped).
+      default: 86400
+    vm_name:
+      type: object
+      description: Booted VM whose blktests group to wait on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - group
+tag: vm-run

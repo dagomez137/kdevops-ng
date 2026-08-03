@@ -1,0 +1,34 @@
+summary: 'Discover a guest''s readiness over SSH'
+description: |-
+  Reach a booted guest over vsock-SSH and report whether it is ready to run
+  blktests, and on what. Checks `systemctl --host <vm> is-system-running` is
+  `running`/`degraded`, that `blktests@.service` is installed and its packaged
+  `./check` runner is executable (probed at the path the unit's own `ExecStart`
+  names), then enumerates the NVMe data disks (`/dev/nvme*n1`), the installed
+  test groups (the `tests/*/rc` entries under the package tree), and the
+  running kernel release. The group names are written to the per-VM picker
+  cache on the share (`groups.json`), the source the run form's Groups
+  dropdown reads.
+
+  Returns `{vm, host, booted, blktests_ready, devices, groups,
+  kernel_version}`. A guest exposing zero groups fails here: a run would
+  silently test nothing. Devices may be empty (the default `nodev` groups
+  create their own devices); they matter only for a `TEST_DEVS` run. Fails
+  fast with a clear message if the guest is not blktests-ready. Read-only on
+  the guest; the only host write is the picker cache.
+lock: '!inline f/blktests/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM to probe over vsock-SSH for blktests readiness.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

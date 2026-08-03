@@ -1,0 +1,93 @@
+summary: 'Collect a group''s results from the share'
+description: |-
+  Read one blktests group's per-test TSV results back from the `blktests`
+  virtiofs share. The guest's `./check` writes one file per test at
+  `$WORKERS_DIR/shared/blktests/<vm>/<kver>/results/<devdir>/<group>/<nnn>`
+  (results follow the unit's `--output=.../%v/results`, so they are keyed by
+  the guest's kernel release); `f/blktests/start` removed the group's previous
+  subtrees before starting, so anything present is this run's. `<devdir>` is
+  `nodev` or a device basename, optionally suffixed by a set_conditions
+  variant, so one test number can yield several rows; every row is reported,
+  keyed (devdir, group/nnn), failures first, each with its `reason` and
+  runtime. Returns `{group, status, crashed, timed_out, started_realtime_ms,
+  ended_realtime_ms, rows, stats}` with `stats` the pass/fail/notrun counts.
+
+  A crashed guest, a timed-out group, or a unit that did not finish cleanly
+  (`unit_ok` false) is `failed` even when rows exist; ZERO rows is `notrun`
+  and never a pass (a failed `group_requires` prints one stdout-only line,
+  writes no files, and exits 0). Read-only; the host never contacts the guest.
+lock: '!inline f/blktests/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - group
+    - kernel_version
+    - unit_ok
+    - crashed
+    - timed_out
+    - started_realtime_ms
+    - ended_realtime_ms
+  properties:
+    crashed:
+      type: boolean
+      description: |-
+        Whether `f/blktests/wait` saw the guest go down (the host
+        `qemu-system@<vm>.service` not alive); forces a `failed` verdict.
+      default: false
+      title: Crashed
+    ended_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock end of the group's run from `f/blktests/wait`, milliseconds
+        since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Ended Realtime Ms
+    group:
+      type: string
+      description: |-
+        blktests group name whose `results/*/<group>` rows to read.
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); selects
+        which `<kver>` subtree of the share's results to read.
+      title: Kernel Version
+    started_realtime_ms:
+      type: integer
+      description: |-
+        Wall-clock start of the group's run from `f/blktests/wait`,
+        milliseconds since the epoch; null when unknown. Passed through for
+        `f/monitoring/annotate`, never a verdict input.
+      default: null
+      title: Started Realtime Ms
+    timed_out:
+      type: boolean
+      description: |-
+        Whether `f/blktests/wait` gave up on the group and stopped its unit;
+        forces a `failed` verdict.
+      default: false
+      title: Timed Out
+    unit_ok:
+      type: boolean
+      description: |-
+        Whether `blktests@<group>.service` finished cleanly (`Result` is
+        `success` from `f/blktests/wait`); false forces a `failed` verdict
+        even when plausible rows exist.
+      default: false
+      title: Unit OK
+    vm_name:
+      type: object
+      description: |-
+        VM whose `blktests` share
+        (`$WORKERS_DIR/shared/blktests/<vm>/<kver>/results`) to read.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - group
+    - kernel_version
+tag: vm

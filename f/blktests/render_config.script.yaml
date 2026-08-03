@@ -1,0 +1,248 @@
+summary: Render the blktests run config
+description: |-
+  Write the blktests run's host-side config onto the VM's `blktests` virtiofs
+  share (`$WORKERS_DIR/shared/blktests/<vm>/`), the files the guest's
+  `blktests@<group>.service` reads from its `/var/lib/blktests` mount:
+
+  - `config`: the one rendered blktests config (a sourced bash file the unit
+  passes to `./check` via `--config`). Every knob maps one-to-one to an
+  upstream `config.example` variable under its upstream name; only what the
+  user set is emitted (`NORMAL_USER` always), with `TEST_DEVS`/`EXCLUDE` as
+  bash arrays. The gated raw `config` override replaces the rendered file
+  wholesale. - `<group>.env`: the systemd per-instance `EnvironmentFile` (read
+  as `%i.env`): `BLKTESTS_ARGS=<positionals>` (the group name, or that group's
+  explicit `group/nnn` test list). The unit itself supplies
+  `--output=.../%v/results`, so results are keyed by the guest's kernel
+  release.
+
+  All files are written atomically and echoed to the job log. Returns the
+  ordered group names for the per-group forloop plus the written paths; stale
+  `<group>.env` files are pruned, and `clean_results` removes the whole
+  `<kver>/results` tree for a fresh start. The host never contacts the guest.
+lock: '!inline f/blktests/render_config.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - kernel_version
+    - test_selection
+    - groups
+    - tests
+    - test_devs
+    - exclude
+    - device_only
+    - quick_run
+    - timeout
+    - run_zoned_tests
+    - nvmet_trtypes
+    - nvmet_blkdev_types
+    - nvme_img_size
+    - nvme_num_iter
+    - use_rxe
+    - throtl_blkdev_types
+    - edit_config
+    - config
+    - clean_results
+    - test_timeout
+    - test_timeouts
+  properties:
+    clean_results:
+      type: boolean
+      description: |-
+        Before the run, DELETE the whole `<kver>/results` tree for a clean
+        start. Off = keep prior runs (each started group's own subtrees are
+        removed by `start` regardless, the run-identity rule).
+      default: false
+      title: Clean Results
+    config:
+      type: string
+      description: |-
+        Raw blktests config text (the `config.example` variables, a sourced
+        bash file), replacing the rendered config WHOLESALE when Edit Config is
+        on and this is non-empty.
+      default: ''
+      title: config
+    device_only:
+      type: boolean
+      description: |-
+        blktests `DEVICE_ONLY`: only run tests that use one of the TEST_DEVS.
+      default: false
+      title: DEVICE_ONLY
+    edit_config:
+      type: boolean
+      description: |-
+        Reveal the raw config below and use it INSTEAD of the curated knobs
+        (which are ignored while it is on and non-empty).
+      default: false
+      title: Edit Config
+    exclude:
+      type: array
+      description: |-
+        blktests `EXCLUDE`: tests or groups to exclude (exact `group` or
+        `group/nnn` names, no globs; rendered as a bash array). Explicitly
+        named Tests bypass it.
+      default: []
+      items:
+        type: string
+      title: EXCLUDE
+    groups:
+      type: object
+      description: |-
+        The groups to run, one `blktests@<group>.service` instance each,
+        sourced from the guest's installed `tests/*/rc` catalog (static
+        catalog before the first discover). Default: every group except
+        `meta`, upstream's own default.
+      default: []
+      format: dynmultiselect-list_groups
+      title: Groups
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (`uname -r`, from `discover`); results are
+        cleaned under the `blktests` share's `<kver>/results` subtree.
+      title: Kernel Version
+    nvme_img_size:
+      type: string
+      description: |-
+        blktests `NVME_IMG_SIZE`: size of the nvme fabrics backing image or
+        device (e.g. `1G`).
+      default: 1G
+      title: NVME_IMG_SIZE
+    nvme_num_iter:
+      type: integer
+      description: |-
+        blktests `NVME_NUM_ITER`: iteration count for the nvme tests that
+        loop.
+      default: 1000
+      title: NVME_NUM_ITER
+    nvmet_blkdev_types:
+      type: array
+      description: |-
+        blktests `NVMET_BLKDEV_TYPES`: the nvme target backend types to
+        exercise.
+      default:
+        - device
+        - file
+      items:
+        type: string
+        enum:
+          - device
+          - file
+      title: NVMET_BLKDEV_TYPES
+    nvmet_trtypes:
+      type: array
+      description: |-
+        blktests `NVMET_TRTYPES`: the nvme fabrics transports to exercise;
+        each nvme test fans out one result row per transport.
+      default:
+        - loop
+      items:
+        type: string
+        enum:
+          - loop
+          - tcp
+          - rdma
+          - fc
+      title: NVMET_TRTYPES
+    quick_run:
+      type: boolean
+      description: |-
+        blktests `QUICK_RUN`: do a quick run, capping the timed tests at
+        `TIMEOUT` seconds.
+      default: false
+      title: QUICK_RUN
+    run_zoned_tests:
+      type: boolean
+      description: |-
+        blktests `RUN_ZONED_TESTS`: also run the zoned variants of the tests
+        that support zoned block devices.
+      default: false
+      title: RUN_ZONED_TESTS
+    test_devs:
+      type: array
+      description: |-
+        blktests `TEST_DEVS`: block devices to run the device tests against
+        (e.g. `/dev/nvme1n1`; rendered as a bash array). DESTRUCTIVE: data on
+        these devices is lost. Empty = the default `nodev` run.
+      default: []
+      items:
+        type: string
+      title: TEST_DEVS
+    test_selection:
+      type: string
+      description: |-
+        Run blktests by whole groups or by an explicit `group/nnn` test list.
+        `./check` takes only positionals, so pick one mode; the other field is
+        ignored.
+      default: groups
+      enum:
+        - groups
+        - tests
+      title: Test selection
+    test_timeout:
+      type: integer
+      description: |-
+        Per-test watchdog (seconds): the packaged `check` sets it as each
+        test's scope `RuntimeMaxSec`, so a hung test is killed and the run
+        continues. 0 = no limit.
+      default: 0
+      title: Per-test Timeout
+    test_timeouts:
+      type: object
+      description: |-
+        Per-test overrides, mapping a test to seconds, e.g. {"block/002": 30}.
+        Empty = the global Per-test Timeout applies.
+      default: {}
+      title: Per-test Timeout Overrides
+    tests:
+      type: string
+      description: |-
+        Explicit tests to run, space-separated `group/nnn` names (e.g.
+        `block/002 block/005`); each test's group instance runs its own list.
+        Explicit tests bypass EXCLUDE, DEVICE_ONLY, and QUICK_RUN, per
+        upstream.
+      default: ''
+      title: Tests
+    throtl_blkdev_types:
+      type: array
+      description: |-
+        blktests `THROTL_BLKDEV_TYPES`: the block device types the throtl
+        group exercises.
+      default:
+        - nullb
+        - sdebug
+      items:
+        type: string
+        enum:
+          - nullb
+          - sdebug
+      title: THROTL_BLKDEV_TYPES
+    timeout:
+      type: integer
+      description: |-
+        blktests `TIMEOUT` (seconds): the cap the QUICK_RUN/TIMED tests honor
+        (advisory upstream; only our Per-test Timeout enforces a kill). 0 =
+        unset.
+      default: 0
+      title: TIMEOUT
+    use_rxe:
+      type: boolean
+      description: |-
+        blktests `USE_RXE`: use the rxe soft-RoCE driver for the rdma
+        transport instead of siw (rnbd requires it on).
+      default: false
+      title: USE_RXE
+    vm_name:
+      type: object
+      description: |-
+        VM whose `blktests` virtiofs share
+        (`$WORKERS_DIR/shared/blktests/<vm>`) receives the config and the
+        per-group env files.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+    - kernel_version
+tag: vm

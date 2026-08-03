@@ -32,6 +32,7 @@ from dataclasses import dataclass
 # suite, flow directory, forloop result key, per-item argument name.
 SUITES = [
     ("fstests", "f/fstests/check.flow", "per_section", "section"),
+    ("blktests", "f/blktests/check.flow", "per_group", "group"),
     ("kunit", "f/kunit/run.flow", "per_suite", "suite"),
     ("selftests", "f/selftests/run.flow", "per_item", "item"),
     ("runtime_tests", "f/runtime_tests/run.flow", "per_item", "module"),

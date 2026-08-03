@@ -1,0 +1,51 @@
+summary: Wipe the chosen TEST_DEVS
+description: |-
+  Per-group device prep for a blktests run, against a booted guest over
+  vsock-SSH: per chosen `TEST_DEVS` device, `umount` then `wipefs --all` +
+  `blkdiscard --force`. Wipes ONLY the devices the user chose as `TEST_DEVS`;
+  blktests owns device setup for everything else (the `nodev` groups create
+  their own null_blk/scsi_debug/nvme-loop devices). The `blkdiscard` TRIM
+  deflates the thin-provisioned qcow2 backing so it does not inflate across
+  groups.
+
+  Doubly gated: `wipe_devices` must be on AND `TEST_DEVS` non-empty, so the
+  default `nodev` run never touches a disk; no devices is a no-op success.
+  `blkdiscard` runs even if `wipefs` fails; the step fails only if NO device
+  could be discarded.
+
+  Returns `{vm, wiped, failed}` (the device nodes wiped / that could not be
+  discarded).
+lock: '!inline f/blktests/wipe.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - test_devs
+    - wipe_devices
+  properties:
+    test_devs:
+      type: array
+      description: |-
+        The `TEST_DEVS` device nodes to wipe (e.g. `/dev/nvme1n1`). Empty
+        wipes nothing.
+      default: []
+      items:
+        type: string
+      title: TEST_DEVS
+    vm_name:
+      type: object
+      description: Booted VM whose TEST_DEVS to wipe, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    wipe_devices:
+      type: boolean
+      description: |-
+        `wipefs --all` + `blkdiscard --force` every chosen TEST_DEVS device.
+        Off = no-op.
+      default: false
+      title: Wipe Devices
+  required:
+    - vm_name
+tag: vm
