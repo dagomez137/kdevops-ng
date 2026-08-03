@@ -142,7 +142,7 @@ These migrate proven coverage from kdevops into the flow model.
 
       :bdg-primary:`planned`
 
-      Port blktests, mmtests, and kselftest groups (xarray, maple tree,
+      Port mmtests and further kselftest groups (xarray, maple tree,
       modules, and others).
 
    .. grid-item-card:: More filesystems in the fstests flow
