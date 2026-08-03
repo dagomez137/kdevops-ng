@@ -573,7 +573,7 @@ controllers, ublk, srp, rnbd, bcache debug, and mq-deadline.
 Best validated coverage per group on v7.1-rc7 (quick mode unless
 noted): block 37/0 with per-device rows (destructive TEST_DEVS run),
 nvme 42/0 on the loop transport, srp 13/0, throtl 14/0 at 8 GiB,
-zbd 8/1 (only zbd/011 red), ublk 6/6, scsi 5/0, md 3/3, rnbd 2/2,
+zbd 8/1 (only zbd/011 red), ublk 6/0, scsi 5/0, md 3/0, rnbd 2/0,
 blktrace 1/0, loop 11/2, dm device tests green. Honest reds and
 skips, all diagnosed: zbd/011 (dm-crypt over zoned, upstream
 candidate), nbd (nbd-client help segfault in nixpkgs 3.27.1), the
