@@ -557,6 +557,37 @@ its fix or disposition:
   udevd-mask refusal on NixOS (upstream-facing discussion), the
   TEST_CASE_DEV_ARRAY advanced knob for bcache and md/003.
 
+### Final results (2026-08-03, PROMOTED)
+
+blktests is the sixth suite, live in the ``kdevops`` workspace
+(`f/blktests/check` deployed by the pruned promote push and verified
+there with a green tests-mode run). The integration spans all four
+layers: the package with its carried per-test scope/watchdog patch,
+the ``blktests@<group>.service`` executor module with its share, the
+thin check flow with curated pickers on every list knob, and the
+staged docs page. The kernel surface (fragments and the imageless
+preset, kept in lockstep via the savedefconfig round-trip) now
+covers every group: fabrics, block test drivers, cgroup IO
+controllers, ublk, srp, rnbd, bcache debug, and mq-deadline.
+
+Best validated coverage per group on v7.1-rc7 (quick mode unless
+noted): block 37/0 with per-device rows (destructive TEST_DEVS run),
+nvme 42/0 on the loop transport, srp 13/0, throtl 14/0 at 8 GiB,
+zbd 8/1 (only zbd/011 red), ublk 6/6, scsi 5/0, md 3/3, rnbd 2/2,
+blktrace 1/0, loop 11/2, dm device tests green. Honest reds and
+skips, all diagnosed: zbd/011 (dm-crypt over zoned, upstream
+candidate), nbd (nbd-client help segfault in nixpkgs 3.27.1), the
+loop udevd-mask pair on NixOS, scsi/007 under a dirty module state,
+and bcache plus md/003 pending the TEST_CASE_DEV_ARRAY knob.
+
+Queued upstream candidates: the scope/watchdog patch for check, the
+sg/ install-layout fix, the nbd-client segfault report, and zbd/011
+once reproduced against mainline. Deferred features: the device
+array knob, nvme rdma/fc/TLS transport runs, and a run-hygiene
+(reboot or module-unload) knob for back-to-back groups on one boot.
+The local commit series is not yet pushed to the bare repository,
+and the docs page stays a staged orphan until reviewed.
+
 ## Honest exclusions (recorded, not silent)
 
 - `nvme/056`: needs `KERNELSRC`, the ynl CLI, and `CONFIG_ULP_DDP`
