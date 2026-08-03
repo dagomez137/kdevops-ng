@@ -242,7 +242,12 @@ Correctness invariants, each one a former bug:
 - **Host liveness, not guest polling, detects death.** Each ``wait`` poll
   checks the host ``qemu-system@<vm>.service``; any not-alive state (a
   crash or a clean outside stop) ends the wait as ``crashed``. Transient
-  SSH failures only retry: the host unit is the authority.
+  SSH failures only retry: the host unit is the authority. The one
+  bounded exception: a guest can die with its QEMU still alive (an OOM
+  storm that takes the sshd sessions), so exhausting a budget of
+  consecutive failed polls also ends the wait as ``crashed`` (the
+  blktests ``wait`` counts twenty, five minutes at its default
+  interval); a shorter blip keeps retrying.
 - **Split the worker tags**: quick lifecycle steps on ``vm``, the long
   ``wait`` poll on ``vm-run``, so a hung run never starves control
   operations.
