@@ -16,7 +16,7 @@ Equivalent commands, against the guest over vsock-SSH:
 
     systemctl --host <vm> is-system-running
     systemctl --host <vm> list-unit-files blktests@.service
-    systemctl --host <vm> show blktests@.service \
+    systemctl --host <vm> show blktests@probe.service \
         --property=ExecStart --property=WorkingDirectory
     ssh <vm> test -x <ExecStart path>
     ssh <vm> sh -c 'ls --directory <package>/tests/*/rc'
@@ -50,9 +50,11 @@ def _unit_paths(remote: RemoteSystemd) -> tuple[str, str]:
     and `WorkingDirectory` the package tree `check` runs from; the working
     directory falls back to the runner's parent, so either property alone
     suffices. Probing the unit's own paths keeps this accurate for any package
-    location, with nothing hardcoded.
+    location, with nothing hardcoded. `show` refuses a bare template name, so
+    probe a throwaway instance; systemd renders the template's properties for
+    any instance name.
     """
-    props = remote.show("blktests@.service", "ExecStart", "WorkingDirectory")
+    props = remote.show("blktests@probe.service", "ExecStart", "WorkingDirectory")
     m = _EXEC_PATH_RE.search(props.get("ExecStart", ""))
     check_path = m.group(1) if m else ""
     package_dir = props.get("WorkingDirectory", "") or (
