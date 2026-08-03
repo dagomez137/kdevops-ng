@@ -8,9 +8,10 @@ description: |-
   then start `blktests@<group>.service` on the guest over vsock-SSH with
   `--no-block`. The unit is `Type=oneshot`, so a blocking `start` would not
   return until the whole group finished (hours); `--no-block` returns
-  immediately and `f/blktests/wait` polls for the outcome. After starting,
-  reads back `ActiveState` and asserts it is `activating`/`active`, so a start
-  that never took fails here.
+  immediately and `f/blktests/wait` polls for the outcome. The `ActiveState`
+  read-back after the start is informational only: a small or all-skip group
+  can finish before it, so a terminal state here is a legitimate
+  already-finished run, never a start failure.
 
   Returns `{vm, group, unit, active_state}`.
 lock: '!inline f/blktests/start.script.lock'

@@ -3,13 +3,13 @@
 
 `umount` then `wipefs --all` + `blkdiscard --force` each device the user chose
 as `TEST_DEVS`, and ONLY those: blktests owns device setup for everything else
-(the `nodev` groups create their own null_blk/scsi_debug/nvme-loop devices).
-`blkdiscard` TRIMs each device so the thin-provisioned qcow2 backing deflates;
-without it a device left full by a prior group inflates the backing across
-groups. Doubly gated: `wipe_devices` must be on AND `test_devs` non-empty, so
-the default `nodev` run never touches a disk; no devices is a no-op success.
-`TEST_DEVS` data is disposable by contract (the form marks the run
-destructive).
+(the `nodev` groups create their own `null_blk`/`scsi_debug`/`nvme-loop`
+devices). `blkdiscard` TRIMs each device so the thin-provisioned qcow2 backing
+deflates; without it a device left full by a prior group inflates the backing
+across groups. Doubly gated: `wipe_devices` must be on AND `test_devs`
+non-empty, so the default `nodev` run never touches a disk; no devices is a
+no-op success. `TEST_DEVS` data is disposable by contract (the form marks the
+run destructive).
 
 Equivalent command, per device, over vsock-SSH:
 

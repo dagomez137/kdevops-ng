@@ -8,9 +8,9 @@ installed test groups (the `tests/*/rc` entries under the package tree, derived
 from the unit's `WorkingDirectory`), and the running kernel release. A guest
 exposing zero groups fails here: a run would silently test nothing. Devices may
 be empty (the default `nodev` groups create their own devices); they matter
-only for a `TEST_DEVS` run. The group names are written to the per-VM picker
-cache on the share, the source the run form's Groups dropdown reads. Mutates
-nothing on the guest.
+only for a `TEST_DEVS` run. The groups, tests and devices are written together
+to the per-VM picker cache on the share, the source the run form's dropdowns
+read. Mutates nothing on the guest.
 
 Equivalent commands, against the guest over vsock-SSH:
 
@@ -20,6 +20,7 @@ Equivalent commands, against the guest over vsock-SSH:
         --property=ExecStart --property=WorkingDirectory
     ssh <vm> test -x <ExecStart path>
     ssh <vm> sh -c 'ls --directory <package>/tests/*/rc'
+    ssh <vm> sh -c 'ls <package>/tests/*/[0-9][0-9][0-9]'
     ssh <vm> lsblk --nodeps --noheadings --output NAME,SIZE,TYPE,LOG-SEC
     ssh <vm> cat /proc/sys/kernel/osrelease
 """

@@ -11,9 +11,12 @@ test failed).
 Each poll also checks the HOST `qemu-system@<vm>.service`: any not-alive state
 (`failed` is a crash, `inactive` a clean outside stop) means the guest is gone
 and we stop with `crashed=True` rather than burning the timeout on a dead
-transport. Each poll streams the guest's merged unit + kernel journal into the
-job log (`stream_logs`); the per-test start lines and the `run blktests <test>`
-kmsg markers make the job log a live per-test view. On completion (or crash)
+transport. A guest can also die with its QEMU still alive (an OOM storm that
+takes sshd), so exhausting the transport budget of consecutive failed polls
+ends the wait as `crashed` too, while a shorter blip only retries. Each poll
+streams the guest's merged unit + kernel journal into the job log
+(`stream_logs`); the per-test start lines and the `run blktests <test>` kmsg
+markers make the job log a live per-test view. On completion (or crash)
 without streaming, a bounded tail is dumped for triage.
 
 Equivalent commands:
@@ -41,7 +44,7 @@ from f.common.devshell import Systemd
 _DONE = ("inactive", "failed")
 _ALIVE = ("active", "activating", "reloading", "refreshing")
 
-# Consecutive failed polls before a transport-dead guest (qemu alive, SSH gone)
+# Consecutive failed polls before a transport-dead guest (QEMU alive, SSH gone)
 # counts as crashed; at the default 15 s interval this is five minutes.
 _TRANSPORT_BUDGET = 20
 _JOURNAL_LINES = 200
@@ -107,7 +110,7 @@ def main(
 
         # A long run's guest can be too busy under test load to answer the vsock-SSH
         # poll within the connect timeout (ssh exits 255). That is not the run failing
-        # (the host qemu crash-check above is the authority on a dead guest), so a transient
+        # (the host QEMU crash-check above is the authority on a dead guest), so a transient
         # poll error just retries; only the deadline, a real crash, or an exhausted
         # transport budget ends the wait. The budget covers the guest that dies with
         # its qemu still alive (an OOM storm that takes sshd, a panic without reboot):
@@ -117,7 +120,7 @@ def main(
         except Exception as exc:
             poll_errors += 1
             print(
-                f"{vm_name}: poll of {unit} failed ({exc}); qemu still up, retrying "
+                f"{vm_name}: poll of {unit} failed ({exc}); QEMU still up, retrying "
                 f"(consecutive errors: {poll_errors})",
                 flush=True,
             )
@@ -125,7 +128,7 @@ def main(
                 crashed = True
                 print(
                     f"{vm_name}: transport dead for {poll_errors} consecutive polls "
-                    f"with qemu still up; treating the guest as crashed",
+                    f"with QEMU still up; treating the guest as crashed",
                     flush=True,
                 )
                 break

@@ -4,15 +4,16 @@ description: |-
   share (`$WORKERS_DIR/shared/blktests/<vm>/`), the files the guest's
   `blktests@<group>.service` reads from its `/var/lib/blktests` mount:
 
-  - `config`: the one rendered blktests config (a sourced bash file the unit
-  passes to `./check` via `--config`). Every knob maps one-to-one to an
-  upstream `config.example` variable under its upstream name; only what the
-  user set is emitted (`NORMAL_USER` always), with `TEST_DEVS`/`EXCLUDE` as
-  bash arrays. The gated raw `config` override replaces the rendered file
-  wholesale. - `<group>.env`: the systemd per-instance `EnvironmentFile` (read
-  as `%i.env`): `BLKTESTS_ARGS=<positionals>` (the group name, or that group's
-  explicit `group/nnn` test list). The unit itself supplies
-  `--output=.../%v/results`, so results are keyed by the guest's kernel
+  - `config`: the one rendered blktests config (a sourced Bash file the unit
+  passes to `./check` via `--config`). Every knob maps one-to-one to an upstream
+  `config.example` variable under its upstream name; only what the form carries
+  is emitted (`NORMAL_USER` always, and the form pre-fills
+  `NVME_IMG_SIZE`/`NVME_NUM_ITER` with upstream's own defaults), with
+  `TEST_DEVS`/`EXCLUDE` as Bash arrays. The gated raw `config` override replaces
+  the rendered file wholesale. - `<group>.env`: the systemd per-instance
+  `EnvironmentFile` (read as `%i.env`): `BLKTESTS_ARGS=<positionals>` (the group
+  name, or that group's explicit `group/nnn` test list). The unit itself
+  supplies `--output=.../%v/results`, so results are keyed by the guest's kernel
   release.
 
   All files are written atomically and echoed to the job log. Returns the
@@ -60,8 +61,8 @@ schema:
       type: string
       description: |-
         Raw blktests config text (the `config.example` variables, a sourced
-        bash file), replacing the rendered config WHOLESALE when Edit Config is
-        on and this is non-empty.
+        Bash file), replacing the rendered config WHOLESALE when Edit config
+        is on and this is non-empty.
       default: ''
       title: config
     device_only:
@@ -76,12 +77,12 @@ schema:
         Reveal the raw config below and use it INSTEAD of the curated knobs
         (which are ignored while it is on and non-empty).
       default: false
-      title: Edit Config
+      title: Edit config
     exclude:
       type: array
       description: |-
         blktests `EXCLUDE`: tests or groups to exclude (exact `group` or
-        `group/nnn` names, no globs; rendered as a bash array). Explicitly
+        `group/nnn` names, no globs; rendered as a Bash array). Explicitly
         named Tests bypass it.
       default: []
       items:
@@ -92,7 +93,7 @@ schema:
       description: |-
         The groups to run, one `blktests@<group>.service` instance each,
         sourced from the guest's installed `tests/*/rc` catalog (static
-        catalog before the first discover). Default: every group except
+        catalog before the first discovery). Default: every group except
         `meta`, upstream's own default.
       default: []
       format: dynmultiselect-list_groups
@@ -106,21 +107,21 @@ schema:
     nvme_img_size:
       type: string
       description: |-
-        blktests `NVME_IMG_SIZE`: size of the nvme fabrics backing image or
+        blktests `NVME_IMG_SIZE`: size of the NVMe fabrics backing image or
         device (e.g. `1G`).
       default: 1G
       title: NVME_IMG_SIZE
     nvme_num_iter:
       type: integer
       description: |-
-        blktests `NVME_NUM_ITER`: iteration count for the nvme tests that
+        blktests `NVME_NUM_ITER`: iteration count for the `nvme` tests that
         loop.
       default: 1000
       title: NVME_NUM_ITER
     nvmet_blkdev_types:
       type: array
       description: |-
-        blktests `NVMET_BLKDEV_TYPES`: the nvme target backend types to
+        blktests `NVMET_BLKDEV_TYPES`: the NVMe target backend types to
         exercise.
       default:
         - device
@@ -134,8 +135,8 @@ schema:
     nvmet_trtypes:
       type: array
       description: |-
-        blktests `NVMET_TRTYPES`: the nvme fabrics transports to exercise;
-        each nvme test fans out one result row per transport.
+        blktests `NVMET_TRTYPES`: the NVMe fabrics transports to exercise;
+        each `nvme` test fans out one result row per transport.
       default:
         - loop
       items:
@@ -164,7 +165,7 @@ schema:
       type: array
       description: |-
         blktests `TEST_DEVS`: block devices to run the device tests against
-        (e.g. `/dev/nvme1n1`; rendered as a bash array). DESTRUCTIVE: data on
+        (e.g. `/dev/nvme1n1`; rendered as a Bash array). DESTRUCTIVE: data on
         these devices is lost. Empty = the default `nodev` run.
       default: []
       items:
@@ -210,7 +211,7 @@ schema:
     throtl_blkdev_types:
       type: array
       description: |-
-        blktests `THROTL_BLKDEV_TYPES`: the block device types the throtl
+        blktests `THROTL_BLKDEV_TYPES`: the block device types the `throtl`
         group exercises.
       default:
         - nullb
@@ -225,15 +226,15 @@ schema:
       type: integer
       description: |-
         blktests `TIMEOUT` (seconds): the cap the QUICK_RUN/TIMED tests honor
-        (advisory upstream; only our Per-test Timeout enforces a kill). 0 =
-        unset.
+        (advisory upstream; only the Service group's Per-test Timeout
+        enforces a kill). 0 = unset.
       default: 0
       title: TIMEOUT
     use_rxe:
       type: boolean
       description: |-
-        blktests `USE_RXE`: use the rxe soft-RoCE driver for the rdma
-        transport instead of siw (rnbd requires it on).
+        blktests `USE_RXE`: use the `rxe` soft-RoCE driver for the `rdma`
+        transport instead of `siw` (the `rnbd` group requires it on).
       default: false
       title: USE_RXE
     vm_name:

@@ -284,7 +284,7 @@ schema:
       type: object
       description: |-
         The `./check` positionals and `config` variables, one-to-one under
-        blktests' own names (the config is a sourced bash file the unit passes
+        blktests' own names (the config is a sourced Bash file the unit passes
         via `--config`; the positionals travel per group as `BLKTESTS_ARGS`).
       default: {}
       order:
@@ -309,8 +309,8 @@ schema:
           type: string
           description: |-
             Raw blktests config text (the `config.example` variables, a
-            sourced bash file), replacing the rendered config WHOLESALE when
-            Edit Config is on and this is non-empty.
+            sourced Bash file), replacing the rendered config WHOLESALE when
+            Edit config is on and this is non-empty.
           default: ''
           showExpr: fields.edit_config === true
           title: config
@@ -327,12 +327,12 @@ schema:
             Reveal the raw config below and use it INSTEAD of the curated
             knobs (which are ignored while it is on and non-empty).
           default: false
-          title: Edit Config
+          title: Edit config
         exclude:
           type: object
           description: |-
             blktests `EXCLUDE`: tests or groups to exclude (exact `group` or
-            `group/nnn` names, no globs; rendered as a bash array). The
+            `group/nnn` names, no globs; rendered as a Bash array). The
             dropdown offers whole groups first, then every individual test
             from the guest's enumeration. Explicitly named Tests bypass it.
           default: []
@@ -344,7 +344,7 @@ schema:
           description: |-
             The groups to run, one `blktests@<group>.service` instance each,
             sourced from the guest's installed `tests/*/rc` catalog (static
-            catalog before the first discover). Default: every group except
+            catalog before the first discovery). Default: every group except
             `meta`, upstream's own default.
           default:
             - block
@@ -367,21 +367,21 @@ schema:
         nvme_img_size:
           type: string
           description: |-
-            blktests `NVME_IMG_SIZE`: size of the nvme fabrics backing image
+            blktests `NVME_IMG_SIZE`: size of the NVMe fabrics backing image
             or device (e.g. `1G`).
           default: 1G
           title: NVME_IMG_SIZE
         nvme_num_iter:
           type: integer
           description: |-
-            blktests `NVME_NUM_ITER`: iteration count for the nvme tests that
-            loop.
+            blktests `NVME_NUM_ITER`: iteration count for the `nvme` tests
+            that loop.
           default: 1000
           title: NVME_NUM_ITER
         nvmet_blkdev_types:
           type: array
           description: |-
-            blktests `NVMET_BLKDEV_TYPES`: the nvme target backend types to
+            blktests `NVMET_BLKDEV_TYPES`: the NVMe target backend types to
             exercise.
           default:
             - device
@@ -395,8 +395,8 @@ schema:
         nvmet_trtypes:
           type: array
           description: |-
-            blktests `NVMET_TRTYPES`: the nvme fabrics transports to
-            exercise; each nvme test fans out one result row per transport.
+            blktests `NVMET_TRTYPES`: the NVMe fabrics transports to
+            exercise; each `nvme` test fans out one result row per transport.
           default:
             - loop
           items:
@@ -449,7 +449,7 @@ schema:
           type: array
           description: |-
             blktests `THROTL_BLKDEV_TYPES`: the block device types the
-            throtl group exercises.
+            `throtl` group exercises.
           default:
             - nullb
             - sdebug
@@ -470,8 +470,8 @@ schema:
         use_rxe:
           type: boolean
           description: |-
-            blktests `USE_RXE`: use the rxe soft-RoCE driver for the rdma
-            transport instead of siw (rnbd requires it on).
+            blktests `USE_RXE`: use the `rxe` soft-RoCE driver for the `rdma`
+            transport instead of `siw` (the `rnbd` group requires it on).
           default: false
           title: USE_RXE
       title: Check
@@ -545,14 +545,14 @@ schema:
         `discover`'s cache (the canonical guest data-disk paths before the
         first discovery). DESTRUCTIVE: data on these devices is lost. Empty
         = the default `nodev` run, where the groups create their own
-        null_blk/scsi_debug/nvme-loop devices.
+        `null_blk`/`scsi_debug`/`nvme-loop` devices.
       default: []
       format: dynmultiselect-list_devices
       title: TEST_DEVS
     vm_name:
       type: object
       description: |-
-        Guest to drive over vsock (the `f/qsu/boot` ssh alias). The dropdown
+        Guest to drive over vsock (the `f/qsu/boot` `ssh` alias). The dropdown
         lists all guests; it must be blktests-ready (the `blktests` test
         suite in the closure, the `blktests` share at `/var/lib/blktests`);
         `discover` gates that.

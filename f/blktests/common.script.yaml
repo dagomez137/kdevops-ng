@@ -4,7 +4,7 @@ description: |-
   import share_dir, build_args, parse_seqres, ...`). Not a runnable step on its
   own. Holds the host end of the single rw `blktests` virtiofs share the guest
   mounts at `/var/lib/blktests`: the curated group catalog, the rendered
-  blktests `config` (a sourced bash file passed to `./check` via `--config`),
+  blktests `config` (a sourced Bash file passed to `./check` via `--config`),
   the per-group `BLKTESTS_ARGS` positional builder, the per-test TSV result
   parser and results-tree walker, and the shared `group_status`/`run_status`
   verdict rules. Never contacts the guest.

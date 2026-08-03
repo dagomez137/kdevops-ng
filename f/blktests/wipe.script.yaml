@@ -4,7 +4,7 @@ description: |-
   vsock-SSH: per chosen `TEST_DEVS` device, `umount` then `wipefs --all` +
   `blkdiscard --force`. Wipes ONLY the devices the user chose as `TEST_DEVS`;
   blktests owns device setup for everything else (the `nodev` groups create
-  their own null_blk/scsi_debug/nvme-loop devices). The `blkdiscard` TRIM
+  their own `null_blk`/`scsi_debug`/`nvme-loop` devices). The `blkdiscard` TRIM
   deflates the thin-provisioned qcow2 backing so it does not inflate across
   groups.
 

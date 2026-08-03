@@ -7,7 +7,7 @@
 #
 # The contract with the guest side (kept verbatim on both ends):
 #   * guest mount: /var/lib/blktests (GUEST_STATE_DIR), share tag `blktests`;
-#   * <share>/config          = the rendered blktests config (a sourced bash
+#   * <share>/config          = the rendered blktests config (a sourced Bash
 #                               file the unit passes to ./check via --config);
 #   * <share>/<group>.env     = the systemd EnvironmentFile the unit reads for
 #                               %i (BLKTESTS_ARGS=<positional args>: the group
@@ -40,9 +40,9 @@ GUEST_STATE_DIR = "/var/lib/blktests"
 GUEST_TAG = "blktests"
 
 # The curated group catalog: name, one-line description, test count, in catalog
-# order. The installed groups discover enumerates from the guest's package tree
-# are the ground truth; this supplies the labels, the fallback before the first
-# discovery, and the default run set.
+# order. The installed groups `f/blktests/discover` enumerates from the guest's
+# package tree are the ground truth; this supplies the labels, the fallback
+# before the first discovery, and the default run set.
 GROUPS: list[dict] = [
     {"name": "block", "description": "Generic block layer tests", "tests": 44},
     {"name": "nvme", "description": "NVMe device and fabrics tests", "tests": 61},
@@ -224,12 +224,12 @@ def render_blktests_config(
     edit_config: bool = False,
     config: str = "",
 ) -> str:
-    """The blktests config text (a sourced bash file, passed via `--config`).
+    """The blktests config text (a sourced Bash file, passed via `--config`).
 
     Every knob maps one-to-one to an upstream `config.example` variable under
     its upstream name; only what the caller set (non-empty, non-zero) is
     emitted, so the file mirrors what the user chose and blktests' own defaults
-    cover the rest. `TEST_DEVS` and `EXCLUDE` render as bash arrays
+    cover the rest. `TEST_DEVS` and `EXCLUDE` render as Bash arrays
     (`TEST_DEVS=(/dev/nvme1n1 /dev/nvme2n1)`); the space-joined list variables
     (`NVMET_TRTYPES`, `NVMET_BLKDEV_TYPES`, `THROTL_BLKDEV_TYPES`,
     `TEST_TIMEOUTS`) are quoted. `NORMAL_USER` is always emitted (the closure
@@ -251,7 +251,7 @@ def render_blktests_config(
         lines.append("DEVICE_ONLY=1")
     if quick_run:
         lines.append("QUICK_RUN=1")
-    # QUICK_RUN without TIMEOUT is a fatal error in check; --quick defaults the
+    # QUICK_RUN without TIMEOUT is a fatal error in `./check`; --quick defaults the
     # budget to 30 seconds, so mirror that here when no explicit value is set.
     if timeout or quick_run:
         lines.append(f"TIMEOUT={int(timeout) or 30}")

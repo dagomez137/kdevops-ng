@@ -4,12 +4,13 @@
 Writes onto `/var/lib/blktests` (the share mount) the files the guest's
 `blktests@<group>.service` reads:
 
-  - `config`: the ONE rendered blktests config (a sourced bash file the unit
+  - `config`: the ONE rendered blktests config (a sourced Bash file the unit
     passes to `./check` via `--config`). Every knob maps one-to-one to an
     upstream `config.example` variable under its upstream name; only what the
-    user set is emitted (`NORMAL_USER` always), with `TEST_DEVS`/`EXCLUDE` as
-    bash arrays. The gated raw `config` override (`edit_config`) replaces the
-    rendered file wholesale.
+    form carries is emitted (`NORMAL_USER` always, and the form pre-fills
+    `NVME_IMG_SIZE`/`NVME_NUM_ITER` with upstream's own defaults), with
+    `TEST_DEVS`/`EXCLUDE` as Bash arrays. The gated raw `config` override
+    (`edit_config`) replaces the rendered file wholesale.
   - `<group>.env`: the group's own systemd `EnvironmentFile` (read as `%i.env`),
     so `systemctl start blktests@<group>` is self-contained:
     `BLKTESTS_ARGS=<positionals>` carries only the positional args (the group
