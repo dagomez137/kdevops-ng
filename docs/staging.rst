@@ -70,5 +70,6 @@ Flows
 - :doc:`/flows/boot` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/bringup` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/workbench-init` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/blktests` (add to ``docs/flows/index.rst``)
 
 .. _Windmill: https://www.windmill.dev/
