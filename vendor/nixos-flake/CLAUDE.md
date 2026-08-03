@@ -50,6 +50,7 @@ nixos-flake/
 │   └── user-options.nix   Shared option schema for the unprivileged account
 ├── pkgs/
 │   ├── default.nix        Custom packages via callPackage
+│   ├── blktests.nix       Block layer test suite with a per-test scope patch
 │   ├── cpupower.nix       Standalone cpupower from kernel source tree
 │   ├── damo.nix           DAMON user-space tool
 │   ├── libbpf-tools.nix   CO-RE BPF tracing tools from BCC

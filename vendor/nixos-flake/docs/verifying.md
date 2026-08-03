@@ -59,7 +59,7 @@ surface on an actual build.
 What: builds each custom package.
 
 ```shell
-nix build .#cpupower .#damo .#libbpf-tools .#nfstest .#pynfs .#xnvme
+nix build .#blktests .#cpupower .#damo .#libbpf-tools .#nfstest .#pynfs .#xnvme
 ```
 
 ## 5. Review the commit message
