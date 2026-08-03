@@ -504,7 +504,28 @@ verified through Windmill runs in staging:
   the deployed pickers read the fresh cache (15 groups, 211 tests,
   5 devices at 20G).
 
-### Phase 3: triage queue (2026-08-03, IN PROGRESS)
+### Phase 3 retest and promotion (2026-08-03, DONE)
+
+The fix batch validated through Windmill runs on the rebuilt stack:
+md 3/0/0 (the udev-rules fix), rnbd 2/0/0 (USE_RXE armed), block
+fully green including 046, throtl and ublk already clean, and the
+srp-first retest after the configs-module autoload: srp 13/0/2 (the
+whole SRP multipath-over-soft-RDMA story runs), zbd 8/1/2 with
+mq-deadline clearing 005 and 006, scsi 5/0/1. Two more root causes
+landed on the way: /proc/config.gz needs the configs module loaded
+(IKCONFIG=m), now auto-loaded by the suite module, and srp must run
+before the groups that load scsi_debug in the same boot.
+
+Remaining honest findings, each documented above: zbd/011 (dm-crypt
+over zoned, single-test failure, upstream candidate), the nbd-client
+help segfault, the loop udevd-mask pair, scsi/007 (failed once under
+a dirty module state, green when clean; watch), and the deferred
+TEST_CASE_DEV_ARRAY knob with the nvme rdma/fc/TLS transport
+extensions. With the executor validated end to end and every red
+diagnosed, the suite is promoted to the kdevops workspace by
+deleting its staging-only prune entry.
+
+### Phase 3: triage queue (2026-08-03, diagnoses)
 
 Diagnoses from the banked artifacts and the guest journal, each with
 its fix or disposition:
