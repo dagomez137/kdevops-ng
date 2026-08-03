@@ -1,17 +1,25 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Fixture tests for the blktests TSV parser and shared verdict rules."""
 
+import stat
 from pathlib import Path
 
 import pytest
 
 from f.blktests.common import (
     GROUPS,
+    _atomic_write,
     build_args,
+    catalog_tests,
     collect_group_rows,
     default_groups,
     group_names,
     group_status,
+    groups_cache,
+    list_devices,
+    list_exclude,
+    list_groups,
+    list_tests,
     parse_seqres,
     render_blktests_config,
     results_dir,
@@ -71,7 +79,9 @@ def test_runtime_seconds_parses_the_suffixed_value():
     assert runtime_seconds("abc") is None
 
 
-def _write_seqres(path: Path, status: str = "pass", reason: str = "", runtime="1.500s"):
+def _write_seqres(
+    path: Path, status: str = "pass", reason: str = "", runtime: str = "1.500s"
+):
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [f"status\t{status}"]
     if reason:
@@ -88,7 +98,8 @@ def test_collect_group_rows_fans_out_across_devdirs(tmp_path):
     _write_seqres(root / "nodev/nvme/002")
     _write_seqres(root / "nodev_tr_tcp/nvme/002", status="fail", reason="output")
     _write_seqres(root / "nvme1n1/nvme/010", status="not run", runtime="0.000s")
-    _write_seqres(root / "nodev/block/001")  # another group, not collected
+    # Another group's row, not collected.
+    _write_seqres(root / "nodev/block/001")
     # Companions are not result files and are skipped.
     (root / "nodev/nvme/002.full").write_text("verbose output\n")
     (root / "nodev/nvme/002.out.bad").write_text("diff\n")
@@ -156,34 +167,6 @@ def test_build_args_tests_mode_accepts_a_list():
     assert got == {"block": "block/002 block/005", "nvme": "nvme/010"}
 
 
-def test_the_picker_catalog_and_fallbacks_hold_their_shape():
-    from f.blktests import common
-
-    tests = common.catalog_tests()
-    assert len(tests) == 211
-    assert tests[0].startswith("block/") and all("/" in t for t in tests)
-    devs = common.list_devices("")
-    assert [d["value"] for d in devs] == [f"/dev/nvme{i}n1" for i in range(5)]
-    excl = common.list_exclude("")
-    assert excl[0]["value"] == "block" and len(excl) == 15 + 211
-
-
-def test_pickers_read_the_discover_cache(monkeypatch, tmp_path):
-    from f.blktests import common
-
-    monkeypatch.setenv("WORKERS_DIR", str(tmp_path))
-    cache = common.groups_cache("demo")
-    cache.parent.mkdir(parents=True)
-    cache.write_text(
-        '{"groups": ["loop"], "tests": ["loop/001"], '
-        '"devices": [{"name": "/dev/nvme2n1", "size": "10G"}]}'
-    )
-    assert [g["value"] for g in common.list_groups("demo")] == ["loop"]
-    assert [t["value"] for t in common.list_tests("demo")] == ["loop/001"]
-    devs = common.list_devices("demo")
-    assert devs == [{"value": "/dev/nvme2n1", "label": "/dev/nvme2n1 (10G)"}]
-
-
 def test_build_args_tests_mode_splits_per_group_and_ignores_groups():
     got = build_args("tests", ["loop"], "block/002 nvme/010 block/005")
     assert got == {"block": "block/002 block/005", "nvme": "nvme/010"}
@@ -200,6 +183,30 @@ def test_build_args_refuses_bad_names():
         build_args("tests", [], "block/2")
     with pytest.raises(ValueError):
         build_args("tests", [], "block002")
+
+
+def test_catalog_and_picker_fallbacks_hold_their_shape():
+    tests = catalog_tests()
+    assert len(tests) == 211
+    assert tests[0].startswith("block/") and all("/" in t for t in tests)
+    devs = list_devices("")
+    assert [d["value"] for d in devs] == [f"/dev/nvme{i}n1" for i in range(5)]
+    excl = list_exclude("")
+    assert excl[0]["value"] == "block" and len(excl) == 15 + 211
+
+
+def test_pickers_read_the_discover_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORKERS_DIR", str(tmp_path))
+    cache = groups_cache("demo")
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        '{"groups": ["loop"], "tests": ["loop/001"], '
+        '"devices": [{"name": "/dev/nvme2n1", "size": "10G"}]}'
+    )
+    assert [g["value"] for g in list_groups("demo")] == ["loop"]
+    assert [t["value"] for t in list_tests("demo")] == ["loop/001"]
+    devs = list_devices("demo")
+    assert devs == [{"value": "/dev/nvme2n1", "label": "/dev/nvme2n1 (10G)"}]
 
 
 def test_render_blktests_config_arrays_and_only_set_knobs():
@@ -263,6 +270,15 @@ def test_render_blktests_config_raw_override_replaces_wholesale():
     # The gate needs BOTH the toggle and a non-empty config.
     assert "NORMAL_USER=" in render_blktests_config(edit_config=True, config="  ")
     assert "NORMAL_USER=" in render_blktests_config(edit_config=False, config=raw)
+
+
+def test_atomic_write_replaces_in_place_without_leftovers(tmp_path):
+    target = tmp_path / "deep" / "config"
+    _atomic_write(target, "one\n")
+    _atomic_write(target, "two\n", mode=0o600)
+    assert target.read_text() == "two\n"
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    assert [p.name for p in target.parent.iterdir()] == ["config"]
 
 
 def test_share_dir_resolves_under_the_blktests_root(tmp_path, monkeypatch):
