@@ -11,6 +11,11 @@ then tags newest version first, so the zero-config pick is the tip of a tree
 or the latest release. The linux picker additionally leads with kernel.org's
 current releases (`releases.json`), labeled by moniker, so the latest
 mainline, stable, longterm, or linux-next is a one-click pick.
+
+Every source is best-effort because a dynselect must never block: ref reads
+that race git maintenance are skipped, and the kernel.org fetch runs under a
+hard wall-clock deadline with failed attempts throttled. The worst outcome is
+stale or partial data, returned fast.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 import urllib.request
 from pathlib import Path
@@ -30,6 +36,12 @@ _VERSION_RE = re.compile(
 
 _KORG_URL = "https://www.kernel.org/releases.json"
 _KORG_CACHE_TTL = 3600
+# After a failed fetch no new attempt is made for this many seconds; the
+# stale cache keeps being served meanwhile.
+_KORG_RETRY_WINDOW = 60
+# Hard wall-clock bound on the whole fetch. urlopen's timeout starts after
+# DNS resolution, so it alone cannot bound a broken resolver.
+_KORG_FETCH_DEADLINE = 3.0
 # kernel.org requires an identifying User-Agent and bans anonymous-looking
 # queries; this is the exact one the kdevops project sends.
 _KORG_USER_AGENT = "kdevops/5.0.2 (kdevops@lists.linux.dev)"
@@ -52,23 +64,33 @@ def _repo_dir(repo: str) -> Path | None:
 
 
 def _read_refs(bare: Path) -> dict[str, str]:
-    """`refs/heads/...`/`refs/tags/...` names -> kind, loose over packed."""
+    """`refs/heads/...`/`refs/tags/...` names -> kind, loose over packed.
+
+    A source that fails mid-read (git maintenance repacking or pruning
+    underneath us) is skipped; partial data beats an exception in a picker.
+    """
     refs: dict[str, str] = {}
     packed = bare / "packed-refs"
-    if packed.is_file():
-        for line in packed.read_text(errors="replace").splitlines():
-            if not line or line.startswith(("#", "^")):
-                continue
-            _, _, name = line.partition(" ")
-            for kind, prefix in (("head", "refs/heads/"), ("tag", "refs/tags/")):
-                if name.startswith(prefix):
-                    refs[name[len(prefix) :]] = kind
+    try:
+        lines = packed.read_text(errors="replace").splitlines()
+    except OSError:
+        lines = []
+    for line in lines:
+        if not line or line.startswith(("#", "^")):
+            continue
+        _, _, name = line.partition(" ")
+        for kind, prefix in (("head", "refs/heads/"), ("tag", "refs/tags/")):
+            if name.startswith(prefix):
+                refs[name[len(prefix) :]] = kind
     for kind, sub in (("head", "heads"), ("tag", "tags")):
         root = bare / "refs" / sub
-        if root.is_dir():
-            for path in root.rglob("*"):
-                if path.is_file():
-                    refs[str(path.relative_to(root))] = kind
+        try:
+            if root.is_dir():
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        refs[str(path.relative_to(root))] = kind
+        except OSError:
+            pass
     return refs
 
 
@@ -89,56 +111,132 @@ def _tag_key(name: str) -> tuple:
     )
 
 
+def _mtime_within(path: Path | None, window: float) -> bool:
+    """True when `path` exists and was modified less than `window` seconds ago."""
+    if path is None:
+        return False
+    try:
+        return time.time() - path.stat().st_mtime < window
+    except OSError:
+        return False
+
+
+def _read_cache(cache: Path | None) -> str | None:
+    if cache is None:
+        return None
+    try:
+        return cache.read_text(errors="replace")
+    except OSError:
+        return None
+
+
+def _write_atomic(cache: Path, raw: str) -> None:
+    """Publish via a same-directory temp file and `os.replace`.
+
+    A concurrent dynselect job reading the cache sees the old file or the new
+    one, never a torn half-write.
+    """
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    tmp = cache.with_name(f".{cache.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(raw)
+        os.replace(tmp, cache)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _fetch_korg() -> str:
+    """One blocking `releases.json` GET; runs inside the deadline thread."""
+    req = urllib.request.Request(_KORG_URL, headers={"User-Agent": _KORG_USER_AGENT})
+    with urllib.request.urlopen(req, timeout=_KORG_FETCH_DEADLINE) as resp:
+        return resp.read().decode()
+
+
+def _fetch_korg_bounded() -> str | None:
+    """`_fetch_korg` under a hard wall-clock deadline; None on any failure.
+
+    urlopen's timeout does not bound getaddrinfo, so a broken resolver can
+    hold a plain fetch for 30s+. The fetch runs in a one-shot daemon thread
+    that is abandoned at the deadline; the job process exits right after, so
+    an orphaned thread never lingers for long.
+    """
+    result: list[str] = []
+
+    def fetch() -> None:
+        try:
+            result.append(_fetch_korg())
+        except Exception:
+            pass
+
+    worker = threading.Thread(target=fetch, daemon=True)
+    worker.start()
+    worker.join(_KORG_FETCH_DEADLINE)
+    return result[0] if result else None
+
+
+def _parse_korg(raw: str | None) -> list[dict] | None:
+    """`releases.json` text -> `{tag, moniker, iseol}` rows; None if malformed."""
+    if raw is None:
+        return None
+    out: list[dict] = []
+    try:
+        for rel in json.loads(raw)["releases"]:
+            version = str(rel.get("version", ""))
+            if not version:
+                continue
+            tag = f"v{version}" if _KORG_NUMERIC_RE.match(version) else version
+            out.append(
+                {
+                    "tag": tag,
+                    "moniker": str(rel.get("moniker", "")),
+                    "iseol": bool(rel.get("iseol")),
+                }
+            )
+    except Exception:
+        return None
+    return out
+
+
 def _korg_releases() -> list[dict]:
     """kernel.org's current releases as `{tag, moniker, iseol}`, best-effort.
 
     The JSON is disk-cached for `_KORG_CACHE_TTL` seconds because a dynselect
-    re-runs on every filter keystroke; a fetch failure falls back to a stale
-    cache, then to an empty list, so the picker never blocks on the network.
+    re-runs on every filter keystroke. The fetch is bounded by a wall-clock
+    deadline (DNS included) and only a payload that parses is cached, written
+    atomically. A failed attempt stamps a sidecar marker so no new attempt is
+    made for `_KORG_RETRY_WINDOW` seconds; either way the stale cache, then an
+    empty list, keeps being served, so the picker never blocks on the network.
     """
     system = os.environ.get("SYSTEM_DIR", "")
     cache = Path(system) / "cache/korg-releases.json" if system else None
-    raw = None
-    if cache and cache.is_file():
-        if time.time() - cache.stat().st_mtime < _KORG_CACHE_TTL:
-            raw = cache.read_text(errors="replace")
-    if raw is None:
-        try:
-            req = urllib.request.Request(
-                _KORG_URL, headers={"User-Agent": _KORG_USER_AGENT}
-            )
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                raw = resp.read().decode()
-            if cache:
+    marker = cache.with_name(cache.name + ".attempt") if cache else None
+    if _mtime_within(cache, _KORG_CACHE_TTL):
+        fresh = _parse_korg(_read_cache(cache))
+        if fresh is not None:
+            return fresh
+    if not _mtime_within(marker, _KORG_RETRY_WINDOW):
+        raw = _fetch_korg_bounded()
+        fetched = _parse_korg(raw)
+        if fetched is not None:
+            if cache and raw is not None:
                 try:
-                    cache.parent.mkdir(parents=True, exist_ok=True)
-                    cache.write_text(raw)
+                    _write_atomic(cache, raw)
                 except OSError:
                     pass
-        except Exception:
-            raw = (
-                cache.read_text(errors="replace") if cache and cache.is_file() else None
-            )
-    if raw is None:
-        return []
-    try:
-        releases = json.loads(raw)["releases"]
-    except Exception:
-        return []
-    out: list[dict] = []
-    for rel in releases:
-        version = str(rel.get("version", ""))
-        if not version:
-            continue
-        tag = f"v{version}" if _KORG_NUMERIC_RE.match(version) else version
-        out.append(
-            {
-                "tag": tag,
-                "moniker": str(rel.get("moniker", "")),
-                "iseol": bool(rel.get("iseol")),
-            }
-        )
-    return out
+            if marker:
+                try:
+                    marker.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            return fetched
+        if marker:
+            try:
+                marker.parent.mkdir(parents=True, exist_ok=True)
+                marker.touch()
+            except OSError:
+                pass
+    stale = _parse_korg(_read_cache(cache))
+    return stale if stale is not None else []
 
 
 def list_refs(repo: str, filterText: str = "") -> list[dict]:
