@@ -48,7 +48,18 @@ stdenv.mkDerivation (finalAttrs: {
   # libbpf-tools subdir from there. Avoids hardcoding src.name, which
   # is not present on every src form (notably flake-input overrides
   # that point src at a bcc fork).
-  postUnpack = "sourceRoot=$sourceRoot/libbpf-tools";
+  #
+  # Then drop .output, the Makefile's build directory. It is gitignored
+  # and so absent from a released tarball, but a src that points at a
+  # working tree copies it in along with everything else. Its
+  # bpftool/bootstrap/bpftool is an order-only prerequisite of every
+  # GEN-SKEL rule, so make keeps whatever binary is already there;
+  # a host-built one has an interpreter that does not exist in the
+  # sandbox and the build dies on the first skeleton.
+  postUnpack = ''
+    sourceRoot=$sourceRoot/libbpf-tools
+    rm --recursive --force $sourceRoot/.output
+  '';
 
   # USE_BLAZESYM=1 pulls in the blazesym Rust crate that ships as a
   # bcc submodule under libbpf-tools/blazesym. blkalgn (and a few
