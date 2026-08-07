@@ -1,10 +1,15 @@
 # Handoff: choosing the Rust index replay mechanism
 
-Repo: `/home/dagomez/src/kdevops-ng`, branch `main`. This was a **research +
-experiment** session, no code changed. The design is settled and written down in
-`notes/adr/0013-rust-index-regenerated-on-the-consumer.md`; the sequence is in
-`notes/plans/kernel-rust-index.md`. **One branch is open and step 3 of that plan
-cannot land until this note closes it.**
+Repo: `/home/dagomez/src/kdevops-ng`, branch `main`. The design is settled in
+`notes/adr/0013-rust-index-regenerated-on-the-consumer.md` and the whole
+sequence in `notes/plans/kernel-rust-index.md` is **implemented and committed**.
+The feature is live: a developer worktree gets both indexes, proc macros expand,
+and it was validated end to end on the rxarray identity.
+
+This note is now the record of how the mechanism was chosen and of what is
+still genuinely unknown. Everything answered since is in "Answered since"
+below; E4 and Q3 through Q5 remain open and each needs a peer host, a dirty
+worktree, or a measurement nobody has taken.
 
 Read the ADR first. Everything below assumes it.
 
@@ -32,8 +37,9 @@ status.
 
 E2 is therefore moot: nothing needs recording at publish time, so no carrier has
 to be invented and `make V=1` never has to be parsed. E3 is moot too, since the
-chosen route cannot reach kconfig and so has no `.config` to guard. E4 and the
-five Q questions below are still open.
+chosen route cannot reach kconfig and so has no `.config` to guard. Q1 and Q2
+were answered later by observation and are recorded below; E4 and Q3 through Q5
+are still open.
 
 The original framing follows, for the reasoning that led here.
 
@@ -120,15 +126,54 @@ checkout at the exact built commit. The developer worktree is a tree a human is
 editing. Run the chosen route against a dirty worktree and against one at a
 different HEAD, and record what kbuild does.
 
+## Answered since, by observation rather than reasoning
+
+**Q1 is closed, and it inverted the plan.** The user opened a real editor and
+got `macros::kunit_tests: proc macro server error: Cannot create expander for
+.../libmacros.so: No such file or directory (macro-error)`. So the absence of
+the dylibs is not a quiet 3.3% shortfall, it is a diagnostic at every macro
+site. Step 4 went from "probably not worth writing" to written, with
+`proc_macros` defaulting on.
+
+**Q2 is closed, and the answer was better than the question.** No editor
+setting is needed. `rust-analyzer` reads `sysroot` from `rust-project.json` and
+starts `<sysroot>/libexec/rust-analyzer-proc-macro-srv` itself. Measured with a
+1.91.1 client against the 1.95.0 toolchain, no configuration at all: 561
+modules, 104,660 declarations, the complete index. The reproducibility is
+structural, since one devShell writes both the `sysroot` field and the dylibs.
+
+**The corollary, and it is the sharper half.** An explicit
+`rust-analyzer.procMacro.server` in a global editor configuration is harmful.
+It applies to every Rust workspace, and it was measured breaking three
+proc-macro crates in an ordinary Cargo project at `~/src/buildme` with
+`mismatched ABI expected: rustc 1.95...`. The correct server is a property of
+the workspace, not of the user; one machine legitimately needs several at once,
+and only per-index discovery delivers that.
+
+**The editor-devShell question is therefore closed too: do not build one.** A
+generated per-worktree `.helix/languages.toml` was the strongest rival and
+would not have dirtied the tree, since the kernel's `.gitignore:13` is a
+blanket `.*` and `git check-ignore` confirms `.helix/` is ignored. It was
+rejected because it could only transcribe a value the arrangement already
+derives. Worth keeping if a future editor ever lacks `rust-project.json`
+discovery: Helix reads `<workspace>/.helix/languages.toml`, but its config
+merge cuts off at depth 3, so any layer mentioning one key under a language
+server's `config` replaces the whole blob and destroys Helix's own defaults.
+
+**A real bug surfaced on the way.** `rust-lib-src`, which backs four of the 46
+crates, had zero GC roots, so `nix store gc` would break every kernel Rust
+index on the host. The devShell exposes it as an environment variable rather
+than a package, so nothing rooted it. Fixed by rooting what the index names.
+
 ## Independent questions, same session
 
-**Q1, the editor-visible failure mode.** With three dangling
+**Q1, CLOSED (see above), the editor-visible failure mode.** With three dangling
 `proc_macro_dylib_path` entries, `analysis-stats` reports 101,200 declarations
 against 104,659, but nobody has watched a real editor. Does rust-analyzer show a
 per-crate error banner, or quietly leave `module!` unexpanded? This decides
 whether plan step 4, the opt-in `make rust/`, is worth writing at all.
 
-**Q2, the proc-macro server contract, already half-answered.** This host's
+**Q2, CLOSED (see above), the proc-macro server contract.** This host's
 `~/.rustup/.../rust-analyzer-proc-macro-srv` refuses the pinned toolchain's
 `libmacros.so` with `mismatched ABI expected: rustc 1.91.1 (ed61e7d7e
 2025-11-07), got rustc 1.95.0 (59807616e 2026-04-14)`, and the pinned rustc's

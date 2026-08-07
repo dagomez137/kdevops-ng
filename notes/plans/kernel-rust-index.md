@@ -1,14 +1,21 @@
 # Plan: the Rust index on a developer worktree
 
-Working note, 2026-08-07. The mission: make `rust-project.json` reach a
-developer worktree the way `compile_commands.json` already does, per
+Working note, 2026-08-07. **Executed.** All six steps are committed
+(`bcd4451`, `7c5e4ea`, `34171ac`, `097550d`, `9e8eb9c`, `536d7b6`), both
+workspaces are deployed, and the rxarray identity was rebuilt with reuse off
+and verified: the layer carries the Rust inputs, both indexes land in the
+worktree, and proc macros expand. The mission was to make `rust-project.json`
+reach a developer worktree the way `compile_commands.json` already does, per
 `notes/adr/0013-rust-index-regenerated-on-the-consumer.md`, including the
-cross-host case. The replay mechanism was the one open branch and it is now
-settled by experiment: the consumer enters the sub-make directly, at 1.1
-seconds, and the result is path-normalized identical to the builder's.
-What remains open needs a peer host or an editor in front of a human, and
-is listed in `notes/handoff/handoff-rust-index-replay.md`. Every step below
-is unblocked.
+cross-host case.
+
+Two things changed during execution and the record below has been left as
+written rather than rewritten, so the reasoning stays legible. Step 4 was
+planned as conditional and `proc_macros: False`; the editor observation (Q1)
+made it unconditional and defaulted it on. A seventh piece of work, GC-rooting
+the store paths the index names, was not planned at all and came out of the
+design review. What remains open needs a peer host or a measurement nobody has
+taken, and is listed in `notes/handoff/handoff-rust-index-replay.md`.
 
 Everything below is measured, not estimated. The evidence came from a
 non-destructive reproduction of a fresh consumer: a `git clone --shared`
@@ -123,7 +130,11 @@ Atomic commits, in order. Rule 6 applies to each: `nix flake check` and
    adjusting the already-stale "roughly 190 MB".
    `docs/flows/kernel-build.rst`: the `publish_devel` and `fetch_devel`
    rows, and the `rust-analyzer.procMacro.server` setting, which is what
-   actually makes proc macros expand.
+   actually makes proc macros expand. **Corrected in execution:** that last
+   claim is false. Nothing needs setting, because rust-analyzer derives the
+   server from the index's own `sysroot`, and setting it globally breaks
+   every other Rust workspace on the machine. The shipped page documents it
+   as a warning instead.
    Neither `clangd` nor `rust-analyzer` is registered in `docs/conf.py`'s
    `cmd_links` and every page writes both as plain literals today. Keep
    them plain and uniform: a half-conversion is the inconsistency to

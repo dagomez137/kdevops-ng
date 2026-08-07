@@ -54,16 +54,37 @@ writes a well-formed index, but `core-edition` silently falls back from 2024 to
 devShell produces, reached by a different road, and it is why the consumer gates
 on `auto.conf` and `rustc_cfg` being present rather than trusting an exit code.
 
-The three proc-macro dylibs are held out, and the reason is not their size.
-Upstream states the coupling directly at `rust/Makefile:605`, "Procedural macros
-can only be used with the `rustc` that compiled it", and the contract is an
-exact version-string match: this host's rust-analyzer 1.91.1 proc-macro server
-refuses a dylib built by the pinned 1.95.0 with `mismatched ABI`. That refusal
-lands the same way whether the layer ships the dylibs or the consumer compiles
-them, so the choice between shipping and building was never the question. The
-answer is the server setting, `rust-analyzer.procMacro.server` pointed at
-`<sysroot>/libexec/rust-analyzer-proc-macro-srv`, a path derivable from the
-`sysroot` field of the index the step just wrote.
+The three proc-macro dylibs are held out of the layer, and the reason is not
+their size. Upstream states the coupling directly at `rust/Makefile:605`,
+"Procedural macros can only be used with the `rustc` that compiled it", and the
+contract is an exact version-string match. They are also not byte-reproducible
+across build paths, and the allowlist cannot express them without enumerating
+rustc-derived basenames, since `*.so` would sweep `arch/x86/entry/vdso/vdso64.so`.
+So the consumer compiles them instead, in the same devShell that regenerates the
+index.
+
+That the consumer compiles them rather than doing without was decided by
+observation, after this ADR was first written. The original reasoning treated
+the dylibs as worth only 3.3% of resolved declarations and therefore optional.
+In a real editor the absence is not a 3.3% shortfall, it is a `macro-error`
+diagnostic at every `module!`, `#[vtable]`, `#[kunit_tests]` and `pin_init!`
+site, so a developer worktree came up with its Rust code visibly red. A
+developer worktree exists to give an editor that works, so `proc_macros`
+defaults on.
+
+Nothing needs to be told where the matching server is, and this is the part
+that makes the arrangement reproducible rather than merely correct.
+`rust-analyzer` reads the `sysroot` field of `rust-project.json` and starts
+`<sysroot>/libexec/rust-analyzer-proc-macro-srv` itself. Because one devShell
+writes both that field and the dylibs, they move in lockstep on every toolchain
+bump, with no configuration to drift. Measured with a rust-analyzer 1.91.1
+client against a 1.95.0 toolchain and no configuration whatsoever: 561 modules
+and 104,660 declarations, the complete index. An explicit
+`rust-analyzer.procMacro.server` is therefore an override of a value already
+carried correctly, and in a global editor configuration it is harmful: it
+applies to every Rust workspace, and it was measured breaking proc-macro
+expansion in an ordinary Cargo project whose crates a different `rustc` had
+built.
 
 ## What the layer carries
 
@@ -104,8 +125,21 @@ accepted
   HOSTCC-linked, the compiled output `_DEVEL_KEEP` exists to exclude; they are
   not byte-reproducible across build paths; the allowlist cannot express them
   without enumerating rustc-derived basenames, since `*.so` would sweep
-  `arch/x86/entry/vdso/vdso64.so`; and the ABI refusal makes them useless to any
-  editor not running the pinned toolchain anyway.
+  `arch/x86/entry/vdso/vdso64.so`; and shipping fixes nothing that compiling
+  locally does not, since either way the dylib loads only into a server built
+  by the same `rustc`.
+- **Configure the editor to name the pinned proc-macro server.** Rejected on
+  measurement. It is unnecessary, because `rust-analyzer` derives the server
+  from the index's own `sysroot`; it pins a store path that the next toolchain
+  bump invalidates; and in a global editor configuration it breaks every other
+  Rust workspace on the machine. Documented as a warning rather than advice.
+- **A devShell, or a generated editor configuration, to pin the developer's
+  language tooling.** Rejected as solving a problem that does not exist. The
+  reproducibility is already structural: one devShell writes both the dylibs
+  and the `sysroot` the editor follows. A generated per-worktree
+  `.helix/languages.toml` was the strongest rival and would not have dirtied
+  the tree, since the kernel's `.gitignore` ignores all dotfiles, but it could
+  only transcribe a value the arrangement already derives.
 - **Run the top-level `make rust-analyzer` goal on the consumer.** Rejected.
   It works, measured at 12.5 seconds cold with the `.config` left byte-pristine
   once `LLVM=1` is derived from `CONFIG_CC_IS_CLANG=y`, and it has the merit of
@@ -160,10 +194,16 @@ accepted
 - The consumer must be able to enter the pinned `build-kernel` devShell from the
   vendored flake. That is a real precondition on a developer host, and it is the
   cost of not having a lean index shell yet.
-- Proc-macro expansion is configuration, not payload. Documenting the
-  `rust-analyzer.procMacro.server` setting is what makes `module!`, `#[vtable]`,
-  `#[pin_data]` and `pin_init!` expand; no choice about the layer's contents
-  substitutes for it.
+- Proc-macro expansion needs the dylibs present and nothing else. The consumer
+  compiles them, `rust-analyzer` finds the matching server through the index,
+  and no editor setting is involved on any correct path.
+- The index names store paths it does not own, so the step GC-roots them. The
+  `sysroot` and the `rust-lib-src` behind four of the crates are referenced by
+  the devShell as an environment variable rather than as packages, so nothing
+  else roots them: `rust-lib-src` was measured at zero GC roots, one
+  `nix store gc` away from breaking every kernel Rust index on the host. The
+  roots live outside the Store index, which is the identity catalog and has no
+  business holding a toolchain path.
 - `f/kernel/reuse_check` treats a devel layer with no `.config` as absent, so an
   identity built before this contract is republished once instead of being
   indexed forever with no Rust half.
