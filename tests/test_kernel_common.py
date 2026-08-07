@@ -239,10 +239,15 @@ def test_devel_stage_filter_keeps_only_the_index(tmp_path):
     (build / "scripts").mkdir(parents=True)
     (build / "tools").mkdir()
     (build / "drivers/scripts").mkdir(parents=True)
+    (build / "include/config").mkdir(parents=True)
+    (build / "include/generated").mkdir()
+    (build / "rust/bindings").mkdir(parents=True)
+    (build / "arch/x86/entry/vdso").mkdir(parents=True)
     for rel in (
         "main.cmd",
         "autoconf.h",
         "gen.c",
+        ".config",
         "vmlinux",
         "System.map",
         "scripts/x.cmd",
@@ -250,6 +255,11 @@ def test_devel_stage_filter_keeps_only_the_index(tmp_path):
         "drivers/obj.o",
         "drivers/d.cmd",
         "drivers/scripts/z.cmd",
+        "include/config/auto.conf",
+        "include/generated/rustc_cfg",
+        "rust/bindings/bindings_generated.rs",
+        "rust/libmacros.so",
+        "arch/x86/entry/vdso/vdso64.so",
     ):
         (build / rel).write_text("")
     (build / "source").symlink_to(tmp_path / "nowhere")
@@ -264,13 +274,26 @@ def test_devel_stage_filter_keeps_only_the_index(tmp_path):
     )
     kept = sorted(str(p.relative_to(stage)) for p in stage.rglob("*"))
     assert kept == [
+        ".config",
+        "arch",
+        "arch/x86",
+        "arch/x86/entry",
+        "arch/x86/entry/vdso",
         "autoconf.h",
         "drivers",
         "drivers/d.cmd",
         "drivers/scripts",
         "drivers/scripts/z.cmd",
         "gen.c",
+        "include",
+        "include/config",
+        "include/config/auto.conf",
+        "include/generated",
+        "include/generated/rustc_cfg",
         "main.cmd",
+        "rust",
+        "rust/bindings",
+        "rust/bindings/bindings_generated.rs",
         "source",
     ]
 
