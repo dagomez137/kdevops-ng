@@ -15,6 +15,11 @@ independent store paths, so a present run layer says nothing about whether
 existed, or one whose run layer arrived from a peer, has one and not the other. The
 build flow reads the two apart, which is what lets a developer-worktree run rebuild for
 the devel layer alone instead of skipping on the run layer and finding nothing to fetch.
+A devel layer that resolves but carries no `.config` predates the allowlist that ships
+the Rust index inputs, so it counts as absent and is republished once instead of
+indexing worktrees forever with no Rust half; every kernel build writes a `.config`
+whether or not `CONFIG_RUST` is set, so the probe cannot misfire on a kernel built
+without Rust.
 
 Returns `present` plus the resolved `bzImage`/`boot`/`modules` (under the destdir for a
 local install, else under the store path) so the manifest can fall back to them when the
@@ -38,7 +43,8 @@ def main(destdir: str, uts_release: str) -> dict:
             if sp_image and sp_modules:
                 root, image, has_modules = sp, sp_image, sp_modules
     present = bool(image and has_modules)
-    devel_present = store.local_path(f"kernel-devel-{uts_release}") is not None
+    devel = store.local_path(f"kernel-devel-{uts_release}")
+    devel_present = devel is not None and Path(devel, ".config").is_file()
     boot = Path(root) / "boot"
     print(
         f"identity {uts_release}: present={present} devel_present={devel_present} "

@@ -369,6 +369,32 @@ def test_reuse_check_falls_back_to_the_store(monkeypatch, tmp_path):
     }
 
 
+def _devel_layer(index, root, *rel):
+    for name in rel:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("")
+    (index / f"kernel-devel-{RELEASE}").symlink_to(root)
+
+
+def test_reuse_check_devel_layer_without_a_config_is_absent(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    index = _index(monkeypatch, tmp_path)
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    _devel_layer(index, tmp_path / "devel", "include/config/auto.conf")
+    assert reuse_check.main(str(dest), RELEASE)["devel_present"] is False
+
+
+def test_reuse_check_devel_layer_with_a_config_is_present(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    index = _index(monkeypatch, tmp_path)
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    _devel_layer(index, tmp_path / "devel", ".config", "include/config/auto.conf")
+    assert reuse_check.main(str(dest), RELEASE)["devel_present"] is True
+
+
 def test_fetch_identity_peer_fetch_off(monkeypatch):
     _clear_env(monkeypatch)
     assert fetch_identity.main("/dest", RELEASE, use_peers=False) == {
