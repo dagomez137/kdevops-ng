@@ -49,6 +49,7 @@ export async function main(
     // The optional developer-worktree tail: null when the toggle is off.
     developer_worktree: deploy?.worktrees?.[0]?.worktree ?? null,
     developer_index: devel?.compile_commands ?? null,
+    developer_rust_project: devel?.rust_project ?? null,
     devel_layer: devel?.store_path ?? null,
   };
 }
