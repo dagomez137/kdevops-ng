@@ -77,9 +77,10 @@ and sees the previous step's files:
        to the Nix store so a peer can fetch it; only after a real install.
      - Host
    * - ``publish_devel``
-     - Add this identity's devel layer (the build dir's ``.cmd`` files,
-       generated headers and scripts, minus binaries) to the Nix store so
-       ``fetch_devel`` can index a worktree; only after a real build.
+     - Add this identity's devel layer (the build dir's ``.cmd`` files, the
+       generated headers and sources, and the kconfig files a Rust index run
+       reads, minus every binary) to the Nix store so ``fetch_devel`` can index
+       a worktree; only after a real build.
      - Host
    * - ``deploy_worktree``
      - Lay the developer-group worktree at the built ref; only when a developer
@@ -87,8 +88,9 @@ and sees the previous step's files:
      - Host
    * - ``fetch_devel``
      - Materialize the devel layer into that developer worktree and regenerate
-       its ``clangd`` index.
-     - ``.#build``
+       both its ``clangd`` and its ``rust-analyzer`` index.
+     - ``.#transfer``, then
+       ``.#build-kernel``
    * - ``collect``
      - Merge the step results into one manifest and return it as the flow
        result.
@@ -338,6 +340,47 @@ the devel layer is missing, the run-layer hit is not accepted: ``compile`` and
 ``publish_devel`` run so there is a layer to index with, while ``install`` and
 ``publish`` still skip. Refs and the build inputs cross hosts by ``git``;
 the run-layer outputs cross by ``nix copy``. See :doc:`/concepts/build-store`.
+
+Indexing a developer worktree
+=============================
+
+With **Deploy Developer Worktree** on, the tail of the flow lays the group
+worktree at the built ref and leaves two indexes in it,
+``compile_commands.json`` for ``clangd`` and ``rust-project.json`` for
+``rust-analyzer``. Both are
+regenerated locally against that worktree's own source, so neither carries a
+builder path, and both are named in the kernel's own ``.gitignore``, so neither
+dirties ``git status``. The Rust index appears only for a ``CONFIG_RUST=y``
+kernel; otherwise the step says so and leaves the C index alone.
+
+Proc macros need one editor setting that no index can supply. The devel layer
+deliberately carries no compiled output, so the three proc-macro dylibs
+(``libmacros.so``, ``libpin_init_internal.so``, ``libzerocopy_derive.so``) are
+not in it, and ``fetch_devel`` reports how many of them resolved:
+
+.. code-block:: text
+   :caption: host
+   :class: cmd-host
+
+   wrote <worktree>/rust-project.json (46 crates, 0/3 proc-macro dylibs present)
+
+Building them locally would not help by itself. A proc-macro dylib loads only
+into a proc-macro server built by the very same ``rustc``, so an editor
+carrying its own ``rust-analyzer`` refuses one built by the pinned toolchain
+with ``mismatched ABI``. Point the editor at the pinned server instead, whose
+path is the ``sysroot`` field of the index just written:
+
+.. code-block:: json
+
+   {
+     "rust-analyzer.procMacro.enable": true,
+     "rust-analyzer.procMacro.server":
+       "<sysroot>/libexec/rust-analyzer-proc-macro-srv"
+   }
+
+Without it, ``module!``, ``#[vtable]``, ``#[pin_data]`` and ``pin_init!`` stay
+unexpanded, which costs about three percent of resolved declarations, all of it
+in driver-shaped code. Everything else resolves either way.
 
 The output contract
 ===================

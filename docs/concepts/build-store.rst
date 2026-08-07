@@ -63,26 +63,40 @@ consumer fetches only what it needs.
    * - devel
      - ``kernel-devel-<release>`` /
        ``qemu-devel-<version>-<label>-<identity>``
-     - the build dir's ``.cmd`` command database and generated headers, or
-       meson's ``compile_commands.json`` and the generated headers
-     - the clangd or LSP index on a developer worktree
+     - the build dir's ``.cmd`` command database, the generated headers and
+       sources, and the kconfig files a Rust index run reads, or meson's
+       ``compile_commands.json`` and the generated headers
+     - the clangd and rust-analyzer indexes on a developer worktree
 
 Keeping the layers apart means a boot fetch stays lean and never drags the much
-larger devel layer (roughly 190 MB for the kernel, roughly 24 MB for QEMU),
+larger devel layer (186 MiB for a ``CONFIG_RUST=y`` kernel, 24 MiB for QEMU),
 while a developer fetching an index never pulls boot images. Each devel layer's
 composition, and the allowlist that builds it, live in
 :src:`f/kernel/publish_devel.py` and :src:`f/qemu/publish_devel.py`.
 
-The two differ in what the build system leaves behind. kbuild writes a ``.cmd``
-command database, so the kernel layer ships the database and
-:src:`fetch_devel <f/kernel/fetch_devel>` replays it locally with the kernel's
-own ``gen_compile_commands.py``, producing an index that already names the
-consuming worktree. Meson writes no such database: it emits the finished
-``compile_commands.json`` when it configures, with the builder's absolute paths
-recorded in it. So the QEMU layer ships that index and
-:src:`fetch_devel <f/qemu/fetch_devel>` relocates it, substituting the
-builder's build dir and worktree for the consuming ones in the index and in the
-layer's symlinks.
+What a layer ships follows from what its build system leaves behind, and the
+rule is the same for both: ship whatever a generator can be replayed against,
+and relocate only where no generator exists.
+
+kbuild leaves a generator for each index, so the kernel layer ships inputs and
+replays both locally. For C it ships the ``.cmd`` command database and
+:src:`fetch_devel <f/kernel/fetch_devel>` replays it with the kernel's own
+``gen_compile_commands.py``. For Rust it ships the seven generated ``.rs``
+sources plus ``include/generated/rustc_cfg`` and ``include/config/auto.conf``,
+and the same step runs the ``rust-analyzer`` target of
+``scripts/Makefile.build``. Both indexes therefore name the consuming worktree
+by construction, with no path rewriting. ``rust-project.json`` could not be
+relocated even if that were wanted: kbuild hands the generator
+``$(realpath $(srctree))`` and ``$(realpath $(objtree))``, so every path in it
+is absolute, and four of its crates root under a toolchain store path that no
+substitution anchor reaches. The decision is recorded in
+:src:`ADR 0013 <notes/adr/0013-rust-index-regenerated-on-the-consumer.md>`.
+
+Meson leaves no database: it emits the finished ``compile_commands.json`` when
+it configures, with the builder's absolute paths recorded in it. So the QEMU
+layer ships that index and :src:`fetch_devel <f/qemu/fetch_devel>` relocates
+it, substituting the builder's build dir and worktree for the consuming ones in
+the index and in the layer's symlinks.
 
 The catalog
 ===========
@@ -155,8 +169,19 @@ fetch_devel
 -----------
 
 ``fetch_devel`` resolves the devel layer (locally or from a peer) and copies the
-developer subset into a developer worktree's build dir, leaving an index that
-points at that worktree's own source. It runs standalone, and it also runs as
+developer subset into a developer worktree's build dir, leaving indexes that
+point at that worktree's own source. The C index is regenerated in the
+``transfer`` devShell; the Rust index needs the pinned ``rustc``, so that half
+runs in ``build-kernel`` while all cross-host I/O stays in ``transfer``. The
+Rust half gates on its inputs being present rather than on an exit status,
+because a run missing ``auto.conf`` or ``rustc_cfg`` still exits 0 and still
+writes a plausible but wrong index. A layer published before those inputs
+joined the allowlist, a kernel without ``CONFIG_RUST=y``, and a kernel too old
+to carry the generator each print a reason and leave the Rust index unset,
+never costing the developer the C index. ``reuse_check`` treats a devel layer
+with no ``.config`` as absent, so a pre-existing layer is republished once
+rather than indexing worktrees forever with no Rust half. It runs standalone,
+and it also runs as
 the tail of either build flow when **Deploy Developer Worktree** is on, after
 :src:`f/workbench/worktree/init` has laid the group worktree at the built ref.
 Pointing both build flows at one worktree-group is how that group comes to hold
