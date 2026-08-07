@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Fixture tests for the remaining pure logic across the f.kernel step modules."""
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -445,6 +446,95 @@ def test_fetch_devel_without_a_layer_reports_not_fetched(monkeypatch, tmp_path):
         "uts_release": RELEASE,
     }
     assert (wt / "build").is_dir()
+
+
+def _rust_worktree(tmp_path):
+    wt = _worktree(tmp_path)
+    (wt / "scripts/generate_rust_analyzer.py").write_text("")
+    return wt
+
+
+def _rust_inputs(build, auto: str | None = "CONFIG_RUST=y\n", rustc_cfg=True):
+    if auto is not None:
+        (build / "include/config").mkdir(parents=True)
+        (build / "include/config/auto.conf").write_text(auto)
+    if rustc_cfg:
+        (build / "include/generated").mkdir(parents=True)
+        (build / "include/generated/rustc_cfg").write_text("")
+    return build
+
+
+def test_rust_blocker_names_a_layer_without_auto_conf(tmp_path):
+    wt = _rust_worktree(tmp_path)
+    build = _rust_inputs(wt / "build", auto=None)
+    auto = build / "include/config/auto.conf"
+    assert fetch_devel._rust_blocker(build, wt) == (
+        f"no {auto}; this devel layer predates the Rust index inputs"
+    )
+
+
+def test_rust_blocker_names_a_layer_without_rustc_cfg(tmp_path):
+    wt = _rust_worktree(tmp_path)
+    build = _rust_inputs(wt / "build", rustc_cfg=False)
+    cfg = build / "include/generated/rustc_cfg"
+    assert fetch_devel._rust_blocker(build, wt) == (
+        f"no {cfg}; the generator's one objtree input"
+    )
+
+
+def test_rust_blocker_reads_config_rust_from_auto_conf(tmp_path):
+    wt = _rust_worktree(tmp_path)
+    build = _rust_inputs(wt / "build", auto="CONFIG_RUSTC_VERSION=109500\n")
+    (build / ".config").write_text("CONFIG_RUST=y\n")
+    assert (
+        fetch_devel._rust_blocker(build, wt)
+        == "CONFIG_RUST not enabled; skipping rust-analyzer"
+    )
+
+
+def test_rust_blocker_names_a_kernel_without_the_generator(tmp_path):
+    wt = _worktree(tmp_path)
+    build = _rust_inputs(wt / "build")
+    gen = wt / "scripts/generate_rust_analyzer.py"
+    assert fetch_devel._rust_blocker(build, wt) == (
+        f"no {gen}; this kernel carries no index generator"
+    )
+
+
+def test_rust_blocker_passes_with_every_input(tmp_path):
+    wt = _rust_worktree(tmp_path)
+    build = _rust_inputs(wt / "build", auto="CONFIG_X=y\nCONFIG_RUST=y\n")
+    assert fetch_devel._rust_blocker(build, wt) is None
+
+
+def _rust_project(tmp_path, dylibs):
+    crates = [{"display_name": "core"}] + [
+        {"display_name": n, "is_proc_macro": True, "proc_macro_dylib_path": str(p)}
+        for n, p in dylibs
+    ]
+    path = tmp_path / "rust-project.json"
+    path.write_text(json.dumps({"crates": crates, "sysroot": "/nix/store/sysroot"}))
+    return path
+
+
+def _dylibs(tmp_path):
+    return [
+        (name, tmp_path / "rust" / f"lib{name}.so")
+        for name in ("macros", "pin_init_internal", "zerocopy_derive")
+    ]
+
+
+def test_index_counts_with_no_dylib_present(tmp_path):
+    index = _rust_project(tmp_path, _dylibs(tmp_path))
+    assert fetch_devel._index_counts(index) == (4, 0, 3)
+
+
+def test_index_counts_with_every_dylib_present(tmp_path):
+    dylibs = _dylibs(tmp_path)
+    (tmp_path / "rust").mkdir()
+    for _, path in dylibs:
+        path.write_text("")
+    assert fetch_devel._index_counts(_rust_project(tmp_path, dylibs)) == (4, 3, 3)
 
 
 @pytest.mark.parametrize(

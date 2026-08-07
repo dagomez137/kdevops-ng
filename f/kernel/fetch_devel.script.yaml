@@ -1,15 +1,20 @@
-summary: Fetch the devel layer from the Nix store
+summary: Fetch the devel layer and regenerate a worktree's source indexes
 description: |-
   Index a worktree against a build identity's devel layer without rebuilding.
   Resolve the `kernel-devel-<release>` store path (from the local index, or
   pulled with `nix copy` from a peer's `store-index` over the `transfer`
-  devShell), then copy the developer subset (`.cmd` files, headers,
-  `Module.symvers`, `scripts/`, GDB helpers) into the worktree's build dir and
-  regenerate `compile_commands.json` locally so it indexes this worktree's own
-  source. The companion to `f/kernel/publish_devel`. The build dir defaults to
-  the worktree's own `build` child and must stay under it (the fetched `.cmd`
+  devShell), then copy the developer subset (`.cmd` files, generated headers
+  and sources, and the kconfig files a Rust index run reads) into the
+  worktree's build dir and regenerate both source indexes locally so each one
+  names this worktree's own source: `compile_commands.json` for clangd, and,
+  in the `build-kernel` devShell for its pinned `rustc`, `rust-project.json`
+  for rust-analyzer. The Rust half gates on its inputs and prints a reason
+  instead of raising, so a layer published without the Rust inputs, or a
+  kernel without `CONFIG_RUST=y`, still leaves a working C index. The
+  companion to `f/kernel/publish_devel`. The build dir defaults to the
+  worktree's own `build` child and must stay under it (the fetched `.cmd`
   paths are relative to the build dir). Returns `fetched` plus the resolved
-  `worktree`/`build_dir`/`compile_commands`/`entries`.
+  `worktree`/`build_dir`/`compile_commands`/`entries`/`rust_project`/`crates`.
 lock: '!inline f/kernel/fetch_devel.script.lock'
 kind: script
 schema:
