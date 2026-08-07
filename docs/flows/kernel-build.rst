@@ -353,34 +353,40 @@ builder path, and both are named in the kernel's own ``.gitignore``, so neither
 dirties ``git status``. The Rust index appears only for a ``CONFIG_RUST=y``
 kernel; otherwise the step says so and leaves the C index alone.
 
-Proc macros need one editor setting that no index can supply. The devel layer
-deliberately carries no compiled output, so the three proc-macro dylibs
-(``libmacros.so``, ``libpin_init_internal.so``, ``libzerocopy_derive.so``) are
-not in it, and ``fetch_devel`` reports how many of them resolved:
+Proc macros need no editor configuration at all, and adding some is actively
+harmful. The devel layer carries no compiled output, so the three proc-macro
+dylibs (``libmacros.so``, ``libpin_init_internal.so``,
+``libzerocopy_derive.so``) are not in it; ``fetch_devel`` compiles them in the
+same devShell that regenerates the index, and reports how many the index
+resolved:
 
 .. code-block:: text
    :caption: host
    :class: cmd-host
 
-   wrote <worktree>/rust-project.json (46 crates, 0/3 proc-macro dylibs present)
+   wrote <worktree>/rust-project.json (46 crates, 3/3 proc-macro dylibs present)
 
-Building them locally would not help by itself. A proc-macro dylib loads only
-into a proc-macro server built by the very same ``rustc``, so an editor
-carrying its own ``rust-analyzer`` refuses one built by the pinned toolchain
-with ``mismatched ABI``. Point the editor at the pinned server instead, whose
-path is the ``sysroot`` field of the index just written:
+A proc-macro dylib loads only into a proc-macro server built by the very same
+``rustc``, which is why they are compiled rather than shipped. Nothing has to
+be told where that server is. ``rust-analyzer`` reads the ``sysroot`` field of
+``rust-project.json`` and starts that sysroot's own
+``libexec/rust-analyzer-proc-macro-srv`` itself, and because one devShell
+writes both that field and the dylibs, the two move together on every
+toolchain bump.
 
-.. code-block:: json
+.. warning::
 
-   {
-     "rust-analyzer.procMacro.enable": true,
-     "rust-analyzer.procMacro.server":
-       "<sysroot>/libexec/rust-analyzer-proc-macro-srv"
-   }
+   Do not set ``rust-analyzer.procMacro.server``. It is an override for a value
+   the index already carries correctly, it pins a store path that the next
+   toolchain bump invalidates, and in an editor's global configuration it
+   applies to every Rust workspace, so it breaks proc macros in ordinary Cargo
+   projects whose crates were built by a different ``rustc``. Setting
+   ``RUSTUP_TOOLCHAIN`` forces the same breakage by another road.
 
-Without it, ``module!``, ``#[vtable]``, ``#[pin_data]`` and ``pin_init!`` stay
-unexpanded, which costs about three percent of resolved declarations, all of it
-in driver-shaped code. Everything else resolves either way.
+A ``0/3`` count means the dylibs could not be built, and the line above it says
+why. The index is still correct and everything except macro expansion resolves
+from it, but ``module!``, ``#[vtable]``, ``#[pin_data]`` and ``pin_init!`` will
+each raise a ``macro-error`` at their use sites until it is fixed.
 
 The output contract
 ===================
