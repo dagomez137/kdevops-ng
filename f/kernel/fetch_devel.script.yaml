@@ -8,12 +8,16 @@ description: |-
   worktree's build dir and regenerate both source indexes locally so each one
   names this worktree's own source: `compile_commands.json` for clangd, and,
   in the `build-kernel` devShell for its pinned `rustc`, `rust-project.json`
-  for rust-analyzer. The Rust half gates on its inputs and prints a reason
-  instead of raising, so a layer published without the Rust inputs, or a
-  kernel without `CONFIG_RUST=y`, still leaves a working C index. The
-  companion to `f/kernel/publish_devel`. The build dir defaults to the
-  worktree's own `build` child and must stay under it (the fetched `.cmd`
-  paths are relative to the build dir). Returns `fetched` plus the resolved
+  for rust-analyzer. That same shell first compiles the three proc-macro
+  dylibs the index names, which the layer holds out as compiled output;
+  without them rust-analyzer raises a `macro-error` at every `module!`,
+  `#[vtable]`, `#[kunit_tests]` and `pin_init!` site. The Rust half gates on
+  its inputs and prints a reason instead of raising, so a layer published
+  without the Rust inputs, a kernel without `CONFIG_RUST=y`, or a dylib build
+  that cannot run still leaves a working C index. The companion to
+  `f/kernel/publish_devel`. The build dir defaults to the worktree's own
+  `build` child and must stay under it (the fetched `.cmd` paths are relative
+  to the build dir). Returns `fetched` plus the resolved
   `worktree`/`build_dir`/`compile_commands`/`entries`/`rust_project`/`crates`.
 lock: '!inline f/kernel/fetch_devel.script.lock'
 kind: script
@@ -27,6 +31,8 @@ schema:
     - remote_index
     - build_dir
     - required
+    - proc_macros
+    - make_flags
   properties:
     build_dir:
       type: string
@@ -41,6 +47,22 @@ schema:
         `fetched: false`. The build flow sets it, because a worktree that was
         asked to be indexed and is not is a failure, not a bare checkout.
       default: false
+    proc_macros:
+      type: boolean
+      description: |-
+        Compile the three proc-macro dylibs the Rust index names, which the
+        devel layer holds out as compiled output. On by default: without them
+        rust-analyzer raises a `macro-error` at every `module!`, `#[vtable]`,
+        `#[kunit_tests]` and `pin_init!` site. Skipped, never fatal, when a
+        clang kernel is given no `make_flags`.
+      default: true
+    make_flags:
+      type: string
+      description: |-
+        Extra make variables/flags, space-separated, appended verbatim to the
+        proc-macro dylib build. A clang kernel needs the builder's whole set
+        (from `f/kernel/build_flags`), not just `LLVM=1`.
+      default: ''
     remote:
       type: string
       description: |-

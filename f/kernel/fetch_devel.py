@@ -19,6 +19,16 @@ without `CONFIG_RUST=y`, and a kernel too old to carry the generator each print 
 reason and leave `rust_project` unset: a missing Rust index must not cost the developer
 their C index, so this half never raises.
 
+The three proc-macro dylibs the index names are compiled here rather than carried in the
+layer, because they are rustc-compiled output the layer deliberately holds out (see the
+same ADR). `proc_macros` therefore defaults on: without the dylibs rust-analyzer does not
+merely leave `module!`, `#[vtable]`, `#[kunit_tests]` and `pin_init!` unexpanded, it
+raises a `macro-error` at every one of those sites, and a developer worktree exists to
+give an editor that works. The build is skipped rather than fatal when a clang kernel
+offers no `make_flags` to pass (`LLVM=1` alone dies on `-nostdlibinc`, see
+`f/kernel/build_flags`) and when it exits nonzero; the index is written either way, and
+the resolved/total dylib count in its line says which happened.
+
 Same-host leaves `remote`/`remote_index` empty and resolves the layer from the local
 index. Cross-host sets `remote` to an ssh host and `remote_index` to that builder's
 `store-index` directory, and `store.resolve` reads the peer's index entry over ssh to
@@ -35,9 +45,10 @@ Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host
     python3 "$worktree/scripts/clang-tools/gen_compile_commands.py" \\
         --directory "$worktree/build" --output "$worktree/compile_commands.json"
 
-and the Rust index, inside the build-kernel devShell, from the build dir the recipe
-redirects into:
+and the Rust half, inside the build-kernel devShell: the proc-macro dylibs first, then
+the index, from the build dir the recipe redirects into:
 
+    make --directory="$worktree" O="$worktree/build" --jobs="$(nproc)" $make_flags rust/
     cd "$worktree/build"
     make --silent --file="$worktree/scripts/Makefile.build" obj=rust rust-analyzer \\
         srcroot="$worktree" srctree="$worktree" objtree="$worktree/build" RUSTC=rustc
@@ -48,6 +59,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 from pathlib import Path
 
 from f.common import store
@@ -61,6 +73,8 @@ def main(
     remote_index: str = "",
     build_dir: str = "",
     required: bool = False,
+    proc_macros: bool = True,
+    make_flags: str = "",
 ) -> dict:
     wt = Path(worktree)
     gen = wt / "scripts/clang-tools/gen_compile_commands.py"
@@ -107,7 +121,7 @@ def main(
     entries = len(json.loads(cc.read_text())) if cc.is_file() else 0
     print(f"wrote {cc} ({entries} entries)", flush=True)
 
-    indexed = _rust_index(wt, build, workers)
+    indexed = _rust_index(wt, build, workers, proc_macros, make_flags)
 
     return {
         "fetched": True,
@@ -122,20 +136,28 @@ def main(
     }
 
 
-def _rust_index(worktree: Path, build: Path, workers: Path) -> dict:
+def _rust_index(
+    worktree: Path, build: Path, workers: Path, proc_macros: bool, make_flags: str
+) -> dict:
     """Regenerate `rust-project.json` for this worktree, or report why it cannot be.
 
     Returns the written index and its crate count, or `None` and 0 when the half
     declined: the C index is written by this point, and returning it matters more than
     failing the step.
+
+    The dylibs are compiled before the index so the index's own resolved/total line
+    reports the post-build count.
     """
     blocked = _rust_blocker(build, worktree)
     if blocked:
         print(f"rust index: {blocked}", flush=True)
         return {"rust_project": None, "crates": 0}
 
+    shell = DevShell(workers)
+    _proc_macros(shell, worktree, build, proc_macros, make_flags)
+
     makefile = worktree / "scripts/Makefile.build"
-    rc = DevShell(workers).run(
+    rc = shell.run(
         "make",
         "--silent",
         f"--file={makefile}",
@@ -167,11 +189,64 @@ def _rust_index(worktree: Path, build: Path, workers: Path) -> dict:
     )
     if dylibs and not resolved:
         print(
-            "the devel layer holds the proc-macro dylibs out, so `module!`, "
-            "`#[vtable]`, `#[pin_data]` and `pin_init!` do not expand",
+            "no proc-macro dylib is present, so rust-analyzer raises a `macro-error` "
+            "at every `module!`, `#[vtable]`, `#[pin_data]` and `pin_init!` site",
             flush=True,
         )
     return {"rust_project": str(dst), "crates": crates}
+
+
+def _proc_macros(
+    shell: DevShell, worktree: Path, build: Path, proc_macros: bool, make_flags: str
+) -> None:
+    """Compile the three proc-macro dylibs the index names, or print why not.
+
+    A skip and never a raise, like the rest of the Rust half: the index is the
+    deliverable, and the dylibs only widen what expands inside it.
+    """
+    blocked = _dylib_blocker(build, proc_macros, make_flags)
+    if blocked:
+        print(f"proc-macro dylibs: {blocked}", flush=True)
+        return
+    argv = _dylib_argv(worktree, build, make_flags, len(os.sched_getaffinity(0)))
+    rc = shell.run(*argv, check=False)
+    if rc != 0:
+        print(f"proc-macro dylibs: the build exited {rc}", flush=True)
+
+
+def _dylib_blocker(build: Path, proc_macros: bool, make_flags: str) -> str | None:
+    """Return why the proc-macro dylibs cannot be built here, or None when they can.
+
+    A clang kernel needs the builder's whole flag set, not just `LLVM=1`: the wrapper's
+    `-nostdlibinc` trips `-Werror,-Wunused-command-line-argument` (see
+    `f/kernel/build_flags`). With nothing to pass, that run is the measured failure
+    path, so it is declined up front rather than compiled into a failure.
+    """
+    if not proc_macros:
+        return "not requested"
+    if make_flags.strip():
+        return None
+    for name in ("include/config/auto.conf", ".config"):
+        path = build / name
+        if path.is_file() and "CONFIG_CC_IS_CLANG=y\n" in path.read_text():
+            return f"{path} says CONFIG_CC_IS_CLANG=y and make_flags is empty"
+    return None
+
+
+def _dylib_argv(worktree: Path, build: Path, make_flags: str, jobs: int) -> list[str]:
+    """The dylib build's argv. This goal takes `--directory`, unlike the index sub-make.
+
+    `make_flags` arrives as one shell-quoted string (`f/kernel/build_flags` joins it),
+    so it splits the way a shell would: `CC="ccache /nix/store/...clang"` is one token.
+    """
+    return [
+        "make",
+        f"--directory={worktree}",
+        f"O={build}",
+        f"--jobs={jobs}",
+        *shlex.split(make_flags),
+        "rust/",
+    ]
 
 
 def _rust_blocker(build: Path, worktree: Path) -> str | None:

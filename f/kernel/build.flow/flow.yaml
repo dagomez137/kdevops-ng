@@ -511,6 +511,9 @@ value:
       value:
         type: script
         input_transforms:
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
           required:
             type: static
             value: true

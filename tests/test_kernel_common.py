@@ -507,6 +507,65 @@ def test_rust_blocker_passes_with_every_input(tmp_path):
     assert fetch_devel._rust_blocker(build, wt) is None
 
 
+def _clang_build(tmp_path, name="include/config/auto.conf"):
+    build = _rust_inputs(tmp_path / "wt" / "build")
+    path = build / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("CONFIG_CC_IS_CLANG=y\nCONFIG_RUST=y\n")
+    return build
+
+
+def test_dylib_blocker_refuses_a_clang_kernel_with_no_flags(tmp_path):
+    build = _clang_build(tmp_path)
+    auto = build / "include/config/auto.conf"
+    assert fetch_devel._dylib_blocker(build, True, "") == (
+        f"{auto} says CONFIG_CC_IS_CLANG=y and make_flags is empty"
+    )
+
+
+def test_dylib_blocker_reads_dot_config_too(tmp_path):
+    build = _clang_build(tmp_path, name=".config")
+    config = build / ".config"
+    assert fetch_devel._dylib_blocker(build, True, "") == (
+        f"{config} says CONFIG_CC_IS_CLANG=y and make_flags is empty"
+    )
+
+
+def test_dylib_blocker_passes_a_clang_kernel_with_flags(tmp_path):
+    build = _clang_build(tmp_path)
+    assert fetch_devel._dylib_blocker(build, True, "LLVM=1 CC='ccache clang'") is None
+
+
+def test_dylib_blocker_passes_a_non_clang_kernel_with_no_flags(tmp_path):
+    build = _rust_inputs(tmp_path / "wt" / "build")
+    (build / ".config").write_text("CONFIG_CC_IS_GCC=y\nCONFIG_RUST=y\n")
+    assert fetch_devel._dylib_blocker(build, True, "") is None
+
+
+@pytest.mark.parametrize("make_flags", ["", "LLVM=1"])
+def test_dylib_blocker_declines_when_not_requested(tmp_path, make_flags):
+    build = _clang_build(tmp_path)
+    assert fetch_devel._dylib_blocker(build, False, make_flags) == "not requested"
+
+
+def test_dylib_argv_splits_a_quoted_cc_into_one_token(tmp_path):
+    wt = tmp_path / "wt"
+    flags = (
+        "LLVM=1 'CC=ccache /nix/store/wcwr4iq7c8f4ygn8bd1q0k3i51lmhz35-clang/bin/clang' "
+        "CFLAGS_KERNEL=-I/nix/store/jdgw-clang-lib/lib/clang/21/include"
+    )
+    assert fetch_devel._dylib_argv(wt, wt / "build", flags, 16) == [
+        "make",
+        f"--directory={wt}",
+        f"O={wt / 'build'}",
+        "--jobs=16",
+        "LLVM=1",
+        "CC=ccache /nix/store/wcwr4iq7c8f4ygn8bd1q0k3i51lmhz35-clang/bin/clang",
+        "CFLAGS_KERNEL=-I/nix/store/jdgw-clang-lib/lib/clang/21/include",
+        "rust/",
+    ]
+
+
 def _rust_project(tmp_path, dylibs):
     crates = [{"display_name": "core"}] + [
         {"display_name": n, "is_proc_macro": True, "proc_macro_dylib_path": str(p)}
