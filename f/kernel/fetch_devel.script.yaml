@@ -14,10 +14,14 @@ description: |-
   `#[vtable]`, `#[kunit_tests]` and `pin_init!` site. The Rust half gates on
   its inputs and prints a reason instead of raising, so a layer published
   without the Rust inputs, a kernel without `CONFIG_RUST=y`, or a dylib build
-  that cannot run still leaves a working C index. The companion to
-  `f/kernel/publish_devel`. The build dir defaults to the worktree's own
-  `build` child and must stay under it (the fetched `.cmd` paths are relative
-  to the build dir). Returns `fetched` plus the resolved
+  that cannot run still leaves a working C index. Every distinct store path
+  the written Rust index names (the `rustc` sysroot and the Rust library
+  source it reads the sysroot crates from) is then GC-rooted under the System
+  workbench's `toolchain-roots`: the index points at paths nothing else roots,
+  and `nix store gc` would otherwise collect them out from under it. The
+  companion to `f/kernel/publish_devel`. The build dir defaults to the
+  worktree's own `build` child and must stay under it (the fetched `.cmd`
+  paths are relative to the build dir). Returns `fetched` plus the resolved
   `worktree`/`build_dir`/`compile_commands`/`entries`/`rust_project`/`crates`.
 lock: '!inline f/kernel/fetch_devel.script.lock'
 kind: script

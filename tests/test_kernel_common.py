@@ -596,6 +596,51 @@ def test_index_counts_with_every_dylib_present(tmp_path):
     assert fetch_devel._index_counts(_rust_project(tmp_path, dylibs)) == (4, 3, 3)
 
 
+SYSROOT = "/nix/store/yhmi70ln28n1j6wn82h61b8r8q4g562i-rustc-1.95.0"
+LIB_SRC = "/nix/store/q6kjf0h1czkacdiqmv79rc6nkj6s146m-rust-lib-src"
+
+
+def _index_file(tmp_path, data):
+    path = tmp_path / "rust-project.json"
+    path.write_text(json.dumps(data))
+    return path
+
+
+def test_toolchain_paths_dedupe_the_sysroot_crates(tmp_path):
+    crates = [
+        {"display_name": name, "root_module": f"{LIB_SRC}/{name}/src/lib.rs"}
+        for name in ("core", "alloc", "std", "proc_macro")
+    ]
+    index = _index_file(tmp_path, {"crates": crates, "sysroot": SYSROOT})
+    assert fetch_devel._toolchain_paths(index) == [LIB_SRC, SYSROOT]
+
+
+def test_toolchain_paths_skip_a_worktree_rooted_crate(tmp_path):
+    crates = [
+        {"display_name": name, "root_module": str(tmp_path / "rust" / f"{name}.rs")}
+        for name in ("kernel", "bindings", "uapi")
+    ]
+    index = _index_file(tmp_path, {"crates": crates, "sysroot": SYSROOT})
+    assert fetch_devel._toolchain_paths(index) == [SYSROOT]
+
+
+def test_toolchain_paths_truncate_a_deep_root_module(tmp_path):
+    crates = [{"display_name": "core", "root_module": f"{LIB_SRC}/core/src/lib.rs"}]
+    index = _index_file(tmp_path, {"crates": crates, "sysroot": SYSROOT})
+    assert fetch_devel._toolchain_paths(index) == [LIB_SRC, SYSROOT]
+
+
+def test_toolchain_paths_without_a_sysroot_key(tmp_path):
+    crates = [{"display_name": "core", "root_module": f"{LIB_SRC}/core/src/lib.rs"}]
+    assert fetch_devel._toolchain_paths(_index_file(tmp_path, {"crates": crates})) == [
+        LIB_SRC
+    ]
+
+
+def test_toolchain_paths_of_an_index_with_no_crates(tmp_path):
+    assert fetch_devel._toolchain_paths(_index_file(tmp_path, {"crates": []})) == []
+
+
 @pytest.mark.parametrize(
     ("module", "prefix"),
     [(publish_selftests, "kselftests"), (publish_usertests, "usertests")],

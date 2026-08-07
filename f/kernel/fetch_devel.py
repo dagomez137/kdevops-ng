@@ -29,6 +29,14 @@ offers no `make_flags` to pass (`LLVM=1` alone dies on `-nostdlibinc`, see
 `f/kernel/build_flags`) and when it exits nonzero; the index is written either way, and
 the resolved/total dylib count in its line says which happened.
 
+The written index is then read back and every distinct store path it names is GC-rooted
+under `SYSTEM_DIR/toolchain-roots`. The index points at paths it does not own, and the
+Rust library source has no root of its own: the devShell exposes it as the
+`RUST_LIB_SRC` environment variable rather than as a package, so it never enters the
+shell's PATH closure and `nix store gc` collects it out from under every kernel Rust
+index on the host. Rooting prints its reason and continues rather than raising, like the
+rest of the Rust half, since the index on disk stays usable until the next collection.
+
 Same-host leaves `remote`/`remote_index` empty and resolves the layer from the local
 index. Cross-host sets `remote` to an ssh host and `remote_index` to that builder's
 `store-index` directory, and `store.resolve` reads the peer's index entry over ssh to
@@ -53,6 +61,15 @@ the index, from the build dir the recipe redirects into:
     make --silent --file="$worktree/scripts/Makefile.build" obj=rust rust-analyzer \\
         srcroot="$worktree" srctree="$worktree" objtree="$worktree/build" RUSTC=rustc
     cp "$worktree/build/rust-project.json" "$worktree/rust-project.json"
+
+and last the toolchain store paths that index names, which nothing else roots:
+
+    jq --raw-output '[.sysroot, (.crates[].root_module)]
+        | map(select(startswith("/nix/store/")) | split("/")[:4] | join("/"))
+        | unique[]' "$worktree/rust-project.json" |
+    while read -r sp; do
+        nix build "$sp" --out-link "$roots/${sp#/nix/store/*-}"
+    done
 """
 
 from __future__ import annotations
@@ -63,7 +80,7 @@ import shlex
 from pathlib import Path
 
 from f.common import store
-from f.common.devshell import DevShell, run_logged
+from f.common.devshell import DevShell, Nix, run_logged
 
 
 def main(
@@ -193,7 +210,56 @@ def _rust_index(
             "at every `module!`, `#[vtable]`, `#[pin_data]` and `pin_init!` site",
             flush=True,
         )
+    _root_toolchain(dst)
     return {"rust_project": str(dst), "crates": crates}
+
+
+def _root_toolchain(index: Path) -> None:
+    """GC-root the toolchain store paths `index` names, or print why one could not be.
+
+    Each root is named for its store path minus the hash, so a toolchain bump replaces
+    the root it supersedes instead of pinning the old closure forever. A failure to root
+    is printed and stepped over, never raised: the index is already on disk and stays
+    resolvable until the next collection.
+    """
+    paths = _toolchain_paths(index)
+    if not paths:
+        return
+    try:
+        roots = store.toolchain_roots_dir()
+    except Exception as exc:
+        print(f"toolchain roots: {exc}", flush=True)
+        return
+    nix, rooted = Nix(), 0
+    for sp in paths:
+        link = roots / Path(sp).name.split("-", 1)[-1]
+        try:
+            nix.run("build", sp, "--out-link", str(link))
+            rooted += 1
+        except Exception as exc:
+            print(f"toolchain roots: {sp} ({exc})", flush=True)
+    print(f"rooted {rooted}/{len(paths)} toolchain paths under {roots}", flush=True)
+
+
+def _toolchain_paths(index: Path) -> list[str]:
+    """The distinct top-level store paths an index names, sorted.
+
+    The `sysroot` plus every store-rooted `root_module`, since the sysroot crates read
+    their source straight out of the store. A `root_module` names a file inside the
+    store path, so only its first three components identify what to root; a crate rooted
+    in the worktree names no store path at all and is skipped.
+    """
+    data = json.loads(index.read_text())
+    named = [
+        data.get("sysroot"),
+        *(c.get("root_module") for c in data.get("crates", [])),
+    ]
+    roots = set()
+    for path in named:
+        parts = (path or "").split("/")
+        if parts[:3] == ["", "nix", "store"] and len(parts) > 3 and parts[3]:
+            roots.add("/".join(parts[:4]))
+    return sorted(roots)
 
 
 def _proc_macros(

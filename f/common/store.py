@@ -62,6 +62,17 @@ def index_dir() -> Path:
     return path
 
 
+def toolchain_roots_dir() -> Path:
+    """GC roots for the toolchain store paths a generated source index names, created.
+
+    A sibling of the identity index, never an entry in it: `store-index` catalogues
+    build identities (`kernel-<id>`, `qemu-<id>`), and a toolchain path is not one.
+    """
+    path = system_dir() / "toolchain-roots"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def registered_peers() -> list[dict]:
     """Registered peers from `$SYSTEM_DIR/peers`: one `<host> [<store_index_dir>]` per line.
 
