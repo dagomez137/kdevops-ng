@@ -86,16 +86,32 @@ KERNEL_TREES = {
     "modules": "pub/scm/linux/kernel/git/modules/linux",
     "mcgrof": "pub/scm/linux/kernel/git/mcgrof/linux",
     "mcgrof-next": "pub/scm/linux/kernel/git/mcgrof/linux-next",
+    "da.gomez": "pub/scm/linux/kernel/git/da.gomez/linux",
     "axboe": "pub/scm/linux/kernel/git/axboe/linux",
     "vfs": "pub/scm/linux/kernel/git/vfs/vfs",
     "cel": "pub/scm/linux/kernel/git/cel/linux",
     "jlayton": "pub/scm/linux/kernel/git/jlayton/linux",
     "cxl": "pub/scm/linux/kernel/git/cxl/cxl",
+    "djwong": "pub/scm/linux/kernel/git/djwong/xfs-linux",
     "xfs": "pub/scm/fs/xfs/xfs-linux",
 }
 
-# Pre-checked when the operator does not pick: the common core.
-DEFAULT_KERNEL_TREES = ["torvalds", "linux-next", "linux-stable", "modules", "axboe"]
+# Pre-checked when the operator does not pick: the common core plus the fs and
+# maintainer trees this workbench tracks.
+DEFAULT_KERNEL_TREES = [
+    "torvalds",
+    "linux-next",
+    "linux-stable",
+    "modules",
+    "mcgrof",
+    "da.gomez",
+    "axboe",
+    "vfs",
+    "cel",
+    "jlayton",
+    "djwong",
+    "xfs",
+]
 
 # Curated upstream hosts for the QEMU mirror's origin: source -> clone URL per
 # transport. GitLab is the canonical QEMU project repo (https or git://); GitHub is

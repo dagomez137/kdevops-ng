@@ -3,8 +3,8 @@
 
 Each project is ONE bare mirror, at `MIRRORS_DIR/<name>.git` (default
 `SYSTEM_DIR/mirror`), holding several upstream git trees as remotes that share its
-single object store (the kernel mirror carries Linus's tree, -next, -stable, -modules
-and Axboe's block/io_uring/nvme tree; QEMU is its own). This step does two things:
+single object store (the kernel mirror carries Linus's tree plus the curated
+-next/-stable and maintainer trees; QEMU is its own). This step does two things:
 
 1. **Configure each mirror's remotes** from the shared config in `f.workbench.fetch`
    (`build_mirrors`/`remote_url`): the primary tree's heads land at `refs/heads/*`,

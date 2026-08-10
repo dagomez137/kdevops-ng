@@ -63,7 +63,14 @@ schema:
             - linux-next
             - linux-stable
             - modules
+            - mcgrof
+            - da.gomez
             - axboe
+            - vfs
+            - cel
+            - jlayton
+            - djwong
+            - xfs
           items:
             type: string
             enum:
@@ -74,11 +81,13 @@ schema:
               - modules
               - mcgrof
               - mcgrof-next
+              - da.gomez
               - axboe
               - vfs
               - cel
               - jlayton
               - cxl
+              - djwong
               - xfs
           title: Trees
         source:

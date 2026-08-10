@@ -72,6 +72,17 @@ def test_linux_mirror_git_transport_composes_git_urls(tmp_path):
     assert urls["xfs"] == "git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git"
 
 
+def test_linux_mirror_composes_the_maintainer_tree_urls(tmp_path):
+    entry = fetch._linux_mirror({"trees": ["da.gomez", "djwong"]}, tmp_path)
+    urls = {r["name"]: r["url"] for r in entry["remotes"]}
+    assert urls["da.gomez"] == (
+        "https://git.kernel.org/pub/scm/linux/kernel/git/da.gomez/linux.git"
+    )
+    assert urls["djwong"] == (
+        "https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git"
+    )
+
+
 def test_linux_mirror_rejects_an_uncurated_tree(tmp_path):
     with pytest.raises(ValueError, match="unknown kernel tree"):
         fetch._linux_mirror({"trees": ["evil"]}, tmp_path)
