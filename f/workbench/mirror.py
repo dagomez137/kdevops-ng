@@ -115,11 +115,19 @@ def _provision_remotes(git: Git, repo: Path, remotes: list[dict]) -> list[dict]:
         else:
             git.run("-C", str(repo), "remote", "add", name, url)
         git.run("-C", str(repo), "config", f"remote.{name}.fetch", refspec)
-        git.run("-C", str(repo), "config", f"remote.{name}.tagOpt", "--tags")
+        tag_opt = "--tags" if r.get("tags", True) else "--no-tags"
+        git.run("-C", str(repo), "config", f"remote.{name}.tagOpt", tag_opt)
         # A leftover `--mirror` flag would override our refspec with +refs/*:refs/*.
         git.ok("-C", str(repo), "config", "--unset", f"remote.{name}.mirror")
         print(f"{repo.name}/{name} -> {url}", flush=True)
-        results.append({"name": name, "url": url, "primary": bool(r.get("primary"))})
+        results.append(
+            {
+                "name": name,
+                "url": url,
+                "primary": bool(r.get("primary")),
+                "tags": tag_opt == "--tags",
+            }
+        )
     return results
 
 

@@ -57,6 +57,7 @@ def test_linux_mirror_defaults_to_the_curated_core(tmp_path):
         "name": "torvalds",
         "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
         "primary": True,
+        "tags": True,
     }
     assert all(not r["primary"] for r in entry["remotes"][1:])
 
@@ -83,6 +84,20 @@ def test_linux_mirror_composes_the_maintainer_tree_urls(tmp_path):
     )
 
 
+def test_mirror_tags_stay_with_the_version_publishers(tmp_path):
+    assert fetch.TAG_TREES <= set(fetch.KERNEL_TREES)
+    entry = fetch._linux_mirror({"trees": ["linux-next", "vfs", "djwong"]}, tmp_path)
+    tags = {r["name"]: r["tags"] for r in entry["remotes"]}
+    assert tags == {
+        "torvalds": True,
+        "linux-next": True,
+        "vfs": False,
+        "djwong": False,
+    }
+    qemu = fetch._qemu_mirror({}, tmp_path)
+    assert qemu["remotes"][0]["tags"] is True
+
+
 def test_linux_mirror_rejects_an_uncurated_tree(tmp_path):
     with pytest.raises(ValueError, match="unknown kernel tree"):
         fetch._linux_mirror({"trees": ["evil"]}, tmp_path)
@@ -96,6 +111,7 @@ def test_qemu_mirror_defaults_to_gitlab_https(tmp_path):
             "name": "origin",
             "url": "https://gitlab.com/qemu-project/qemu.git",
             "primary": True,
+            "tags": True,
         }
     ]
 

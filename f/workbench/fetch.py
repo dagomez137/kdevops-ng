@@ -113,6 +113,13 @@ DEFAULT_KERNEL_TREES = [
     "xfs",
 ]
 
+# Trees whose tags join the mirror's shared refs/tags/* namespace: the canonical
+# version publishers only. Maintainer trees fetch with --no-tags, since their
+# personal tags collide across trees in a merged mirror (same-named tags on
+# different objects, and directory/file clashes like a tag named origin against
+# origin/<date> tags), while the version tags they inherit arrive via these.
+TAG_TREES = {"torvalds", "linux-next", "linux-stable", "linux-stable-rc"}
+
 # Curated upstream hosts for the QEMU mirror's origin: source -> clone URL per
 # transport. GitLab is the canonical QEMU project repo (https or git://); GitHub is
 # its read-only mirror, https only. The key is the stable lowercase value the step
@@ -200,6 +207,7 @@ def _linux_mirror(cfg: dict, mirror_dir: Path) -> dict:
                 "name": name,
                 "url": template.format(path=KERNEL_TREES[name]),
                 "primary": name == "torvalds",
+                "tags": name in TAG_TREES,
             }
         )
     return {
@@ -222,7 +230,12 @@ def _qemu_mirror(cfg: dict, mirror_dir: Path) -> dict:
         "project": "qemu",
         "mirror": str(mirror_dir / "qemu.git"),
         "remotes": [
-            {"name": "origin", "url": QEMU_SOURCES[source][proto], "primary": True}
+            {
+                "name": "origin",
+                "url": QEMU_SOURCES[source][proto],
+                "primary": True,
+                "tags": True,
+            }
         ],
     }
 
