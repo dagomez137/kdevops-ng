@@ -46,7 +46,6 @@ def main(
     wipe_dirs = ("destdir",) + (("build",) if wipe_build else ())
     result = prepare(
         project="qemu",
-        developer=False,
         ref=qemu_ref,
         b4_series=b4_series,
         label=label,
