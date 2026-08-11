@@ -253,6 +253,10 @@ def test_home_share_mounts_the_operator_home(env, monkeypatch):
     default = Path(out["default"]).read_text()
     assert 'nixos-flake.shares."/home/alice" = { tag = "home"; };' in default
     assert 'users.users.root.home = lib.mkForce "/home/alice";' in default
+    assert (
+        'fileSystems."/home/alice/.config/systemd" = { fsType = "tmpfs"; '
+        'options = [ "ro" "nosuid" "nodev" "mode=0555" ]; };'
+    ) in default
 
 
 def test_home_outside_slash_home_falls_back_to_kdevops(env, monkeypatch):
@@ -279,6 +283,7 @@ def test_home_off_ignores_home_dir(env):
     default = Path(out["default"]).read_text()
     assert "mkForce" not in default
     assert '= { tag = "home"; };' not in default
+    assert ".config/systemd" not in default
 
 
 def test_an_explicit_share_wins_over_the_suite_default(env):

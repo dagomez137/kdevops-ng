@@ -382,6 +382,14 @@ def _render_default(
     # mkForce: the backend module already pins root.home at normal priority.
     if root_home:
         out.append(f"  users.users.root.home = lib.mkForce {_nix_str(root_home)};")
+        # The shared home carries the host's systemd user units and their enable
+        # symlinks; a guest user manager rooted in that home would start them (host
+        # mirror timers, workers). An empty read-only tmpfs over .config/systemd
+        # keeps host units host-only while the rest of the home stays shared.
+        out.append(
+            f"  fileSystems.{_nix_str(root_home + '/.config/systemd')} = {{ "
+            'fsType = "tmpfs"; options = [ "ro" "nosuid" "nodev" "mode=0555" ]; };'
+        )
     for prof in profiles:
         opt = _PROFILE_ENABLE.get(prof)
         if opt:
