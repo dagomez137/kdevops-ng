@@ -44,6 +44,20 @@ let
     nix build .#windmill-extra --out-link "$pkgs/windmill-extra"
   '';
 
+  # The user unit dir rides the operator's home into guests over the home
+  # share, where a guest's user manager would start these host units. Each
+  # installed unit gets a drop-in pinning it to this host's machine id
+  # (ConditionHost), so any other machine's manager skips it. Runs on the
+  # host being installed, so /etc/machine-id is that host's.
+  hostOnlyDropIns = glob: ''
+    machine_id="$(cat /etc/machine-id)"
+    shopt -s nullglob
+    for unit in "$config"/systemd/user/${glob}; do
+      mkdir --parents "$unit.d"
+      printf '[Unit]\nConditionHost=%s\n' "$machine_id" > "$unit.d/host-only.conf"
+    done
+  '';
+
   windmillInstall = ''
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -64,6 +78,7 @@ let
       "$config/systemd/user/windmill-worker@0002.service.d/group.conf"
     cp --no-preserve=mode ${workerVmRunDropIn} \
       "$config/systemd/user/windmill-worker@0003.service.d/group.conf"
+    ${hostOnlyDropIns "windmill*.service"}
   '';
 
   windmillActivate = ''
@@ -92,7 +107,7 @@ let
     state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
     config="''${XDG_CONFIG_HOME:-$HOME/.config}"
     rm --force "$config/systemd/user/"windmill*.service
-    rm --recursive --force "$config/systemd/user/"windmill-worker@*.service.d
+    rm --recursive --force "$config/systemd/user/"windmill*.service.d
     rm --force "$config/windmill/Caddyfile"
     rm --recursive --force "$state/vendor"
     systemctl --user daemon-reload
@@ -129,6 +144,7 @@ let
       "$config/monitoring/grafana/provisioning"
     cp --recursive --no-preserve=mode deploy/nix/monitoring/dashboards \
       "$config/monitoring/grafana/dashboards"
+    ${hostOnlyDropIns "monitoring-*.service"}
   '';
 
   monitoringActivate = ''
@@ -425,6 +441,7 @@ in
       cp deploy/nix/systemd/monitoring-collector.service \
         deploy/nix/systemd/monitoring-tunnel.service "$config/systemd/user/"
       cp deploy/nix/monitoring/collector.alloy "$config/monitoring/collector.alloy"
+      ${hostOnlyDropIns "monitoring-*.service"}
       systemctl --user daemon-reload
       echo "collector installed. Point it at the primary, then enable:"
       echo "  $config/monitoring/monitoring-tunnel.env:"
@@ -468,6 +485,7 @@ in
       cp deploy/nix/systemd/windmill-worker@.service "$units/"
       cp --no-preserve=mode ${workerRemoteDropIn} \
         "$units/windmill-worker@.service.d/remote-server.conf"
+      ${hostOnlyDropIns "windmill-worker@.service"}
       systemctl --user daemon-reload
       echo "worker installed. Point it at the server's database, then enable:"
       echo "  systemctl --user edit windmill-worker@"
