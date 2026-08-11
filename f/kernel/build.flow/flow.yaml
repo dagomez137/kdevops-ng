@@ -517,6 +517,9 @@ value:
           required:
             type: static
             value: true
+          synced:
+            type: javascript
+            expr: results.deploy_worktree.worktrees[0].synced !== false
           uts_release:
             type: javascript
             expr: results.configure.kernelrelease

@@ -448,6 +448,20 @@ def test_fetch_devel_without_a_layer_reports_not_fetched(monkeypatch, tmp_path):
     assert (wt / "build").is_dir()
 
 
+def test_fetch_devel_declines_an_unsynced_worktree(monkeypatch, tmp_path):
+    """A worktree the deploy step left at its own commit would get an index naming
+    the developer's files with this build's commands, so both halves decline and the
+    layer is never resolved (the store is not even reachable in this fixture)."""
+    _clear_env(monkeypatch)
+    wt = _worktree(tmp_path)
+    assert fetch_devel.main(str(wt), RELEASE, required=True, synced=False) == {
+        "fetched": False,
+        "worktree": str(wt),
+        "build_dir": str(wt / "build"),
+        "uts_release": RELEASE,
+    }
+
+
 def _rust_worktree(tmp_path):
     wt = _worktree(tmp_path)
     (wt / "scripts/generate_rust_analyzer.py").write_text("")

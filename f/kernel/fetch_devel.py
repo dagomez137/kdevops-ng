@@ -11,6 +11,14 @@ from `gen_compile_commands.py` for clangd, and `rust-project.json` from the
 `rust-analyzer` target of `scripts/Makefile.build`, entered as a sub-make rather than
 through the top-level goal (see `notes/adr/0013-rust-index-regenerated-on-the-consumer`).
 
+`synced` says whether the worktree actually carries the commit this build produced. The
+build flow's tail passes through what `f/workbench/worktree/init` reports, and that step
+leaves a tree it cannot move without discarding the developer's work exactly where it is.
+When it is false the `.cmd` database describes a different source than the worktree holds,
+so both index halves decline together rather than name the developer's files with the
+build's commands: nothing is materialized and `fetched` comes back false. It defaults on,
+so a standalone call is unaffected.
+
 The Rust half runs in the `build-kernel` devShell for its pinned `rustc`, while the
 `nix copy` and the C index keep the `transfer` shell. It gates on its inputs being
 present, never on an exit status, because both known missing-input cases exit 0 and
@@ -92,6 +100,7 @@ def main(
     required: bool = False,
     proc_macros: bool = True,
     make_flags: str = "",
+    synced: bool = True,
 ) -> dict:
     wt = Path(worktree)
     gen = wt / "scripts/clang-tools/gen_compile_commands.py"
@@ -104,6 +113,19 @@ def main(
             "source paths are relative to the build dir, so only a child resolves them"
         )
     build.mkdir(parents=True, exist_ok=True)
+
+    if not synced:
+        print(
+            f"worktree {wt} was left at its own commit, not this build's; not indexing "
+            "it, both indexes would describe a different source than they name",
+            flush=True,
+        )
+        return {
+            "fetched": False,
+            "worktree": str(wt),
+            "build_dir": str(build),
+            "uts_release": uts_release,
+        }
 
     workers = Path(os.environ["WORKERS_DIR"])
     name = f"kernel-devel-{uts_release}"

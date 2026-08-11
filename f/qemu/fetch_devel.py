@@ -13,6 +13,13 @@ index. Cross-host sets `remote` to an ssh host and `remote_index` to that builde
 learn the store path, pulls it with `nix copy`, and indexes it locally. `build_dir`
 defaults to the worktree's own `build` child and must stay under it.
 
+`synced` says whether the worktree carries the commit this build produced. The build
+flow's tail passes through what `f/workbench/worktree/init` reports, and that step leaves
+a tree it cannot move without discarding the developer's work exactly where it is. When
+it is false the index names source files at paths this tree may not carry at all, so
+nothing is materialized and `fetched` comes back false. It defaults on, so a standalone
+call is unaffected.
+
 The kernel step regenerates its index; this one relocates. kbuild leaves a `.cmd`
 command database, so `f/kernel/fetch_devel` replays it with the kernel's own
 `gen_compile_commands.py` against the local tree and the paths come out right by
@@ -62,6 +69,7 @@ def main(
     remote_index: str = "",
     build_dir: str = "",
     required: bool = False,
+    synced: bool = True,
 ) -> dict:
     wt = Path(worktree)
     if not (wt / "VERSION").is_file():
@@ -73,6 +81,19 @@ def main(
             "include paths resolve against the build dir, so only a child resolves them"
         )
     build.mkdir(parents=True, exist_ok=True)
+
+    if not synced:
+        print(
+            f"worktree {wt} was left at its own commit, not this build's; not "
+            "relocating the index, it names source files this tree may not carry",
+            flush=True,
+        )
+        return {
+            "fetched": False,
+            "worktree": str(wt),
+            "build_dir": str(build),
+            "prefix": prefix,
+        }
 
     workers = Path(os.environ["WORKERS_DIR"])
     identity = Path(prefix).name

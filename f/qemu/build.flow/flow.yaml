@@ -309,6 +309,9 @@ value:
           required:
             type: static
             value: true
+          synced:
+            type: javascript
+            expr: results.deploy_worktree.worktrees[0].synced !== false
           worktree:
             type: javascript
             expr: results.deploy_worktree.worktrees[0].worktree

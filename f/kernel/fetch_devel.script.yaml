@@ -37,6 +37,7 @@ schema:
     - required
     - proc_macros
     - make_flags
+    - synced
   properties:
     build_dir:
       type: string
@@ -67,6 +68,16 @@ schema:
         proc-macro dylib build. A clang kernel needs the builder's whole set
         (from `f/kernel/build_flags`), not just `LLVM=1`.
       default: ''
+    synced:
+      type: boolean
+      description: |-
+        Whether the worktree carries the commit this build produced. The build
+        flow passes through what `f/workbench/worktree/init` reports, and that
+        step leaves a tree it cannot move without discarding the developer's
+        work where it is. Off means the `.cmd` database describes a different
+        source, so both index halves decline together and nothing is
+        materialized. On by default, so a standalone call is unaffected.
+      default: true
     remote:
       type: string
       description: |-

@@ -26,6 +26,7 @@ schema:
     - remote_index
     - build_dir
     - required
+    - synced
   properties:
     build_dir:
       type: string
@@ -40,6 +41,16 @@ schema:
         `fetched: false`. The build flow sets it, because a worktree that was
         asked to be indexed and is not is a failure, not a bare checkout.
       default: false
+    synced:
+      type: boolean
+      description: |-
+        Whether the worktree carries the commit this build produced. The build
+        flow passes through what `f/workbench/worktree/init` reports, and that
+        step leaves a tree it cannot move without discarding the developer's
+        work where it is. Off means the index names source files this tree may
+        not carry, so it is not relocated and nothing is materialized. On by
+        default, so a standalone call is unaffected.
+      default: true
     prefix:
       type: string
       description: |-
