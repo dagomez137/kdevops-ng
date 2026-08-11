@@ -47,6 +47,7 @@ _SERVICE = """\
 Description=Refresh the %i git mirror from upstream
 After=network-online.target
 Wants=network-online.target
+ConditionHost={machine_id}
 
 [Service]
 Type=oneshot
@@ -58,6 +59,7 @@ ExecStart={git} -C {mirror_dir}/%i.git remote update --prune
 _TIMER = """\
 [Unit]
 Description=Refresh the %i git mirror on a timer
+ConditionHost={machine_id}
 
 [Timer]
 Persistent=true
@@ -75,6 +77,13 @@ OnBootSec={on_boot}
 OnActiveSec={on_boot}
 OnUnitInactiveSec={on_inactive}
 """
+
+
+def _machine_id() -> str:
+    """This host's systemd machine id. The unit dir rides the shared home into
+    guests, so each unit carries ConditionHost with this id and any other machine's
+    user manager skips it."""
+    return Path("/etc/machine-id").read_text().strip()
 
 
 def _write_unit(path: Path, content: str) -> None:
@@ -148,10 +157,12 @@ def main(
         / "systemd/user"
     )
 
+    machine_id = _machine_id()
     _write_unit(
-        unit_dir / "git-mirror@.service", _SERVICE.format(git=gitbin, mirror_dir=mdir)
+        unit_dir / "git-mirror@.service",
+        _SERVICE.format(git=gitbin, mirror_dir=mdir, machine_id=machine_id),
     )
-    _write_unit(unit_dir / "git-mirror@.timer", _TIMER)
+    _write_unit(unit_dir / "git-mirror@.timer", _TIMER.format(machine_id=machine_id))
 
     # Each mirror's schedule is a per-instance drop-in, read from its project config
     # (default 10m/10m), so projects can refresh on different cadences.
