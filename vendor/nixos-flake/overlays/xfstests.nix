@@ -68,8 +68,27 @@ in
     # doc/group-names.txt -- the group name to description mapping -- is absent
     # from the installed tree. Install it so a consumer can enumerate the
     # groups and their descriptions from the runtime package itself.
+    #
+    # The recipe's xfstests-check wrapper builds a writable run directory of
+    # symlinks into the store, one level deep, so `tests` resolves to the
+    # read-only store tree. Tests with per-feature golden output (ext4/001,
+    # generic/035, generic/050, xfs/021, 033, 071, 116, 216, 614, 837) pick
+    # their variant at run time and symlink <seq>.out next to the test script
+    # (_link_out_file in common/rc), which fails there: upstream `make
+    # install` assumes a writable tests directory, re-pointed per run. Rebuild
+    # `tests` in the run directory as a writable symlink farm (real, writable
+    # directories; file contents stay store symlinks). Anchored on the
+    # wrapper's unique exec line with --replace-fail so a wrapper change in
+    # the recipe breaks this build instead of silently dropping the fix. The
+    # proper home for this is the recipe's wrapperScript; drop on the nixpkgs
+    # bump that carries it.
     postInstall = (prevAttrs.postInstall or "") + ''
       install -D --mode=0444 doc/group-names.txt $out/lib/xfstests/doc/group-names.txt
+      substituteInPlace $out/bin/xfstests-check --replace-fail \
+        'exec ./check "$@"' \
+        'rm tests
+      cp --recursive --symbolic-link --no-preserve=mode '"$out"'/lib/xfstests/tests tests
+      exec ./check "$@"'
     '';
   });
 }
