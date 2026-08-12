@@ -67,13 +67,13 @@
 
 let
   pname = "windmill";
-  version = "1.741.0";
+  version = "1.785.0";
 
   src = fetchFromGitHub {
     owner = "dagomez137";
     repo = "windmill";
-    rev = "6c36e7e7c1c8fa2d87a101f3d9b676a3a8a9113b";
-    hash = "sha256-LidY7AFd7dbMg4yCD7cj35qp5h8Bx6BiWLkKoBq5U9Y=";
+    rev = "c18367a8b3ded046d126c6c083555ecd564663a7";
+    hash = "sha256-O7dJ7L7++pJgtOX68uoRI6VPqIevYYGmW30s6hn3axQ=";
   };
 
   # all_languages minus oracledb; oracledb is appended only when withOracle.
@@ -110,7 +110,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     CARGO_INCREMENTAL = "0";
   };
 
-  cargoHash = "sha256-e0HZPedUqR/3mcBt2+6DE5mfNVCgS6bdSUmDuHFZTxU=";
+  cargoHash = "sha256-vvFtT/Dwb1bvzLo77d6fJ0lgZus4DmxOdlWqothfRvc=";
 
   # oss_core is the full open-source surface (static_frontend, mcp, oauth2, the
   # triggers, smtp, embedding, parquet, quickjs, bedrock, run_inline, ...);
@@ -248,7 +248,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     sourceRoot = "${src.name}/frontend";
 
-    npmDepsHash = "sha256-O/h70MoRnjuL4eiFrml1kPzBEXrZ5n9D/lCpB9eOQyE=";
+    npmDepsHash = "sha256-esqmVWMEEp8ui8jvAqRX7xqBecTo1AGTpu6DEzgd0G0=";
 
     # without these you get a
     # FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
