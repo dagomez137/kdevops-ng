@@ -278,11 +278,14 @@ only ``configure``, ``compile`` and ``publish_devel`` run, and the next run of
 the same identity is fast again. Without the tail requested, a run-layer hit
 reuses exactly as before. See :doc:`/concepts/build-store`.
 
-The tail leaves the build untouched, and it is off by default. Two things to
-know before turning it on: laying the worktree checks it out with
-``git checkout --detach --force``, and the fetch copies over the worktree's
-``build/``. Neither is a merge. Keep uncommitted work committed or on a branch,
-or point the toggle at a group you keep for indexing.
+The tail leaves the build untouched, and it is off by default. It never
+discards work: the sync's whole vocabulary is ``git worktree add``, a plain
+``git checkout`` of a branch, and ``git merge --ff-only``, none of them forcing,
+so when it cannot reach the built commit without overwriting something it says
+which one thing stopped it, leaves the tree exactly as it found it, and lets the
+build finish. See :doc:`kernel-build` for the state-by-state behaviour, which is
+shared. The one thing to know before turning it on is that the fetch copies over
+the worktree's ``build/``.
 
 Toolchain notes
 ===============

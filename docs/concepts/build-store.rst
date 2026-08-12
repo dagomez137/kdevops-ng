@@ -180,8 +180,16 @@ joined the allowlist, a kernel without ``CONFIG_RUST=y``, and a kernel too old
 to carry the generator each print a reason and leave the Rust index unset,
 never costing the developer the C index. ``reuse_check`` treats a devel layer
 with no ``.config`` as absent, so a pre-existing layer is republished once
-rather than indexing worktrees forever with no Rust half. It runs standalone,
-and it also runs as
+rather than indexing worktrees forever with no Rust half.
+
+Both indexes are skipped outright when :src:`f/workbench/worktree/init` reports
+that it left the worktree alone. A tree it declined to sync sits at the
+developer's commit rather than the build's, so indexing it would describe their
+source with the build's command database and produce an index that looks
+complete and is not. The skip is decided before the layer is resolved, so it
+cannot turn into a failure through the step's ``required`` input.
+
+It runs standalone, and it also runs as
 the tail of either build flow when **Deploy Developer Worktree** is on, after
 :src:`f/workbench/worktree/init` has laid the group worktree at the built ref.
 Pointing both build flows at one worktree-group is how that group comes to hold

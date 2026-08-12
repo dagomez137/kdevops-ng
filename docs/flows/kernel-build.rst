@@ -163,6 +163,41 @@ Worktree
    same group comes to hold both ``linux`` and ``qemu``; see
    :doc:`qemu-build`.
 
+   The tail never discards work and never fails the build. Its whole vocabulary
+   is ``git worktree add``, a plain ``git checkout`` of a branch, and
+   ``git merge --ff-only``: no forcing verb, so every command git itself refuses
+   rather than clobbers. It decides by what it finds:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 40 60
+
+      * - The worktree is
+        - What happens
+      * - already on the branch, at the built commit
+        - nothing at all, not one git command
+      * - at the built commit but detached
+        - checked out onto the branch, carrying modified and staged files
+          across
+      * - behind the built commit, detached
+        - fast-forwarded, which can neither rewind nor orphan a commit
+      * - on a branch, not at the built commit
+        - left alone. A developer's branch ref is never moved, not even forward
+      * - mid-rebase, mid-``am``, or not a worktree of this Bare
+        - left alone
+
+   Where it leaves the tree alone it prints the one specific reason and reports
+   ``synced: false``, and the run continues: this is the tail of a build that
+   already compiled and published, so a dirty tree must not cost you that. The
+   indexes are then skipped too, because indexing a tree at a different commit
+   would describe your source with the build's command database and hand you an
+   index that looks complete and is not.
+
+``recreate_developer_worktree``
+   Re-cut the developer group worktree instead of reusing it. It removes only a
+   worktree of this Bare: a path that is something else is reported and never
+   removed, whatever this is set to.
+
 Configuration
 -------------
 

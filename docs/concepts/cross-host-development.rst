@@ -19,8 +19,8 @@ The model
 Same-host, a developer and a worker share one Bare, so publishing a branch is
 just a commit and the worker builds it. Cross-host, the developer pushes the
 branch to the peer's Bare over SSH, and the peer's worker builds it from its
-own ``refs/heads/*``. No build-flow change is needed, because ``prepare()``
-already resolves a literal ref against the local Bare.
+own ``refs/heads/*``. No build-flow change is needed, because the worker's
+``prepare()`` already resolves a literal ref against the local Bare.
 
 Refs (build inputs) cross by ``git``; Store entries (build outputs) cross by
 ``nix copy``. The two directions are independent: the peer remotes described
@@ -115,7 +115,7 @@ Run B's build flow with the branch as the ref:
 
    $ wmill flow run f/kernel/build --data '{"worktree":{"git_ref":"<branch>"}}'
 
-B's ``prepare()`` resolves ``<branch>`` locally, because it is now a
+B's worker ``prepare()`` resolves ``<branch>`` locally, because it is now a
 ``refs/heads/*`` entry in B's Bare and needs no fetch. It lays B's warm worker
 worktree under the fixed ``main`` group and builds. The build's run layer can
 then travel back to A through the :doc:`/concepts/build-store`, closing the
