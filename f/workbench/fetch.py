@@ -134,18 +134,55 @@ QEMU_SOURCES = {
         "https": "https://github.com/qemu/qemu.git",
     },
 }
-DEFAULT_QEMU_SOURCE = "gitlab"
-
 # Canonical display labels for the qemu source dropdown, keyed by the stable value, so
 # the form reads GitLab/GitHub while a saved selection survives the relabel.
 QEMU_SOURCE_LABELS = {"gitlab": "GitLab", "github": "GitHub"}
 
-# The curated projects a workbench can mirror, each its own merged bare mirror. The
-# form offers these as a checklist; selecting one reveals its deploy options (linux:
-# the trees plus a source and transport; qemu: a source and transport). Add a project
-# here, a SOURCES table, and a builder in `build_mirrors` to extend the set.
-MIRROR_PROJECTS = ["linux", "qemu"]
-DEFAULT_MIRROR_PROJECTS = ["linux", "qemu"]
+# The xfs userspace trees at kernel.org, one repo each: same host choices as the Linux
+# mirror (kernel.org over https/git, the googlesource read-only mirror over https).
+XFSTESTS_SOURCES = {
+    "kernel.org": {
+        "https": "https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git",
+        "git": "git://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git",
+    },
+    "googlesource": {
+        "https": "https://kernel.googlesource.com/pub/scm/fs/xfs/xfstests-dev.git",
+    },
+}
+XFSPROGS_SOURCES = {
+    "kernel.org": {
+        "https": "https://git.kernel.org/pub/scm/fs/xfs/xfsprogs-dev.git",
+        "git": "git://git.kernel.org/pub/scm/fs/xfs/xfsprogs-dev.git",
+    },
+    "googlesource": {
+        "https": "https://kernel.googlesource.com/pub/scm/fs/xfs/xfsprogs-dev.git",
+    },
+}
+
+# GitHub-hosted upstreams. GitHub dropped the unauthenticated git:// transport, so
+# https is the only public read transport; each is one curated origin.
+FIO_SOURCES = {"github": {"https": "https://github.com/axboe/fio.git"}}
+BLKTESTS_SOURCES = {
+    "github": {"https": "https://github.com/linux-blktests/blktests.git"}
+}
+BCC_SOURCES = {"github": {"https": "https://github.com/iovisor/bcc.git"}}
+
+# The curated projects a workbench can mirror, each its own bare mirror. The form
+# offers these as a checklist; selecting one reveals its deploy options (linux: the
+# trees plus a source and transport; the xfs trees: a source and transport; the
+# single-source github repos have no options). `linux` is the merged multi-tree
+# mirror; every other project is a single upstream repo. Add a project here, a SOURCES
+# table, and a builder entry in `build_mirrors` to extend the set.
+MIRROR_PROJECTS = [
+    "linux",
+    "qemu",
+    "xfstests-dev",
+    "xfsprogs-dev",
+    "fio",
+    "blktests",
+    "bcc",
+]
+DEFAULT_MIRROR_PROJECTS = list(MIRROR_PROJECTS)
 
 
 def remote_url(remote: dict) -> str:
@@ -218,21 +255,26 @@ def _linux_mirror(cfg: dict, mirror_dir: Path) -> dict:
     }
 
 
-def _qemu_mirror(cfg: dict, mirror_dir: Path) -> dict:
-    """The qemu.git mirror from the qemu `cfg` (`source`, `protocol`): a single `origin`
-    remote at the curated source over one transport."""
-    source = cfg.get("source") or DEFAULT_QEMU_SOURCE
+def _single_repo_mirror(
+    project: str, sources: dict, cfg: dict, mirror_dir: Path
+) -> dict:
+    """A one-remote mirror for a `project` whose whole tree is a single upstream repo
+    (qemu, the xfs userspace trees, fio, blktests, bcc): the chosen `sources` host over
+    one transport as a single `origin` remote. The first source is the canonical
+    default. Its tags are safe to fetch: a single-repo mirror has no shared namespace
+    for them to collide in."""
+    source = cfg.get("source") or next(iter(sources))
     proto = _effective_protocol(
-        QEMU_SOURCES, source, cfg.get("protocol") or DEFAULT_PROTOCOL
+        sources, source, cfg.get("protocol") or DEFAULT_PROTOCOL
     )
     return {
-        "name": "qemu",
-        "project": "qemu",
-        "mirror": str(mirror_dir / "qemu.git"),
+        "name": project,
+        "project": project,
+        "mirror": str(mirror_dir / f"{project}.git"),
         "remotes": [
             {
                 "name": "origin",
-                "url": QEMU_SOURCES[source][proto],
+                "url": sources[source][proto],
                 "primary": True,
                 "tags": True,
             }
@@ -242,18 +284,29 @@ def _qemu_mirror(cfg: dict, mirror_dir: Path) -> dict:
 
 def build_mirrors(
     projects: list[str],
-    linux: dict | None,
-    qemu: dict | None,
+    configs: dict[str, dict | None] | None,
     mirror_dir: Path,
 ) -> list[dict]:
     """Compose the mirror config for the selected `projects` (curated, in
-    MIRROR_PROJECTS), each its own merged bare mirror under `mirror_dir`, from that
-    project's deploy config (`linux`: trees + source + transport; `qemu`: source +
-    transport). Both fetch and mirror drive off this one builder, so they can never
-    disagree on the layout."""
+    MIRROR_PROJECTS), each its own bare mirror under `mirror_dir`, from `configs`
+    (project name -> that project's deploy config; a missing or empty entry takes the
+    curated defaults). `linux` is the merged multi-tree mirror; every other project is
+    a single upstream repo. Both fetch and mirror drive off this one builder, so they
+    can never disagree on the layout."""
     builders = {
-        "linux": lambda: _linux_mirror(linux or {}, mirror_dir),
-        "qemu": lambda: _qemu_mirror(qemu or {}, mirror_dir),
+        "linux": lambda cfg: _linux_mirror(cfg, mirror_dir),
+        "qemu": lambda cfg: _single_repo_mirror("qemu", QEMU_SOURCES, cfg, mirror_dir),
+        "xfstests-dev": lambda cfg: _single_repo_mirror(
+            "xfstests-dev", XFSTESTS_SOURCES, cfg, mirror_dir
+        ),
+        "xfsprogs-dev": lambda cfg: _single_repo_mirror(
+            "xfsprogs-dev", XFSPROGS_SOURCES, cfg, mirror_dir
+        ),
+        "fio": lambda cfg: _single_repo_mirror("fio", FIO_SOURCES, cfg, mirror_dir),
+        "blktests": lambda cfg: _single_repo_mirror(
+            "blktests", BLKTESTS_SOURCES, cfg, mirror_dir
+        ),
+        "bcc": lambda cfg: _single_repo_mirror("bcc", BCC_SOURCES, cfg, mirror_dir),
     }
     entries = []
     for project in projects:
@@ -261,7 +314,7 @@ def build_mirrors(
             raise ValueError(
                 f"unknown mirror project {project!r} (curated: {', '.join(builders)})"
             )
-        entries.append(builders[project]())
+        entries.append(builders[project]((configs or {}).get(project) or {}))
     return entries
 
 
@@ -269,14 +322,20 @@ def main(
     projects: list[str] | None = None,
     linux: dict | None = None,
     qemu: dict | None = None,
+    xfstests_dev: dict | None = None,
+    xfsprogs_dev: dict | None = None,
     peers: list[dict] | None = None,
     refresh: bool = True,
 ) -> dict:
     system = system_dir()
     mirrors = build_mirrors(
         DEFAULT_MIRROR_PROJECTS if projects is None else projects,
-        linux,
-        qemu,
+        {
+            "linux": linux,
+            "qemu": qemu,
+            "xfstests-dev": xfstests_dev,
+            "xfsprogs-dev": xfsprogs_dev,
+        },
         mirrors_dir(),
     )
     peers = _normalize_peers(peers)

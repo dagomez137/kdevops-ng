@@ -1,9 +1,10 @@
 summary: Initialize the workbench
 description: |-
   One-time (idempotent) bootstrap, run from the UI after Windmill is up.
-  Provisions the durable Bares (default `$SYSTEM_DIR/bare/linux.git` and
-  `$SYSTEM_DIR/bare/qemu.git`) that every worker cuts cheap detached worktrees
-  off (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream but
+  Provisions the durable Bares (default `$SYSTEM_DIR/bare/<project>.git` for
+  `linux`, `qemu`, and the test-suite trees `xfstests-dev`, `xfsprogs-dev`,
+  `fio`, `blktests`, `bcc`) that every worker cuts cheap detached worktrees off
+  (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream but
   borrows objects from the local mirror (`$MIRRORS_DIR`), and keeps
   `refs/heads/*` for developer pushes. Thin flow over `f/workbench/fetch`: pick
   the projects and their deploy options; re-run it any time to refresh.
@@ -37,6 +38,12 @@ value:
           refresh:
             type: javascript
             expr: flow_input.refresh
+          xfsprogs_dev:
+            type: javascript
+            expr: flow_input.xfsprogs_dev
+          xfstests_dev:
+            type: javascript
+            expr: flow_input.xfstests_dev
         path: f/workbench/fetch
     - id: ssh_key
       summary: Provision the VM SSH key + host ssh-config
@@ -63,6 +70,12 @@ value:
           qemu:
             type: javascript
             expr: flow_input.qemu
+          xfsprogs_dev:
+            type: javascript
+            expr: flow_input.xfsprogs_dev
+          xfstests_dev:
+            type: javascript
+            expr: flow_input.xfstests_dev
         path: f/workbench/mirror
         tag_override: vm
       skip_if:
@@ -76,6 +89,8 @@ schema:
     - projects
     - linux
     - qemu
+    - xfstests_dev
+    - xfsprogs_dev
     - peers
     - refresh
     - setup_ssh
@@ -199,16 +214,27 @@ schema:
     projects:
       type: array
       description: |-
-        Which projects to mirror, each its own merged bare under `MIRRORS_DIR`.
-        Selecting one reveals its deploy options below.
+        Which projects to mirror, each its own bare under `MIRRORS_DIR`.
+        Selecting one reveals its deploy options below (the github repos have
+        none).
       default:
         - linux
         - qemu
+        - xfstests-dev
+        - xfsprogs-dev
+        - fio
+        - blktests
+        - bcc
       items:
         type: string
         enum:
           - linux
           - qemu
+          - xfstests-dev
+          - xfsprogs-dev
+          - fio
+          - blktests
+          - bcc
       title: Projects
     qemu:
       type: object
@@ -255,6 +281,100 @@ schema:
           title: On Inactive
       showExpr: fields.projects.includes('qemu')
       title: QEMU
+    xfstests_dev:
+      type: object
+      description: How to deploy and refresh the xfstests-dev mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('xfstests-dev')
+      title: xfstests-dev
+    xfsprogs_dev:
+      type: object
+      description: How to deploy and refresh the xfsprogs-dev mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('xfsprogs-dev')
+      title: xfsprogs-dev
     refresh:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on).

@@ -1,10 +1,11 @@
 summary: Provision the Bare repos from mirrors
 description: |-
   Provision the durable **Bare** main repos every build worktree is cut from,
-  one per selected mirror **project** (`linux`, `qemu`). Each Bare at
+  one per selected mirror **project** (`linux`, `qemu`, and the test-suite trees
+  `xfstests-dev`, `xfsprogs-dev`, `fio`, `blktests`, `bcc`). Each Bare at
   `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that **borrows**
-  the local merged **mirror**'s objects via its alternates file (no objects
-  copied, no upstream network). A `mirror` remote copies the mirror's heads into
+  the local **mirror**'s objects via its alternates file (no objects copied, no
+  upstream network). A `mirror` remote copies the mirror's heads into
   `refs/remotes/mirror/*` and each extra tree through unchanged; `refs/heads/*`
   is left empty, reserved for developer pushes. `origin`'s URL is the project's
   primary upstream, for an explicit `git fetch origin` (the Bare is the working
@@ -12,9 +13,10 @@ description: |-
 
   Pick the projects to mirror, then each one's deploy options in its own group:
   for `linux`, the curated **Trees** to integrate into the merged linux.git plus
-  a **Source** host and **Transport**; for `qemu`, a **Source** host and
-  **Transport**. `peers` lists other workbench hosts to wire as cross-host push
-  remotes. Idempotent.
+  a **Source** host and **Transport**; for `qemu` and the xfs trees, a
+  **Source** host and **Transport**. The single-source github repos (`fio`,
+  `blktests`, `bcc`) have no options. `peers` lists other workbench hosts to
+  wire as cross-host push remotes. Idempotent.
 
   Returns a manifest of each Bare (`bare`, `origin`, `trees`, `action`, `head`,
   `peers`).
@@ -27,22 +29,35 @@ schema:
     - projects
     - linux
     - qemu
+    - xfstests_dev
+    - xfsprogs_dev
     - peers
     - refresh
   properties:
     projects:
       type: array
       description: |-
-        Which projects to mirror, each its own merged bare under `MIRRORS_DIR`.
-        Selecting one reveals its deploy options below.
+        Which projects to mirror, each its own bare under `MIRRORS_DIR`.
+        Selecting one reveals its deploy options below (the github repos have
+        none).
       default:
         - linux
         - qemu
+        - xfstests-dev
+        - xfsprogs-dev
+        - fio
+        - blktests
+        - bcc
       items:
         type: string
         enum:
           - linux
           - qemu
+          - xfstests-dev
+          - xfsprogs-dev
+          - fio
+          - blktests
+          - bcc
       title: Projects
     linux:
       type: object
@@ -142,6 +157,68 @@ schema:
           title: Transport
       showExpr: fields.projects.includes('qemu')
       title: QEMU
+    xfstests_dev:
+      type: object
+      description: How to deploy the xfstests-dev mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+      showExpr: fields.projects.includes('xfstests-dev')
+      title: xfstests-dev
+    xfsprogs_dev:
+      type: object
+      description: How to deploy the xfsprogs-dev mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+      showExpr: fields.projects.includes('xfsprogs-dev')
+      title: xfsprogs-dev
     peers:
       type: array
       description: |-

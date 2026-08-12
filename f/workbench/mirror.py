@@ -144,12 +144,19 @@ def main(
     projects: list[str] | None = None,
     linux: dict | None = None,
     qemu: dict | None = None,
+    xfstests_dev: dict | None = None,
+    xfsprogs_dev: dict | None = None,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     mdir = mirrors_dir()
     projects = DEFAULT_MIRROR_PROJECTS if projects is None else projects
-    configs = {"linux": linux or {}, "qemu": qemu or {}}
-    mirrors = build_mirrors(projects, configs["linux"], configs["qemu"], mdir)
+    configs = {
+        "linux": linux or {},
+        "qemu": qemu or {},
+        "xfstests-dev": xfstests_dev or {},
+        "xfsprogs-dev": xfsprogs_dev or {},
+    }
+    mirrors = build_mirrors(projects, configs, mdir)
     git = Git()
     gitbin = _resolve_git(workers)
     unit_dir = (

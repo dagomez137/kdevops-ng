@@ -94,7 +94,7 @@ def test_mirror_tags_stay_with_the_version_publishers(tmp_path):
         "vfs": False,
         "djwong": False,
     }
-    qemu = fetch._qemu_mirror({}, tmp_path)
+    qemu = fetch._single_repo_mirror("qemu", fetch.QEMU_SOURCES, {}, tmp_path)
     assert qemu["remotes"][0]["tags"] is True
 
 
@@ -103,8 +103,8 @@ def test_linux_mirror_rejects_an_uncurated_tree(tmp_path):
         fetch._linux_mirror({"trees": ["evil"]}, tmp_path)
 
 
-def test_qemu_mirror_defaults_to_gitlab_https(tmp_path):
-    entry = fetch._qemu_mirror({}, tmp_path)
+def test_single_repo_mirror_defaults_to_the_first_source(tmp_path):
+    entry = fetch._single_repo_mirror("qemu", fetch.QEMU_SOURCES, {}, tmp_path)
     assert entry["mirror"] == str(tmp_path / "qemu.git")
     assert entry["remotes"] == [
         {
@@ -116,19 +116,68 @@ def test_qemu_mirror_defaults_to_gitlab_https(tmp_path):
     ]
 
 
-def test_qemu_mirror_github_only_offers_https(tmp_path):
-    entry = fetch._qemu_mirror({"source": "github", "protocol": "git"}, tmp_path)
+def test_single_repo_mirror_degrades_a_git_pick_on_an_https_only_host(tmp_path):
+    entry = fetch._single_repo_mirror(
+        "qemu", fetch.QEMU_SOURCES, {"source": "github", "protocol": "git"}, tmp_path
+    )
     assert entry["remotes"][0]["url"] == "https://github.com/qemu/qemu.git"
 
 
+def test_single_repo_mirror_composes_the_new_project_urls(tmp_path):
+    cases = {
+        "xfstests-dev": (
+            fetch.XFSTESTS_SOURCES,
+            "https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git",
+        ),
+        "xfsprogs-dev": (
+            fetch.XFSPROGS_SOURCES,
+            "https://git.kernel.org/pub/scm/fs/xfs/xfsprogs-dev.git",
+        ),
+        "fio": (fetch.FIO_SOURCES, "https://github.com/axboe/fio.git"),
+        "blktests": (
+            fetch.BLKTESTS_SOURCES,
+            "https://github.com/linux-blktests/blktests.git",
+        ),
+        "bcc": (fetch.BCC_SOURCES, "https://github.com/iovisor/bcc.git"),
+    }
+    for project, (sources, url) in cases.items():
+        entry = fetch._single_repo_mirror(project, sources, {}, tmp_path)
+        assert entry["project"] == project
+        assert entry["mirror"] == str(tmp_path / f"{project}.git")
+        assert entry["remotes"] == [
+            {"name": "origin", "url": url, "primary": True, "tags": True}
+        ]
+
+
+def test_xfs_git_transport_composes_a_git_url(tmp_path):
+    entry = fetch._single_repo_mirror(
+        "xfstests-dev", fetch.XFSTESTS_SOURCES, {"protocol": "git"}, tmp_path
+    )
+    assert entry["remotes"][0]["url"] == (
+        "git://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git"
+    )
+
+
 def test_build_mirrors_selects_only_the_requested_projects(tmp_path):
-    entries = fetch.build_mirrors(["qemu"], None, None, tmp_path)
+    entries = fetch.build_mirrors(["qemu"], None, tmp_path)
     assert [e["name"] for e in entries] == ["qemu"]
+
+
+def test_build_mirrors_covers_every_curated_project(tmp_path):
+    entries = fetch.build_mirrors(fetch.MIRROR_PROJECTS, {}, tmp_path)
+    assert [e["name"] for e in entries] == fetch.MIRROR_PROJECTS
+
+
+def test_build_mirrors_routes_config_by_project_name(tmp_path):
+    entries = fetch.build_mirrors(
+        ["xfstests-dev"], {"xfstests-dev": {"protocol": "git"}}, tmp_path
+    )
+    assert entries[0]["remotes"][0]["url"].startswith("git://")
 
 
 def test_build_mirrors_rejects_an_uncurated_project(tmp_path):
     with pytest.raises(ValueError, match="unknown mirror project"):
-        fetch.build_mirrors(["linux", "xfsprogs"], None, None, tmp_path)
+        fetch.build_mirrors(["linux", "xfsprogs"], None, tmp_path)
 
 
 def test_normalize_peers_accepts_strings_and_objects():

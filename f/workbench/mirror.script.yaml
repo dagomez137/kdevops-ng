@@ -24,20 +24,33 @@ schema:
     - projects
     - linux
     - qemu
+    - xfstests_dev
+    - xfsprogs_dev
   properties:
     projects:
       type: array
       description: |-
-        Which projects to mirror, each its own merged bare under `MIRRORS_DIR`.
-        Selecting one reveals its deploy options below.
+        Which projects to mirror, each its own bare under `MIRRORS_DIR`.
+        Selecting one reveals its deploy options below (the github repos have
+        none).
       default:
         - linux
         - qemu
+        - xfstests-dev
+        - xfsprogs-dev
+        - fio
+        - blktests
+        - bcc
       items:
         type: string
         enum:
           - linux
           - qemu
+          - xfstests-dev
+          - xfsprogs-dev
+          - fio
+          - blktests
+          - bcc
       title: Projects
     linux:
       type: object
@@ -169,5 +182,99 @@ schema:
           title: On Inactive
       showExpr: fields.projects.includes('qemu')
       title: QEMU
+    xfstests_dev:
+      type: object
+      description: How to deploy and refresh the xfstests-dev mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('xfstests-dev')
+      title: xfstests-dev
+    xfsprogs_dev:
+      type: object
+      description: How to deploy and refresh the xfsprogs-dev mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: kernel.org (the canonical source) or googlesource
+            (the Google read-only mirror, for when kernel.org is unreachable).
+          default: kernel.org
+          enum:
+            - kernel.org
+            - googlesource
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to git.kernel.org: https (the safe default) or git
+            (faster, but often firewalled).
+          default: https
+          enum:
+            - https
+            - git
+          showExpr: fields.source !== 'googlesource'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('xfsprogs-dev')
+      title: xfsprogs-dev
   required: []
 tag: vm
