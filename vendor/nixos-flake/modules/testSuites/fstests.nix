@@ -356,6 +356,15 @@ in
       StandardError = "journal+console";
       # A full section can run for hours; never let systemd kill it.
       TimeoutStartSec = "infinity";
+      # ./check is shell-pipeline code: tests stop pipeline helpers with
+      # SIGPIPE (generic/310 kills its readdir workers with `pkill
+      # -PIPE`) and expect EPIPE to end writers silently (`yes | ...` in
+      # generic/081). systemd ignores SIGPIPE in executed processes by
+      # default, which makes those kills no-ops (the test then hangs
+      # until its scope timeout) and leaks "Broken pipe" errors into
+      # golden output. Restore the default disposition, as systemd's own
+      # shell-running units (getty@, debug-shell) do.
+      IgnoreSIGPIPE = false;
       SyslogIdentifier = "xfstests";
     };
   };
