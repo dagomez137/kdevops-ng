@@ -114,6 +114,8 @@ cmd_links = {
     "wipefs": f"{_MAN8}/wipefs.8.html",
     "blkdiscard": f"{_MAN8}/blkdiscard.8.html",
     "EnvironmentFile": f"{_SYSTEMD}/systemd.exec.html#EnvironmentFile=",
+    "pg_dump": "https://www.postgresql.org/docs/current/app-pgdump.html",
+    "pg_restore": "https://www.postgresql.org/docs/current/app-pgrestore.html",
 }
 
 

@@ -53,6 +53,7 @@ Deployment
 ==========
 
 - :doc:`/deployment/monitoring` (add to ``docs/deployment/index.rst``)
+- :doc:`/deployment/upgrade` (add to ``docs/deployment/index.rst``)
 
 Flows
 =====
