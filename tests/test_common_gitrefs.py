@@ -138,6 +138,54 @@ def test_tag_ordering_newest_release_first_rc_after_release(monkeypatch, tmp_pat
     ]
 
 
+def test_mirror_branches_list_between_heads_and_tags(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("SYSTEM_DIR", str(tmp_path))
+    bare = _make_bare(tmp_path / "bare", "demo")
+    _packed(bare, "refs/remotes/mirror/master", "refs/tags/v1.0")
+    _loose(bare, "remotes/mirror/for-next")
+    _loose(bare, "heads/b4/series")
+    # Other remote namespaces (peers) stay out of the picker.
+    _loose(bare, "remotes/peer/dev")
+    assert [o["value"] for o in gitrefs.list_refs("demo")] == [
+        "b4/series",
+        "mirror/for-next",
+        "mirror/master",
+        "v1.0",
+    ]
+    assert [o["value"] for o in gitrefs.list_refs("demo", "for-nex")] == [
+        "mirror/for-next"
+    ]
+
+
+def test_qualify_ref_resolves_in_the_worktree_order(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("SYSTEM_DIR", str(tmp_path))
+    bare = _make_bare(tmp_path / "bare", "demo")
+    _packed(bare, "refs/tags/v1.0", "refs/remotes/mirror/master")
+    _loose(bare, "heads/b4/series")
+    _loose(bare, "remotes/peer/dev")
+    # A name in several namespaces resolves tag, then mirror, then head.
+    _loose(bare, "tags/shared")
+    _loose(bare, "remotes/mirror/shared")
+    _loose(bare, "heads/shared")
+    assert gitrefs.qualify_ref("demo", "v1.0") == "refs/tags/v1.0"
+    assert gitrefs.qualify_ref("demo", "master") == "refs/remotes/mirror/master"
+    assert gitrefs.qualify_ref("demo", "b4/series") == "refs/heads/b4/series"
+    assert gitrefs.qualify_ref("demo", "mirror/master") == "refs/remotes/mirror/master"
+    assert gitrefs.qualify_ref("demo", "peer/dev") == "refs/remotes/peer/dev"
+    assert gitrefs.qualify_ref("demo", "shared") == "refs/tags/shared"
+    # An already-qualified value passes through only when it exists.
+    assert gitrefs.qualify_ref("demo", "refs/heads/b4/series") == "refs/heads/b4/series"
+    assert gitrefs.qualify_ref("demo", "refs/heads/nope") is None
+    assert gitrefs.qualify_ref("demo", "nope") is None
+
+
+def test_qualify_ref_without_a_repo_returns_none(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    assert gitrefs.qualify_ref("demo", "master") is None
+
+
 def test_filter_text_is_a_case_insensitive_substring(monkeypatch, tmp_path):
     _clear_env(monkeypatch)
     monkeypatch.setenv("SYSTEM_DIR", str(tmp_path))

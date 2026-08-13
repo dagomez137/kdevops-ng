@@ -6,11 +6,13 @@ Lists the branches and tags of a host-local bare repository by reading its
 a form dynselect answers fast). The universe is the durable Bare the worktree
 steps check out from (`$SYSTEM_DIR/bare/<repo>.git`), which carries developer
 branches plus the mirror-fetched upstream refs; before the first fetch it
-falls back to the mirror (`$MIRRORS_DIR/<repo>.git`). Branches come first,
-then tags newest version first, so the zero-config pick is the tip of a tree
-or the latest release. The linux picker additionally leads with kernel.org's
-current releases (`releases.json`), labeled by moniker, so the latest
-mainline, stable, longterm, or linux-next is a one-click pick.
+falls back to the mirror (`$MIRRORS_DIR/<repo>.git`). Developer branches come
+first, then the mirror remote's branches as `mirror/<branch>` (a fresh Bare
+has no local heads, so the upstream tips live there), then tags newest
+version first, so the zero-config pick is the tip of a tree or the latest
+release. The linux picker additionally leads with kernel.org's current
+releases (`releases.json`), labeled by moniker, so the latest mainline,
+stable, longterm, or linux-next is a one-click pick.
 
 Every source is best-effort because a dynselect must never block: ref reads
 that race git maintenance are skipped, and the kernel.org fetch runs under a
@@ -63,11 +65,21 @@ def _repo_dir(repo: str) -> Path | None:
     return None
 
 
-def _read_refs(bare: Path) -> dict[str, str]:
-    """`refs/heads/...`/`refs/tags/...` names -> kind, loose over packed.
+# Picker namespaces: the key is the value the form submits, so a mirror
+# branch keeps its `mirror/` prefix and resolves as typed.
+_REF_KINDS = (
+    ("head", "refs/heads/", ""),
+    ("mirror", "refs/remotes/mirror/", "mirror/"),
+    ("tag", "refs/tags/", ""),
+)
 
-    A source that fails mid-read (git maintenance repacking or pruning
-    underneath us) is skipped; partial data beats an exception in a picker.
+
+def _read_refs(bare: Path) -> dict[str, str]:
+    """Picker names (`refs/heads`, `refs/remotes/mirror`, `refs/tags`) -> kind.
+
+    Loose entries win over packed ones. A source that fails mid-read (git
+    maintenance repacking or pruning underneath us) is skipped; partial data
+    beats an exception in a picker.
     """
     refs: dict[str, str] = {}
     packed = bare / "packed-refs"
@@ -79,16 +91,16 @@ def _read_refs(bare: Path) -> dict[str, str]:
         if not line or line.startswith(("#", "^")):
             continue
         _, _, name = line.partition(" ")
-        for kind, prefix in (("head", "refs/heads/"), ("tag", "refs/tags/")):
+        for kind, prefix, keyed in _REF_KINDS:
             if name.startswith(prefix):
-                refs[name[len(prefix) :]] = kind
-    for kind, sub in (("head", "heads"), ("tag", "tags")):
-        root = bare / "refs" / sub
+                refs[keyed + name[len(prefix) :]] = kind
+    for kind, prefix, keyed in _REF_KINDS:
+        root = bare / "refs" / prefix[len("refs/") : -1]
         try:
             if root.is_dir():
                 for path in root.rglob("*"):
                     if path.is_file():
-                        refs[str(path.relative_to(root))] = kind
+                        refs[keyed + str(path.relative_to(root))] = kind
         except OSError:
             pass
     return refs
@@ -240,15 +252,17 @@ def _korg_releases() -> list[dict]:
 
 
 def list_refs(repo: str, filterText: str = "") -> list[dict]:
-    """Dynselect options for a repo's refs: branches first, tags newest first.
+    """Dynselect options for a repo's refs: branches, mirror branches, tags.
 
-    The linux picker leads with kernel.org's current releases
-    (`releases.json`), each labeled with its moniker (mainline, stable,
-    longterm, linux-next) in the upstream order, so the latest of each series
-    is a one-click pick; a release the local Bare/mirror does not carry yet is
-    labeled `not mirrored` since checking it out needs a mirror fetch first.
-    Returns an empty list when neither the Bare nor the mirror exists yet; the
-    form's manual-ref toggle stays the entry path on such a host.
+    Developer branches come first, then the mirror remote's branches as
+    `mirror/<branch>`, then tags newest first. The linux picker leads with
+    kernel.org's current releases (`releases.json`), each labeled with its
+    moniker (mainline, stable, longterm, linux-next) in the upstream order,
+    so the latest of each series is a one-click pick; a release the local
+    Bare/mirror does not carry yet is labeled `not mirrored` since checking
+    it out needs a mirror fetch first. Returns an empty list when neither
+    the Bare nor the mirror exists yet; the form's manual-ref toggle stays
+    the entry path on such a host.
     """
     bare = _repo_dir(repo)
     if bare is None:
@@ -269,6 +283,9 @@ def list_refs(repo: str, filterText: str = "") -> list[dict]:
                 korg_tags.add(rel["tag"])
                 options.append({"value": rel["tag"], "label": label})
     heads = sorted(n for n, k in refs.items() if k == "head" and needle in n.lower())
+    mirrors = sorted(
+        n for n, k in refs.items() if k == "mirror" and needle in n.lower()
+    )
     tags = sorted(
         (
             n
@@ -277,8 +294,63 @@ def list_refs(repo: str, filterText: str = "") -> list[dict]:
         ),
         key=_tag_key,
     )
-    options += [{"value": n, "label": n} for n in heads + tags]
+    options += [{"value": n, "label": n} for n in heads + mirrors + tags]
     return options[:_MAX_OPTIONS]
+
+
+def _read_refnames(bare: Path) -> set[str]:
+    """All full refnames, packed plus loose, best-effort like `_read_refs`."""
+    names: set[str] = set()
+    try:
+        lines = (bare / "packed-refs").read_text(errors="replace").splitlines()
+    except OSError:
+        lines = []
+    for line in lines:
+        if not line or line.startswith(("#", "^")):
+            continue
+        _, _, name = line.partition(" ")
+        if name.startswith("refs/"):
+            names.add(name)
+    for sub in ("heads", "tags", "remotes"):
+        root = bare / "refs" / sub
+        try:
+            if root.is_dir():
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        names.add(f"refs/{sub}/{path.relative_to(root)}")
+        except OSError:
+            pass
+    return names
+
+
+def qualify_ref(repo: str, ref: str) -> str | None:
+    """The repo's fully qualified refname for `ref`, or None.
+
+    The resolution order matches the worktree steps (`f.common.worktree`):
+    an upstream tag wins, then the mirror remote's branches, then a
+    developer branch, then any remote-tracking ref (a picked
+    `mirror/<branch>` value, or a peer branch). A fetcher needs the full
+    refname because it reads an unqualified one as `refs/heads/<ref>`; an
+    already-qualified `refs/...` value passes through when it exists.
+    """
+    bare = _repo_dir(repo)
+    if bare is None:
+        return None
+    names = _read_refnames(bare)
+    candidates = (
+        [ref]
+        if ref.startswith("refs/")
+        else [
+            f"refs/tags/{ref}",
+            f"refs/remotes/mirror/{ref}",
+            f"refs/heads/{ref}",
+            f"refs/remotes/{ref}",
+        ]
+    )
+    for candidate in candidates:
+        if candidate in names:
+            return candidate
+    return None
 
 
 def main():
