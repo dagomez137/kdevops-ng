@@ -11,12 +11,13 @@ description: |-
   primary upstream, for an explicit `git fetch origin` (the Bare is the working
   repo).
 
-  Pick the projects to mirror, then each one's deploy options in its own group:
-  for `linux`, the curated **Trees** to integrate into the merged linux.git plus
-  a **Source** host and **Transport**; for `qemu` and the xfs trees, a
-  **Source** host and **Transport**. The single-source github repos (`fio`,
-  `blktests`, `bcc`) have no options. `peers` lists other workbench hosts to
-  wire as cross-host push remotes. Idempotent.
+  Pick the projects to mirror from the curated **Projects** list, then set each
+  one's deploy options in its own group: for `linux`, the curated **Trees** to
+  integrate into the merged linux.git plus a **Source** host and **Transport**;
+  for every other project, its **Source** host and **Transport** (the xfs trees
+  offer kernel.org or googlesource; the github repos serve one source over
+  https). `peers` lists other workbench hosts to wire as cross-host push
+  remotes. Idempotent.
 
   Returns a manifest of each Bare (`bare`, `origin`, `trees`, `action`, `head`,
   `peers`).
@@ -31,15 +32,17 @@ schema:
     - qemu
     - xfstests_dev
     - xfsprogs_dev
+    - fio
+    - blktests
+    - bcc
     - peers
     - refresh
   properties:
     projects:
-      type: array
+      type: object
       description: |-
         Which projects to mirror, each its own bare under `MIRRORS_DIR`.
-        Selecting one reveals its deploy options below (the github repos have
-        none).
+        Selecting one reveals its deploy options below.
       default:
         - linux
         - qemu
@@ -48,16 +51,7 @@ schema:
         - fio
         - blktests
         - bcc
-      items:
-        type: string
-        enum:
-          - linux
-          - qemu
-          - xfstests-dev
-          - xfsprogs-dev
-          - fio
-          - blktests
-          - bcc
+      format: dynmultiselect-list_mirror_projects
       title: Projects
     linux:
       type: object
@@ -187,7 +181,7 @@ schema:
           showExpr: fields.source !== 'googlesource'
           title: Transport
       showExpr: fields.projects.includes('xfstests-dev')
-      title: xfstests-dev
+      title: xfstests
     xfsprogs_dev:
       type: object
       description: How to deploy the xfsprogs-dev mirror.
@@ -218,7 +212,91 @@ schema:
           showExpr: fields.source !== 'googlesource'
           title: Transport
       showExpr: fields.projects.includes('xfsprogs-dev')
-      title: xfsprogs-dev
+      title: xfsprogs
+    fio:
+      type: object
+      description: How to deploy the fio mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical fio repo and only public
+            source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+      showExpr: fields.projects.includes('fio')
+      title: fio
+    blktests:
+      type: object
+      description: How to deploy the blktests mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical blktests repo and only public
+            source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+      showExpr: fields.projects.includes('blktests')
+      title: blktests
+    bcc:
+      type: object
+      description: How to deploy the bcc mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical bcc repo and only public
+            source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+      showExpr: fields.projects.includes('bcc')
+      title: bcc
     peers:
       type: array
       description: |-

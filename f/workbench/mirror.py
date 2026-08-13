@@ -32,6 +32,7 @@ from f.common.devshell import Git, Systemd, _resolve_git, mirrors_dir
 from f.workbench.fetch import (
     DEFAULT_MIRROR_PROJECTS,
     build_mirrors,
+    mirror_project_options,
     qemu_source_options,
     remote_url,
 )
@@ -40,6 +41,11 @@ from f.workbench.fetch import (
 def list_qemu_sources(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_qemu_sources` entrypoint for the qemu `source` field."""
     return qemu_source_options(filterText)
+
+
+def list_mirror_projects(filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_mirror_projects` entrypoint for the `projects` field."""
+    return mirror_project_options(filterText)
 
 
 _SERVICE = """\
@@ -146,6 +152,9 @@ def main(
     qemu: dict | None = None,
     xfstests_dev: dict | None = None,
     xfsprogs_dev: dict | None = None,
+    fio: dict | None = None,
+    blktests: dict | None = None,
+    bcc: dict | None = None,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     mdir = mirrors_dir()
@@ -155,6 +164,9 @@ def main(
         "qemu": qemu or {},
         "xfstests-dev": xfstests_dev or {},
         "xfsprogs-dev": xfsprogs_dev or {},
+        "fio": fio or {},
+        "blktests": blktests or {},
+        "bcc": bcc or {},
     }
     mirrors = build_mirrors(projects, configs, mdir)
     git = Git()

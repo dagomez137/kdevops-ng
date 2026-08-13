@@ -184,6 +184,20 @@ MIRROR_PROJECTS = [
 ]
 DEFAULT_MIRROR_PROJECTS = list(MIRROR_PROJECTS)
 
+# Human labels for the projects picker, keyed by the stable slug value, so the form
+# reads "xfstests (filesystem tests)" over the value "xfstests-dev" (hiding the repo's
+# -dev suffix) and names what each upstream is for. Same label-over-value pattern the
+# qemu source dropdown uses; every MIRROR_PROJECTS slug needs an entry.
+MIRROR_PROJECT_LABELS = {
+    "linux": "Linux kernel",
+    "qemu": "QEMU",
+    "xfstests-dev": "xfstests (filesystem tests)",
+    "xfsprogs-dev": "xfsprogs (XFS userspace tools)",
+    "fio": "fio (I/O workloads)",
+    "blktests": "blktests (block layer tests)",
+    "bcc": "bcc (BPF tracing tools)",
+}
+
 
 def remote_url(remote: dict) -> str:
     """The resolved clone URL of a mirror remote (composed by `build_mirrors`)."""
@@ -201,6 +215,20 @@ def qemu_source_options(filter_text: str = "") -> list[dict]:
 def list_qemu_sources(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_qemu_sources` entrypoint for the qemu `source` field."""
     return qemu_source_options(filterText)
+
+
+def mirror_project_options(filter_text: str = "") -> list[dict]:
+    """`[{label, value}]` for the projects picker: a human label over each curated
+    project's stable slug (MIRROR_PROJECTS), so the form reads "xfstests (filesystem
+    tests)" while the step keys on the slug. Same label-over-value pattern the qemu
+    source dropdown uses."""
+    options = [{"label": MIRROR_PROJECT_LABELS[p], "value": p} for p in MIRROR_PROJECTS]
+    return [o for o in options if filter_text.lower() in o["label"].lower()]
+
+
+def list_mirror_projects(filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_mirror_projects` entrypoint for the `projects` field."""
+    return mirror_project_options(filterText)
 
 
 def _effective_protocol(sources: dict, source: str, protocol: str) -> str:
@@ -324,6 +352,9 @@ def main(
     qemu: dict | None = None,
     xfstests_dev: dict | None = None,
     xfsprogs_dev: dict | None = None,
+    fio: dict | None = None,
+    blktests: dict | None = None,
+    bcc: dict | None = None,
     peers: list[dict] | None = None,
     refresh: bool = True,
 ) -> dict:
@@ -335,6 +366,9 @@ def main(
             "qemu": qemu,
             "xfstests-dev": xfstests_dev,
             "xfsprogs-dev": xfsprogs_dev,
+            "fio": fio,
+            "blktests": blktests,
+            "bcc": bcc,
         },
         mirrors_dir(),
     )

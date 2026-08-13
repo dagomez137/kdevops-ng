@@ -31,6 +31,24 @@ def test_list_qemu_sources_is_the_dynselect_entrypoint():
     assert fetch.list_qemu_sources("lab") == [{"label": "GitLab", "value": "gitlab"}]
 
 
+def test_mirror_project_options_label_every_curated_project():
+    options = fetch.mirror_project_options()
+    assert [o["value"] for o in options] == fetch.MIRROR_PROJECTS
+    assert set(fetch.MIRROR_PROJECT_LABELS) == set(fetch.MIRROR_PROJECTS)
+    labels = {o["value"]: o["label"] for o in options}
+    assert labels["xfstests-dev"] == "xfstests (filesystem tests)"
+    assert labels["linux"] == "Linux kernel"
+
+
+def test_mirror_project_options_filter_matches_the_label():
+    options = fetch.mirror_project_options("bpf")
+    assert options == [{"label": "bcc (BPF tracing tools)", "value": "bcc"}]
+
+
+def test_list_mirror_projects_is_the_dynmultiselect_entrypoint():
+    assert [o["value"] for o in fetch.list_mirror_projects()] == fetch.MIRROR_PROJECTS
+
+
 def test_effective_protocol_keeps_an_offered_transport():
     assert fetch._effective_protocol(fetch.LINUX_SOURCES, "kernel.org", "git") == "git"
 
