@@ -34,6 +34,14 @@ deployed one in place (the boot tail restarts the unit with the new
 render). Picking a published store kernel and refreshing an existing VM
 with it is the supported way to swap a guest's kernel.
 
+The shared **Worktree** group drives every build's developer-worktree
+tail from one place: the kernel and QEMU checkouts and the overridden
+closure packages all follow the same deploy, group and recreate knobs,
+so one custom name gathers the whole run under
+``WORKTREES_DIR/<group>``. The per-build copies of these knobs are
+hidden here and receive the shared values; standalone runs of the build
+flows keep their own (:doc:`kernel-build` documents the semantics).
+
 The flow chains ``resolve`` then the three build subflows then the boot
 subflow. ``resolve`` maps the reuse picks to a concrete boot manifest
 (the kernel image, modules, emulator binaries) and raises loudly on an
