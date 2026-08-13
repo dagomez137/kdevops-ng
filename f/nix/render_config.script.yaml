@@ -65,12 +65,13 @@ schema:
     source_overrides:
       type: object
       description: |-
-        Rebuild a package from your own source instead of its pinned version.
-        Fill a package's Source (an absolute path, or a git/flake URL like
-        git+file:///path or github:owner/repo); blank keeps the pinned version,
-        and Ref applies to git sources. The flake's build recipe is kept and the
-        known extra build steps (e.g. xfsprogs from git) are applied for you.
-        For any other nixpkgs package, use the advanced field below.
+        Rebuild a package from a ref in its project's Bare instead of its
+        pinned version. Fill a package's Ref (a branch such as
+        mirror/for-next, a tag, or a full commit id); blank keeps the pinned
+        version. The flake's build recipe is kept and the known extra build
+        steps (e.g. xfsprogs from git) are applied for you. For any other
+        nixpkgs package, or a raw path/URL source, use the advanced field
+        below.
       default: {}
       order:
         - xfstests
@@ -83,77 +84,52 @@ schema:
           type: object
           title: xfstests
           order:
-            - src
             - ref
           properties:
-            src:
-              type: string
-              default: ''
-              title: xfstests Source
             ref:
               type: string
               default: ''
-              title: xfstests Ref (git)
+              title: xfstests Ref
         xfsprogs:
           type: object
           title: xfsprogs
           order:
-            - src
             - ref
           properties:
-            src:
-              type: string
-              default: ''
-              title: xfsprogs Source
             ref:
               type: string
               default: ''
-              title: xfsprogs Ref (git)
+              title: xfsprogs Ref
         fio:
           type: object
           title: fio
           order:
-            - src
             - ref
           properties:
-            src:
-              type: string
-              default: ''
-              title: fio Source
             ref:
               type: string
               default: ''
-              title: fio Ref (git)
+              title: fio Ref
         libbpf-tools:
           type: object
           title: libbpf-tools
           order:
-            - src
             - ref
           properties:
-            src:
-              type: string
-              default: ''
-              title: libbpf-tools Source
             ref:
               type: string
               default: ''
-              title: libbpf-tools Ref (git)
+              title: libbpf-tools Ref
         blktests:
           type: object
           title: blktests
           order:
-            - src
             - ref
           properties:
-            src:
-              type: string
-              default: ''
-              title: blktests Source
             ref:
               type: string
               default: ''
-              title: blktests Ref (git)
+              title: blktests Ref
       title: Package source overrides
     profiles:
       type: array

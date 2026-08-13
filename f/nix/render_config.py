@@ -27,6 +27,7 @@ import re
 from pathlib import Path
 
 from f.common.devshell import system_dir, vendor_dir
+from f.common.gitrefs import qualify_ref
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
 _PROFILES = {"build-tools", "controller", "devel", "monitoring", "telemetry"}
@@ -50,6 +51,16 @@ _TEST_SUITES = [
 # The advanced `extra_overrides` takes any other nixpkgs package.
 _OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools", "blktests"]
 
+# The mirror project whose Bare carries each overridable package's source
+# (f/workbench/fetch cuts one Bare per project under $SYSTEM_DIR/bare).
+_PKG_PROJECTS = {
+    "fio": "fio",
+    "xfstests": "xfstests-dev",
+    "xfsprogs": "xfsprogs-dev",
+    "libbpf-tools": "bcc",
+    "blktests": "blktests",
+}
+
 # nixpkgs builds these from a release tarball that ships a prepared `./configure`; a
 # raw source tree (a path or git override) has none, so xfsprogs needs its own
 # autoreconf. Attached automatically when the package is overridden from source, so the
@@ -60,24 +71,22 @@ _PKG_SOURCE_ATTRS = {
 
 
 def _source_overrides_to_list(source_overrides: dict | None) -> list[dict]:
-    """The curated per-package source form (`{pkg: {src, ref}}`) as override rows.
+    """The curated per-package ref form (`{pkg: {ref}}`) as override rows.
 
-    Each overridable package (`_OVERRIDABLE_PKGS`) has its own `src` (an absolute path or
-    a git/flake URL) and optional `ref` in the form; a package with a blank src keeps its
-    pinned version. The known extra build attrs a raw tree needs (`_PKG_SOURCE_ATTRS`) are
-    attached automatically. Returns the rows in `_OVERRIDABLE_PKGS` order, so the primary
-    input is a form, never a hand-composed JSON array.
+    Each overridable package (`_OVERRIDABLE_PKGS`) has one `ref` in the form: a
+    branch, tag or commit in its project's Bare (`_PKG_PROJECTS`); a package with
+    a blank ref keeps its pinned version. The known extra build attrs a raw tree
+    needs (`_PKG_SOURCE_ATTRS`) are attached automatically. Returns the rows in
+    `_OVERRIDABLE_PKGS` order, so the primary input is a form, never a
+    hand-composed JSON array.
     """
     out: list[dict] = []
     for pkg in _OVERRIDABLE_PKGS:
         spec = (source_overrides or {}).get(pkg) or {}
-        src = str(spec.get("src", "") or "").strip()
-        if not src:
-            continue
-        ov: dict = {"pkg": pkg, "src": src}
         ref = str(spec.get("ref", "") or "").strip()
-        if ref:
-            ov["ref"] = ref
+        if not ref:
+            continue
+        ov: dict = {"pkg": pkg, "project": _PKG_PROJECTS[pkg], "ref": ref}
         attrs = _PKG_SOURCE_ATTRS.get(pkg)
         if attrs:
             ov["attrs"] = dict(attrs)
@@ -163,9 +172,10 @@ def main(
     telemetry_ebpf_configs = [c for c in (telemetry_ebpf_configs or []) if c] or [
         "biolatency"
     ]
-    # The curated form gives each overridable package its own src/ref field, so a user
-    # points a package at a tree without composing JSON; extra_overrides is the gated
-    # advanced escape for any other nixpkgs package. The combined list is validated below.
+    # The curated form gives each overridable package a ref picker off its
+    # project's Bare, so a user builds a branch without composing JSON;
+    # extra_overrides is the gated advanced escape for any other nixpkgs package
+    # (a raw src: an absolute path, or a git URL). Validated below.
     overrides = _source_overrides_to_list(source_overrides)
     overrides += [ov for ov in (extra_overrides or []) if isinstance(ov, dict) and ov]
     ssh_keys = [k for k in (ssh_keys or []) if k and k.strip()]
@@ -213,12 +223,19 @@ def main(
     _reject_unknown(
         "telemetry ebpf config", telemetry_ebpf_configs, set(_TELEMETRY_EBPF_CONFIGS)
     )
+    seen_pkgs: set[str] = set()
     for ov in overrides:
         if not _PKG_RE.match(ov.get("pkg", "")):
             raise ValueError(
                 f'invalid override pkg {ov.get("pkg")!r} (need {{"pkg": ..., "src": ...}})'
             )
-        if not ov.get("src"):
+        if ov["pkg"] in seen_pkgs:
+            raise ValueError(
+                f"package {ov['pkg']!r} overridden twice; the form ref and an "
+                "extra_overrides row name the same package"
+            )
+        seen_pkgs.add(ov["pkg"])
+        if "project" not in ov and not ov.get("src"):
             raise ValueError(f"override {ov['pkg']!r} missing src")
         attrs = ov.get("attrs")
         if attrs is not None and not (
@@ -317,18 +334,59 @@ def _render_flake(template: Path, nixos_flake: Path, overrides: list[dict]) -> s
     return text
 
 
+# A full commit id pins the input by rev; anything else resolves as a ref.
+_FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _bare_dir(project: str) -> Path:
+    bare = system_dir() / "bare" / f"{project}.git"
+    if not (bare / "objects").is_dir():
+        raise FileNotFoundError(
+            f"no Bare for {project} at {bare}; run f/workbench/init first"
+        )
+    return bare
+
+
+def _qualified_ref(project: str, ref: str) -> str:
+    qualified = qualify_ref(project, ref)
+    if not qualified:
+        raise ValueError(
+            f"ref {ref!r} not found in the {project} Bare (tried refs/tags, "
+            "refs/remotes/mirror, refs/heads, refs/remotes); push the branch "
+            "to the Bare or refresh the mirror (f/workbench/fetch)"
+        )
+    return qualified
+
+
 def _override_input(ov: dict) -> str:
-    """A `<pkg>-src` non-flake input (path or git), consumed by the default.nix overlay."""
-    pkg, src, ref = ov["pkg"], ov["src"], ov.get("ref")
+    """A `<pkg>-src` non-flake input, consumed by the default.nix overlay.
+
+    A curated row (`project` + `ref`) clones the project's host-local Bare at
+    the fully qualified ref, so every source a worker builds passed through
+    the Bare; an `extra_overrides` row keeps its raw `src` (an absolute path,
+    or a git URL) verbatim.
+    """
+    pkg = ov["pkg"]
     lines = [f"    {pkg}-src = {{"]
-    if src.startswith("/"):
-        lines += ['      type = "path";', f"      path = {_nix_str(src)};"]
+    if "project" in ov:
+        project, ref = ov["project"], ov["ref"]
+        url = f"file://{_bare_dir(project)}"
+        lines += ['      type = "git";', f"      url = {_nix_str(url)};"]
+        if _FULL_SHA_RE.match(ref):
+            lines.append(f"      rev = {_nix_str(ref)};")
+        else:
+            lines.append(f"      ref = {_nix_str(_qualified_ref(project, ref))};")
+        # bcc (libbpf-tools) vendors libbpf/bpftool/blazesym as submodules a
+        # build needs; their .gitmodules URLs are absolute, so they fetch from
+        # upstream. Harmless for repos that have none.
+        lines.append("      submodules = true;")
+    elif ov["src"].startswith("/"):
+        lines += ['      type = "path";', f"      path = {_nix_str(ov['src'])};"]
     else:
-        lines += ['      type = "git";', f"      url = {_nix_str(src)};"]
+        lines += ['      type = "git";', f"      url = {_nix_str(ov['src'])};"]
+        ref = ov.get("ref")
         if ref:
             lines.append(f"      ref = {_nix_str(ref)};")
-        # bcc (libbpf-tools) vendors libbpf/bpftool/blazesym as submodules a
-        # build needs; harmless for repos that have none.
         lines.append("      submodules = true;")
     lines += ["      flake = false;", "    };"]
     return "\n".join(lines)

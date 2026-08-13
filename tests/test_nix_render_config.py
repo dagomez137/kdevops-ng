@@ -44,6 +44,16 @@ def env(monkeypatch, tmp_path):
     return tmp_path
 
 
+def _seed_bare(system: Path, project: str, *refnames: str) -> Path:
+    """A minimal Bare under `$SYSTEM_DIR/bare` packing full `refnames`."""
+    bare = system / "bare" / f"{project}.git"
+    (bare / "objects").mkdir(parents=True)
+    (bare / "refs").mkdir()
+    lines = [f"{'b' * 40} {name}" for name in refnames]
+    (bare / "packed-refs").write_text("\n".join(lines) + "\n")
+    return bare
+
+
 def test_the_curated_registries_hold_their_shape():
     suites = render_config._TEST_SUITES
     assert suites == sorted(suites)
@@ -65,6 +75,7 @@ def test_the_curated_registries_hold_their_shape():
         assert opt == f"nixos-flake.{prof}.enable"
     for pkg in render_config._OVERRIDABLE_PKGS:
         assert render_config._PKG_RE.match(pkg)
+    assert set(render_config._PKG_PROJECTS) == set(render_config._OVERRIDABLE_PKGS)
     collectors = render_config._TELEMETRY_COLLECTORS
     assert len(collectors) == len(set(collectors))
     assert "biolatency" in render_config._TELEMETRY_EBPF_CONFIGS
@@ -87,6 +98,42 @@ def test_reject_unknown_names_the_strays():
     assert _reject_unknown("profile", ["devel"], {"devel", "monitoring"}) is None
     with pytest.raises(ValueError, match="unknown profile"):
         _reject_unknown("profile", ["devel", "gaming"], {"devel"})
+
+
+def test_override_input_curated_form_clones_the_bare(env):
+    _seed_bare(env / "system", "fio", "refs/remotes/mirror/for-next")
+    block = _override_input({"pkg": "fio", "project": "fio", "ref": "for-next"})
+    bare = env / "system/bare/fio.git"
+    assert block == "\n".join(
+        [
+            "    fio-src = {",
+            '      type = "git";',
+            f'      url = "file://{bare}";',
+            '      ref = "refs/remotes/mirror/for-next";',
+            "      submodules = true;",
+            "      flake = false;",
+            "    };",
+        ]
+    )
+
+
+def test_override_input_curated_full_sha_pins_a_rev(env):
+    _seed_bare(env / "system", "xfstests-dev", "refs/remotes/mirror/master")
+    sha = "c" * 40
+    block = _override_input({"pkg": "xfstests", "project": "xfstests-dev", "ref": sha})
+    assert f'      rev = "{sha}";' in block
+    assert "ref =" not in block
+
+
+def test_override_input_curated_needs_the_bare(env):
+    with pytest.raises(FileNotFoundError, match="run f/workbench/init"):
+        _override_input({"pkg": "fio", "project": "fio", "ref": "for-next"})
+
+
+def test_override_input_curated_rejects_an_unknown_ref(env):
+    _seed_bare(env / "system", "fio", "refs/remotes/mirror/master")
+    with pytest.raises(ValueError, match="not found in the fio Bare"):
+        _override_input({"pkg": "fio", "project": "fio", "ref": "nope"})
 
 
 def test_override_input_path_form():
@@ -307,7 +354,7 @@ def test_blank_form_rows_are_dropped(env):
         profiles=["", "devel"],
         test_suites=["", "fstests"],
         ssh_keys=["", "   "],
-        source_overrides={"xfstests": {"src": ""}},
+        source_overrides={"xfstests": {"ref": ""}},
     )
     default = Path(out["default"]).read_text()
     assert "profiles.devel" in default
@@ -318,19 +365,21 @@ def test_blank_form_rows_are_dropped(env):
 
 
 def test_a_curated_override_lands_in_flake_and_overlay(env):
-    # The curated form asks only for the source; the known xfsprogs autoreconf build
-    # step is attached automatically.
+    # The curated form asks only for the ref; the known xfsprogs autoreconf build
+    # step is attached automatically, and the input clones the project's Bare.
+    _seed_bare(env / "system", "xfsprogs-dev", "refs/remotes/mirror/for-next")
     out = render_config.main(
         vm_name="ovm",
         profiles=[],
         test_suites=[],
-        source_overrides={"xfsprogs": {"src": "/home/me/xfsprogs"}},
+        source_overrides={"xfsprogs": {"ref": "mirror/for-next"}},
     )
     flake = Path(out["flake"]).read_text()
     default = Path(out["default"]).read_text()
     assert "    xfsprogs-src = {" in flake
-    assert '      path = "/home/me/xfsprogs";' in flake
-    assert "submodules" not in flake
+    assert f'      url = "file://{env / "system/bare/xfsprogs-dev.git"}";' in flake
+    assert '      ref = "refs/remotes/mirror/for-next";' in flake
+    assert "      submodules = true;" in flake
     assert (
         "      xfsprogs = prev.xfsprogs.overrideAttrs "
         '(_: { src = inputs.xfsprogs-src; autoreconfPhase = "make configure"; });'
@@ -338,22 +387,23 @@ def test_a_curated_override_lands_in_flake_and_overlay(env):
 
 
 def test_source_overrides_emits_only_filled_curated_packages(env):
+    _seed_bare(env / "system", "xfstests-dev", "refs/remotes/mirror/for-next")
     out = render_config.main(
         vm_name="ovm",
         profiles=[],
         test_suites=[],
-        # xfstests filled (git, with ref); fio blank; an unknown key is ignored (the
-        # form only offers the curated packages, so this can't happen from the UI).
+        # xfstests filled; fio blank; an unknown key is ignored (the form only
+        # offers the curated packages, so this can't happen from the UI).
         source_overrides={
-            "xfstests": {"src": "git+file:///home/me/xfstests", "ref": "for-next"},
-            "fio": {"src": ""},
-            "spdk": {"src": "/nope"},
+            "xfstests": {"ref": "for-next"},
+            "fio": {"ref": ""},
+            "spdk": {"ref": "main"},
         },
     )
     flake = Path(out["flake"]).read_text()
     default = Path(out["default"]).read_text()
-    assert '      url = "git+file:///home/me/xfstests";' in flake
-    assert '      ref = "for-next";' in flake
+    assert f'      url = "file://{env / "system/bare/xfstests-dev.git"}";' in flake
+    assert '      ref = "refs/remotes/mirror/for-next";' in flake
     assert (
         "xfstests = prev.xfstests.overrideAttrs (_: { src = inputs.xfstests-src; });"
         in default
@@ -365,16 +415,17 @@ def test_source_overrides_emits_only_filled_curated_packages(env):
 def test_a_blktests_override_keeps_the_recipe_and_swaps_only_src(env):
     # blktests is a custom nixos-flake package carrying the scope patch; the
     # override overlay swaps only src, so the patch still applies to the tree.
+    _seed_bare(env / "system", "blktests", "refs/tags/v1.0")
     out = render_config.main(
         vm_name="ovm",
         profiles=[],
         test_suites=["blktests"],
-        source_overrides={"blktests": {"src": "/home/me/blktests"}},
+        source_overrides={"blktests": {"ref": "v1.0"}},
     )
     flake = Path(out["flake"]).read_text()
     default = Path(out["default"]).read_text()
     assert "    blktests-src = {" in flake
-    assert '      path = "/home/me/blktests";' in flake
+    assert '      ref = "refs/tags/v1.0";' in flake
     assert (
         "blktests = prev.blktests.overrideAttrs (_: { src = inputs.blktests-src; });"
         in default
@@ -429,6 +480,18 @@ def test_extra_override_needs_a_src():
     with pytest.raises(ValueError, match="missing src"):
         render_config.main(
             profiles=[], test_suites=[], extra_overrides=[{"pkg": "spdk"}]
+        )
+
+
+def test_a_package_overridden_twice_is_rejected():
+    # A form ref plus an extra_overrides row for the same package would render
+    # two same-name flake inputs and fail deep inside Nix; fail fast instead.
+    with pytest.raises(ValueError, match="overridden twice"):
+        render_config.main(
+            profiles=[],
+            test_suites=[],
+            source_overrides={"fio": {"ref": "mirror/master"}},
+            extra_overrides=[{"pkg": "fio", "src": "/home/me/fio"}],
         )
 
 
