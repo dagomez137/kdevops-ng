@@ -72,8 +72,8 @@ let
   src = fetchFromGitHub {
     owner = "dagomez137";
     repo = "windmill";
-    rev = "c18367a8b3ded046d126c6c083555ecd564663a7";
-    hash = "sha256-O7dJ7L7++pJgtOX68uoRI6VPqIevYYGmW30s6hn3axQ=";
+    rev = "f1065e71a23719d22a55a6a2ae0de93b0360662b";
+    hash = "sha256-FmvPn8Og6053iFStExgZMHZaxKDl/os1CPM0uwrb86U=";
   };
 
   # all_languages minus oracledb; oracledb is appended only when withOracle.
