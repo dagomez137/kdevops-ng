@@ -70,6 +70,15 @@ _PKG_SOURCE_ATTRS = {
     "xfsprogs": {"autoreconfPhase": "make configure"},
 }
 
+# nixpkgs pins release-specific fixes as `patches`; a source override builds a
+# tree that usually already contains them, and `patch` bails out ("previously
+# applied"), so the list resets. Values are raw Nix, emitted unquoted.
+# blktests and xfstests keep their carried patches on purpose: the vendored
+# recipes apply them to any src.
+_PKG_SOURCE_RAW_ATTRS = {
+    "fio": {"patches": "[ ]"},
+}
+
 
 def _source_overrides_to_list(source_overrides: dict | None) -> list[dict]:
     """The curated per-package ref form (`{pkg: {ref}}`) as override rows.
@@ -91,6 +100,9 @@ def _source_overrides_to_list(source_overrides: dict | None) -> list[dict]:
         attrs = _PKG_SOURCE_ATTRS.get(pkg)
         if attrs:
             ov["attrs"] = dict(attrs)
+        raw = _PKG_SOURCE_RAW_ATTRS.get(pkg)
+        if raw:
+            ov["raw_attrs"] = dict(raw)
         out.append(ov)
     return out
 
@@ -238,6 +250,10 @@ def main(
         seen_pkgs.add(ov["pkg"])
         if "project" not in ov and not ov.get("src"):
             raise ValueError(f"override {ov['pkg']!r} missing src")
+        if "raw_attrs" in ov and "project" not in ov:
+            raise ValueError(
+                f"override {ov['pkg']!r}: raw_attrs is internal; use attrs"
+            )
         attrs = ov.get("attrs")
         if attrs is not None and not (
             isinstance(attrs, dict)
@@ -524,6 +540,9 @@ def _render_default(
             # `autoreconfPhase = "make configure"` rather than nixpkgs' generic autoreconf).
             extra = "".join(
                 f" {k} = {_nix_str(v)};" for k, v in (ov.get("attrs") or {}).items()
+            )
+            extra += "".join(
+                f" {k} = {v};" for k, v in (ov.get("raw_attrs") or {}).items()
             )
             out.append(
                 f"      {ov['pkg']} = prev.{ov['pkg']}.overrideAttrs "

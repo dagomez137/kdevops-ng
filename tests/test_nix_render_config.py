@@ -76,6 +76,10 @@ def test_the_curated_registries_hold_their_shape():
     for pkg in render_config._OVERRIDABLE_PKGS:
         assert render_config._PKG_RE.match(pkg)
     assert set(render_config._PKG_PROJECTS) == set(render_config._OVERRIDABLE_PKGS)
+    assert set(render_config._PKG_SOURCE_ATTRS) <= set(render_config._OVERRIDABLE_PKGS)
+    assert set(render_config._PKG_SOURCE_RAW_ATTRS) <= set(
+        render_config._OVERRIDABLE_PKGS
+    )
     collectors = render_config._TELEMETRY_COLLECTORS
     assert len(collectors) == len(set(collectors))
     assert "biolatency" in render_config._TELEMETRY_EBPF_CONFIGS
@@ -431,6 +435,45 @@ def test_a_blktests_override_keeps_the_recipe_and_swaps_only_src(env):
         in default
     )
     assert 'nixos-flake.shares."/var/lib/blktests" = { tag = "blktests"; };' in default
+
+
+def test_a_fio_override_resets_the_nixpkgs_patch_list(env):
+    # nixpkgs pins release-specific fio fixes as patches; a source tree at or
+    # past them reverses the patch, so the override overlay resets the list.
+    _seed_bare(env / "system", "fio", "refs/remotes/mirror/master")
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=[],
+        source_overrides={"fio": {"ref": "mirror/master"}},
+    )
+    default = Path(out["default"]).read_text()
+    assert (
+        "      fio = prev.fio.overrideAttrs "
+        "(_: { src = inputs.fio-src; patches = [ ]; });"
+    ) in default
+
+
+def test_only_fio_resets_patches(env):
+    # blktests carries its patch in the vendored recipe on purpose; the
+    # override must keep it applying to the new tree.
+    _seed_bare(env / "system", "blktests", "refs/tags/v1.0")
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=[],
+        source_overrides={"blktests": {"ref": "v1.0"}},
+    )
+    assert "patches" not in Path(out["default"]).read_text()
+
+
+def test_an_extra_override_cannot_smuggle_raw_attrs():
+    with pytest.raises(ValueError, match="raw_attrs is internal"):
+        render_config.main(
+            profiles=[],
+            test_suites=[],
+            extra_overrides=[{"pkg": "spdk", "src": "/s", "raw_attrs": {"p": "[ ]"}}],
+        )
 
 
 def test_the_return_carries_resolved_override_rows(env):
