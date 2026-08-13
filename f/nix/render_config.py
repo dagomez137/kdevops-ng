@@ -28,6 +28,7 @@ from pathlib import Path
 
 from f.common.devshell import system_dir, vendor_dir
 from f.common.gitrefs import qualify_ref
+from f.common.worktree import _slug
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
 _PROFILES = {"build-tools", "controller", "devel", "monitoring", "telemetry"}
@@ -301,6 +302,19 @@ def main(
         "default": str(config_dir / "default.nix"),
         "nixos_flake": str(nixos_flake),
         "vm_name": vm_name,
+        # The curated override rows, each with its auto worktree-group, for
+        # the flow's developer-worktree tail (extra_overrides rows have no
+        # Bare and stay out).
+        "overrides": [
+            {
+                "pkg": ov["pkg"],
+                "project": ov["project"],
+                "ref": ov["ref"],
+                "group": _override_group(ov),
+            }
+            for ov in overrides
+            if "project" in ov
+        ],
     }
 
 
@@ -356,6 +370,20 @@ def _qualified_ref(project: str, ref: str) -> str:
             "to the Bare or refresh the mirror (f/workbench/fetch)"
         )
     return qualified
+
+
+def _override_group(ov: dict) -> str:
+    """The override's auto worktree-group, by the worktree naming rule.
+
+    An upstream tag keeps the unmodified baseline (`vanilla`); anything else
+    names its own topic group after the ref, so a branch pick never lands in
+    `vanilla`.
+    """
+    ref = ov["ref"]
+    if _FULL_SHA_RE.match(ref):
+        return _slug(ref[:12])
+    qualified = _qualified_ref(ov["project"], ref)
+    return "vanilla" if qualified.startswith("refs/tags/") else _slug(ref)
 
 
 def _override_input(ov: dict) -> str:

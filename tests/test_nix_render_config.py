@@ -433,6 +433,42 @@ def test_a_blktests_override_keeps_the_recipe_and_swaps_only_src(env):
     assert 'nixos-flake.shares."/var/lib/blktests" = { tag = "blktests"; };' in default
 
 
+def test_the_return_carries_resolved_override_rows(env):
+    # One row per curated override, each with its auto worktree-group: a tag
+    # keeps vanilla, a branch names its own group, a commit id slices the sha;
+    # extra_overrides rows have no Bare and stay out.
+    _seed_bare(env / "system", "xfsprogs-dev", "refs/remotes/mirror/for-next")
+    _seed_bare(env / "system", "blktests", "refs/tags/v1.0")
+    _seed_bare(env / "system", "fio", "refs/remotes/mirror/master")
+    sha = "c" * 40
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=[],
+        source_overrides={
+            "xfsprogs": {"ref": "mirror/for-next"},
+            "blktests": {"ref": "v1.0"},
+            "fio": {"ref": sha},
+        },
+        extra_overrides=[{"pkg": "spdk", "src": "/s/spdk"}],
+    )
+    assert out["overrides"] == [
+        {"pkg": "fio", "project": "fio", "ref": sha, "group": "c" * 12},
+        {
+            "pkg": "xfsprogs",
+            "project": "xfsprogs-dev",
+            "ref": "mirror/for-next",
+            "group": "mirror-for-next",
+        },
+        {"pkg": "blktests", "project": "blktests", "ref": "v1.0", "group": "vanilla"},
+    ]
+
+
+def test_no_overrides_returns_an_empty_row_list(env):
+    out = render_config.main(vm_name="ovm", profiles=[], test_suites=[])
+    assert out["overrides"] == []
+
+
 def test_an_extra_override_takes_any_git_package(env):
     out = render_config.main(
         vm_name="ovm",
