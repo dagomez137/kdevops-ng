@@ -386,7 +386,9 @@ def test_a_curated_override_lands_in_flake_and_overlay(env):
     assert "      submodules = true;" in flake
     assert (
         "      xfsprogs = prev.xfsprogs.overrideAttrs "
-        '(_: { src = inputs.xfsprogs-src; autoreconfPhase = "make configure"; });'
+        "(_: rec { src = inputs.xfsprogs-src; version = prev.xfsprogs.version "
+        '+ "+git" + (inputs.xfsprogs-src.shortRev or "src"); '
+        'name = "xfsprogs-" + version; autoreconfPhase = "make configure"; });'
     ) in default
 
 
@@ -409,9 +411,10 @@ def test_source_overrides_emits_only_filled_curated_packages(env):
     assert f'      url = "file://{env / "system/bare/xfstests-dev.git"}";' in flake
     assert '      ref = "refs/remotes/mirror/for-next";' in flake
     assert (
-        "xfstests = prev.xfstests.overrideAttrs (_: { src = inputs.xfstests-src; });"
+        "xfstests = prev.xfstests.overrideAttrs (_: rec { src = inputs.xfstests-src;"
         in default
     )
+    assert 'name = "xfstests-" + version;' in default
     assert "fio-src" not in flake
     assert "spdk" not in default
 
@@ -431,7 +434,7 @@ def test_a_blktests_override_keeps_the_recipe_and_swaps_only_src(env):
     assert "    blktests-src = {" in flake
     assert '      ref = "refs/tags/v1.0";' in flake
     assert (
-        "blktests = prev.blktests.overrideAttrs (_: { src = inputs.blktests-src; });"
+        "blktests = prev.blktests.overrideAttrs (_: rec { src = inputs.blktests-src;"
         in default
     )
     assert 'nixos-flake.shares."/var/lib/blktests" = { tag = "blktests"; };' in default
@@ -450,7 +453,9 @@ def test_a_fio_override_resets_the_nixpkgs_patch_list(env):
     default = Path(out["default"]).read_text()
     assert (
         "      fio = prev.fio.overrideAttrs "
-        "(_: { src = inputs.fio-src; patches = [ ]; });"
+        "(_: rec { src = inputs.fio-src; version = prev.fio.version "
+        '+ "+git" + (inputs.fio-src.shortRev or "src"); '
+        'name = "fio-" + version; patches = [ ]; });'
     ) in default
 
 

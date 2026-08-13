@@ -506,6 +506,7 @@ def _render_default(
     if overrides:
         out += ["", "  nixpkgs.overlays = lib.mkAfter [", "    (final: prev: {"]
         for ov in overrides:
+            pkg = ov["pkg"]
             # `attrs` carries extra overrideAttrs assignments (string-valued, e.g. a
             # replacement build phase): needed when a git `src` must build differently
             # than the package's release tarball (e.g. xfsprogs from git wants its own
@@ -516,10 +517,24 @@ def _render_default(
             extra += "".join(
                 f" {k} = {v};" for k, v in (ov.get("raw_attrs") or {}).items()
             )
-            out.append(
-                f"      {ov['pkg']} = prev.{ov['pkg']}.overrideAttrs "
-                f"(_: {{ src = inputs.{ov['pkg']}-src;{extra} }});"
-            )
+            if "project" in ov:
+                # Stamp the source rev into version and name, so the build
+                # log, the store path and the guest all show which commit the
+                # package was built from.
+                stamp = (
+                    f" version = prev.{pkg}.version"
+                    f' + "+git" + (inputs.{pkg}-src.shortRev or "src");'
+                    f' name = "{pkg}-" + version;'
+                )
+                out.append(
+                    f"      {pkg} = prev.{pkg}.overrideAttrs "
+                    f"(_: rec {{ src = inputs.{pkg}-src;{stamp}{extra} }});"
+                )
+            else:
+                out.append(
+                    f"      {pkg} = prev.{pkg}.overrideAttrs "
+                    f"(_: {{ src = inputs.{pkg}-src;{extra} }});"
+                )
         out += ["    })", "  ];"]
 
     out.append("}")
