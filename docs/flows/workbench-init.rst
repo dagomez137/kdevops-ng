@@ -15,10 +15,11 @@ assumes:
 1. ``fetch``: the shared sources. Each picked project gets a durable
    bare repository (default ``$SYSTEM_DIR/bare/linux.git`` and
    ``$SYSTEM_DIR/bare/qemu.git``) that every worker cuts cheap detached
-   worktrees off (:doc:`kernel-build`, :doc:`qemu-build`). A bare
-   tracks its real upstream but borrows objects from the local mirror
-   under ``$MIRRORS_DIR``, and keeps ``refs/heads/*`` for developer
-   pushes.
+   worktrees off (:doc:`kernel-build`, :doc:`qemu-build`) and the
+   closure's package source overrides clone from (:doc:`nix-build`). A
+   bare tracks its real upstream but borrows objects from the local
+   mirror under ``$MIRRORS_DIR``, and keeps ``refs/heads/*`` for
+   developer pushes.
 2. ``ssh_key``: the kdevops-managed VM SSH key, one keypair under
    ``$SYSTEM_DIR/ssh/`` that every guest built afterwards trusts. The
    step returns the one ``Include`` line to add to :cmd:`~/.ssh/config`

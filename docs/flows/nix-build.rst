@@ -46,6 +46,51 @@ role: it pulls libvirtd into the guest, and upstream only composes it on the
 libvirt backend, so it is an available option but off by default. Pare the
 ``profiles`` and ``test_suites`` lists back per run for a lighter, faster build.
 
+Package source overrides
+========================
+
+Five packages of the closure can be rebuilt from source instead of their
+pinned versions: ``fio``, ``xfstests``, ``xfsprogs``, ``libbpf-tools`` and
+``blktests``, each a tree a kernel developer patches while testing. An
+override follows the worktree model (ADR-0014): the source comes from the
+package's project Bare, the same durable repository the kernel and QEMU
+builds check out from, so a worker never reads a developer checkout and a
+developer hands work to the build by publishing a ref to the Bare. The map
+is fixed: ``xfstests`` builds from the ``xfstests-dev`` Bare, ``xfsprogs``
+from ``xfsprogs-dev``, ``libbpf-tools`` from ``bcc``, and ``fio`` and
+``blktests`` each from their own.
+
+``ref``
+   The branch or tag to build, picked from the Bare's live ref list through
+   :src:`f/common/gitrefs`: developer branches first, then the mirror
+   remote's branches as ``mirror/<branch>``, then tags newest first. Blank
+   keeps the pinned version, so the zero-config path overrides nothing.
+
+``custom_ref`` and ``git_ref``
+   The advanced override for anything the picker cannot offer. Turn on
+   ``custom_ref`` and ``git_ref`` replaces the picked ref: resolved against
+   a tag, then the ``mirror`` remote, then a developer branch, then any
+   remote-tracking ref, so ``v2026.03.20``, ``mirror/for-next``, a peer
+   branch, or a full 40-hex commit id all work.
+
+An active override renders one ``<pkg>-src`` flake input cloning the Bare
+(``type = "git"`` at ``file://<SYSTEM_DIR>/bare/<project>.git``) at the
+fully qualified ref, or pinned by ``rev`` for a commit id. ``flake.lock``
+pins the resolved commit, and ``lock_config`` re-locks every ``<pkg>-src``
+input to its branch tip on every build, so a freshly pushed commit lands in
+the next closure without a manual bump; a tag makes the re-lock a no-op and
+a ``rev`` pin is explicit. A ref the Bare does not carry fails
+``render_config`` with the attempted namespaces named, and a missing Bare
+points at :src:`f/workbench/init`.
+
+The build recipes are kept: the override overlay swaps only ``src``, plus
+the known extra attrs a raw tree needs (such as the xfsprogs autoreconf),
+so carried patches still apply. ``libbpf-tools`` keeps fetching bcc's
+vendored submodules (libbpf, bpftool, blazesym) from their upstream URLs at
+input-fetch time. For any other nixpkgs package, or a raw path or URL
+source, the ``render_config`` step keeps the ``extra_overrides`` escape, a
+raw ``[{pkg, src, ref, attrs}]`` list outside the curated form.
+
 The per-VM config contract
 ==========================
 
