@@ -1001,15 +1001,15 @@ schema:
 
                     first override''s auto-derived name (differing derivations are
 
-                    noted in the job log and the first wins), so a branch spins
+                    noted in the job log and the first wins), so a series names
 
-                    its own topic group and only a tag lands in `vanilla`, which
+                    the group after its cover subject, a branch spins its own
 
-                    asserts an unmodified baseline. Name it, here and in
+                    topic group, and only a tag lands in `vanilla`, which asserts
 
-                    `f/kernel/build` or `f/qemu/build`, to gather several
+                    an unmodified baseline. Name it, here and in `f/kernel/build`
 
-                    projects into one topic.'
+                    or `f/qemu/build`, to gather several projects into one topic.'
                   default: vanilla
                   showExpr: fields.deploy_developer_worktree === true && fields.custom_group === true
                   title: Developer Group
@@ -1031,6 +1031,7 @@ schema:
                   - custom_ref
                   - ref
                   - git_ref
+                  - b4_series
                   properties:
                     ref:
                       type: object
@@ -1056,6 +1057,15 @@ schema:
                         Blank keeps the pinned version.'
                       default: ''
                       showExpr: fields.custom_ref === true
+                    b4_series:
+                      type: string
+                      description: 'Optional lore series (message-id/URL) to apply on
+
+                        top of the Git Ref via `b4 am`, published to the
+
+                        Bare as `b4/<slug>`.'
+                      default: ''
+                      title: b4 Series
                 xfsprogs:
                   type: object
                   default: {}
@@ -1064,6 +1074,7 @@ schema:
                   - custom_ref
                   - ref
                   - git_ref
+                  - b4_series
                   properties:
                     ref:
                       type: object
@@ -1089,6 +1100,15 @@ schema:
                         Blank keeps the pinned version.'
                       default: ''
                       showExpr: fields.custom_ref === true
+                    b4_series:
+                      type: string
+                      description: 'Optional lore series (message-id/URL) to apply on
+
+                        top of the Git Ref via `b4 am`, published to the
+
+                        Bare as `b4/<slug>`.'
+                      default: ''
+                      title: b4 Series
                 fio:
                   type: object
                   default: {}
@@ -1097,6 +1117,7 @@ schema:
                   - custom_ref
                   - ref
                   - git_ref
+                  - b4_series
                   properties:
                     ref:
                       type: object
@@ -1122,6 +1143,15 @@ schema:
                         keeps the pinned version.'
                       default: ''
                       showExpr: fields.custom_ref === true
+                    b4_series:
+                      type: string
+                      description: 'Optional lore series (message-id/URL) to apply on
+
+                        top of the Git Ref via `b4 am`, published to the
+
+                        Bare as `b4/<slug>`.'
+                      default: ''
+                      title: b4 Series
                 libbpf-tools:
                   type: object
                   default: {}
@@ -1130,6 +1160,7 @@ schema:
                   - custom_ref
                   - ref
                   - git_ref
+                  - b4_series
                   properties:
                     ref:
                       type: object
@@ -1155,6 +1186,15 @@ schema:
                         keeps the pinned version.'
                       default: ''
                       showExpr: fields.custom_ref === true
+                    b4_series:
+                      type: string
+                      description: 'Optional lore series (message-id/URL) to apply on
+
+                        top of the Git Ref via `b4 am`, published to the
+
+                        Bare as `b4/<slug>`.'
+                      default: ''
+                      title: b4 Series
                 blktests:
                   type: object
                   default: {}
@@ -1163,6 +1203,7 @@ schema:
                   - custom_ref
                   - ref
                   - git_ref
+                  - b4_series
                   properties:
                     ref:
                       type: object
@@ -1188,6 +1229,15 @@ schema:
                         Blank keeps the pinned version.'
                       default: ''
                       showExpr: fields.custom_ref === true
+                    b4_series:
+                      type: string
+                      description: 'Optional lore series (message-id/URL) to apply on
+
+                        top of the Git Ref via `b4 am`, published to the
+
+                        Bare as `b4/<slug>`.'
+                      default: ''
+                      title: b4 Series
             profiles:
               type: array
               description: 'nixos-flake profile modules to import (fully featured by default;

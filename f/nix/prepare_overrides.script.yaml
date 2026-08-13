@@ -1,0 +1,119 @@
+summary: Resolve source overrides (b4 series + developer group)
+description: |-
+  Resolve the closure's source overrides before rendering. An override with
+  a `b4_series` gets the kernel-build treatment: the project's worker
+  worktree is laid at the ref, the mailed series is applied with `b4 am`,
+  and the result is published to the Bare as `b4/<slug>`; the override's
+  effective ref becomes that published branch. The one developer group a
+  deploy tail uses is derived here too: a series names it after its cover
+  subject, an upstream tag keeps `vanilla`, a full commit id its short sha,
+  and any other ref its own slug; differing derivations warn in the job log
+  and the first wins.
+
+  Returns the effective `source_overrides` (`{pkg: {ref}}`) for
+  `render_config`, the `overrides` rows (`{pkg, project, ref}`) for the
+  deploy tail, and the `worktree_group`.
+lock: '!inline f/nix/prepare_overrides.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - source_overrides
+  properties:
+    source_overrides:
+      type: object
+      description: |-
+        The curated override map, one `{ref, b4_series}` per package; a
+        package with a blank ref keeps its pinned version and a b4 series
+        needs a ref to apply onto.
+      default: {}
+      order:
+        - xfstests
+        - xfsprogs
+        - fio
+        - libbpf-tools
+        - blktests
+      properties:
+        xfstests:
+          type: object
+          default: {}
+          title: xfstests
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: xfstests Ref
+            b4_series:
+              type: string
+              default: ''
+              title: xfstests b4 Series
+        xfsprogs:
+          type: object
+          default: {}
+          title: xfsprogs
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: xfsprogs Ref
+            b4_series:
+              type: string
+              default: ''
+              title: xfsprogs b4 Series
+        fio:
+          type: object
+          default: {}
+          title: fio
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: fio Ref
+            b4_series:
+              type: string
+              default: ''
+              title: fio b4 Series
+        libbpf-tools:
+          type: object
+          default: {}
+          title: libbpf-tools
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: libbpf-tools Ref
+            b4_series:
+              type: string
+              default: ''
+              title: libbpf-tools b4 Series
+        blktests:
+          type: object
+          default: {}
+          title: blktests
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: blktests Ref
+            b4_series:
+              type: string
+              default: ''
+              title: blktests b4 Series
+      title: Package source overrides
+  required: []
