@@ -312,25 +312,33 @@ def main(
     _emit(config_dir / "flake.nix", flake_text)
     _emit(config_dir / "default.nix", default_text)
 
+    # The one developer group a deploy tail uses: the first curated
+    # override's auto-derived name. Differing derivations warn and the
+    # first wins.
+    curated = [ov for ov in overrides if "project" in ov]
+    groups = [_override_group(ov) for ov in curated]
+    worktree_group = groups[0] if groups else ""
+    distinct = sorted(set(groups))
+    if len(distinct) > 1:
+        print(
+            f"warning: override worktree groups differ ({', '.join(distinct)}); "
+            f"a deploy uses the first ({worktree_group})",
+            flush=True,
+        )
+
     return {
         "config_dir": str(config_dir),
         "flake": str(config_dir / "flake.nix"),
         "default": str(config_dir / "default.nix"),
         "nixos_flake": str(nixos_flake),
         "vm_name": vm_name,
-        # The curated override rows, each with its auto worktree-group, for
-        # the flow's developer-worktree tail (extra_overrides rows have no
-        # Bare and stay out).
+        # The curated override rows for the flow's developer-worktree tail
+        # (extra_overrides rows have no Bare and stay out).
         "overrides": [
-            {
-                "pkg": ov["pkg"],
-                "project": ov["project"],
-                "ref": ov["ref"],
-                "group": _override_group(ov),
-            }
-            for ov in overrides
-            if "project" in ov
+            {"pkg": ov["pkg"], "project": ov["project"], "ref": ov["ref"]}
+            for ov in curated
         ],
+        "worktree_group": worktree_group,
     }
 
 

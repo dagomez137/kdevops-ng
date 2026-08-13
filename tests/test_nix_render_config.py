@@ -476,10 +476,11 @@ def test_an_extra_override_cannot_smuggle_raw_attrs():
         )
 
 
-def test_the_return_carries_resolved_override_rows(env):
-    # One row per curated override, each with its auto worktree-group: a tag
-    # keeps vanilla, a branch names its own group, a commit id slices the sha;
-    # extra_overrides rows have no Bare and stay out.
+def test_the_return_carries_resolved_override_rows(env, capsys):
+    # Rows come in curated order; the deploy group is the first override's
+    # auto-derived name (a tag derives vanilla, a branch its own name, a
+    # commit id its short sha), and differing derivations warn and keep the
+    # first. extra_overrides rows have no Bare and stay out.
     _seed_bare(env / "system", "xfsprogs-dev", "refs/remotes/mirror/for-next")
     _seed_bare(env / "system", "blktests", "refs/tags/v1.0")
     _seed_bare(env / "system", "fio", "refs/remotes/mirror/master")
@@ -496,20 +497,47 @@ def test_the_return_carries_resolved_override_rows(env):
         extra_overrides=[{"pkg": "spdk", "src": "/s/spdk"}],
     )
     assert out["overrides"] == [
-        {"pkg": "fio", "project": "fio", "ref": sha, "group": "c" * 12},
-        {
-            "pkg": "xfsprogs",
-            "project": "xfsprogs-dev",
-            "ref": "mirror/for-next",
-            "group": "mirror-for-next",
-        },
-        {"pkg": "blktests", "project": "blktests", "ref": "v1.0", "group": "vanilla"},
+        {"pkg": "fio", "project": "fio", "ref": sha},
+        {"pkg": "xfsprogs", "project": "xfsprogs-dev", "ref": "mirror/for-next"},
+        {"pkg": "blktests", "project": "blktests", "ref": "v1.0"},
     ]
+    assert out["worktree_group"] == "c" * 12
+    warn = capsys.readouterr().out
+    assert "override worktree groups differ" in warn
+    assert "mirror-for-next" in warn and "vanilla" in warn
+
+
+def test_agreeing_override_groups_warn_nothing(env, capsys):
+    _seed_bare(env / "system", "fio", "refs/remotes/mirror/master")
+    _seed_bare(env / "system", "blktests", "refs/remotes/mirror/master")
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=[],
+        source_overrides={
+            "fio": {"ref": "mirror/master"},
+            "blktests": {"ref": "mirror/master"},
+        },
+    )
+    assert out["worktree_group"] == "mirror-master"
+    assert "differ" not in capsys.readouterr().out
+
+
+def test_a_tag_override_derives_the_vanilla_group(env):
+    _seed_bare(env / "system", "blktests", "refs/tags/v1.0")
+    out = render_config.main(
+        vm_name="ovm",
+        profiles=[],
+        test_suites=[],
+        source_overrides={"blktests": {"ref": "v1.0"}},
+    )
+    assert out["worktree_group"] == "vanilla"
 
 
 def test_no_overrides_returns_an_empty_row_list(env):
     out = render_config.main(vm_name="ovm", profiles=[], test_suites=[])
     assert out["overrides"] == []
+    assert out["worktree_group"] == ""
 
 
 def test_an_extra_override_takes_any_git_package(env):
