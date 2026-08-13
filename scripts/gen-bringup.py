@@ -249,11 +249,117 @@ qt = add_component(
 # Nix store; the boot step (a different worker group) resolves that store path from the
 # build manifest, so bringup needs no shared tree to hand artifacts across groups.
 
+# --- shared developer-worktree tail: one group drives every build --------------------
+# The kernel, QEMU and closure-override builds each carry the same four developer-tail
+# knobs. In bringup they are driven from this one top-level group, so every project of
+# the run can land in the same WORKTREES_DIR/<group>; the embedded copies are stripped
+# and the values flow top-down into each build subflow.
+DEV_TAIL_KNOBS = [
+    "deploy_developer_worktree",
+    "custom_group",
+    "worktree_group",
+    "recreate_developer_worktree",
+]
+
+
+def strip_dev_tail(group):
+    for knob in DEV_TAIL_KNOBS:
+        group["properties"].pop(knob, None)
+        if knob in group.get("order", []):
+            group["order"].remove(knob)
+
+
+strip_dev_tail(props["kernel"]["properties"]["worktree"])
+strip_dev_tail(props["qemu"]["properties"]["worktree"])
+strip_dev_tail(
+    props["closure"]["properties"]["closure"]["properties"]["source_overrides"]
+)
+
+DEV_TAIL_EXPR = (
+    "deploy_developer_worktree: flow_input.worktree?.deploy_developer_worktree === true, "
+    "custom_group: flow_input.worktree?.custom_group === true, "
+    'worktree_group: flow_input.worktree?.worktree_group ?? "", '
+    "recreate_developer_worktree: flow_input.worktree?.recreate_developer_worktree === true"
+)
+kt["worktree"] = jx(f"({{...flow_input.kernel?.worktree, {DEV_TAIL_EXPR}}})")
+qt["worktree"] = jx(f"({{...flow_input.qemu?.worktree, {DEV_TAIL_EXPR}}})")
+
+props["worktree"] = {
+    "type": "object",
+    "title": "Worktree",
+    "description": (
+        "Developer worktrees for every build of this run, driven from one "
+        "place: the kernel, QEMU and closure-override builds all follow "
+        "these knobs."
+    ),
+    "default": {},
+    "order": list(DEV_TAIL_KNOBS),
+    "properties": {
+        "deploy_developer_worktree": {
+            "type": "boolean",
+            "description": (
+                "After each build, lay or refresh its developer group "
+                "worktrees under WORKTREES_DIR: the kernel and QEMU "
+                "checkouts, and one per overridden closure package, each at "
+                "its built ref. The builds themselves are unaffected by "
+                "this toggle."
+            ),
+            "default": False,
+            "title": "Deploy Developer Worktrees",
+        },
+        "custom_group": {
+            "type": "boolean",
+            "description": (
+                "Name the developer group yourself instead of each build's "
+                "auto-derived vanilla/ref/series name."
+            ),
+            "default": False,
+            "showExpr": "fields.deploy_developer_worktree === true",
+            "title": "Custom Developer Group",
+        },
+        "worktree_group": {
+            "type": "string",
+            "description": (
+                "Developer group every build deploys into, at "
+                "WORKTREES_DIR/<group>/<project>. Left automatic each build "
+                "derives its own name (a series its cover subject, a branch "
+                "its own topic group, and only a tag lands in `vanilla`, "
+                "which asserts an unmodified baseline), so the projects may "
+                "land in different groups. Name it to gather the kernel, "
+                "QEMU and the overridden packages into one topic."
+            ),
+            "default": "vanilla",
+            "showExpr": (
+                "fields.deploy_developer_worktree === true && "
+                "fields.custom_group === true"
+            ),
+            "title": "Developer Group",
+        },
+        "recreate_developer_worktree": {
+            "type": "boolean",
+            "description": (
+                "Re-cut the developer group worktrees (rm the existing "
+                "checkout first) instead of reusing them. This hits only "
+                "the developer worktrees and never the workers."
+            ),
+            "default": False,
+            "showExpr": "fields.deploy_developer_worktree === true",
+            "title": "Recreate Developer Worktree",
+        },
+    },
+}
+order.append("worktree")
+
 # Pin test_suites so the closure and the boot share derivation default an omitted value
 # the same way (else render_config defaults to every suite, mounting the fstests share,
-# while the boot provides none, and the guest hangs on the missing mount).
+# while the boot provides none, and the guest hangs on the missing mount). The shared
+# developer-tail knobs ride into the override form the subflow reads them from.
 ct["closure"] = jx(
-    "({...flow_input.closure?.closure, test_suites: flow_input.closure?.closure?.test_suites ?? []})"
+    "({...flow_input.closure?.closure, "
+    "test_suites: flow_input.closure?.closure?.test_suites ?? [], "
+    "source_overrides: {...flow_input.closure?.closure?.source_overrides, "
+    + DEV_TAIL_EXPR
+    + "}})"
 )
 
 # The closure's hostname + per-VM config dir name default to the VM target's name, so a
@@ -433,8 +539,9 @@ bringup = {
         "init/initrd a refreshed VM recorded; QEMU `nixpkgs` boots the store QEMU. The final "
         "VM group is the target: a new VM, or refresh a deployed one in place (boot restarts "
         "it with the new render). Source and target are orthogonal: pick a new store kernel "
-        "AND refresh an existing VM with it. Generated by scripts/gen-bringup.py from the "
-        "subflows; do not hand-edit."
+        "AND refresh an existing VM with it. The Worktree group drives every build's "
+        "developer-worktree tail from one place. Generated by scripts/gen-bringup.py from "
+        "the subflows; do not hand-edit."
     ),
     "value": {"modules": modules},
     "schema": {
