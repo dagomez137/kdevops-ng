@@ -5,8 +5,7 @@ description: |-
   developer worktree under `<workbench>/<worktree_group>/<project>` off that
   project's durable Bare, via `f/common/worktree`'s `prepare_developer`. A
   developer uses this to let Windmill stand up a whole topic group at once (e.g.
-  `largeio` with `linux`, `qemu` and `xfsprogs-dev` each at their own ref). An
-  entry may carry its own `worktree_group`, overriding the shared name.
+  `largeio` with `linux`, `qemu` and `xfsprogs-dev` each at their own ref).
   `system` and `workers` are reserved group names. Per project it is idempotent:
   an existing worktree is reused unless `recreate_worktree`. The worker
   bind-mounts the whole Workbench, so the group lands host-visibly where the
@@ -47,7 +46,6 @@ schema:
           - project
           - git_ref
           - b4_series
-          - worktree_group
         properties:
           b4_series:
             type: string
@@ -63,12 +61,6 @@ schema:
             type: string
             description: |-
               Project name / Bare to check out (e.g. linux, qemu, xfsprogs-dev).
-          worktree_group:
-            type: string
-            description: |-
-              Optional group for this entry alone, overriding the shared
-              `worktree_group`.
-            default: ''
         required:
           - project
           - git_ref
@@ -84,10 +76,8 @@ schema:
       type: string
       description: |-
         Name of the worktree-group to initialize (a sibling of vanilla;
-        system/workers are reserved). An entry carrying its own
-        `worktree_group` overrides it; blank is valid only when every entry
-        does.
-      default: ''
+        system/workers are reserved).
       title: Worktree group
   required:
+    - worktree_group
     - projects
