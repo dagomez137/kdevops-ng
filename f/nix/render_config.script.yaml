@@ -82,6 +82,7 @@ schema:
       properties:
         xfstests:
           type: object
+          default: {}
           title: xfstests
           order:
             - ref
@@ -92,6 +93,7 @@ schema:
               title: xfstests Ref
         xfsprogs:
           type: object
+          default: {}
           title: xfsprogs
           order:
             - ref
@@ -102,6 +104,7 @@ schema:
               title: xfsprogs Ref
         fio:
           type: object
+          default: {}
           title: fio
           order:
             - ref
@@ -112,6 +115,7 @@ schema:
               title: fio Ref
         libbpf-tools:
           type: object
+          default: {}
           title: libbpf-tools
           order:
             - ref
@@ -122,6 +126,7 @@ schema:
               title: libbpf-tools Ref
         blktests:
           type: object
+          default: {}
           title: blktests
           order:
             - ref

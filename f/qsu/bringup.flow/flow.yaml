@@ -974,6 +974,7 @@ schema:
               properties:
                 xfstests:
                   type: object
+                  default: {}
                   title: xfstests
                   order:
                   - ref
@@ -1006,6 +1007,7 @@ schema:
                       showExpr: fields.custom_ref === true
                 xfsprogs:
                   type: object
+                  default: {}
                   title: xfsprogs
                   order:
                   - ref
@@ -1038,6 +1040,7 @@ schema:
                       showExpr: fields.custom_ref === true
                 fio:
                   type: object
+                  default: {}
                   title: fio
                   order:
                   - ref
@@ -1070,6 +1073,7 @@ schema:
                       showExpr: fields.custom_ref === true
                 libbpf-tools:
                   type: object
+                  default: {}
                   title: libbpf-tools
                   order:
                   - ref
@@ -1102,6 +1106,7 @@ schema:
                       showExpr: fields.custom_ref === true
                 blktests:
                   type: object
+                  default: {}
                   title: blktests
                   order:
                   - ref
