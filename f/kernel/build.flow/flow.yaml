@@ -1125,8 +1125,8 @@ schema:
       description: Source ref, optional patch series, and warm-tree lifecycle.
       default: {}
       order:
-        - ref
         - custom_ref
+        - ref
         - git_ref
         - recreate_build_worktree
         - wipe_build
@@ -1186,7 +1186,7 @@ schema:
           default: v7.1-rc7
           format: dynselect-list_kernel_refs
           showExpr: fields.custom_ref !== true
-          title: Ref
+          title: Git Ref
         custom_ref:
           type: boolean
           description: |-

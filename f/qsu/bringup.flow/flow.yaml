@@ -180,8 +180,8 @@ schema:
           description: Source ref, optional patch series, and warm-tree lifecycle.
           default: {}
           order:
-          - ref
           - custom_ref
+          - ref
           - git_ref
           - recreate_build_worktree
           - wipe_build
@@ -244,7 +244,7 @@ schema:
               default: v7.1-rc7
               format: dynselect-list_kernel_refs
               showExpr: fields.custom_ref !== true
-              title: Ref
+              title: Git Ref
             custom_ref:
               type: boolean
               description: 'Type the ref by hand (any committish) instead of picking from the
@@ -1414,8 +1414,8 @@ schema:
           description: Source ref, optional patch series, and warm-tree lifecycle.
           default: {}
           order:
-          - ref
           - custom_ref
+          - ref
           - qemu_ref
           - b4_series
           - custom_label
@@ -1476,7 +1476,7 @@ schema:
               default: v11.0.0
               format: dynselect-list_qemu_refs
               showExpr: fields.custom_ref !== true
-              title: Ref
+              title: QEMU Ref
             custom_ref:
               type: boolean
               description: 'Type the ref by hand (any committish) instead of picking from the

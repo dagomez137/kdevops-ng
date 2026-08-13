@@ -591,8 +591,8 @@ schema:
       description: Source ref, optional patch series, and warm-tree lifecycle.
       default: {}
       order:
-        - ref
         - custom_ref
+        - ref
         - qemu_ref
         - b4_series
         - custom_label
@@ -651,7 +651,7 @@ schema:
           default: v11.0.0
           format: dynselect-list_qemu_refs
           showExpr: fields.custom_ref !== true
-          title: Ref
+          title: QEMU Ref
         custom_ref:
           type: boolean
           description: |-
