@@ -158,6 +158,30 @@ def test_mirror_branches_list_between_heads_and_tags(monkeypatch, tmp_path):
     ]
 
 
+def test_other_remotes_list_only_on_request(monkeypatch, tmp_path):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("SYSTEM_DIR", str(tmp_path))
+    bare = _make_bare(tmp_path / "bare", "demo")
+    _packed(bare, "refs/remotes/mirror/master", "refs/tags/v1.0")
+    _loose(bare, "remotes/ojaswinm/iomap-buf-writethrough2")
+    _loose(bare, "remotes/panky-codes/writethrough")
+    # Off by default: the big-tree pickers stay uncluttered.
+    assert [o["value"] for o in gitrefs.list_refs("demo")] == [
+        "mirror/master",
+        "v1.0",
+    ]
+    # On request: fetched remotes list between the mirror rows and the tags.
+    assert [o["value"] for o in gitrefs.list_refs("demo", remotes=True)] == [
+        "mirror/master",
+        "ojaswinm/iomap-buf-writethrough2",
+        "panky-codes/writethrough",
+        "v1.0",
+    ]
+    assert [o["value"] for o in gitrefs.list_refs("demo", "panky", remotes=True)] == [
+        "panky-codes/writethrough"
+    ]
+
+
 def test_qualify_ref_resolves_in_the_worktree_order(monkeypatch, tmp_path):
     _clear_env(monkeypatch)
     monkeypatch.setenv("SYSTEM_DIR", str(tmp_path))

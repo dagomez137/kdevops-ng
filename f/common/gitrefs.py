@@ -65,23 +65,33 @@ def _repo_dir(repo: str) -> Path | None:
     return None
 
 
-# Picker namespaces: the key is the value the form submits, so a mirror
-# branch keeps its `mirror/` prefix and resolves as typed.
+# Picker namespaces: the key is the value the form submits, so a
+# remote-tracking branch keeps its `<remote>/` prefix and resolves as typed.
+# Order matters: the mirror prefix must match before the generic remotes one.
 _REF_KINDS = (
     ("head", "refs/heads/", ""),
     ("mirror", "refs/remotes/mirror/", "mirror/"),
+    ("remote", "refs/remotes/", ""),
     ("tag", "refs/tags/", ""),
 )
 
 
 def _read_refs(bare: Path) -> dict[str, str]:
-    """Picker names (`refs/heads`, `refs/remotes/mirror`, `refs/tags`) -> kind.
+    """Picker names (heads, remote-tracking branches, tags) -> kind.
 
-    Loose entries win over packed ones. A source that fails mid-read (git
+    Loose entries win over packed ones, and the first matching namespace in
+    `_REF_KINDS` classifies a ref. A source that fails mid-read (git
     maintenance repacking or pruning underneath us) is skipped; partial data
     beats an exception in a picker.
     """
     refs: dict[str, str] = {}
+
+    def classify(name: str) -> None:
+        for kind, prefix, keyed in _REF_KINDS:
+            if name.startswith(prefix):
+                refs[keyed + name[len(prefix) :]] = kind
+                return
+
     packed = bare / "packed-refs"
     try:
         lines = packed.read_text(errors="replace").splitlines()
@@ -91,16 +101,14 @@ def _read_refs(bare: Path) -> dict[str, str]:
         if not line or line.startswith(("#", "^")):
             continue
         _, _, name = line.partition(" ")
-        for kind, prefix, keyed in _REF_KINDS:
-            if name.startswith(prefix):
-                refs[keyed + name[len(prefix) :]] = kind
-    for kind, prefix, keyed in _REF_KINDS:
-        root = bare / "refs" / prefix[len("refs/") : -1]
+        classify(name)
+    for sub in ("heads", "remotes", "tags"):
+        root = bare / "refs" / sub
         try:
             if root.is_dir():
                 for path in root.rglob("*"):
                     if path.is_file():
-                        refs[keyed + str(path.relative_to(root))] = kind
+                        classify(f"refs/{sub}/{path.relative_to(root)}")
         except OSError:
             pass
     return refs
@@ -251,11 +259,15 @@ def _korg_releases() -> list[dict]:
     return stale if stale is not None else []
 
 
-def list_refs(repo: str, filterText: str = "") -> list[dict]:
+def list_refs(repo: str, filterText: str = "", remotes: bool = False) -> list[dict]:
     """Dynselect options for a repo's refs: branches, mirror branches, tags.
 
     Developer branches come first, then the mirror remote's branches as
-    `mirror/<branch>`, then tags newest first. The linux picker leads with
+    `mirror/<branch>`, then, with `remotes`, every other remote-tracking
+    namespace (a fetched collaborator remote, a peer host) as
+    `<remote>/<branch>`, then tags newest first. The big-tree pickers
+    (linux, QEMU) keep `remotes` off, where hundreds of maintainer-tree
+    refs would bury the useful picks. The linux picker leads with
     kernel.org's current releases (`releases.json`), each labeled with its
     moniker (mainline, stable, longterm, linux-next) in the upstream order,
     so the latest of each series is a one-click pick; a release the local
@@ -286,6 +298,11 @@ def list_refs(repo: str, filterText: str = "") -> list[dict]:
     mirrors = sorted(
         n for n, k in refs.items() if k == "mirror" and needle in n.lower()
     )
+    others = (
+        sorted(n for n, k in refs.items() if k == "remote" and needle in n.lower())
+        if remotes
+        else []
+    )
     tags = sorted(
         (
             n
@@ -294,7 +311,7 @@ def list_refs(repo: str, filterText: str = "") -> list[dict]:
         ),
         key=_tag_key,
     )
-    options += [{"value": n, "label": n} for n in heads + mirrors + tags]
+    options += [{"value": n, "label": n} for n in heads + mirrors + others + tags]
     return options[:_MAX_OPTIONS]
 
 
