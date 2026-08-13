@@ -971,7 +971,54 @@ schema:
               - fio
               - libbpf-tools
               - blktests
+              - deploy_developer_worktree
+              - custom_group
+              - worktree_group
+              - recreate_developer_worktree
               properties:
+                deploy_developer_worktree:
+                  type: boolean
+                  description: 'After the build, lay or refresh a developer group worktree
+
+                    under WORKTREES_DIR for each overridden package, at its built
+
+                    ref. The build itself is unaffected by this toggle.'
+                  default: false
+                  title: Deploy Developer Worktrees
+                custom_group:
+                  type: boolean
+                  description: 'Name the developer group yourself instead of each override''s
+
+                    auto-derived vanilla/ref name.'
+                  default: false
+                  showExpr: fields.deploy_developer_worktree === true
+                  title: Custom Developer Group
+                worktree_group:
+                  type: string
+                  description: 'Developer group to deploy into, at
+
+                    WORKTREES_DIR/<group>/<project>. Left automatic each override
+
+                    takes its own auto-derived name, so a branch spins its own
+
+                    topic group and only a tag lands in `vanilla`, which asserts
+
+                    an unmodified baseline. Name it, here and in `f/kernel/build`
+
+                    or `f/qemu/build`, to gather several projects into one topic.'
+                  default: vanilla
+                  showExpr: fields.deploy_developer_worktree === true && fields.custom_group === true
+                  title: Developer Group
+                recreate_developer_worktree:
+                  type: boolean
+                  description: 'Re-cut the developer group worktrees (rm the existing checkout
+
+                    first) instead of reusing them. This hits only the developer
+
+                    worktrees and never the worker.'
+                  default: false
+                  showExpr: fields.deploy_developer_worktree === true
+                  title: Recreate Developer Worktree
                 xfstests:
                   type: object
                   default: {}
