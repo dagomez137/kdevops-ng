@@ -153,6 +153,11 @@ def test_override_input_path_form():
     )
 
 
+def test_override_input_path_form_rejects_a_ref():
+    with pytest.raises(ValueError, match="file:// git URL"):
+        _override_input({"pkg": "fio", "src": "/home/me/fio", "ref": "master"})
+
+
 def test_override_input_git_form_pins_ref_and_submodules():
     block = _override_input(
         {"pkg": "spdk", "src": "https://github.com/spdk/spdk.git", "ref": "master"}
@@ -496,6 +501,16 @@ def test_an_extra_override_takes_any_git_package(env):
     assert '      ref = "master";' in flake
     assert "      submodules = true;" in flake
     assert "spdk = prev.spdk.overrideAttrs (_: { src = inputs.spdk-src; });" in default
+
+
+def test_an_extra_override_path_src_with_a_ref_is_rejected(env):
+    with pytest.raises(ValueError, match="cannot apply"):
+        render_config.main(
+            vm_name="ovm",
+            profiles=[],
+            test_suites=[],
+            extra_overrides=[{"pkg": "spdk", "src": "/home/me/spdk", "ref": "master"}],
+        )
 
 
 def test_invalid_vm_name_is_rejected():

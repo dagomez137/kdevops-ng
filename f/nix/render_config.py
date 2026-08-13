@@ -380,7 +380,8 @@ def _override_input(ov: dict) -> str:
     A curated row (`project` + `ref`) clones the project's host-local Bare at
     the fully qualified ref, so every source a worker builds passed through
     the Bare; an `extra_overrides` row keeps its raw `src` (an absolute path,
-    or a git URL) verbatim.
+    or a git URL) verbatim. A path src snapshots that working tree as-is, so
+    it cannot carry a `ref`.
     """
     pkg = ov["pkg"]
     lines = [f"    {pkg}-src = {{"]
@@ -397,6 +398,13 @@ def _override_input(ov: dict) -> str:
         # upstream. Harmless for repos that have none.
         lines.append("      submodules = true;")
     elif ov["src"].startswith("/"):
+        if ov.get("ref"):
+            raise ValueError(
+                f"override {ov['pkg']!r}: src {ov['src']!r} is an absolute "
+                f"path, which snapshots that working tree as-is, so ref "
+                f"{ov['ref']!r} cannot apply; drop ref, or make src a "
+                f"file:// git URL (file://{ov['src']}) to build that ref"
+            )
         lines += ['      type = "path";', f"      path = {_nix_str(ov['src'])};"]
     else:
         lines += ['      type = "git";', f"      url = {_nix_str(ov['src'])};"]
