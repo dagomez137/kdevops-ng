@@ -275,8 +275,8 @@ schema:
                   type: object
                   description: |-
                     Branch or tag in the xfstests-dev Bare to build from
-                    (developer branches, then mirror branches, then tags
-                    newest first). Blank keeps the pinned version.
+                    (developer branches, mirror and fetched remote branches,
+                    then tags newest first). Blank keeps the pinned version.
                   format: dynselect-list_xfstests_refs
                   showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
@@ -325,8 +325,8 @@ schema:
                   type: object
                   description: |-
                     Branch or tag in the xfsprogs-dev Bare to build from
-                    (developer branches, then mirror branches, then tags
-                    newest first). Blank keeps the pinned version.
+                    (developer branches, mirror and fetched remote branches,
+                    then tags newest first). Blank keeps the pinned version.
                   format: dynselect-list_xfsprogs_refs
                   showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
@@ -375,7 +375,8 @@ schema:
                   type: object
                   description: |-
                     Branch or tag in the fio Bare to build from (developer
-                    branches, then mirror branches, then tags newest first).
+                    branches, mirror and fetched remote branches, then
+                    tags newest first).
                     Blank keeps the pinned version.
                   format: dynselect-list_fio_refs
                   showExpr: fields.override === true && fields.custom_ref !== true
@@ -425,7 +426,8 @@ schema:
                   type: object
                   description: |-
                     Branch or tag in the bcc Bare to build from (developer
-                    branches, then mirror branches, then tags newest first).
+                    branches, mirror and fetched remote branches, then
+                    tags newest first).
                     Blank keeps the pinned version.
                   format: dynselect-list_libbpf_tools_refs
                   showExpr: fields.override === true && fields.custom_ref !== true
@@ -474,8 +476,8 @@ schema:
                 ref:
                   type: object
                   description: |-
-                    Branch or tag in the blktests Bare to build from
-                    (developer branches, then mirror branches, then tags
+                    Branch or tag in the blktests Bare to build from (developer
+                    branches, mirror and fetched remote branches, then tags
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_blktests_refs
                   showExpr: fields.override === true && fields.custom_ref !== true
@@ -677,7 +679,7 @@ schema:
         # The Bare's branches + tags via f.common.gitrefs (the one ref source).
         try:
             from f.common.gitrefs import list_refs
-            return list_refs(project, filterText)
+            return list_refs(project, filterText, remotes=True)
         except Exception:
             return []
 

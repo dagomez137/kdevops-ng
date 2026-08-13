@@ -131,7 +131,7 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n"
+  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText, remotes=True)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n"
   x-windmill-dyn-select-lang: python3
   order:
   - kernel
@@ -947,9 +947,9 @@ schema:
                       type: object
                       description: 'Branch or tag in the xfstests-dev Bare to build from
 
-                        (developer branches, then mirror branches, then tags
+                        (developer branches, mirror and fetched remote branches,
 
-                        newest first). Blank keeps the pinned version.'
+                        then tags newest first). Blank keeps the pinned version.'
                       format: dynselect-list_xfstests_refs
                       showExpr: fields.override === true && fields.custom_ref !== true
                       title: Git Ref
@@ -999,9 +999,9 @@ schema:
                       type: object
                       description: 'Branch or tag in the xfsprogs-dev Bare to build from
 
-                        (developer branches, then mirror branches, then tags
+                        (developer branches, mirror and fetched remote branches,
 
-                        newest first). Blank keeps the pinned version.'
+                        then tags newest first). Blank keeps the pinned version.'
                       format: dynselect-list_xfsprogs_refs
                       showExpr: fields.override === true && fields.custom_ref !== true
                       title: Git Ref
@@ -1051,7 +1051,9 @@ schema:
                       type: object
                       description: 'Branch or tag in the fio Bare to build from (developer
 
-                        branches, then mirror branches, then tags newest first).
+                        branches, mirror and fetched remote branches, then
+
+                        tags newest first).
 
                         Blank keeps the pinned version.'
                       format: dynselect-list_fio_refs
@@ -1103,7 +1105,9 @@ schema:
                       type: object
                       description: 'Branch or tag in the bcc Bare to build from (developer
 
-                        branches, then mirror branches, then tags newest first).
+                        branches, mirror and fetched remote branches, then
+
+                        tags newest first).
 
                         Blank keeps the pinned version.'
                       format: dynselect-list_libbpf_tools_refs
@@ -1153,9 +1157,9 @@ schema:
                       default: false
                     ref:
                       type: object
-                      description: 'Branch or tag in the blktests Bare to build from
+                      description: 'Branch or tag in the blktests Bare to build from (developer
 
-                        (developer branches, then mirror branches, then tags
+                        branches, mirror and fetched remote branches, then tags
 
                         newest first). Blank keeps the pinned version.'
                       format: dynselect-list_blktests_refs

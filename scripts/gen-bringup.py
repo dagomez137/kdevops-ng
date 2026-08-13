@@ -101,7 +101,7 @@ def _project_refs(project: str, filterText: str) -> list:
     # The Bare's branches + tags via f.common.gitrefs (the one ref source).
     try:
         from f.common.gitrefs import list_refs
-        return list_refs(project, filterText)
+        return list_refs(project, filterText, remotes=True)
     except Exception:
         return []
 
