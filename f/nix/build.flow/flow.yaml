@@ -175,8 +175,8 @@ schema:
               default: {}
               title: xfstests
               order:
-                - ref
                 - custom_ref
+                - ref
                 - git_ref
               properties:
                 ref:
@@ -187,7 +187,7 @@ schema:
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_xfstests_refs
                   showExpr: fields.custom_ref !== true
-                  title: Ref
+                  title: Git Ref
                 custom_ref:
                   type: boolean
                   description: |-
@@ -207,8 +207,8 @@ schema:
               default: {}
               title: xfsprogs
               order:
-                - ref
                 - custom_ref
+                - ref
                 - git_ref
               properties:
                 ref:
@@ -219,7 +219,7 @@ schema:
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_xfsprogs_refs
                   showExpr: fields.custom_ref !== true
-                  title: Ref
+                  title: Git Ref
                 custom_ref:
                   type: boolean
                   description: |-
@@ -239,8 +239,8 @@ schema:
               default: {}
               title: fio
               order:
-                - ref
                 - custom_ref
+                - ref
                 - git_ref
               properties:
                 ref:
@@ -251,7 +251,7 @@ schema:
                     Blank keeps the pinned version.
                   format: dynselect-list_fio_refs
                   showExpr: fields.custom_ref !== true
-                  title: Ref
+                  title: Git Ref
                 custom_ref:
                   type: boolean
                   description: |-
@@ -271,8 +271,8 @@ schema:
               default: {}
               title: libbpf-tools
               order:
-                - ref
                 - custom_ref
+                - ref
                 - git_ref
               properties:
                 ref:
@@ -283,7 +283,7 @@ schema:
                     Blank keeps the pinned version.
                   format: dynselect-list_libbpf_tools_refs
                   showExpr: fields.custom_ref !== true
-                  title: Ref
+                  title: Git Ref
                 custom_ref:
                   type: boolean
                   description: |-
@@ -303,8 +303,8 @@ schema:
               default: {}
               title: blktests
               order:
-                - ref
                 - custom_ref
+                - ref
                 - git_ref
               properties:
                 ref:
@@ -315,7 +315,7 @@ schema:
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_blktests_refs
                   showExpr: fields.custom_ref !== true
-                  title: Ref
+                  title: Git Ref
                 custom_ref:
                   type: boolean
                   description: |-
