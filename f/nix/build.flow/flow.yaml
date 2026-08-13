@@ -36,12 +36,13 @@ value:
           source_overrides:
             type: javascript
             expr: 'Object.fromEntries(Object.entries(flow_input.closure?.source_overrides
-              ?? {}).map(([p, o]) => [p, { ref: o?.custom_ref ? (o?.git_ref ?? "")
-              : (o?.ref || ""), b4_series: o?.b4_series ?? "" }]))'
+              ?? {}).map(([p, o]) => [p, o?.override === true ? { ref: o?.custom_ref
+              ? (o?.git_ref ?? "") : (o?.ref || ""), b4_series: o?.b4_series ?? ""
+              } : { ref: "", b4_series: "" }]))'
         path: f/nix/prepare_overrides
       skip_if:
         expr: 'Object.values(flow_input.closure?.source_overrides ?? {}).every((o)
-          => !(o?.custom_ref ? o?.git_ref : o?.ref) && !o?.b4_series)'
+          => o?.override !== true)'
       timeout:
         type: static
         value: 600
@@ -198,9 +199,9 @@ schema:
           type: object
           description: |-
             Rebuild a package from a ref in its project's Bare instead of its
-            pinned version. Pick a branch or tag, or type one via Custom Ref;
-            blank keeps the pinned version. The worker clones from the Bare,
-            so publish your work there first.
+            pinned version. Toggle a package's Override to reveal its ref and
+            series; off keeps the pinned version. The worker clones from the
+            Bare, so publish your work there first.
           default: {}
           order:
             - xfstests
@@ -258,11 +259,18 @@ schema:
               default: {}
               title: xfstests
               order:
+                - override
                 - custom_ref
                 - ref
                 - git_ref
                 - b4_series
               properties:
+                override:
+                  type: boolean
+                  description: |-
+                    Rebuild this package from a ref in its project's Bare
+                    instead of its pinned version.
+                  default: false
                 ref:
                   type: object
                   description: |-
@@ -270,7 +278,7 @@ schema:
                     (developer branches, then mirror branches, then tags
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_xfstests_refs
-                  showExpr: fields.custom_ref !== true
+                  showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
                 custom_ref:
                   type: boolean
@@ -278,6 +286,7 @@ schema:
                     Type the ref by hand (a branch, tag or full commit id)
                     instead of picking from the Bare's ref list.
                   default: false
+                  showExpr: fields.override === true
                   title: Custom Ref
                 git_ref:
                   type: string
@@ -285,7 +294,7 @@ schema:
                     Branch, tag or full commit id in the xfstests-dev Bare.
                     Blank keeps the pinned version.
                   default: ''
-                  showExpr: fields.custom_ref === true
+                  showExpr: fields.override === true && fields.custom_ref === true
                 b4_series:
                   type: string
                   description: |-
@@ -293,17 +302,25 @@ schema:
                     top of the Git Ref via `b4 am`, published to the
                     Bare as `b4/<slug>`.
                   default: ''
+                  showExpr: fields.override === true
                   title: b4 Series
             xfsprogs:
               type: object
               default: {}
               title: xfsprogs
               order:
+                - override
                 - custom_ref
                 - ref
                 - git_ref
                 - b4_series
               properties:
+                override:
+                  type: boolean
+                  description: |-
+                    Rebuild this package from a ref in its project's Bare
+                    instead of its pinned version.
+                  default: false
                 ref:
                   type: object
                   description: |-
@@ -311,7 +328,7 @@ schema:
                     (developer branches, then mirror branches, then tags
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_xfsprogs_refs
-                  showExpr: fields.custom_ref !== true
+                  showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
                 custom_ref:
                   type: boolean
@@ -319,6 +336,7 @@ schema:
                     Type the ref by hand (a branch, tag or full commit id)
                     instead of picking from the Bare's ref list.
                   default: false
+                  showExpr: fields.override === true
                   title: Custom Ref
                 git_ref:
                   type: string
@@ -326,7 +344,7 @@ schema:
                     Branch, tag or full commit id in the xfsprogs-dev Bare.
                     Blank keeps the pinned version.
                   default: ''
-                  showExpr: fields.custom_ref === true
+                  showExpr: fields.override === true && fields.custom_ref === true
                 b4_series:
                   type: string
                   description: |-
@@ -334,17 +352,25 @@ schema:
                     top of the Git Ref via `b4 am`, published to the
                     Bare as `b4/<slug>`.
                   default: ''
+                  showExpr: fields.override === true
                   title: b4 Series
             fio:
               type: object
               default: {}
               title: fio
               order:
+                - override
                 - custom_ref
                 - ref
                 - git_ref
                 - b4_series
               properties:
+                override:
+                  type: boolean
+                  description: |-
+                    Rebuild this package from a ref in its project's Bare
+                    instead of its pinned version.
+                  default: false
                 ref:
                   type: object
                   description: |-
@@ -352,7 +378,7 @@ schema:
                     branches, then mirror branches, then tags newest first).
                     Blank keeps the pinned version.
                   format: dynselect-list_fio_refs
-                  showExpr: fields.custom_ref !== true
+                  showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
                 custom_ref:
                   type: boolean
@@ -360,6 +386,7 @@ schema:
                     Type the ref by hand (a branch, tag or full commit id)
                     instead of picking from the Bare's ref list.
                   default: false
+                  showExpr: fields.override === true
                   title: Custom Ref
                 git_ref:
                   type: string
@@ -367,7 +394,7 @@ schema:
                     Branch, tag or full commit id in the fio Bare. Blank
                     keeps the pinned version.
                   default: ''
-                  showExpr: fields.custom_ref === true
+                  showExpr: fields.override === true && fields.custom_ref === true
                 b4_series:
                   type: string
                   description: |-
@@ -375,17 +402,25 @@ schema:
                     top of the Git Ref via `b4 am`, published to the
                     Bare as `b4/<slug>`.
                   default: ''
+                  showExpr: fields.override === true
                   title: b4 Series
             libbpf-tools:
               type: object
               default: {}
               title: libbpf-tools
               order:
+                - override
                 - custom_ref
                 - ref
                 - git_ref
                 - b4_series
               properties:
+                override:
+                  type: boolean
+                  description: |-
+                    Rebuild this package from a ref in its project's Bare
+                    instead of its pinned version.
+                  default: false
                 ref:
                   type: object
                   description: |-
@@ -393,7 +428,7 @@ schema:
                     branches, then mirror branches, then tags newest first).
                     Blank keeps the pinned version.
                   format: dynselect-list_libbpf_tools_refs
-                  showExpr: fields.custom_ref !== true
+                  showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
                 custom_ref:
                   type: boolean
@@ -401,6 +436,7 @@ schema:
                     Type the ref by hand (a branch, tag or full commit id)
                     instead of picking from the Bare's ref list.
                   default: false
+                  showExpr: fields.override === true
                   title: Custom Ref
                 git_ref:
                   type: string
@@ -408,7 +444,7 @@ schema:
                     Branch, tag or full commit id in the bcc Bare. Blank
                     keeps the pinned version.
                   default: ''
-                  showExpr: fields.custom_ref === true
+                  showExpr: fields.override === true && fields.custom_ref === true
                 b4_series:
                   type: string
                   description: |-
@@ -416,17 +452,25 @@ schema:
                     top of the Git Ref via `b4 am`, published to the
                     Bare as `b4/<slug>`.
                   default: ''
+                  showExpr: fields.override === true
                   title: b4 Series
             blktests:
               type: object
               default: {}
               title: blktests
               order:
+                - override
                 - custom_ref
                 - ref
                 - git_ref
                 - b4_series
               properties:
+                override:
+                  type: boolean
+                  description: |-
+                    Rebuild this package from a ref in its project's Bare
+                    instead of its pinned version.
+                  default: false
                 ref:
                   type: object
                   description: |-
@@ -434,7 +478,7 @@ schema:
                     (developer branches, then mirror branches, then tags
                     newest first). Blank keeps the pinned version.
                   format: dynselect-list_blktests_refs
-                  showExpr: fields.custom_ref !== true
+                  showExpr: fields.override === true && fields.custom_ref !== true
                   title: Git Ref
                 custom_ref:
                   type: boolean
@@ -442,6 +486,7 @@ schema:
                     Type the ref by hand (a branch, tag or full commit id)
                     instead of picking from the Bare's ref list.
                   default: false
+                  showExpr: fields.override === true
                   title: Custom Ref
                 git_ref:
                   type: string
@@ -449,7 +494,7 @@ schema:
                     Branch, tag or full commit id in the blktests Bare.
                     Blank keeps the pinned version.
                   default: ''
-                  showExpr: fields.custom_ref === true
+                  showExpr: fields.override === true && fields.custom_ref === true
                 b4_series:
                   type: string
                   description: |-
@@ -457,6 +502,7 @@ schema:
                     top of the Git Ref via `b4 am`, published to the
                     Bare as `b4/<slug>`.
                   default: ''
+                  showExpr: fields.override === true
                   title: b4 Series
         profiles:
           type: array

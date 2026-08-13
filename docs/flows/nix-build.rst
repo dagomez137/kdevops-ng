@@ -64,6 +64,11 @@ is fixed: ``xfstests`` builds from the ``xfstests-dev`` Bare, ``xfsprogs``
 from ``xfsprogs-dev``, ``libbpf-tools`` from ``bcc``, and ``fio`` and
 ``blktests`` each from their own.
 
+``override``
+   The per-package master switch. Off, the default, the package builds its
+   pinned version and the rest of its fields stay hidden and inert; on, the
+   ref and series knobs below appear.
+
 ``custom_ref`` and the Git Ref field
    Each package carries one ref, shown as a single Git Ref field after the
    ``custom_ref`` toggle. Toggle off, it is the picker over the Bare's live
