@@ -95,6 +95,35 @@ def list_qemu_refs(filterText: str = "", **_: object) -> list:
         return list_refs("qemu", filterText)
     except Exception:
         return []
+
+
+def _project_refs(project: str, filterText: str) -> list:
+    # The Bare's branches + tags via f.common.gitrefs (the one ref source).
+    try:
+        from f.common.gitrefs import list_refs
+        return list_refs(project, filterText)
+    except Exception:
+        return []
+
+
+def list_xfstests_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("xfstests-dev", filterText)
+
+
+def list_xfsprogs_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("xfsprogs-dev", filterText)
+
+
+def list_fio_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("fio", filterText)
+
+
+def list_libbpf_tools_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("bcc", filterText)
+
+
+def list_blktests_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("blktests", filterText)
 """
 
 

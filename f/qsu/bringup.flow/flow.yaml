@@ -131,7 +131,7 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n"
+  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n"
   x-windmill-dyn-select-lang: python3
   order:
   - kernel
@@ -957,13 +957,13 @@ schema:
           properties:
             source_overrides:
               type: object
-              description: 'Rebuild a package from your own source instead of its pinned
+              description: 'Rebuild a package from a ref in its project''s Bare instead of its
 
-                version. Fill a package''s Source (an absolute path, or a git/flake
+                pinned version. Pick a branch or tag, or type one via Custom Ref;
 
-                URL like git+file:///path or github:owner/repo); blank keeps the
+                blank keeps the pinned version. The worker clones from the Bare,
 
-                pinned version, and Ref applies to git sources.'
+                so publish your work there first.'
               default: {}
               order:
               - xfstests
@@ -976,77 +976,162 @@ schema:
                   type: object
                   title: xfstests
                   order:
-                  - src
                   - ref
+                  - custom_ref
+                  - git_ref
                   properties:
-                    src:
-                      type: string
-                      default: ''
-                      title: xfstests Source
                     ref:
+                      type: object
+                      description: 'Branch or tag in the xfstests-dev Bare to build from
+
+                        (developer branches, then mirror branches, then tags
+
+                        newest first). Blank keeps the pinned version.'
+                      format: dynselect-list_xfstests_refs
+                      showExpr: fields.custom_ref !== true
+                      title: Ref
+                    custom_ref:
+                      type: boolean
+                      description: 'Type the ref by hand (a branch, tag or full commit id)
+
+                        instead of picking from the Bare''s ref list.'
+                      default: false
+                      title: Custom Ref
+                    git_ref:
                       type: string
+                      description: 'Branch, tag or full commit id in the xfstests-dev Bare.
+
+                        Blank keeps the pinned version.'
                       default: ''
-                      title: xfstests Ref (git)
+                      showExpr: fields.custom_ref === true
                 xfsprogs:
                   type: object
                   title: xfsprogs
                   order:
-                  - src
                   - ref
+                  - custom_ref
+                  - git_ref
                   properties:
-                    src:
-                      type: string
-                      default: ''
-                      title: xfsprogs Source
                     ref:
+                      type: object
+                      description: 'Branch or tag in the xfsprogs-dev Bare to build from
+
+                        (developer branches, then mirror branches, then tags
+
+                        newest first). Blank keeps the pinned version.'
+                      format: dynselect-list_xfsprogs_refs
+                      showExpr: fields.custom_ref !== true
+                      title: Ref
+                    custom_ref:
+                      type: boolean
+                      description: 'Type the ref by hand (a branch, tag or full commit id)
+
+                        instead of picking from the Bare''s ref list.'
+                      default: false
+                      title: Custom Ref
+                    git_ref:
                       type: string
+                      description: 'Branch, tag or full commit id in the xfsprogs-dev Bare.
+
+                        Blank keeps the pinned version.'
                       default: ''
-                      title: xfsprogs Ref (git)
+                      showExpr: fields.custom_ref === true
                 fio:
                   type: object
                   title: fio
                   order:
-                  - src
                   - ref
+                  - custom_ref
+                  - git_ref
                   properties:
-                    src:
-                      type: string
-                      default: ''
-                      title: fio Source
                     ref:
+                      type: object
+                      description: 'Branch or tag in the fio Bare to build from (developer
+
+                        branches, then mirror branches, then tags newest first).
+
+                        Blank keeps the pinned version.'
+                      format: dynselect-list_fio_refs
+                      showExpr: fields.custom_ref !== true
+                      title: Ref
+                    custom_ref:
+                      type: boolean
+                      description: 'Type the ref by hand (a branch, tag or full commit id)
+
+                        instead of picking from the Bare''s ref list.'
+                      default: false
+                      title: Custom Ref
+                    git_ref:
                       type: string
+                      description: 'Branch, tag or full commit id in the fio Bare. Blank
+
+                        keeps the pinned version.'
                       default: ''
-                      title: fio Ref (git)
+                      showExpr: fields.custom_ref === true
                 libbpf-tools:
                   type: object
                   title: libbpf-tools
                   order:
-                  - src
                   - ref
+                  - custom_ref
+                  - git_ref
                   properties:
-                    src:
-                      type: string
-                      default: ''
-                      title: libbpf-tools Source
                     ref:
+                      type: object
+                      description: 'Branch or tag in the bcc Bare to build from (developer
+
+                        branches, then mirror branches, then tags newest first).
+
+                        Blank keeps the pinned version.'
+                      format: dynselect-list_libbpf_tools_refs
+                      showExpr: fields.custom_ref !== true
+                      title: Ref
+                    custom_ref:
+                      type: boolean
+                      description: 'Type the ref by hand (a branch, tag or full commit id)
+
+                        instead of picking from the Bare''s ref list.'
+                      default: false
+                      title: Custom Ref
+                    git_ref:
                       type: string
+                      description: 'Branch, tag or full commit id in the bcc Bare. Blank
+
+                        keeps the pinned version.'
                       default: ''
-                      title: libbpf-tools Ref (git)
+                      showExpr: fields.custom_ref === true
                 blktests:
                   type: object
                   title: blktests
                   order:
-                  - src
                   - ref
+                  - custom_ref
+                  - git_ref
                   properties:
-                    src:
-                      type: string
-                      default: ''
-                      title: blktests Source
                     ref:
+                      type: object
+                      description: 'Branch or tag in the blktests Bare to build from
+
+                        (developer branches, then mirror branches, then tags
+
+                        newest first). Blank keeps the pinned version.'
+                      format: dynselect-list_blktests_refs
+                      showExpr: fields.custom_ref !== true
+                      title: Ref
+                    custom_ref:
+                      type: boolean
+                      description: 'Type the ref by hand (a branch, tag or full commit id)
+
+                        instead of picking from the Bare''s ref list.'
+                      default: false
+                      title: Custom Ref
+                    git_ref:
                       type: string
+                      description: 'Branch, tag or full commit id in the blktests Bare.
+
+                        Blank keeps the pinned version.'
                       default: ''
-                      title: blktests Ref (git)
+                      showExpr: fields.custom_ref === true
             profiles:
               type: array
               description: 'nixos-flake profile modules to import (fully featured by default;
