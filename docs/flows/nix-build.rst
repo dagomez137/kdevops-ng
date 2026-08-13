@@ -93,15 +93,17 @@ raw ``[{pkg, src, ref, attrs}]`` list outside the curated form.
 ``deploy_developer_worktree`` and the group knobs
    Drive the optional developer-worktree tail (``deploy_worktrees``): after
    the lock, lay or refresh a developer checkout of each overridden package
-   under a worktree group, through the same never-destructive
+   under one worktree group, through the same never-destructive
    :src:`f/workbench/worktree/init` step the kernel and QEMU builds use
-   (:doc:`kernel-build` documents its decline rules). Left automatic, each
-   override takes its own auto-derived group: an upstream tag lands in
-   ``vanilla``, which asserts an unmodified baseline, and any other ref
-   names its own topic group. Turn on ``custom_group`` to name one group
-   and gather every overridden project into it, alongside kernel and QEMU
-   builds deployed to the same name. ``recreate_developer_worktree``
-   re-cuts the checkouts instead of reusing them.
+   (:doc:`kernel-build` documents its decline rules). Left automatic, the
+   group is the first override's auto-derived name: an upstream tag derives
+   ``vanilla``, which asserts an unmodified baseline, and any other ref its
+   own topic name; overrides that derive differing names are noted in the
+   job log and the first wins. Turn on ``custom_group`` to name the group
+   yourself, which is also how the overridden projects land beside kernel
+   and QEMU builds deployed to the same name.
+   ``recreate_developer_worktree`` re-cuts the checkouts instead of reusing
+   them.
 
 The per-VM config contract
 ==========================
