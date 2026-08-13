@@ -118,10 +118,13 @@ Worktree
 
 ``ref``
    The branch or tag to build, picked from the Bare's live ref list:
-   developer branches first, then tags newest first, headed by the current
+   developer branches first, then the mirror remote's branches as
+   ``mirror/<branch>``, then tags newest first, headed by the current
    kernel.org releases from `releases.json`_ (mainline, stable, longterm,
    linux-next), each labelled with its moniker plus EOL state and whether
-   the Bare mirrors it yet.
+   the Bare mirrors it yet. The picker shares the Git Ref label with its
+   free-text twin and sits after the ``custom_ref`` toggle, so switching
+   swaps the widget in place.
 
 ``custom_ref`` and ``git_ref``
    The advanced override for anything the picker cannot offer. Turn on

@@ -20,15 +20,19 @@ closure is the boot half, a separate concern (the guest's systemd service
 lifecycle) that is parked and described elsewhere; it is mentioned here only
 where the two meet.
 
-The flow is thin and runs all three steps on one worker slot, pinned with
+The flow is thin and runs its steps on one worker slot, pinned with
 ``same_worker: true`` so each step sees the per-VM config directory the previous
 step wrote under ``$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/``:
 
-1. ``render_config``: write ``flake.nix`` (from the vendored imageless template)
+1. ``prepare_overrides``: resolve the package source overrides (apply any b4
+   series, derive the developer group); skipped when no override is active.
+2. ``render_config``: write ``flake.nix`` (from the vendored imageless template)
    plus ``default.nix`` (composed from the typed inputs: profiles, test suites,
    shares, SSH keys, source overrides).
-2. ``lock_config``: ``nix flake lock`` the per-VM config for reproducibility.
-3. ``build_closure``: ``nix build .#toplevel`` and read the bootspec
+3. ``lock_config``: ``nix flake lock`` the per-VM config for reproducibility.
+4. ``deploy_worktrees``: the optional developer-worktree tail for the
+   overridden packages; skipped unless toggled on.
+5. ``build_closure``: ``nix build .#toplevel`` and read the bootspec
    (``init`` and ``initrd``) from ``boot.json``.
 
 The flow returns ``{toplevel, init, initrd, config_dir}``. It is self-contained:
@@ -71,6 +75,14 @@ from ``xfsprogs-dev``, ``libbpf-tools`` from ``bcc``, and ``fio`` and
    ``mirror/for-next``, a peer branch, or a full 40-hex commit id all work.
    Blank keeps the pinned version, so the zero-config path overrides
    nothing.
+
+``b4_series``
+   An optional `b4`_ message-id or lore URL per package. When set,
+   ``prepare_overrides`` lays the project's worker worktree at the Git Ref,
+   applies the mailed series with ``b4 am``, and publishes it to the Bare
+   as ``refs/heads/b4/<slug>``; the override then builds from that
+   published branch, the re-lock keeps tracking it, and the automatic
+   developer group takes the series' cover-subject name.
 
 An active override renders one ``<pkg>-src`` flake input cloning the Bare
 (``type = "git"`` at ``file://<SYSTEM_DIR>/bare/<project>.git``) at the
@@ -241,3 +253,4 @@ and build sequence is runnable and provable on its own, before the boot half
 exists.
 
 .. _Nix: https://nixos.org/
+.. _b4: https://b4.docs.kernel.org/
