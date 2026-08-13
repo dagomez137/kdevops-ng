@@ -108,16 +108,15 @@ value:
           projects:
             type: javascript
             expr: '(results.render_config.overrides ?? []).map((o) => ({ project:
-              o.project, git_ref: o.ref, b4_series: "", worktree_group:
-              flow_input.closure?.source_overrides?.custom_group ? "" : o.group
-              }))'
+              o.project, git_ref: o.ref, b4_series: "" }))'
           recreate_worktree:
             type: javascript
             expr: flow_input.closure?.source_overrides?.recreate_developer_worktree
           worktree_group:
             type: javascript
             expr: 'flow_input.closure?.source_overrides?.custom_group ?
-              (flow_input.closure?.source_overrides?.worktree_group ?? "") : ""'
+              (flow_input.closure?.source_overrides?.worktree_group ?? "") :
+              results.render_config.worktree_group'
         path: f/workbench/worktree/init
       skip_if:
         expr: 'flow_input.closure?.source_overrides?.deploy_developer_worktree !==
@@ -210,8 +209,8 @@ schema:
             custom_group:
               type: boolean
               description: |-
-                Name the developer group yourself instead of each override's
-                auto-derived vanilla/ref name.
+                Name the developer group yourself instead of the auto-derived
+                vanilla/ref name.
               default: false
               showExpr: fields.deploy_developer_worktree === true
               title: Custom Developer Group
@@ -219,11 +218,13 @@ schema:
               type: string
               description: |-
                 Developer group to deploy into, at
-                WORKTREES_DIR/<group>/<project>. Left automatic each override
-                takes its own auto-derived name, so a branch spins its own
-                topic group and only a tag lands in `vanilla`, which asserts
-                an unmodified baseline. Name it, here and in `f/kernel/build`
-                or `f/qemu/build`, to gather several projects into one topic.
+                WORKTREES_DIR/<group>/<project>. Left automatic it takes the
+                first override's auto-derived name (differing derivations are
+                noted in the job log and the first wins), so a branch spins
+                its own topic group and only a tag lands in `vanilla`, which
+                asserts an unmodified baseline. Name it, here and in
+                `f/kernel/build` or `f/qemu/build`, to gather several
+                projects into one topic.
               default: vanilla
               showExpr: fields.deploy_developer_worktree === true && fields.custom_group
                 === true

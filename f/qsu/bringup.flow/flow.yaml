@@ -987,9 +987,9 @@ schema:
                   title: Deploy Developer Worktrees
                 custom_group:
                   type: boolean
-                  description: 'Name the developer group yourself instead of each override''s
+                  description: 'Name the developer group yourself instead of the auto-derived
 
-                    auto-derived vanilla/ref name.'
+                    vanilla/ref name.'
                   default: false
                   showExpr: fields.deploy_developer_worktree === true
                   title: Custom Developer Group
@@ -997,15 +997,19 @@ schema:
                   type: string
                   description: 'Developer group to deploy into, at
 
-                    WORKTREES_DIR/<group>/<project>. Left automatic each override
+                    WORKTREES_DIR/<group>/<project>. Left automatic it takes the
 
-                    takes its own auto-derived name, so a branch spins its own
+                    first override''s auto-derived name (differing derivations are
 
-                    topic group and only a tag lands in `vanilla`, which asserts
+                    noted in the job log and the first wins), so a branch spins
 
-                    an unmodified baseline. Name it, here and in `f/kernel/build`
+                    its own topic group and only a tag lands in `vanilla`, which
 
-                    or `f/qemu/build`, to gather several projects into one topic.'
+                    asserts an unmodified baseline. Name it, here and in
+
+                    `f/kernel/build` or `f/qemu/build`, to gather several
+
+                    projects into one topic.'
                   default: vanilla
                   showExpr: fields.deploy_developer_worktree === true && fields.custom_group === true
                   title: Developer Group
