@@ -60,18 +60,17 @@ is fixed: ``xfstests`` builds from the ``xfstests-dev`` Bare, ``xfsprogs``
 from ``xfsprogs-dev``, ``libbpf-tools`` from ``bcc``, and ``fio`` and
 ``blktests`` each from their own.
 
-``ref``
-   The branch or tag to build, picked from the Bare's live ref list through
-   :src:`f/common/gitrefs`: developer branches first, then the mirror
-   remote's branches as ``mirror/<branch>``, then tags newest first. Blank
-   keeps the pinned version, so the zero-config path overrides nothing.
-
-``custom_ref`` and ``git_ref``
-   The advanced override for anything the picker cannot offer. Turn on
-   ``custom_ref`` and ``git_ref`` replaces the picked ref: resolved against
-   a tag, then the ``mirror`` remote, then a developer branch, then any
-   remote-tracking ref, so ``v2026.03.20``, ``mirror/for-next``, a peer
-   branch, or a full 40-hex commit id all work.
+``custom_ref`` and the Git Ref field
+   Each package carries one ref, shown as a single Git Ref field after the
+   ``custom_ref`` toggle. Toggle off, it is the picker over the Bare's live
+   ref list through :src:`f/common/gitrefs`: developer branches first, then
+   the mirror remote's branches as ``mirror/<branch>``, then tags newest
+   first. Toggle on, it is free text for anything the picker cannot offer,
+   resolved against a tag, then the ``mirror`` remote, then a developer
+   branch, then any remote-tracking ref, so ``v2026.03.20``,
+   ``mirror/for-next``, a peer branch, or a full 40-hex commit id all work.
+   Blank keeps the pinned version, so the zero-config path overrides
+   nothing.
 
 An active override renders one ``<pkg>-src`` flake input cloning the Bare
 (``type = "git"`` at ``file://<SYSTEM_DIR>/bare/<project>.git``) at the
@@ -90,6 +89,19 @@ vendored submodules (libbpf, bpftool, blazesym) from their upstream URLs at
 input-fetch time. For any other nixpkgs package, or a raw path or URL
 source, the ``render_config`` step keeps the ``extra_overrides`` escape, a
 raw ``[{pkg, src, ref, attrs}]`` list outside the curated form.
+
+``deploy_developer_worktree`` and the group knobs
+   Drive the optional developer-worktree tail (``deploy_worktrees``): after
+   the lock, lay or refresh a developer checkout of each overridden package
+   under a worktree group, through the same never-destructive
+   :src:`f/workbench/worktree/init` step the kernel and QEMU builds use
+   (:doc:`kernel-build` documents its decline rules). Left automatic, each
+   override takes its own auto-derived group: an upstream tag lands in
+   ``vanilla``, which asserts an unmodified baseline, and any other ref
+   names its own topic group. Turn on ``custom_group`` to name one group
+   and gather every overridden project into it, alongside kernel and QEMU
+   builds deployed to the same name. ``recreate_developer_worktree``
+   re-cuts the checkouts instead of reusing them.
 
 The per-VM config contract
 ==========================
