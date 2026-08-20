@@ -56,10 +56,45 @@ variable surface), grouped:
 - **File sharing** composes the virtiofs shares (modules, controller)
   and picks the :cmd:`virtiofsd` binary.
 - **NVMe** declares the emulated NVMe drives (``-device
-  nvme``/``nvme-ns``, one qcow2 per drive); the testing-oriented knobs
-  are covered by :doc:`nvme-testing`.
+  nvme``/``nvme-ns``, one qcow2 per drive); ``discard`` and
+  ``detect_zeroes`` govern how much host disk they hold, and the
+  testing-oriented knobs are covered by :doc:`nvme-testing`.
 - **Orchestration** bounds the flow-level boot wait and the debug
   snapshot.
+
+Keeping the drive images thin
+=============================
+
+``create_nvme`` creates each backing file at its full virtual size, but
+qcow2 only allocates host blocks on write, so a fresh drive costs about
+200 KiB no matter how large it claims to be. What makes an image grow is
+the guest touching new blocks, and what keeps it from growing forever is
+the guest's deallocations reaching the host.
+
+The ``discard`` knob decides whether they do. It defaults to ``unmap``,
+which passes NVMe DSM deallocate and TRIM through to the image, so
+:cmd:`fstrim`, a discarding ``mkfs``, :cmd:`blkdiscard`, and file
+deletion punch the freed clusters back out of the qcow2. With ``off``
+QEMU accepts those commands and silently drops them, so every cluster a
+test ever touched stays allocated and each drive climbs to its virtual
+size and stays there, however little the guest still stores. That is
+worth knowing when a run leaves several idle VMs behind: a test rig with
+five 20 GiB drives per VM pins 100 GiB per guest once the images are
+full.
+
+The related ``detect_zeroes`` knob converts all-zero guest writes into
+deallocations rather than data, and is off by default. QEMU refuses to
+open an image with ``detect-zeroes=unmap`` unless ``discard`` is also
+``unmap``, so the render fails that combination early rather than
+letting the VM die in boot. Leave it off for write benchmarks, where it
+would retire a zero-fill as a discard and flatter the result.
+
+Both knobs take a single value or a per-drive comma-list, so one drive
+can keep discards while the rest drop them. Reclaiming an image that
+already grew needs the guest to discard what it no longer uses
+(:cmd:`fstrim` on a mounted filesystem), or, with the VM stopped,
+deleting the backing file and letting ``create_nvme`` lay a fresh one on
+the next boot.
 
 Watching and driving the VM
 ===========================

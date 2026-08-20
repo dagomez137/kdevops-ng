@@ -2160,6 +2160,8 @@ schema:
       - min_io_size
       - opt_io_size
       - discard_granularity
+      - discard
+      - detect_zeroes
       - write_cache
       - mdts
       - cmb_size_mb
@@ -2296,6 +2298,38 @@ schema:
             512).'
           default: false
           title: Customize Drives
+        detect_zeroes:
+          type: string
+          description: 'Convert all-zero guest writes on the image backend: `-drive
+
+            detect-zeroes=`. `unmap` turns them into deallocations (needs
+
+            `discard` set to `unmap`, which QEMU enforces at image open), `on`
+
+            turns them into write-zeroes, empty = QEMU default (`off`). Leave it
+
+            off for write benchmarks, where it would silently retire a zero-fill
+
+            as a discard. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Detect Zeroes
+        discard:
+          type: string
+          description: 'Honour guest deallocations on the image backend: `-drive discard=`.
+
+            `unmap` passes NVMe DSM deallocate and TRIM through, so `fstrim`, a
+
+            discarding `mkfs`, and file deletion release the qcow2 clusters and
+
+            the image stops growing to its virtual size. `off` makes QEMU drop
+
+            them silently, leaving every touched cluster allocated forever.
+
+            Single value or per-drive comma-list.'
+          default: unmap
+          showExpr: fields.customize_drives === true
+          title: Discard
         discard_granularity:
           type: string
           description: 'Discard granularity in bytes: `-device nvme-ns,discard_granularity=`

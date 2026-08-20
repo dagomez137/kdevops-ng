@@ -296,7 +296,12 @@ def nvme_drives(fi: dict) -> list[dict]:
 
 # Per-drive NVMe knob tables: param name (fi key) -> QEMU template key (keeping the
 # `.`/`-` spelling the .j2 reads). CTRL -> -device nvme, NS -> -device nvme-ns,
-# BLOCKCONF -> whichever device owns the drive backend.
+# BLOCKCONF -> whichever device owns the drive backend, BACKEND -> the -drive
+# entry itself, so it travels with `file`/`format` into either form.
+NVME_BACKEND_KNOBS = (
+    ("discard", "discard"),
+    ("detect_zeroes", "detect-zeroes"),
+)
 NVME_CTRL_KNOBS = (
     ("mdts", "mdts"),
     ("atomic_awun", "atomic.awun"),
@@ -348,6 +353,17 @@ def _nvme_drives(fi: dict) -> list[dict]:
     drives = []
     for i in range(count):
         base = {"file": f"nvme{i}.qcow2", "format": "qcow2", "serial": f"kdevops{i}"}
+        backend = _bucket(fi, NVME_BACKEND_KNOBS, i)
+        # QEMU rejects the image at open when detect-zeroes unmaps but discard does
+        # not, so fail here rather than let the VM die deep in boot.
+        if (
+            backend.get("detect-zeroes") == "unmap"
+            and backend.get("discard") != "unmap"
+        ):
+            raise ValueError(
+                f"nvme drive {i} detect_zeroes unmap requires discard unmap; QEMU "
+                "refuses to open the image otherwise"
+            )
         ctrl = _bucket(fi, NVME_CTRL_KNOBS, i)
         ns = _bucket(fi, NVME_NS_KNOBS, i)
         blockconf = _bucket(fi, NVME_BLOCKCONF_KNOBS, i)
@@ -417,6 +433,7 @@ def _nvme_drives(fi: dict) -> list[dict]:
                         {
                             "file": base["file"],
                             "format": base["format"],
+                            **backend,
                             **blockconf,
                             **ns,
                         }
@@ -424,7 +441,7 @@ def _nvme_drives(fi: dict) -> list[dict]:
                 }
             )
         else:
-            drives.append({**base, **ctrl, **blockconf})
+            drives.append({**base, **backend, **ctrl, **blockconf})
     return drives
 
 

@@ -323,6 +323,39 @@ def test_nvme_drives_simple_mode_names_and_blockconf():
     ]
 
 
+def test_nvme_drives_backend_knobs_ride_the_drive_entry():
+    fi = {"nvme_drive_count": 1, "discard": "unmap", "detect_zeroes": "unmap"}
+    drives = common.nvme_drives(fi)
+    assert drives == [
+        {
+            "file": "nvme0.qcow2",
+            "format": "qcow2",
+            "serial": "kdevops0",
+            "discard": "unmap",
+            "detect-zeroes": "unmap",
+        }
+    ]
+
+
+def test_nvme_drives_backend_knobs_follow_the_file_into_namespaces():
+    fi = {"nvme_drive_count": 1, "discard": "unmap", "atomic_nawun": "3"}
+    ns = common.nvme_drives(fi)[0]["namespaces"][0]
+    assert ns["discard"] == "unmap"
+    assert "discard" not in common.nvme_drives(fi)[0]
+
+
+def test_nvme_drives_discard_applies_per_drive():
+    fi = {"nvme_drive_count": 2, "discard": "unmap,off"}
+    drives = common.nvme_drives(fi)
+    assert [d["discard"] for d in drives] == ["unmap", "off"]
+
+
+def test_nvme_drives_detect_zeroes_unmap_needs_discard_unmap():
+    fi = {"nvme_drive_count": 1, "detect_zeroes": "unmap"}
+    with pytest.raises(ValueError, match="requires discard unmap"):
+        common.nvme_drives(fi)
+
+
 def test_nvme_drives_write_cache_uses_the_dashed_key():
     drives = common.nvme_drives({"nvme_drive_count": 1, "write_cache": "on"})
     assert drives[0]["write-cache"] == "on"
