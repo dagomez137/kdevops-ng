@@ -7,7 +7,8 @@ Upgrade
 =======
 
 The instance runs a custom `Windmill`_ build from the project's fork, pinned
-by revision and hash in :src:`deploy/nix/windmill/package.nix`. An upgrade
+by revision and hash in :src:`deploy/nix/windmill/source.nix`, the one pin the
+server and the workspace CLI are both built from. An upgrade
 rebases the fork's ``integration/fixes`` branch onto the new upstream
 release, bumps the pin, backs up the database, and restarts the stack in
 order. The example commands are the 1.741.0 to 1.785.0 upgrade; substitute
@@ -51,7 +52,7 @@ release already contains.
 Bump the pin
 ============
 
-In :src:`deploy/nix/windmill/package.nix`, set ``version`` and ``rev``, and
+In :src:`deploy/nix/windmill/source.nix`, set ``version`` and ``rev``, and
 replace the source ``hash`` with the prefetched one:
 
 .. code-block:: console
@@ -62,9 +63,13 @@ replace the source ``hash`` with the prefetched one:
 Never pair a new ``rev`` with the old ``hash``: a fixed-output fetch is
 identified by its hash alone, so Nix would silently reuse the old sources.
 
-The vendored dependencies moved too. Set ``cargoHash`` and ``npmDepsHash``
+The vendored dependencies moved too. In
+:src:`deploy/nix/windmill/package.nix`, set ``cargoHash`` and ``npmDepsHash``
 to the fake ``sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=`` and let
-one build report both real values, then fill them in:
+one build report both real values, then fill them in. Each mismatch names the
+derivation it belongs to, ``-vendor-staging`` for the Rust vendor tree and
+``-npm-deps`` for the frontend, so read the value against that name rather
+than the order they appear in:
 
 .. code-block:: console
    :class: cmd-host
