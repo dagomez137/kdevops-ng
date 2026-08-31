@@ -12,7 +12,6 @@
   lib,
   callPackage,
   rustPlatform,
-  fetchFromGitHub,
   buildNpmPackage,
   bash,
   cmake,
@@ -67,14 +66,9 @@
 
 let
   pname = "windmill";
-  version = "1.785.0";
 
-  src = fetchFromGitHub {
-    owner = "dagomez137";
-    repo = "windmill";
-    rev = "f1065e71a23719d22a55a6a2ae0de93b0360662b";
-    hash = "sha256-FmvPn8Og6053iFStExgZMHZaxKDl/os1CPM0uwrb86U=";
-  };
+  # One pin for the fork, shared with the wmill CLI derivation.
+  inherit (callPackage ./source.nix { }) version src;
 
   # all_languages minus oracledb; oracledb is appended only when withOracle.
   languageFeatures = [
