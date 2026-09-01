@@ -370,6 +370,7 @@ schema:
               - rust/gendwarfksyms.config
               - perf/perf-amd.config
               - debug/debug-heavy.config
+              - debug/fault-injection.config
               - builtin/virt/virtio-fs.config
               items:
                 type: string
@@ -435,6 +436,7 @@ schema:
                 - debug/blktrace.config
                 - debug/codetagging.config
                 - debug/debug-heavy.config
+                - debug/fault-injection.config
                 - debug/gdb.config
                 - debug/kasan.config
                 - debug/kmemleak.config
@@ -492,6 +494,7 @@ schema:
                 - test/kunit.config
                 - test/modules-testing.config
                 - test/selftests.config
+                - test/xarray-benchmark-rust.config
                 - test/xarray.config
                 - test/xarray-no-multi.config
                 - virt/kvm.config
