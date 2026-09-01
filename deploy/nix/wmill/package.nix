@@ -80,7 +80,7 @@ let
 
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "sha256-vMFiPV0Qfn5M5XerdwiDtNmi2CYCigXp7WBVBzCfIRM=";
+    outputHash = "sha256-ern3QXW6/jv3LUHX3rv2zpUCQ5ZYeE+Gmm1JR7rhHnw=";
   };
 in
 runCommand "windmill-cli-${version}"

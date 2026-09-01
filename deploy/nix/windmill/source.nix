@@ -5,12 +5,12 @@
 # alone to move both.
 { fetchFromGitHub }:
 {
-  version = "1.799.0";
+  version = "1.800.0";
 
   src = fetchFromGitHub {
     owner = "dagomez137";
     repo = "windmill";
-    rev = "32173d769400b2042a58f4a4a7cc6da4ecce31fc";
-    hash = "sha256-sHJYiyMWrRQrLqJ1gr0Wse4zf0fcmr9p9jZuHVOFyNQ=";
+    rev = "d2aa6c8f7bc2372c05c6d29f1fd97478901fe5d7";
+    hash = "sha256-gCZdnJj9GzyypDfhgv4VUKzT/4ZrvNrUnB+N5f2UMSU=";
   };
 }
