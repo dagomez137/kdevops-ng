@@ -61,6 +61,7 @@
     blktrace
     bpftools
     bpftrace
+    ebpf-syscall
     libbpf-tools
     trace-cmd
 
