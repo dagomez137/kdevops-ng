@@ -116,6 +116,7 @@
           cpupower
           damo
           ebpf_exporter
+          ebpf-syscall
           libbpf-tools
           nfstest
           pynfs
