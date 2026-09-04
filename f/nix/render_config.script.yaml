@@ -79,6 +79,7 @@ schema:
         - fio
         - libbpf-tools
         - blktests
+        - ebpf-syscall
       properties:
         xfstests:
           type: object
@@ -135,6 +136,17 @@ schema:
               type: string
               default: ''
               title: blktests Ref
+        ebpf-syscall:
+          type: object
+          default: {}
+          title: ebpf-syscall
+          order:
+            - ref
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: ebpf-syscall Ref
       title: Package source overrides
     profiles:
       type: array

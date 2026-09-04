@@ -46,10 +46,20 @@ _TEST_SUITES = [
 
 # Packages whose nixos-flake recipe a src override composes with, build-verified
 # from a git checkout: fio, xfstests and xfsprogs (overlays), libbpf-tools (custom
-# pkg, src from iovisor/bcc), and blktests (custom pkg, carries the scope patch).
-# Packages for other suites (spdk, xnvme, nfstest, pynfs, ...) join as verified.
+# pkg, src from iovisor/bcc), blktests (custom pkg, carries the scope patch), and
+# ebpf-syscall (custom pkg, src from SamsungDS/ebpf-syscall; a source bump that
+# changes the kvio engine crate's dependencies also needs the pinned Cargo.lock
+# next to its recipe regenerated). Packages for other suites (spdk, xnvme,
+# nfstest, pynfs, ...) join as verified.
 # The advanced `extra_overrides` takes any other nixpkgs package.
-_OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools", "blktests"]
+_OVERRIDABLE_PKGS = [
+    "fio",
+    "xfstests",
+    "xfsprogs",
+    "libbpf-tools",
+    "blktests",
+    "ebpf-syscall",
+]
 
 # The mirror project whose Bare carries each overridable package's source
 # (f/workbench/fetch cuts one Bare per project under $SYSTEM_DIR/bare).
@@ -59,6 +69,7 @@ _PKG_PROJECTS = {
     "xfsprogs": "xfsprogs-dev",
     "libbpf-tools": "bcc",
     "blktests": "blktests",
+    "ebpf-syscall": "ebpf-syscall",
 }
 
 # nixpkgs builds these from a release tarball that ships a prepared `./configure`; a

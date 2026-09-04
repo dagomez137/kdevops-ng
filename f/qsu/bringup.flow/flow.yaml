@@ -131,7 +131,7 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText, remotes=True)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n"
+  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText, remotes=True)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n\n\ndef list_ebpf_syscall_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"ebpf-syscall\", filterText)\n"
   x-windmill-dyn-select-lang: python3
   order:
   - kernel
@@ -928,6 +928,7 @@ schema:
               - fio
               - libbpf-tools
               - blktests
+              - ebpf-syscall
               properties:
                 xfstests:
                   type: object
@@ -1179,6 +1180,58 @@ schema:
                     git_ref:
                       type: string
                       description: 'Branch, tag or full commit id in the blktests Bare.
+
+                        Blank keeps the pinned version.'
+                      default: ''
+                      showExpr: fields.override === true && fields.custom_ref === true
+                    b4_series:
+                      type: string
+                      description: 'Optional lore series (message-id/URL) to apply on
+
+                        top of the Git Ref via `b4 am`, published to the
+
+                        Bare as `b4/<slug>`.'
+                      default: ''
+                      showExpr: fields.override === true
+                      title: b4 Series
+                ebpf-syscall:
+                  type: object
+                  default: {}
+                  title: ebpf-syscall
+                  order:
+                  - override
+                  - custom_ref
+                  - ref
+                  - git_ref
+                  - b4_series
+                  properties:
+                    override:
+                      type: boolean
+                      description: 'Rebuild this package from a ref in its project''s Bare
+
+                        instead of its pinned version.'
+                      default: false
+                    ref:
+                      type: object
+                      description: 'Branch or tag in the ebpf-syscall Bare to build from
+
+                        (developer branches, mirror and fetched remote branches,
+
+                        then tags newest first). Blank keeps the pinned version.'
+                      format: dynselect-list_ebpf_syscall_refs
+                      showExpr: fields.override === true && fields.custom_ref !== true
+                      title: Git Ref
+                    custom_ref:
+                      type: boolean
+                      description: 'Type the ref by hand (a branch, tag or full commit id)
+
+                        instead of picking from the Bare''s ref list.'
+                      default: false
+                      showExpr: fields.override === true
+                      title: Custom Ref
+                    git_ref:
+                      type: string
+                      description: 'Branch, tag or full commit id in the ebpf-syscall Bare.
 
                         Blank keeps the pinned version.'
                       default: ''

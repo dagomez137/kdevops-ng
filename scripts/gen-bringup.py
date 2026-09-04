@@ -124,6 +124,10 @@ def list_libbpf_tools_refs(filterText: str = "", **_: object) -> list:
 
 def list_blktests_refs(filterText: str = "", **_: object) -> list:
     return _project_refs("blktests", filterText)
+
+
+def list_ebpf_syscall_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("ebpf-syscall", filterText)
 """
 
 
