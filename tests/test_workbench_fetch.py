@@ -42,7 +42,10 @@ def test_mirror_project_options_label_every_curated_project():
 
 def test_mirror_project_options_filter_matches_the_label():
     options = fetch.mirror_project_options("bpf")
-    assert options == [{"label": "bcc (BPF tracing tools)", "value": "bcc"}]
+    assert options == [
+        {"label": "bcc (BPF tracing tools)", "value": "bcc"},
+        {"label": "ebpf-syscall (storage tracers)", "value": "ebpf-syscall"},
+    ]
 
 
 def test_list_mirror_projects_is_the_dynmultiselect_entrypoint():
@@ -184,6 +187,35 @@ def test_build_mirrors_selects_only_the_requested_projects(tmp_path):
 def test_build_mirrors_covers_every_curated_project(tmp_path):
     entries = fetch.build_mirrors(fetch.MIRROR_PROJECTS, {}, tmp_path)
     assert [e["name"] for e in entries] == fetch.MIRROR_PROJECTS
+
+
+class _Routed(Exception):
+    """Stops `main` at the `build_mirrors` call, before it touches the filesystem."""
+
+
+def _routed_configs(monkeypatch, step, tmp_path) -> set:
+    """The `configs` keys `step.main` hands to `build_mirrors`."""
+    seen: dict = {}
+
+    def capture(projects, configs, mirror_dir):
+        seen.update(configs)
+        raise _Routed
+
+    monkeypatch.setenv("SYSTEM_DIR", str(tmp_path))
+    monkeypatch.setenv("WORKERS_DIR", str(tmp_path))
+    monkeypatch.setattr(step, "build_mirrors", capture)
+    with pytest.raises(_Routed):
+        step.main()
+    return set(seen)
+
+
+def test_both_steps_route_a_config_for_every_curated_project(monkeypatch, tmp_path):
+    from f.workbench import mirror
+
+    for step in (fetch, mirror):
+        assert _routed_configs(monkeypatch, step, tmp_path) == set(
+            fetch.MIRROR_PROJECTS
+        )
 
 
 def test_build_mirrors_routes_config_by_project_name(tmp_path):

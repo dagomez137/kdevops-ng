@@ -3,7 +3,8 @@ description: |-
   One-time (idempotent) bootstrap, run from the UI after Windmill is up.
   Provisions the durable Bares (default `$SYSTEM_DIR/bare/<project>.git` for
   `linux`, `qemu`, and the test-suite trees `xfstests-dev`, `xfsprogs-dev`,
-  `fio`, `blktests`, `bcc`) that every worker cuts cheap detached worktrees off
+  `fio`, `blktests`, `bcc`, `ebpf-syscall`) that every worker cuts cheap
+  detached worktrees off
   (`f/kernel/build`, `f/qemu/build`). Each Bare tracks its real upstream but
   borrows objects from the local mirror (`$MIRRORS_DIR`), and keeps
   `refs/heads/*` for developer pushes. Thin flow over `f/workbench/fetch`: pick
@@ -29,6 +30,9 @@ value:
           blktests:
             type: javascript
             expr: flow_input.blktests
+          ebpf_syscall:
+            type: javascript
+            expr: flow_input.ebpf_syscall
           fio:
             type: javascript
             expr: flow_input.fio
@@ -76,6 +80,9 @@ value:
           blktests:
             type: javascript
             expr: flow_input.blktests
+          ebpf_syscall:
+            type: javascript
+            expr: flow_input.ebpf_syscall
           fio:
             type: javascript
             expr: flow_input.fio
@@ -112,6 +119,7 @@ schema:
     - fio
     - blktests
     - bcc
+    - ebpf_syscall
     - peers
     - refresh
     - setup_ssh
@@ -245,6 +253,7 @@ schema:
         - fio
         - blktests
         - bcc
+        - ebpf-syscall
       format: dynmultiselect-list_mirror_projects
       title: Projects
     qemu:
@@ -518,6 +527,50 @@ schema:
           title: On Inactive
       showExpr: fields.projects.includes('bcc')
       title: bcc
+    ebpf_syscall:
+      type: object
+      description: How to deploy and refresh the ebpf-syscall mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical ebpf-syscall repo and only
+            public source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('ebpf-syscall')
+      title: ebpf-syscall
     refresh:
       type: boolean
       description: Fetch new refs/tags on already-present Bares (default on).

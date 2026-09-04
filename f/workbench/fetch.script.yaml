@@ -1,8 +1,9 @@
 summary: Provision the Bare repos from mirrors
 description: |-
   Provision the durable **Bare** main repos every build worktree is cut from,
-  one per selected mirror **project** (`linux`, `qemu`, and the test-suite trees
-  `xfstests-dev`, `xfsprogs-dev`, `fio`, `blktests`, `bcc`). Each Bare at
+  one per selected mirror **project** (`linux`, `qemu`, and the test-suite and
+  tracing trees `xfstests-dev`, `xfsprogs-dev`, `fio`, `blktests`, `bcc`,
+  `ebpf-syscall`). Each Bare at
   `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that **borrows**
   the local **mirror**'s objects via its alternates file (no objects copied, no
   upstream network). A `mirror` remote copies the mirror's heads into
@@ -35,6 +36,7 @@ schema:
     - fio
     - blktests
     - bcc
+    - ebpf_syscall
     - peers
     - refresh
   properties:
@@ -51,6 +53,7 @@ schema:
         - fio
         - blktests
         - bcc
+        - ebpf-syscall
       format: dynmultiselect-list_mirror_projects
       title: Projects
     linux:
@@ -297,6 +300,34 @@ schema:
           title: Transport
       showExpr: fields.projects.includes('bcc')
       title: bcc
+    ebpf_syscall:
+      type: object
+      description: How to deploy the ebpf-syscall mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical ebpf-syscall repo and only
+            public source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+      showExpr: fields.projects.includes('ebpf-syscall')
+      title: ebpf-syscall
     peers:
       type: array
       description: |-

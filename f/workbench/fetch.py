@@ -166,13 +166,18 @@ BLKTESTS_SOURCES = {
     "github": {"https": "https://github.com/linux-blktests/blktests.git"}
 }
 BCC_SOURCES = {"github": {"https": "https://github.com/iovisor/bcc.git"}}
+EBPF_SYSCALL_SOURCES = {
+    "github": {"https": "https://github.com/SamsungDS/ebpf-syscall.git"}
+}
 
 # The curated projects a workbench can mirror, each its own bare mirror. The form
 # offers these as a checklist; selecting one reveals its deploy options (linux: the
 # trees plus a source and transport; the xfs trees: a source and transport; the
 # single-source github repos have no options). `linux` is the merged multi-tree
-# mirror; every other project is a single upstream repo. Add a project here, a SOURCES
-# table, and a builder entry in `build_mirrors` to extend the set.
+# mirror; every other project is a single upstream repo. To extend the set a project
+# needs an entry here, a SOURCES table, a label, a builder entry in `build_mirrors`, a
+# `main()` parameter feeding its `configs` entry in both this step and `mirror`, and the
+# matching schema block in each sidecar.
 MIRROR_PROJECTS = [
     "linux",
     "qemu",
@@ -181,6 +186,7 @@ MIRROR_PROJECTS = [
     "fio",
     "blktests",
     "bcc",
+    "ebpf-syscall",
 ]
 DEFAULT_MIRROR_PROJECTS = list(MIRROR_PROJECTS)
 
@@ -196,6 +202,7 @@ MIRROR_PROJECT_LABELS = {
     "fio": "fio (I/O workloads)",
     "blktests": "blktests (block layer tests)",
     "bcc": "bcc (BPF tracing tools)",
+    "ebpf-syscall": "ebpf-syscall (storage tracers)",
 }
 
 
@@ -335,6 +342,9 @@ def build_mirrors(
             "blktests", BLKTESTS_SOURCES, cfg, mirror_dir
         ),
         "bcc": lambda cfg: _single_repo_mirror("bcc", BCC_SOURCES, cfg, mirror_dir),
+        "ebpf-syscall": lambda cfg: _single_repo_mirror(
+            "ebpf-syscall", EBPF_SYSCALL_SOURCES, cfg, mirror_dir
+        ),
     }
     entries = []
     for project in projects:
@@ -355,6 +365,7 @@ def main(
     fio: dict | None = None,
     blktests: dict | None = None,
     bcc: dict | None = None,
+    ebpf_syscall: dict | None = None,
     peers: list[dict] | None = None,
     refresh: bool = True,
 ) -> dict:
@@ -369,6 +380,7 @@ def main(
             "fio": fio,
             "blktests": blktests,
             "bcc": bcc,
+            "ebpf-syscall": ebpf_syscall,
         },
         mirrors_dir(),
     )
