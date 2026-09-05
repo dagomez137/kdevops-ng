@@ -4,7 +4,8 @@
 The consumer-side companion to `f/kernel/publish_devel`, and the devel-layer analog of
 `f/kernel/fetch_identity`. Resolve the `kernel-devel-<release>` store path, materialize
 the build dir's developer subset (the `.cmd` command database, the generated headers and
-sources, and the kconfig files a Rust index run reads; every compiled output, and the
+sources, the kconfig files a Rust index run reads, and the `Module.symvers` an
+out-of-tree module build stamps its imports from; every compiled output, and the
 host-tool `scripts/` and `tools/` trees, are excluded at publish), then regenerate both
 source indexes locally so each names this worktree's own source: `compile_commands.json`
 from `gen_compile_commands.py` for clangd, and `rust-project.json` from the

@@ -3,9 +3,10 @@
 
 Runnable step, the devel-layer half of the Store transport and the companion to
 `f/kernel/publish` (which publishes the run layer). Stage the part of the build dir a
-worktree needs to re-index its source -- the kbuild command database (`*.cmd`), the
-generated headers and sources (`*.h`, `*.c`, `*.rs`) and the kconfig files a Rust index
-generator run reads (`rustc_cfg`, `auto.conf`, `.config`) -- by allowlist, so no
+worktree needs to re-index its source and to build modules against it -- the kbuild
+command database (`*.cmd`), the generated headers and sources (`*.h`, `*.c`, `*.rs`),
+the kconfig files a Rust index generator run reads (`rustc_cfg`, `auto.conf`,
+`.config`) and the symbol-version table (`Module.symvers`) -- by allowlist, so no
 per-architecture image name (`Image`, `zImage`, `bzImage`, the `*.gz`/`*.zst`/...
 variants) nor any other compiled output or link intermediate can leak in. The
 host-tool build trees (`scripts/`, `tools/`) are dropped: the consuming worktree
@@ -53,6 +54,18 @@ Why each kept type, the `_DEVEL_KEEP` allowlist:
   self-description, the input an opt-in proc-macro build needs, and the third of a
   trio the layer already half-ships, since `auto.conf.cmd` matches `*.cmd` today with
   neither of its two companions behind it.
+- `Module.symvers`: modpost's table of every symbol the build exports, with its CRC,
+  owning object and namespace, about 570 KB of text with no host path in it (object
+  names are objtree-relative). It is the fourth file of the build's self-description,
+  and the one an out-of-tree module build reads: with `CONFIG_MODVERSIONS`, modpost
+  stamps a module's imports with the CRCs it finds in `$(objtree)/Module.symvers`,
+  and a module stamped from nothing has no version table, which the kernel refuses
+  to load. So `make O=build modules_prepare` followed by
+  `make O=build M=<dir> modules` in a fetched worktree yields a module the guest
+  running this identity loads. Every distribution ships it beside `.config` in its
+  headers tree for the same reason: Debian under `/usr/src/linux-headers-<release>`,
+  Fedora under `/usr/src/kernels/<release>`, nixpkgs in the kernel's `dev` output
+  under `lib/modules/<release>/build`.
 
 Everything else is a compiled output (objects, archives, the image), a link
 intermediate (`*.S` kallsyms, relocs) that clangd never indexes, or a host-tool build
@@ -71,7 +84,8 @@ Equivalent bash, the staged tree then added to the store:
     cd "$build_dir"
     find . -path ./scripts -prune -o -path ./tools -prune -o -type f \\
         \\( -name '*.cmd' -o -name '*.h' -o -name '*.c' -o -name '*.rs' \\
-        -o -name rustc_cfg -o -name auto.conf -o -name .config \\) \\
+        -o -name rustc_cfg -o -name auto.conf -o -name .config \\
+        -o -name Module.symvers \\) \\
         -exec cp --parents {} "$stage"/ \\;
     nix store add-path "$stage" --name kernel-devel-"$uts_release"
 """
@@ -80,7 +94,16 @@ from __future__ import annotations
 
 from f.common import store
 
-_DEVEL_KEEP = ("*.cmd", "*.h", "*.c", "*.rs", "rustc_cfg", "auto.conf", ".config")
+_DEVEL_KEEP = (
+    "*.cmd",
+    "*.h",
+    "*.c",
+    "*.rs",
+    "rustc_cfg",
+    "auto.conf",
+    ".config",
+    "Module.symvers",
+)
 _DROP_TREES = ("scripts", "tools")
 
 

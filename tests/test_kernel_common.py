@@ -249,6 +249,7 @@ def test_devel_stage_filter_keeps_only_the_index(tmp_path):
         "autoconf.h",
         "gen.c",
         ".config",
+        "Module.symvers",
         "vmlinux",
         "System.map",
         "scripts/x.cmd",
@@ -276,6 +277,7 @@ def test_devel_stage_filter_keeps_only_the_index(tmp_path):
     kept = sorted(str(p.relative_to(stage)) for p in stage.rglob("*"))
     assert kept == [
         ".config",
+        "Module.symvers",
         "arch",
         "arch/x86",
         "arch/x86/entry",

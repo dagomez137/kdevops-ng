@@ -78,9 +78,9 @@ and sees the previous step's files:
      - Host
    * - ``publish_devel``
      - Add this identity's devel layer (the build dir's ``.cmd`` files, the
-       generated headers and sources, and the kconfig files a Rust index run
-       reads, minus every binary) to the Nix store so ``fetch_devel`` can index
-       a worktree; only after a real build.
+       generated headers and sources, the kconfig files a Rust index run
+       reads and ``Module.symvers``, minus every binary) to the Nix store so
+       ``fetch_devel`` can index a worktree; only after a real build.
      - Host
    * - ``deploy_worktree``
      - Lay the developer-group worktree at the built ref; only when a developer

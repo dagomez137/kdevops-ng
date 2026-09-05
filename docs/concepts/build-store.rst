@@ -64,9 +64,11 @@ consumer fetches only what it needs.
      - ``kernel-devel-<release>`` /
        ``qemu-devel-<version>-<label>-<identity>``
      - the build dir's ``.cmd`` command database, the generated headers and
-       sources, and the kconfig files a Rust index run reads, or meson's
-       ``compile_commands.json`` and the generated headers
-     - the clangd and rust-analyzer indexes on a developer worktree
+       sources, the kconfig files a Rust index run reads and
+       ``Module.symvers``, or meson's ``compile_commands.json`` and the
+       generated headers
+     - the clangd and rust-analyzer indexes on a developer worktree, and
+       out-of-tree module builds against the kernel it describes
 
 Keeping the layers apart means a boot fetch stays lean and never drags the much
 larger devel layer (186 MiB for a ``CONFIG_RUST=y`` kernel, 24 MiB for QEMU),
@@ -91,6 +93,12 @@ relocated even if that were wanted: kbuild hands the generator
 is absolute, and four of its crates root under a toolchain store path that no
 substitution anchor reaches. The decision is recorded in
 :src:`ADR 0013 <notes/adr/0013-rust-index-regenerated-on-the-consumer.md>`.
+
+The kernel layer also ships ``Module.symvers``, the symbol-version table an
+out-of-tree module build reads to stamp the CRCs of the symbols it imports.
+It names objects relative to the build dir, so it relocates like ``.config``
+does, and with it a module built in the worktree's ``build`` dir loads on the
+guest that runs this identity.
 
 Meson leaves no database: it emits the finished ``compile_commands.json`` when
 it configures, with the builder's absolute paths recorded in it. So the QEMU
