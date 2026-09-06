@@ -489,7 +489,9 @@ def _ensure(
     """Ensure `bare` borrows the merged mirror's objects and has a single `mirror`
     remote that copies the mirror's primary heads to refs/remotes/mirror/* (so worktree
     resolves `mirror/<ref>`) and each extra tree (refs/remotes/<tree>/*) through
-    unchanged. One alternate, one remote. Return the action taken."""
+    unchanged. One alternate, one remote. `--prune` alone leaves tags behind, so
+    `--prune-tags` goes with it and the Bare's tags track the mirror's. Return the
+    action taken."""
     fresh = not (bare / "objects").is_dir()
     if fresh:
         bare.parent.mkdir(parents=True, exist_ok=True)
@@ -524,7 +526,14 @@ def _ensure(
             f"+refs/remotes/{tree}/*:refs/remotes/{tree}/*",
         )
     if (fresh or refresh) and not git.ok(
-        "-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"
+        "-C",
+        str(bare),
+        "fetch",
+        "--tags",
+        "--force",
+        "--prune",
+        "--prune-tags",
+        "mirror",
     ):
         print(
             f"note: fetch of {bare} from {mirror} failed; using local refs", flush=True
