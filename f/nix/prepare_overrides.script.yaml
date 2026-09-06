@@ -35,6 +35,7 @@ schema:
         - libbpf-tools
         - blktests
         - ebpf-syscall
+        - systing
       properties:
         xfstests:
           type: object
@@ -132,5 +133,21 @@ schema:
               type: string
               default: ''
               title: ebpf-syscall b4 Series
+        systing:
+          type: object
+          default: {}
+          title: systing
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: systing Ref
+            b4_series:
+              type: string
+              default: ''
+              title: systing b4 Series
       title: Package source overrides
   required: []

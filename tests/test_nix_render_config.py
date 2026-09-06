@@ -85,6 +85,22 @@ def test_the_curated_registries_hold_their_shape():
     assert "biolatency" in render_config._TELEMETRY_EBPF_CONFIGS
 
 
+@pytest.mark.parametrize(
+    "sidecar",
+    ["f/nix/render_config.script.yaml", "f/nix/prepare_overrides.script.yaml"],
+)
+def test_every_overridable_package_has_a_step_form_field(sidecar):
+    """Each step that takes the override map carries its own curated package
+    list; run one on its own and that form is the whole interface, so a package
+    missing from it has no field at all."""
+    import yaml
+
+    schema = yaml.safe_load((REPO / sidecar).read_text())["schema"]
+    overrides = schema["properties"]["source_overrides"]
+    assert set(overrides["properties"]) == set(render_config._OVERRIDABLE_PKGS)
+    assert set(overrides["order"]) == set(render_config._OVERRIDABLE_PKGS)
+
+
 def test_the_vendored_template_still_carries_the_rewrite_anchors():
     text = (REPO / "vendor/nixos-flake/templates/imageless/flake.nix").read_text()
     assert render_config._TEMPLATE_PATH_PLACEHOLDER in text

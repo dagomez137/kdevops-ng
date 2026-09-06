@@ -80,6 +80,7 @@ schema:
         - libbpf-tools
         - blktests
         - ebpf-syscall
+        - systing
       properties:
         xfstests:
           type: object
@@ -147,6 +148,17 @@ schema:
               type: string
               default: ''
               title: ebpf-syscall Ref
+        systing:
+          type: object
+          default: {}
+          title: systing
+          order:
+            - ref
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: systing Ref
       title: Package source overrides
     profiles:
       type: array

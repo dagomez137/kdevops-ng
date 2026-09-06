@@ -128,6 +128,10 @@ def list_blktests_refs(filterText: str = "", **_: object) -> list:
 
 def list_ebpf_syscall_refs(filterText: str = "", **_: object) -> list:
     return _project_refs("ebpf-syscall", filterText)
+
+
+def list_systing_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("systing", filterText)
 """
 
 
