@@ -37,6 +37,7 @@ schema:
     - blktests
     - bcc
     - ebpf_syscall
+    - systing
     - peers
     - refresh
   properties:
@@ -54,6 +55,7 @@ schema:
         - blktests
         - bcc
         - ebpf-syscall
+        - systing
       format: dynmultiselect-list_mirror_projects
       title: Projects
     linux:
@@ -328,6 +330,34 @@ schema:
           title: Transport
       showExpr: fields.projects.includes('ebpf-syscall')
       title: ebpf-syscall
+    systing:
+      type: object
+      description: How to deploy the systing mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical systing repo and only public
+            source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+      showExpr: fields.projects.includes('systing')
+      title: systing
     peers:
       type: array
       description: |-

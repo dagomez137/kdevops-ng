@@ -169,6 +169,7 @@ BCC_SOURCES = {"github": {"https": "https://github.com/iovisor/bcc.git"}}
 EBPF_SYSCALL_SOURCES = {
     "github": {"https": "https://github.com/SamsungDS/ebpf-syscall.git"}
 }
+SYSTING_SOURCES = {"github": {"https": "https://github.com/josefbacik/systing.git"}}
 
 # The curated projects a workbench can mirror, each its own bare mirror. The form
 # offers these as a checklist; selecting one reveals its deploy options (linux: the
@@ -187,6 +188,7 @@ MIRROR_PROJECTS = [
     "blktests",
     "bcc",
     "ebpf-syscall",
+    "systing",
 ]
 DEFAULT_MIRROR_PROJECTS = list(MIRROR_PROJECTS)
 
@@ -203,6 +205,7 @@ MIRROR_PROJECT_LABELS = {
     "blktests": "blktests (block layer tests)",
     "bcc": "bcc (BPF tracing tools)",
     "ebpf-syscall": "ebpf-syscall (storage tracers)",
+    "systing": "systing (application tracer)",
 }
 
 
@@ -345,6 +348,9 @@ def build_mirrors(
         "ebpf-syscall": lambda cfg: _single_repo_mirror(
             "ebpf-syscall", EBPF_SYSCALL_SOURCES, cfg, mirror_dir
         ),
+        "systing": lambda cfg: _single_repo_mirror(
+            "systing", SYSTING_SOURCES, cfg, mirror_dir
+        ),
     }
     entries = []
     for project in projects:
@@ -366,6 +372,7 @@ def main(
     blktests: dict | None = None,
     bcc: dict | None = None,
     ebpf_syscall: dict | None = None,
+    systing: dict | None = None,
     peers: list[dict] | None = None,
     refresh: bool = True,
 ) -> dict:
@@ -381,6 +388,7 @@ def main(
             "blktests": blktests,
             "bcc": bcc,
             "ebpf-syscall": ebpf_syscall,
+            "systing": systing,
         },
         mirrors_dir(),
     )
