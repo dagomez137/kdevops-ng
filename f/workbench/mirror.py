@@ -146,6 +146,24 @@ def _provision_remotes(git: Git, repo: Path, remotes: list[dict]) -> list[dict]:
     return results
 
 
+def _populate_if_empty(git: Git, sd: Systemd, repo: Path, name: str) -> bool:
+    """Fetch a mirror that carries no refs yet, and report whether it now has some.
+
+    A Bare borrows its objects from the mirror at the moment it is cut, and the
+    timer's first run is `OnBootSec` away, so a mirror provisioned in this run would
+    hand out an empty Bare to whatever cuts one next. The unit is `Type=oneshot`, so
+    starting it here blocks until the fetch ends. A mirror that already carries refs
+    is left to its timer: this is the first population, not a refresh.
+    """
+    if git.capture("-C", str(repo), "for-each-ref", "--count=1").strip():
+        return False
+    print(f"{name}: no refs yet, fetching before anything cuts a Bare", flush=True)
+    if sd.systemctl("start", f"git-mirror@{name}.service", check=False):
+        print(f"note: first fetch of {name} failed; its timer will retry", flush=True)
+        return False
+    return True
+
+
 def main(
     projects: list[str] | None = None,
     linux: dict | None = None,
@@ -216,14 +234,21 @@ def main(
         print(f"disabled timer {link.name}: no {inst}.git under {mdir}", flush=True)
     provisioned = []
     for m in mirrors:
-        remotes = _provision_remotes(git, Path(m["mirror"]), m["remotes"])
+        repo = Path(m["mirror"])
+        remotes = _provision_remotes(git, repo, m["remotes"])
         # enable (the timers.target symlink, for the next boot) + restart (force a fresh
         # start now with the current template; a plain `enable --now` left an already
         # present timer inactive over the worker's user bus).
         sd.systemctl("enable", f"git-mirror@{m['name']}.timer")
         sd.systemctl("restart", f"git-mirror@{m['name']}.timer")
+        first_fetch = _populate_if_empty(git, sd, repo, m["name"])
         provisioned.append(
-            {"name": m["name"], "remotes": remotes, **schedules[m["name"]]}
+            {
+                "name": m["name"],
+                "remotes": remotes,
+                "first_fetch": first_fetch,
+                **schedules[m["name"]],
+            }
         )
 
     return {

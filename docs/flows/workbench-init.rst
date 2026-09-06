@@ -12,22 +12,27 @@ what it provisioned. It sets up the three durable pieces of the build
 area (the Workbench, :doc:`/concepts/terms`) that every other flow
 assumes:
 
-1. ``fetch``: the shared sources. Each picked project gets a durable
+1. ``mirror``: the mirror refresh timers, a ``git-mirror@<repo>.service``
+   and ``.timer`` pair per mirror under ``$SYSTEM_DIR/mirror``,
+   force-refreshing each from its upstream on a self-pacing loop. A
+   mirror the run creates has no refs yet and its timer's first run is
+   minutes away, so the step fetches that one synchronously; a mirror
+   that already carries refs is left to its timer.
+2. ``fetch``: the shared sources. Each picked project gets a durable
    bare repository (default ``$SYSTEM_DIR/bare/linux.git`` and
    ``$SYSTEM_DIR/bare/qemu.git``) that every worker cuts cheap detached
    worktrees off (:doc:`kernel-build`, :doc:`qemu-build`) and the
    closure's package source overrides clone from (:doc:`nix-build`). A
    bare tracks its real upstream but borrows objects from the local
    mirror under ``$MIRRORS_DIR``, and keeps ``refs/heads/*`` for
-   developer pushes.
-2. ``ssh_key``: the kdevops-managed VM SSH key, one keypair under
+   developer pushes. It is cut from the mirror as it stands, which is
+   why the mirrors come first: add a project to the list and one run
+   leaves it usable.
+3. ``ssh_key``: the kdevops-managed VM SSH key, one keypair under
    ``$SYSTEM_DIR/ssh/`` that every guest built afterwards trusts. The
    step returns the one ``Include`` line to add to :cmd:`~/.ssh/config`
    once, after which a plain ``ssh <vm>`` reaches any guest
    (:doc:`guests`).
-3. ``mirror``: the mirror refresh timers, a ``git-mirror@<repo>.service``
-   and ``.timer`` pair per mirror under ``$SYSTEM_DIR/mirror``,
-   force-refreshing each from its upstream on a self-pacing loop.
 
 The run form
 ============
