@@ -63,6 +63,7 @@
     bpftrace
     ebpf-syscall
     libbpf-tools
+    systing
     trace-cmd
 
     # Monitoring
