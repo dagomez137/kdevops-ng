@@ -9,9 +9,11 @@ description: |-
   independently (a slow `linux` fetch never delays `qemu`).
 
   `git` is the flake's own (a stable gc-rooted path), so the host unit needs
-  nothing on PATH. A repo with no mirror on disk is skipped, not enabled. Runs
-  on a `vm` worker (it drives the host user manager over the user bus, like the
-  qsu steps).
+  nothing on PATH. A repo with no mirror on disk is skipped, not enabled, and a
+  timer is disabled only once its mirror repo is gone: leaving a project
+  unticked provisions the ticked ones without stopping its refresh. Runs on a
+  `vm` worker (it drives the host user manager over the user bus, like the qsu
+  steps).
 
   Returns the enabled/skipped repos and the resolved git + mirror dir. Check
   with `systemctl --user list-timers 'git-mirror@*'`.

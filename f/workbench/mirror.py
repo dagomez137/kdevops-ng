@@ -201,14 +201,17 @@ def main(
     sd = Systemd(workers)
     sd.systemctl("daemon-reload")
     wanted = {m["name"] for m in mirrors}
-    # Disable any leftover timer for a mirror no longer in the config (e.g. a tree that
-    # was merged into another mirror, so its repo is gone and the service would just fail).
+    # Disable a leftover timer only when its mirror repo is gone (e.g. a tree merged
+    # into another mirror), where the service would just fail. `projects` is the subset
+    # to provision now, not the set that should stay live, so a project left unticked
+    # keeps refreshing.
     wants = unit_dir / "timers.target.wants"
     for link in sorted(wants.glob("git-mirror@*.timer")):
         inst = link.name[len("git-mirror@") : -len(".timer")]
-        if inst not in wanted:
-            sd.systemctl("disable", "--now", link.name)
-            print(f"disabled stale timer {link.name}", flush=True)
+        if inst in wanted or (mdir / f"{inst}.git").is_dir():
+            continue
+        sd.systemctl("disable", "--now", link.name)
+        print(f"disabled timer {link.name}: no {inst}.git under {mdir}", flush=True)
     provisioned = []
     for m in mirrors:
         remotes = _provision_remotes(git, Path(m["mirror"]), m["remotes"])
