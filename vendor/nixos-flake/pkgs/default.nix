@@ -20,5 +20,6 @@ pkgs: {
   libbpf-tools = pkgs.callPackage ./libbpf-tools.nix { };
   nfstest = pkgs.callPackage ./nfstest.nix { };
   pynfs = pkgs.callPackage ./pynfs.nix { };
+  systing = pkgs.callPackage ./systing.nix { };
   xnvme = pkgs.callPackage ./xnvme.nix { };
 }

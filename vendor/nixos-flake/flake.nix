@@ -120,6 +120,7 @@
           libbpf-tools
           nfstest
           pynfs
+          systing
           xnvme
           qemu
           virtiofsd
