@@ -42,10 +42,11 @@ Featured by default
 ===================
 
 With no ``profiles`` or ``test_suites`` passed, the system is fully featured:
-every guest profile (``devel``, ``build-tools``, ``monitoring``) and all eight
-test suites. The ``devel`` and ``build-tools`` profiles are active on import;
-``monitoring`` is gated, so render emits ``nixos-flake.monitoring.enable =
-true`` whenever it (or any gated profile) is selected. ``controller`` is a host
+every guest profile (``devel``, ``build-tools``, ``monitoring``) and every
+test-suite module the flake ships. The ``devel`` and ``build-tools`` profiles
+are active on import; ``monitoring`` is gated, so render emits
+``nixos-flake.monitoring.enable = true`` whenever it (or any gated profile) is
+selected. ``controller`` is a host
 role: it pulls libvirtd into the guest, and upstream only composes it on the
 libvirt backend, so it is an available option but off by default. Pare the
 ``profiles`` and ``test_suites`` lists back per run for a lighter, faster build.

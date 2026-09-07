@@ -15,8 +15,8 @@ description: |-
   runnable.
 
   By default the system is fully featured: every guest profile (devel,
-  build-tools, monitoring) and all eight test suites. `controller` is a host
-  role (it pulls in libvirtd) and is off by default. Pare
+  build-tools, monitoring) and every test suite the flake ships. `controller`
+  is a host role (it pulls in libvirtd) and is off by default. Pare
   `profiles`/`test_suites` back for a lighter, faster build.
 
   Returns `{toplevel, init, initrd, config_dir}`. This flow is self-contained;
