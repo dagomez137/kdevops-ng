@@ -1,9 +1,9 @@
 summary: Install QEMU into a destdir
 description: |-
-  Install the built QEMU inside the `nixos-flake#build` devShell with `make
-  --directory=<build_dir> install`, honoring the `--prefix=<destdir>` set at
-  configure time, so it populates `destdir/bin` (the `qemu-system-<arch>`
-  emulators) and `destdir/share/qemu` directly: no DESTDIR, no sudo.
+  Install the built QEMU inside the `nixos-flake#build` devShell, into the
+  `--prefix` set at configure time, so it populates `destdir/bin` and
+  `destdir/share/qemu` directly. No DESTDIR and no sudo: the prefix is
+  user-writable.
 
   Returns `qemu_binary` (the first `destdir/bin/qemu-system-*`) and the full
   `qemu_binaries` list.

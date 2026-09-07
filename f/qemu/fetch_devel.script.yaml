@@ -1,18 +1,13 @@
 summary: Fetch the devel layer from the Nix store
 description: |-
-  Index a developer worktree against a QEMU build identity without rebuilding.
-  Resolve the `qemu-devel-<version>-<label>-<identity>` store path (from the
-  local index, or pulled with `nix copy` from a peer's `store-index` over the
-  `transfer` devShell), copy the developer subset (meson's
-  `compile_commands.json` plus the generated headers and sources) into the
-  worktree's build dir, then relocate it: the builder's build dir and worktree
-  are substituted out of the index and out of the layer's symlinks, so
-  `clangd` reads this worktree's own source. The companion to
-  `f/qemu/publish_devel`. Where `f/kernel/fetch_devel` regenerates its index
-  from kbuild's `.cmd` database, meson leaves only the finished index, so it is
-  rewritten instead. The build dir defaults to the worktree's own `build` child
-  and must stay under it (the index's relative include paths resolve against
-  it). Returns `fetched` plus the resolved
+  Index a developer worktree against a QEMU build identity without rebuilding:
+  resolve the `qemu-devel-<version>-<label>-<identity>` store path, locally or
+  pulled from a peer with `nix copy`, copy meson's index and the generated
+  sources into the worktree's build dir, then relocate them, substituting the
+  builder's paths out of the index and out of the layer's symlinks so clangd
+  reads this worktree's own source.
+
+  The companion to `f/qemu/publish_devel`. Returns `fetched` plus the resolved
   `worktree`/`build_dir`/`compile_commands`/`entries`/`relinked`.
 lock: '!inline f/qemu/fetch_devel.script.lock'
 kind: script

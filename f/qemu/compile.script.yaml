@@ -1,11 +1,10 @@
 summary: Compile QEMU
 description: |-
   Build an already-configured QEMU inside the `nixos-flake#build` devShell with
-  `make --directory=<build_dir> --jobs=$(nproc)`, which drives ninja, so the
-  container cgroup governs CPU and concurrent builds self-balance.
+  `make --jobs=$(nproc)`, which drives ninja, so the container cgroup governs
+  CPU and concurrent builds self-balance.
 
-  Reads `build_dir` from a prior `prepare_worktree` step (configured by
-  `configure`).
+  Reads `build_dir` from `prepare_worktree`, configured by `configure`.
 lock: '!inline f/qemu/compile.script.lock'
 kind: script
 schema:

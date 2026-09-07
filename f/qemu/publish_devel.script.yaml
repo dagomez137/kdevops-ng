@@ -1,17 +1,14 @@
 summary: Publish a devel layer to the Nix store
 description: |-
-  Stage the QEMU build dir's developer subset, meson's own
-  `compile_commands.json` plus the generated headers and sources
-  (`config-host.h`, `qapi/*.h`, `trace/*.c`, `qemu-options.def`, the
-  `ui/input-keymap-*.c.inc` tables), but none of the objects, archives or built
-  emulators, and add it to the Nix store under
+  Add the QEMU build dir's developer subset to the Nix store under
   `qemu-devel-<version>-<label>-<identity>`, keyed on the install prefix's
-  basename exactly as the run layer is, and indexed as a GC root. The companion
-  to `f/qemu/publish` (which publishes the run layer); a developer's
-  `fetch_devel` then resolves this store path to index a worktree. Binaries are
-  excluded once here, so the store path is already lean. Run only after a real
-  build (the flow skips it on reuse). Returns the index `name`, the resolved
-  `store_path`, and the `prefix`.
+  basename exactly as the run layer is and indexed as a GC root, so a
+  developer's `fetch_devel` resolves this store path to index a worktree. The
+  subset is an allowlist, so none of the objects, archives or built emulators
+  can leak in and the store path is already lean.
+
+  Run only after a real build; the flow skips it on reuse. Returns the index
+  `name`, the resolved `store_path` and the `prefix`.
 lock: '!inline f/qemu/publish_devel.script.lock'
 kind: script
 schema:

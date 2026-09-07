@@ -1,15 +1,15 @@
 summary: Reuse if already built
 description: |-
   Probe for an installed QEMU (`bin/qemu-system-*`), first in the per-identity
-  prefix (`destdir/<identity>`), then in the Nix store via the `store-index`
-  entry (where `fetch_identity` leaves a peer's build). When present the build
-  flow skips configure/compile/install and the manifest points at it, reusing
-  the prior build. The devel layer (`qemu-devel-<identity>`) is probed and
-  reported apart from it as `devel_present`, because the two are independent
-  store paths and a present run layer does not imply a published devel layer.
-  Filesystem only: no devShell, robust if neither the prefix nor a store entry
-  exists. Returns `present` and `devel_present` plus the resolved
-  `prefix`/`qemu_binary` (under the prefix or the store path).
+  prefix and then in the Nix store, and report whether the expensive build can
+  be skipped. Run before it. Filesystem only: no devShell, and robust when
+  neither the prefix nor a store entry exists.
+
+  Returns `present` and `devel_present` (the run and devel layers are
+  independent store paths, so one says nothing about the other) plus the
+  resolved `prefix`/`qemu_binary`, which the manifest falls back to when the
+  build steps are skipped. Wipe the prefix, or set `reuse` off, to force a
+  rebuild.
 lock: '!inline f/qemu/reuse_check.script.lock'
 kind: script
 schema:

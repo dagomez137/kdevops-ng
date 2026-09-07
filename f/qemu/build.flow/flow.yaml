@@ -6,19 +6,11 @@ description: |-
   performs is gone, because the devShell already carries QEMU's build toolchain
   (`inputsFrom = [ pkgs.qemu ]`: meson, ninja, GCC, pkg-config, glib, pixman).
 
-  Steps (pinned to one worker via `same_worker`, so each sees the previous
-  step's files):
-
-  1. `prepare_worktree`: resolve the slot and check out `qemu_ref`. 2.
-  `configure`: out-of-tree `meson subprojects download`, then `configure
-  --target-list --prefix=<worktree>/destdir --disable-download`. 3. `compile`:
-  `make --jobs=$(nproc)` (drives ninja). 4. `install`: `make install` into
-  `<worktree>/destdir`. 5. `publish`: add this identity's install tree to the
-  Nix store so a peer can fetch it; only after a real install (skipped on
-  reuse). 6. `publish_devel`: add this identity's devel layer (meson's index
-  plus the generated headers) so a worktree can be indexed from it. 7.
-  `deploy_worktree` + `fetch_devel`: the optional developer-worktree tail. 8.
-  `collect`: merge the step results into one manifest.
+  The build is **content-addressed**: `identity` hashes the target list,
+  configure flags, compiler, sanitizer, toolchain and source into the install
+  prefix, so an identical build is reused locally or fetched from a peer instead
+  of rebuilt. Steps are pinned to one worker (`same_worker`), so each sees the
+  previous step's files, and each is independently runnable.
 
   Each worker builds in its own warm `main` worktree
   (`workers/<worker>/main/qemu`), synced to `qemu_ref` every run so rebuilds
@@ -31,7 +23,8 @@ description: |-
 
   Returns a manifest (`qemu_binary`, `version`, `target_list`, `commit`,
   `qemu_ref`, `destdir`, …) so QEMU/systemd can consume the built emulator the
-  same way it consumes `f/kernel/build`. See `docs/flows/qemu-build.rst`.
+  same way it consumes `f/kernel/build`. See `docs/flows/qemu-build.rst` for the
+  step, schema, identity and reuse reference.
 value:
   modules:
     - id: prepare_worktree

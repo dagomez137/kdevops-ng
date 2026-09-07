@@ -1,14 +1,13 @@
 summary: Configure QEMU out-of-tree
 description: |-
-  Configure an out-of-tree QEMU build inside the `nixos-flake#build` devShell.
-  First `meson subprojects download` (run in the source) fetches QEMU's vendored
-  subprojects, then `{worktree}/configure --target-list --prefix=<destdir>
-  --disable-download` (run in the build dir) writes the build.ninja so the build
-  never reaches the network. With `reproducible` on (default) it also adds one
-  `-ffile-prefix-map=<prefix>=/qemu` to `--extra-cflags`/`--extra-cxxflags`, and
-  `sanitizer` adds the `--enable-*` flags for a sanitized build.
+  Configure an out-of-tree QEMU build inside the `nixos-flake#build` devShell,
+  so every generated file lands under the build dir and the source stays clean.
+  QEMU's vendored meson subprojects are fetched up front and the build itself
+  never reaches the network.
 
-  Reads `worktree`/`build_dir`/`destdir` from a prior `prepare_worktree` step.
+  Reads `worktree`/`build_dir`/`destdir` from `prepare_worktree`. `sanitizer`
+  picks a sanitized build, and anything in `configure_args` is appended last, so
+  a hand-passed flag still wins.
 lock: '!inline f/qemu/configure.script.lock'
 kind: script
 schema:
