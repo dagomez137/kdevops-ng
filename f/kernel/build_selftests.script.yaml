@@ -1,17 +1,15 @@
 summary: Build and install the kernel selftests
 description: |-
   `make kselftest-install` the selected selftest collections into a
-  self-contained `<destdir>/kselftest_install` tree (`run_kselftest.sh`, the
-  `kselftest-list.txt` catalog, one directory per collection), inside the
+  self-contained `<destdir>/kselftest_install` tree, inside the
   `nixos-flake#build-kselftests` devShell. `TARGETS` selects the collections
-  (curated default set; `extra_targets` appends free-form ones) and
-  `FORCE_TARGETS=1` turns a failed collection into a hard error instead of a
-  silent drop from the install.
+  (curated default set; `extra_targets` appends free-form ones), and a
+  collection that fails to build is a hard error rather than a silent drop from
+  the install.
 
-  Skips the build when the reuse gate says `kselftests-<uts_release>` is already
-  published to the Nix store. Reads `worktree`/`build_dir` from
-  `prepare_worktree`; returns `install_dir`, the effective `targets`, the
-  `tests` count and the installed `version`.
+  Skipped when the reuse gate says `kselftests-<uts_release>` is already
+  published. Returns `install_dir`, the effective `targets`, the `tests` count
+  and the installed `version`.
 lock: '!inline f/kernel/build_selftests.script.lock'
 kind: script
 schema:

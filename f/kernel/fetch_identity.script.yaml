@@ -1,16 +1,12 @@
 summary: Fetch a run layer from a peer
 description: |-
-  Pull a build identity's run layer (the artifacts named by the baked
-  kernelrelease) from a registered peer into the Nix store, before the expensive
-  compile, so the following `reuse_check` reports `present` and the build is
-  skipped. Sweeps the registered peers (`$SYSTEM_DIR/peers`) and, for the first
-  that carries the identity, reads its `store-index` entry over ssh to learn the
-  run layer's Nix store path, pulls it with `nix copy` over the `transfer`
-  devShell, and indexes it locally. The run layer, the boot artifacts
-  (`boot/<image>-<release>`, `System.map-<release>`, `config-<release>`) and the
-  `lib/modules/<release>/` tree, is consumed in place from the store, with no
-  copy. `use_peers` off, or no peer carrying it, is a no-op. Returns `fetched`
-  plus the resolved `uts_release`/`destdir`.
+  Pull a build identity's run layer from a registered peer into the local Nix
+  store, before the expensive compile, so the following `reuse_check` reports
+  `present` and the build is skipped.
+
+  `use_peers` off, or no registered peer carrying the identity, is a no-op and
+  the build proceeds locally. Returns `fetched` plus the resolved
+  `uts_release`/`destdir`.
 lock: '!inline f/kernel/fetch_identity.script.lock'
 kind: script
 schema:

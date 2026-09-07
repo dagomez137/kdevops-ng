@@ -1,15 +1,14 @@
 summary: Reuse if already built
 description: |-
-  Probe for the artifacts named by this build identity (the baked
-  kernelrelease): `boot/<image>-<release>` and `lib/modules/<release>`, first in
-  the destdir, then in the Nix store via the `store-index` entry (where
-  `fetch_identity` leaves a peer's build). When both are present the build flow
-  skips compile/install/modules and the manifest points at them, reusing the
-  prior build. The devel layer (`kernel-devel-<release>`) is probed and reported
-  apart from it as `devel_present`, because the two are independent store paths
-  and a present run layer does not imply a published devel layer. Returns
-  `present` and `devel_present` plus the resolved `bzImage`/`boot`/`modules`
-  (under the destdir or the store path) and `destdir`.
+  Probe for the artifacts this build identity would produce, first in the
+  destdir and then in the Nix store, and report whether the expensive compile
+  can be skipped. Run before it.
+
+  Returns `present` and `devel_present` (the run and devel layers are
+  independent store paths, so one says nothing about the other) plus the
+  resolved `bzImage`/`boot`/`modules` and `destdir`, which the manifest falls
+  back to when the build steps are skipped. Wipe the destdir, or set `reuse`
+  off, to force a rebuild.
 lock: '!inline f/kernel/reuse_check.script.lock'
 kind: script
 schema:

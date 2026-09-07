@@ -1,21 +1,13 @@
 summary: Advance one kernel bisect iteration
 description: |-
   The `f/kernel/bisect` state machine, called at the top of every loop
-  iteration. Keeps its state under `$SYSTEM_DIR/bisect/<vm_name>/`: a
-  `--shared --no-checkout` clone of the Bare plus `state.json`. Reads the
-  previous candidate's verdict from the freshest payload `report.json` (the
-  kunit, selftests, runtime-tests or usertests run's report on the VM's
-  share, or `f/kernel/check_usertests`'s report in the state dir; a failed
-  bringup or
-  run reads as `skip`, a report of `untestable` too, and with `max_runtime`
-  set a passed report that ran longer reads as bad), advances the phase
-  (`verify_bad` tests the bad
-  ref standalone, `verify_good` the good ref, then `bisect` feeds `git
-  bisect good|bad|skip` until git names the first bad commit), and returns
-  the next candidate commit, or `done` with the outcome. Changed inputs or
-  a concluded prior run reset the state.
+  iteration. Keeps its state under `$SYSTEM_DIR/bisect/<vm_name>/`, reads the
+  previous candidate's verdict from the freshest payload `report.json` rather
+  than from flow results, advances the phase, and names the next commit to
+  test.
 
-  Returns `{done, phase, candidate, outcome, steps}`.
+  Returns `{done, phase, candidate, outcome, steps}`. Changed inputs, or a
+  rerun after a concluded run, reset the state and start over.
 lock: '!inline f/kernel/bisect_step.script.lock'
 kind: script
 schema:

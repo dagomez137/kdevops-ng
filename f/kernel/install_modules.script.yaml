@@ -1,16 +1,13 @@
 summary: Install the kernel modules into a destdir
 description: |-
-  `modules_install` the built kernel modules into a separate `destdir`, inside
-  the `nixos-flake#build` devShell: `make INSTALL_MOD_PATH=<destdir>
-  modules_install` populates `<destdir>/lib/modules/<release>`. INSTALL_MOD_PATH
-  is a build-root prefix (Documentation/kbuild/kbuild.rst), distinct from the
-  `O=` build dir, so `destdir` defaults to a sibling of the build dir
-  (`<slot>/destdir`). Never touches the host `/lib/modules`.
+  Install the built kernel modules into a separate `destdir` under
+  `lib/modules/<release>`, inside the `nixos-flake#build` devShell. `destdir`
+  defaults to a sibling of the build dir (`<slot>/destdir`) and the host
+  `/lib/modules` is never touched.
 
-  Skip for an all-built-in kernel (CONFIG_MODULES=n): nothing to install.
-  Modules were already built by the default `make`, so this does not rebuild
-  them. Reads `worktree`/`build_dir` from `prepare_worktree`; returns `destdir`
-  and `modules`.
+  Skip it for an all-built-in kernel (CONFIG_MODULES=n): there is nothing to
+  install. The modules were already built by the default `make`, so this does
+  not rebuild them. Returns `destdir` and `modules`.
 lock: '!inline f/kernel/install_modules.script.lock'
 kind: script
 schema:

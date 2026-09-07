@@ -1,15 +1,13 @@
 summary: Build-check the usertests harnesses at a commit
 description: |-
-  The host-side payload of `f/kernel/bisect`'s `usertests_build` mode:
-  sparse-checkout the candidate commit in the bisect state clone
-  (`$SYSTEM_DIR/bisect/<vm_name>/repo`), bare-`make` each selected
-  `tools/testing` harness in the `nixos-flake#build-usertests` devShell,
-  and write the verdict to `report.json` beside `state.json` for
-  `f/kernel/bisect_step` to read: `passed` when every make succeeds,
-  `failed` when one fails. With `error_re` set the verdict tracks the
-  signature instead of build health: a failure matching it is `failed`,
-  a failure without it is `passed`, so an older, unrelated break in the
-  range cannot derail the hunt.
+  The host-side payload of `f/kernel/bisect`'s `usertests_build` mode: no
+  guest, no boot, just whether the selected `tools/testing` harnesses compile
+  at the candidate commit. Writes the verdict to `report.json` beside
+  `state.json`, where `f/kernel/bisect_step` reads it.
+
+  Without `error_re` the verdict is build health. With it the verdict tracks
+  that signature instead, so a failure without it is `passed` and an older,
+  unrelated break in the range cannot derail the hunt.
 lock: '!inline f/kernel/check_usertests.script.lock'
 kind: script
 schema:

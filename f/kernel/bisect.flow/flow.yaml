@@ -1,33 +1,21 @@
 summary: Bisect a kernel regression
 description: |-
-  Find the first bad kernel commit for a failing KUnit suite by driving
-  `git bisect` with real guest runs: each iteration builds the candidate
-  commit, boots a dedicated guest with it (`f/qsu/bringup`, kernel artifacts
-  reused from the Nix store when the commit was built before), runs the
-  selected suites (`f/kunit/run`), and feeds the verdict back. Before
-  bisecting it tests the endpoints standalone: a bad ref that passes alone
-  ends the run as `not_reproducible_standalone` (the failure needs other
-  suites first; itself a finding), and a failing good ref ends it as
-  `good_endpoint_failed`. A kernel that fails to build or boot is `git
-  bisect skip`ped, so this flow bisects suite verdicts, not boot failures.
+  Find the first bad kernel commit by driving `git bisect` with real runs: each
+  iteration builds the candidate commit, boots a dedicated guest with it
+  (`f/qsu/bringup`, kernel artifacts reused from the Nix store when the commit
+  was built before), runs the selected payload, and feeds the verdict back.
+
+  Before bisecting it tests the endpoints standalone. A bad ref that passes
+  alone ends the run as `not_reproducible_standalone`, meaning the failure needs
+  something else to run first, which is itself the finding; a failing good ref
+  ends it as `good_endpoint_failed`, so pick an older one. A kernel that fails
+  to build or boot is `git bisect skip`ped, so this flow bisects payload
+  verdicts, not boot failures.
+
   The state (a `--shared` clone of the Bare plus `state.json`) lives under
-  `$SYSTEM_DIR/bisect/<vm_name>/` and survives for a manual `git bisect`
-  resume. Five payloads. Four run the build-boot-run loop with a different
-  verdict source: `kunit` (the default, above); `selftests`, kselftest
-  collections built from each candidate's own tree (`f/selftests/run`);
-  `runtime_tests`, module-init test modules such as `test_xarray` and
-  `test_maple_tree` judged by their kmsg summaries (`f/runtime_tests/run`);
-  and `usertests`, the userspace harness binaries such as
-  `radix-tree/xarray` and `radix-tree/maple` built from each candidate's
-  own `lib/` sources and run under sanitizers (`f/usertests/run`). For all
-  four the `max_runtime` knob turns a passing-but-slower run into a bad
-  verdict so a runtime regression bisects like a failure. The fifth,
-  `usertests_build`, skips the guest entirely and asks only whether the
-  selected `tools/testing` harnesses compile at the candidate
-  (`f/kernel/check_usertests`), seconds per iteration, its `error_re` knob
-  scoping the hunt to one failure signature (a build failing without the
-  signature counts as good, so each layer of a harness carrying several
-  independent breaks bisects in its own range).
+  `$SYSTEM_DIR/bisect/<vm_name>/` and survives the run, so a manual `git
+  bisect` can resume from it. Pick the payload and its knobs below; each field
+  says what it decides.
 value:
   modules:
     - id: iterate

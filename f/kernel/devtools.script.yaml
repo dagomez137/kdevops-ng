@@ -1,18 +1,13 @@
 summary: Generate kernel dev-tooling artifacts
 description: |-
-  Generate developer-tooling artifacts from an already-built kernel worktree,
-  inside the `nixos-flake#build` devShell. Each is independently toggled and on
-  by default:
+  Generate the developer-tooling artifacts an out-of-tree build leaves in the
+  build dir, or not at all, where IDEs and debuggers look for them. Each is
+  independently toggled and on by default: the clangd C index
+  (`compile_commands.json`), the kernel GDB helpers (`vmlinux-gdb.py` and
+  `lx-*`), and the rust-analyzer index (`rust-project.json`, auto-skipped
+  unless the build is `CONFIG_RUST=y`).
 
-  - `compile_commands`: `gen_compile_commands.py` writes `compile_commands.json`
-  (clangd/cscope/IDE C index) to the source-tree root. - `scripts_gdb`: `make
-  scripts_gdb` materializes `vmlinux-gdb.py` + the `lx-*` GDB helpers in the
-  build dir. - `rust_analyzer`: `make rust-analyzer` writes `rust-project.json`,
-  copied to the source-tree root. Auto-skipped unless `CONFIG_RUST=y` in the
-  build's `.config`.
-
-  Runs after `compile`. Reads `worktree`/`build_dir` from `prepare_worktree`.
-  Returns the artifact paths (null for any that was skipped).
+  Runs after `compile`. Returns the artifact paths, null for any skipped.
 lock: '!inline f/kernel/devtools.script.lock'
 kind: script
 schema:

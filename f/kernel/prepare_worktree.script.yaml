@@ -2,16 +2,14 @@ summary: Prepare a kernel build worktree
 description: |-
   Lay down this worker's warm `main` kernel worktree
   (`workers/<WORKER_INDEX>/main/linux`) detached at `git_ref`, cut from the
-  durable Bare at `$SYSTEM_DIR/bare/linux.git` and refreshed from the mirror
-  first so newly-mirrored refs/tags are usable. Thin wrapper over
-  `f/common/worktree`. The same tree is reused for every ref and across runs
-  (parallel across workers); `recreate_build_worktree` lays a fresh checkout.
-  `build` and `destdir` are children of the source checkout.
+  durable Bare and refreshed from the mirror first so a newly-mirrored ref or
+  tag is usable. The same tree is reused for every ref and across runs;
+  `recreate_build_worktree` lays a fresh checkout.
 
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `worker`, `project`,
-  `git_ref`, `label` (the readable build-identity label derived from the ref and
-  any series, or the override), and `b4_branch` (the `b4/<slug>` branch
-  published to the Bare when `b4_series` is set, else null).
+  `git_ref`, `label` (the readable build-identity label, or the override) and
+  `b4_branch` (the `b4/<slug>` branch published to the Bare when `b4_series` is
+  set, else null).
 lock: '!inline f/kernel/prepare_worktree.script.lock'
 kind: script
 schema:

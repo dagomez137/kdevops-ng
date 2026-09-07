@@ -1,22 +1,16 @@
 summary: Configure from a preset
 description: |-
   Configure method **preset**: generate a `.config` from a complete, predefined
-  config that kdevops-ng ships in the `linux-config-fragments` library
-  (`defconfigs/`), applied with the kernel's own `KCONFIG_ALLCONFIG` mechanism:
-  `make KCONFIG_ALLCONFIG=<preset> alldefconfig` forces the preset's symbols on
-  top of the defaults and resolves the rest. Nothing is copied into the kernel
-  tree.
+  config the `linux-config-fragments` library ships under `defconfigs/`, applied
+  with the kernel's own `KCONFIG_ALLCONFIG` mechanism. A preset covers a known
+  scenario whole, where `configure_make` runs config goals and the fragment
+  method composes from pieces.
 
-  Presets are whole-kernel configs for a known scenario, unlike `configure_make`
-  (config make goals) or the fragment methods (compose from pieces). Shipped
-  now:
+  Shipped now: `imageless_defconfig`, the imageless VM kernel (tmpfs root,
+  virtiofs `/nix` and `/lib/modules`, direct `-kernel` boot, Rust enabled).
+  `CONFIG_RUST=y` sticks because the build devShell exports `RUST_LIB_SRC`.
 
-  - `imageless_defconfig`: the imageless VM kernel (tmpfs root, virtiofs `/nix`
-  and `/lib/modules`, direct `-kernel` boot, Rust enabled); a
-  savedefconfig-minimized form of kdevops's `config-imageless`. `CONFIG_RUST=y`
-  sticks because the build devShell exports `RUST_LIB_SRC`.
-
-  Reads `worktree`/`build_dir` from a prior `prepare_worktree` step. Returns
+  Reads `worktree`/`build_dir` from `prepare_worktree`. Returns
   `kernelrelease`, the `.config` path, `method`, and the `preset` applied.
 lock: '!inline f/kernel/configure_preset.script.lock'
 kind: script

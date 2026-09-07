@@ -1,21 +1,12 @@
 summary: Resolve the kernel make flags
 description: |-
-  Resolve the toolchain, reproducible-build and ccache knobs into one make-flags
-  string that every later make step consumes, so the toolchain stays consistent
-  (the kernel requires the same `LLVM=` on configure and compile).
+  Resolve the toolchain, reproducible-build and ccache knobs into the one
+  make-flags string every later make step consumes, so the toolchain stays
+  consistent: the kernel requires the same `LLVM=` value on configure and
+  compile.
 
-  - `compiler` GCC (default) or clang → `LLVM=1` plus the unwrapped `CC` and its
-  resource `-I` the build-kernel devShell exports. - `reproducible` (default on)
-  → `KBUILD_BUILD_TIMESTAMP` (a real fixed date, or the commit date when
-  `timestamp_from_commit` is set), `KBUILD_BUILD_USER`/`HOST`, `LOCALVERSION=`,
-  plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS`/`KAFLAGS` (the common
-  parent of `worktree` and `build_dir`) so the build path stops leaking into
-  DWARF. - `ccache` (default on) → `CC="ccache <cc>"`; the devShell points
-  `CCACHE_DIR` at a shared cache.
-
-  Appends any raw `make_flags` (merging the prefix map into a user `KCFLAGS=`/
-  `KAFLAGS=` rather than emitting a second, fighting assignment). Reads
-  `worktree`/`build_dir`/`commit` from `prepare_worktree`. Returns `make_flags`.
+  Reads `worktree`/`build_dir`/`commit` from `prepare_worktree`. Returns
+  `make_flags`, with any raw `make_flags` you pass appended.
 lock: '!inline f/kernel/build_flags.script.lock'
 kind: script
 schema:

@@ -1,12 +1,11 @@
 summary: Bake a build identity into kernelrelease
 description: |-
-  Library module imported by the configure steps (`from f.kernel.identity import
-  bake_identity`). Not a runnable step on its own. `bake_identity()` hashes the
-  inputs that fix a build's bytes: the `.config`, the build devShell's flake,
-  the make flags, and the source commit, and appends the digest to
-  `CONFIG_LOCALVERSION`, so `make kernelrelease` (and the booted `uname -r`)
-  report a unique `7.1.0-rc7-<hash>`. Used by `f/kernel/configure_make`,
-  `configure_fragments` and `configure_preset`.
+  Library module imported by the configure steps (`from f.kernel.identity
+  import bake_identity`), not a runnable step. Hashes the inputs that fix a
+  build's bytes and appends the digest to `CONFIG_LOCALVERSION`, so `make
+  kernelrelease` and the booted `uname -r` report a unique
+  `7.1.0-<label>-<hash>`. The module docstring states which inputs are in the
+  hash and which are deliberately out of it.
 lock: '!inline f/kernel/identity.script.lock'
 kind: script
 schema:
