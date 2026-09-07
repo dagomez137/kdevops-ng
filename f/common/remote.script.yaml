@@ -1,14 +1,11 @@
 summary: Guest vsock-SSH systemd transport
 description: |-
-  Library module imported by the `f/fstests/*` and `f/kunit/*` steps (`from
-  f.common.remote import RemoteSystemd, list_vms`). Not a runnable step on its
-  own. `RemoteSystemd` drives a booted guest's `systemd` over the AF_VSOCK SSH
-  transport from a vm worker: each call is one explicit `ssh` argv (proxied by
-  `systemd-ssh-proxy` from the `#systemd` devShell, dialing `vsock/<cid>`),
-  exposing `systemctl`, `show`, `is_system_running`, `journal_combined`, and
-  `unit_exists`. `list_vms` is the `dynselect-list_vms` entrypoint that lists
-  the rendered guests from their `WORKERS_DIR/shared/vm/*.vars.json` sidecars.
-  General by design: no fstests or kunit coupling.
+  Library module imported by the suite steps (`from f.common.remote import
+  RemoteSystemd, list_vms`), not a runnable step. `RemoteSystemd` drives a
+  booted guest's systemd over the AF_VSOCK SSH transport from a `vm` worker, one
+  explicit `ssh` argv per call. `list_vms` is the `dynselect-list_vms`
+  entrypoint that lists the rendered guests from their sidecars. General by
+  design: no per-suite coupling.
 lock: '!inline f/common/remote.script.lock'
 kind: script
 schema:

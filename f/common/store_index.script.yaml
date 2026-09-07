@@ -1,13 +1,13 @@
 summary: Inspect and prune the build catalog
 description: |-
-  Read and maintain the build Store's catalog: the
-  `SYSTEM_DIR/store-index/` symlinks (`kernel-<release>`,
-  `kernel-devel-<release>`, `qemu-<identity>`) that point at each published
-  identity's Nix store path and double as its GC root. `list` shows the local
-  catalog (and a peer's when `remote`/`remote_index` are set) with sizes and
-  validity; `inspect` reports the selected identities; `forget` drops their GC
-  roots so `nix store gc` can reclaim them (needs `confirm`); `prune` drops
-  every entry whose store path was already collected.
+  Read and maintain the build Store's catalog: the `SYSTEM_DIR/store-index/`
+  symlinks that point at each published identity's Nix store path and double as
+  its GC root.
+
+  `list` shows the local catalog (and a peer's, with `remote`/`remote_index`)
+  with sizes and validity; `inspect` reports the selected identities; `forget`
+  drops their GC roots so `nix store gc` can reclaim them, guarded by `confirm`;
+  `prune` drops every entry whose store path was already collected.
 lock: '!inline f/common/store_index.script.lock'
 kind: script
 schema:

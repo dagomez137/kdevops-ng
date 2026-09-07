@@ -1,13 +1,14 @@
 summary: Nix-store transport for build identities
 description: |-
-  Library module imported by the build steps (`from f.common import store`). Not
-  a runnable step on its own. Moves a built identity's run layer between hosts
-  through the Nix store: `publish` adds a tree with `nix store add-path` and
-  indexes it under `SYSTEM_DIR/store-index/<name>` (also a GC root);
+  Library module imported by the build steps (`from f.common import store`), not
+  a runnable step. Moves a built identity between hosts through the Nix store
+  rather than rsync: `publish` adds a tree and indexes it under
+  `SYSTEM_DIR/store-index/<name>`, which doubles as its GC root;
   `peer_path`/`fetch` read a peer's index over ssh and pull the path with `nix
-  copy`; `link_local` indexes a fetched path so this host becomes a source;
-  `local_path` resolves the index entry so a fetched run layer is consumed in
-  place from the store. Store paths are identical on every host.
+  copy`; `link_local` indexes a fetched path so this host becomes a source; and
+  `local_path` resolves the entry, so a fetched layer is consumed in place.
+  Store paths are identical on every host, so the path read from a peer is the
+  path to copy.
 lock: '!inline f/common/store.script.lock'
 kind: script
 schema:

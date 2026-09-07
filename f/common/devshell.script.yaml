@@ -1,10 +1,11 @@
 summary: Shared devShell and command runners
 description: |-
-  Library module imported by the build/provisioning steps (`from
-  f.common.devshell import DevShell, Git, Nix`). Not a runnable step on its own.
-  `DevShell` runs commands in the `nixos-flake#build` devShell; `Git` runs host
-  git; `Nix` runs the raw `nix` CLI (build, flake lock). All print the exact
-  argv before running it.
+  Library module imported by the build and provisioning steps (`from
+  f.common.devshell import DevShell, Git, Nix, Systemd`), not a runnable step.
+  `DevShell` runs commands inside a nixos-flake devShell, `Git` the flake's own
+  git, `Nix` the raw `nix` CLI, and `Systemd` the host `systemd --user` manager.
+  All build an argv list, so no shell tokenizes a caller's value, and print the
+  exact copy-pasteable invocation before running it.
 lock: '!inline f/common/devshell.script.lock'
 kind: script
 schema:
