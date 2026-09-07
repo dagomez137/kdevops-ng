@@ -64,10 +64,15 @@ Why: `nix flake check` exercises the `checks` closures but does not build
 the standalone `packages` outputs; overlay and package changes only
 surface on an actual build.
 
-What: builds each custom package.
+What: builds every custom package. The list comes from
+`pkgs/default.nix` rather than being repeated here, so a package added
+there is covered without editing this file (reading the attribute names
+evaluates no package, so this stays fast):
 
 ```shell
-nix build .#blktests .#cpupower .#damo .#libbpf-tools .#nfstest .#pynfs .#xnvme
+nix build $(nix eval --raw --impure --expr \
+  'builtins.concatStringsSep " " (map (n: ".#" + n)
+     (builtins.attrNames (import ./pkgs { })))')
 ```
 
 ## 5. Review the commit message
