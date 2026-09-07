@@ -1,27 +1,19 @@
 summary: Provision the Bare repos from mirrors
 description: |-
   Provision the durable **Bare** main repos every build worktree is cut from,
-  one per selected mirror **project** (`linux`, `qemu`, and the test-suite and
-  tracing trees `xfstests-dev`, `xfsprogs-dev`, `fio`, `blktests`, `bcc`,
-  `ebpf-syscall`). Each Bare at
-  `SYSTEM_DIR/bare/<project>.git` is a `git init --bare` repo that **borrows**
-  the local **mirror**'s objects via its alternates file (no objects copied, no
-  upstream network). A `mirror` remote copies the mirror's heads into
-  `refs/remotes/mirror/*` and each extra tree through unchanged; `refs/heads/*`
-  is left empty, reserved for developer pushes. `origin`'s URL is the project's
-  primary upstream, for an explicit `git fetch origin` (the Bare is the working
-  repo).
+  one per selected mirror **project**. Each Bare at
+  `SYSTEM_DIR/bare/<project>.git` borrows the local **mirror**'s objects, so no
+  objects are copied and no upstream network is touched, and `refs/heads/*` is
+  left empty, reserved for developer pushes.
 
-  Pick the projects to mirror from the curated **Projects** list, then set each
-  one's deploy options in its own group: for `linux`, the curated **Trees** to
+  Pick the projects from the curated **Projects** list, then set each one's
+  deploy options in its own group: for `linux`, the curated **Trees** to
   integrate into the merged linux.git plus a **Source** host and **Transport**;
-  for every other project, its **Source** host and **Transport** (the xfs trees
-  offer kernel.org or googlesource; the github repos serve one source over
-  https). `peers` lists other workbench hosts to wire as cross-host push
-  remotes. Idempotent.
+  for every other project, its **Source** host and **Transport**. `peers` lists
+  other workbench hosts to wire as cross-host push remotes.
 
-  Returns a manifest of each Bare (`bare`, `origin`, `trees`, `action`, `head`,
-  `peers`).
+  Idempotent. Returns a manifest of each Bare (`bare`, `origin`, `trees`,
+  `action`, `head`, `peers`).
 lock: '!inline f/workbench/fetch.script.lock'
 kind: script
 schema:

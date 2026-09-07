@@ -1,22 +1,19 @@
 summary: Provision git-mirror refresh timers
 description: |-
-  Install the `git-mirror@.{service,timer}` template pair into the host `systemd
-  --user` manager and enable one instance per mirror repo, so each local
-  `MIRRORS_DIR/<repo>.git` is force-refreshed from its upstream `origin` (`git
-  remote update --prune`) on a self-pacing loop: `OnBootSec` after boot, then
-  `OnUnitInactiveSec` after each run finishes. Each project sets its own cadence
-  through a per-instance `.timer.d` drop-in, so instances pace and fail
-  independently (a slow `linux` fetch never delays `qemu`).
+  Provision the merged git mirrors and their refresh timers: configure each
+  mirror's upstream remotes, then install the `git-mirror@.{service,timer}` pair
+  and enable one instance per mirror, so each refreshes on a self-pacing loop.
+  Each project sets its own cadence through a per-instance `.timer.d` drop-in,
+  so instances pace and fail independently and a slow `linux` fetch never delays
+  `qemu`.
 
-  `git` is the flake's own (a stable gc-rooted path), so the host unit needs
-  nothing on PATH. A repo with no mirror on disk is skipped, not enabled, and a
-  timer is disabled only once its mirror repo is gone: leaving a project
-  unticked provisions the ticked ones without stopping its refresh. Runs on a
-  `vm` worker (it drives the host user manager over the user bus, like the qsu
-  steps).
+  A repo with no mirror on disk is skipped, not enabled, and a timer is disabled
+  only once its mirror repo is gone: leaving a project unticked provisions the
+  ticked ones without stopping its refresh. Runs on a `vm` worker, since it
+  drives the host user manager over the user bus.
 
-  Returns the enabled/skipped repos and the resolved git + mirror dir. Check
-  with `systemctl --user list-timers 'git-mirror@*'`.
+  Returns the enabled and skipped repos and the resolved git and mirror dir.
+  Check with `systemctl --user list-timers 'git-mirror@*'`.
 lock: '!inline f/workbench/mirror.script.lock'
 kind: script
 schema:

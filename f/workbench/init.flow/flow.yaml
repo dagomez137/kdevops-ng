@@ -1,27 +1,19 @@
 summary: Initialize the workbench
 description: |-
-  One-time (idempotent) bootstrap, run from the UI after Windmill is up.
+  One-time (idempotent) bootstrap, run from the UI after Windmill is up. Thin
+  flow over three steps: provision the merged mirrors and their refresh timers,
+  cut the durable Bares every worker takes its worktrees from, and provision the
+  kdevops-managed VM SSH key. Pick the projects and their deploy options below,
+  and re-run it any time to refresh.
 
-  First provisions the mirror refresh timers (`f/workbench/mirror`): a
-  `git-mirror@<repo>.{service,timer}` per mirror under `$SYSTEM_DIR/mirror`,
-  force-refreshing each from upstream on a self-pacing loop. A mirror this run
-  creates carries no refs and its timer is minutes away, so that one is fetched
-  here, synchronously; a mirror that already has refs is left to its timer.
+  The order is load-bearing. A Bare is cut from the mirror as it stands, so the
+  mirrors come first, and a mirror this run creates carries no refs with its
+  timer still minutes away, so that one is fetched synchronously before anything
+  cuts a Bare. That is what makes a project added to the list usable after one
+  run rather than two.
 
-  Then provisions the durable Bares (default `$SYSTEM_DIR/bare/<project>.git`
-  for `linux`, `qemu`, and the test-suite and tracing trees `xfstests-dev`,
-  `xfsprogs-dev`, `fio`, `blktests`, `bcc`, `ebpf-syscall`, `systing`) that
-  every worker cuts cheap detached worktrees off (`f/kernel/build`,
-  `f/qemu/build`). Each Bare tracks its real upstream but borrows objects from
-  the local mirror (`$MIRRORS_DIR`), and keeps `refs/heads/*` for developer
-  pushes. A Bare is cut from the mirror as it stands, which is why the mirrors
-  come first: a project added to the list is usable after one run.
-
-  Finally provisions the kdevops-managed VM SSH key (`f/workbench/ssh_key`):
-  one keypair under `$SYSTEM_DIR/ssh/` that every guest trusts, so after a
-  one-time `Include` line in `~/.ssh/config` a plain `ssh <vm>` works. Returns
-  that line. Thin flow over the three steps: pick the projects and their
-  deploy options; re-run it any time to refresh.
+  Returns the `Include` line to add to `~/.ssh/config`, after which a plain `ssh
+  <vm>` reaches any guest.
 value:
   modules:
     - id: mirror

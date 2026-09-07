@@ -5,11 +5,10 @@ description: |-
   every imageless guest: `f/nix/render_config` bakes the public key into each
   closure's `authorizedKeys` and `f/qsu/boot` writes a per-VM
   `config.d/<vm>.conf`, so after a one-time `Include` line in `~/.ssh/config` a
-  plain `ssh <vm>` reaches the guest over vsock with this key: no
-  operator-managed key.
+  plain `ssh <vm>` reaches the guest over vsock. The operator manages no key.
 
-  Idempotent: keeps an existing key (set `regenerate` to force a new one, which
-  invalidates the key already baked into every built closure). Returns the key
+  Idempotent: an existing key is kept. `regenerate` forces a new one, which
+  invalidates the key already baked into every built closure. Returns the key
   paths, the authorized public key, and the `Include` line to add.
 lock: '!inline f/workbench/ssh_key.script.lock'
 kind: script
