@@ -111,9 +111,9 @@ worker state:
 
    $ nix run .#wmill -- lint
    $ nix run .#wmill -- script preview f/common/store.py --silent
-   $ nix run .#wmill -- flow preview f/fstests/check.flow --step collect \
-       --data '{"vm_name": "no-such-vm", "section": "xfs_4k",
-                "kernel_version": "0.0.0-test"}' --silent
+   $ args='{"vm_name":"no-such-vm","section":"xfs_4k","kernel_version":"0.0"}'
+   $ nix run .#wmill -- flow preview f/fstests/check.flow \
+       --step collect --data "$args" --silent
 
 The preview caveats above apply here unchanged: deployed shared imports,
 real workers.
