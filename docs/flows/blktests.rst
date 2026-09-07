@@ -72,16 +72,10 @@ each individual test inside its own transient scope,
 independently observable and killable from outside the run; upstream blktests
 has no scope support of its own.
 
-Every step carries a worker tag: the quick lifecycle and control steps run on
-the ``vm`` tag, and the long-lived ``wait`` poll runs on the ``vm-run`` tag,
-so a long run never starves a quick control op.
-
 Service units to query
 ======================
 
-A run exposes two kinds of systemd object on the guest, which you drive with
-the tools in :doc:`guests` (``systemctl --host <vm> …`` for the units,
-``ssh <vm> journalctl …`` for their logs):
+A run exposes the two kinds of systemd object :doc:`guests` describes:
 
 - ``blktests@<group>.service``: one per selected group, running ``check``
   for that group. The ``<group>`` is the blktests group directory name, for
@@ -89,46 +83,14 @@ the tools in :doc:`guests` (``systemctl --host <vm> …`` for the units,
 - ``blktests-<group>-<nnn>.scope``: the transient scope wrapping the single
   test currently executing, for example ``blktests-block-002.scope``.
 
-How a flow surfaces its state in the Windmill job log, and why these recipes
-are the out-of-band view, is covered in :doc:`guests`.
-
-Querying group status and logs
-==============================
-
-List the groups currently running on a guest, and the per-test scope inside
-the live group:
-
-.. code-block:: console
-   :caption: host
-   :class: cmd-host
-
-   $ systemctl --host <vm> list-units 'blktests@*'
-   $ systemctl --host <vm> list-units --type=scope    # the per-test scopes
-
-The three properties the ``wait`` step polls to decide a group is done are
-``Result``, ``ExecMainStatus`` and ``ActiveState``; read them the same way:
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> show blktests@<group>.service \
-       --property=Result --property=ExecMainStatus --property=ActiveState
-
-``ActiveState=activating`` means the group is still running, ``inactive`` or
-``failed`` is terminal. Follow the live unit journal of a group (the job log
-streams the same entries, merged with the kernel log):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ ssh <vm> journalctl --unit=blktests@<group>.service --follow
-
-Each test prints a start line when it begins and its verdict line when it
-ends, and ``check`` also writes a ``run blktests <group>/<nnn>`` marker into
-the kernel log at every test start, so the merged journal the job log streams
-names the in-flight test at all times. On a failure the journal carries the
-output diff, the dmesg excerpt, or the exit status, whichever failed the
-test.
+Listing, querying and stopping those units, and why the Windmill job log is
+the primary view of a run, are covered in :doc:`guests`. What is particular
+to blktests is what its journal carries: each test prints a start line when
+it begins and its verdict line when it ends, and ``check`` also writes a
+``run blktests <group>/<nnn>`` marker into the kernel log at every test
+start, so the merged journal the job log streams names the in-flight test at
+all times. On a failure the journal carries the output diff, the dmesg
+excerpt, or the exit status, whichever failed the test.
 
 Where the run lives on the guest
 ================================
@@ -215,24 +177,18 @@ next run.
 Restarting a hung test
 ======================
 
-A single test can wedge: a livelock, or a thread stuck in uninterruptible
-sleep. blktests' own ``TIMEOUT`` is advisory (only tests that opt in honor
-it), and the group unit is ``TimeoutStartSec=infinity``, so nothing bounds
-that one test unless the per-test watchdog is armed. The **Per-test Timeout**
-form field (``test_timeout`` → ``TEST_TIMEOUT``) sets each test's scope
-:cmd:`RuntimeMaxSec` through the carried patch, so systemd kills an
-overrunning test and the run continues; it is **0 (no limit) by default**.
-When it is unset, or you want to intervene on a run already in flight, kill
-the test by hand: this reproduces exactly what the watchdog would have done.
+A single test can wedge, and :doc:`guests` covers the general procedure:
+spot the stalled run, find its in-flight scope, and stop that scope to skip
+the one test.
 
-The symptom is a group that makes no progress: its journal stops emitting new
-test lines and ``status`` keeps reporting ``activating`` for far longer than
-the test should take. Find the in-flight scope and confirm which test it is:
+Two things are particular to blktests. Its own ``TIMEOUT`` is advisory, since
+only tests that opt in honor it, so nothing bounds a wedged test by default.
+The **Per-test Timeout** form field (``test_timeout`` → ``TEST_TIMEOUT``)
+arms the watchdog: through the carried patch it sets each test's scope
+:cmd:`RuntimeMaxSec`, so systemd kills an overrunning test and the run
+continues. It is **0 (no limit) by default**.
 
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> list-units --type=scope
+The scopes are named for the test they wrap, so the listing names it outright:
 
 .. code-block:: text
    :class: cmd-guest
@@ -240,30 +196,7 @@ the test should take. Find the in-flight scope and confirm which test it is:
    UNIT                       ACTIVE SUB      DESCRIPTION
    blktests-block-002.scope   active running  blktests block/002
 
-Stop that scope (systemd sends SIGTERM to everything in it; the test's
-processes die with it, while the patched runner handles the signal, records
-the test as failed, and proceeds to the next test):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> stop blktests-block-002.scope
-
-To abort the **whole** group instead of skipping one test, stop its unit
-(this is what the flow's ``failure_module`` runs when you cancel the Windmill
-job; :src:`f/blktests/stop` also clears any lingering per-test scope, which
-lives outside the service's control group and so survives a bare unit stop):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> stop         blktests@<group>.service
-   $ systemctl --host <vm> reset-failed blktests@<group>.service
-
-The ``wait`` step observes the unit go inactive and the run ends that group.
-Cancelling the Windmill job (a clean cancel, not a force-kill of the worker)
-runs the ``failure_module`` for you, so it tears the running group down on
-the guest; a force-kill bypasses that and leaves ``check`` running under
-``TimeoutStartSec=infinity``.
+:src:`f/blktests/stop` also clears any lingering per-test scope, which lives
+outside the service's control group and so survives a bare unit stop.
 
 .. _blktests: https://github.com/linux-blktests/blktests

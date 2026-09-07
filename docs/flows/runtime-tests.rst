@@ -64,9 +64,7 @@ stay-loaded module before starting, so every run is a fresh run.
 Before starting the unit, ``start`` captures the guest journal's
 end-of-now cursor: the job outcome, the process exit status, and the
 kernel messages ``collect`` judges all come from after it, so a re-run can
-never report a previous run's results. Every step carries a worker tag:
-quick lifecycle steps on ``vm``, the ``wait`` poll on ``vm-run``. See
-:doc:`../deployment/nix`.
+never report a previous run's results.
 
 The run form
 ============

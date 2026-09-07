@@ -62,11 +62,6 @@ report a previous run's results. The unit sets :cmd:`TimeoutStartSec` to
 is bounded by the ``wait`` step's own deadline, while each *individual*
 test is bounded by kselftest's upstream watchdog (below).
 
-Every step carries a worker tag: the quick lifecycle and control steps run
-on the ``vm`` tag, and the ``wait`` poll runs on the ``vm-run`` tag, so a
-hung collection never starves a quick control op. See
-:doc:`../deployment/nix`.
-
 The run form
 ============
 
@@ -163,9 +158,8 @@ kernel than the built selftests fails before anything runs.
 Service units to query
 ======================
 
-A run exposes two template units on the guest, which you drive with the
-tools in :doc:`guests` (:cmd:`systemctl` ``--host <vm> …`` for the units,
-``ssh <vm>`` :cmd:`journalctl` ``…`` for their logs):
+A run exposes two template units on the guest, driven as :doc:`guests`
+describes:
 
 - ``kselftest@<collection>.service``: one per collection, running
   ``run_kselftest.sh --collection <collection>``.
@@ -215,17 +209,9 @@ can run straight from the share, or from the guest:
 Querying collection status and logs
 ===================================
 
-List the units a run has instantiated, and the status of one collection:
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> list-units 'kselftest@*'
-   $ systemctl --host <vm> status kselftest@seccomp.service
-
-``ActiveState=activating`` means the collection is still running,
-``inactive`` is the success terminus and ``failed`` the failure terminus.
-Remember the exit-status caveat: with ``--no-error-on-fail`` (passed
+Listing and querying the units is the recipe in :doc:`guests`, run against
+``kselftest@<collection>.service``. What is particular to kselftest is the
+exit-status caveat: with ``--no-error-on-fail`` (passed
 whenever the tree's runner supports it) a *failed unit* means the runner
 itself could not do its job; test failures leave the unit successful and
 live in the KTAP. On an old tree without the flag, a failed unit can be
@@ -259,20 +245,11 @@ instead.
 Stopping a run
 ==============
 
-To abort a collection, stop its unit (the documented fallback in
-:src:`f/selftests/stop.py`, and what the flow's ``failure_module`` runs
-when you cancel the Windmill job):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> stop         kselftest@seccomp.service
-   $ systemctl --host <vm> reset-failed kselftest@seccomp.service
-
-The ``wait`` step sees the stop in the run's journal and ends that
-collection. Cancelling the Windmill job (a clean cancel, not a force-kill
-of the worker) runs the ``failure_module`` for you; a force-kill bypasses
-that, and the manual stop above is the recovery.
+Stopping a collection by hand is the recipe in :doc:`guests`, run against
+``kselftest@<collection>.service``; :src:`f/selftests/stop.py` documents it
+as the fallback and the flow's ``failure_module`` runs it for you on a clean
+cancel. The ``wait`` step sees the stop in the run's journal and ends that
+collection.
 
 A test that oopses the guest takes the VM down; ``wait`` detects this by
 crash-checking the host ``qemu-system@<vm>.service`` on each poll, and

@@ -132,6 +132,107 @@ To check a guest's own health from the host instead, point ``systemctl`` and
    $ systemctl --host <vm> is-system-running   # guest systemd state
    $ hostnamectl --host <vm>                   # guest identity
 
+Driving a suite run's units
+===========================
+
+Suite flows split their steps across two worker tags: the quick lifecycle and
+control steps run on ``vm``, while the long-lived ``wait`` poll runs on
+``vm-run``, so a long run never starves a quick control op. The ``vm-run``
+worker instance count is therefore the cap on concurrent test runs; see
+:doc:`../deployment/nix`.
+
+Every suite flow runs its work as systemd objects on the guest, so a run is
+inspected and steered with the same two tools as anything else here:
+``systemctl --host <vm>`` for the units, ``ssh <vm> journalctl`` for their
+logs. Two kinds of object appear, and each flow page names the ones its own
+suite uses:
+
+- **One service instance per unit of work**, from a template the guest's
+  closure installs. The instance name is whatever that suite runs one of: a
+  blktests group, an xfstests section, a KUnit suite, a kselftest collection,
+  a harness binary, a test module.
+- **A transient scope per test**, where the suite's runner brackets each test
+  in one. A scope lives outside the service's control group, so it survives a
+  bare stop of the service.
+
+List what a guest is running, the per-test scope inside a live run, and one
+unit's full state:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ systemctl --host <vm> list-units '<template>@*'
+   $ systemctl --host <vm> list-units --type=scope
+   $ systemctl --host <vm> status <template>@<instance>.service
+
+The three properties a ``wait`` step polls to decide the work is done are
+``Result``, ``ExecMainStatus`` and ``ActiveState``:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ systemctl --host <vm> show <template>@<instance>.service \
+       --property=Result --property=ExecMainStatus --property=ActiveState
+
+The units are ``Type=oneshot``, so ``ActiveState=activating`` means the work is
+still running, ``inactive`` is the success terminus and ``failed`` the failure
+one. ``Result`` carries systemd's outcome enum (``success`` / ``exit-code`` /
+``signal`` / ``timeout`` / ...) and ``ExecMainStatus`` the runner's exit code.
+What that exit code is worth differs per suite: for some it is the verdict, for
+others the verdict lives only in the output the journal carries, and each flow
+page says which.
+
+Follow a run's own journal, the same stream the job log shows merged with the
+kernel log:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ ssh <vm> journalctl --unit=<template>@<instance>.service --follow
+
+Stopping a run
+--------------
+
+Cancelling the Windmill job is the normal way to stop a run: a clean cancel
+runs the flow's ``failure_module``, which tears the guest side down for you. A
+force-kill of the worker bypasses that and leaves the runner going, because
+these units set :cmd:`TimeoutStartSec` to ``infinity`` and nothing else bounds
+them.
+
+To stop one by hand, stop the unit and clear any latched failed state:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ systemctl --host <vm> stop         <template>@<instance>.service
+   $ systemctl --host <vm> reset-failed <template>@<instance>.service
+
+The ``wait`` step observes the unit go inactive and ends that unit of work.
+
+Restarting a wedged test
+------------------------
+
+A single test can wedge on a livelock, or on a thread stuck in uninterruptible
+sleep. The symptom is a run that makes no progress: its journal stops emitting
+new test lines while ``ActiveState`` keeps reporting ``activating`` for far
+longer than the test should take.
+
+Where the suite brackets each test in a scope, that scope is the handle. Find
+the in-flight one, confirm from its description which test it is, and stop it:
+systemd sends ``SIGTERM`` to everything in the scope, so the test's processes
+die while the runner records the failure and moves on to the next test.
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ systemctl --host <vm> list-units --type=scope
+   $ systemctl --host <vm> stop <scope>
+
+Stopping the service instead aborts the whole unit of work rather than skipping
+the one test. A suite whose per-test watchdog is armed does that scope stop for
+you on a deadline, by setting each scope's :cmd:`RuntimeMaxSec`; the flow page
+for a suite that has one names the field that arms it.
+
 Guest telemetry
 ===============
 

@@ -89,17 +89,10 @@ when the guest has systemd; the xfstests overlay
 on top. The scope is what makes a single test independently observable and
 killable from outside the run.
 
-Every step carries a worker tag: the quick lifecycle and control steps run on
-the ``vm`` tag, and the long-lived ``wait`` poll runs on the ``vm-run`` tag, so
-a long run never starves a quick control op. The ``vm-run`` worker instance
-count is the concurrent-test-run cap; see :doc:`../deployment/nix`.
-
 Service units to query
 ======================
 
-A run exposes two kinds of systemd object on the guest, which you drive with the
-tools in :doc:`guests` (``systemctl --host <vm> …`` for the units, ``ssh <vm>
-journalctl …`` for their logs):
+A run exposes the two kinds of systemd object :doc:`guests` describes:
 
 - ``xfstests@<section>.service``: one per ``[section]``, running
   ``./check -s <section>``. The ``<section>`` is the xfstests section name, for
@@ -108,55 +101,22 @@ journalctl …`` for their logs):
   currently executing inside that section, for example
   ``fsgeneric-310.scope``.
 
-How a flow surfaces its state in the Windmill job log, and why these recipes are
-the out-of-band view, is covered in :doc:`guests`.
-
-Querying section status and logs
-================================
-
-List the sections currently running on a guest, and the per-test scope inside
-the live section:
+Listing, querying and stopping those units, and why the Windmill job log is the
+primary view of a run, are covered in :doc:`guests`. What is particular to
+xfstests is what its journal carries: each test's progress line
+(``generic/310``, then its elapsed seconds), its ``[failed, ...]`` verdict, and
+the ``.out.bad`` path on a mismatch all appear there.
 
 .. code-block:: console
    :caption: host
    :class: cmd-host
 
-   $ systemctl --host <vm> list-units 'xfstests@*'
-   $ systemctl --host <vm> list-units --type=scope    # the fs<test>.scope
-
-Full status of one section (the cgroup line shows the running ``./check`` and
-the current test's helper processes):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> status xfstests@<section>.service
-
-The three properties the ``wait`` step polls to decide a section is done are
-``Result``, ``ExecMainStatus`` and ``ActiveState``; read them the same way:
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> show xfstests@<section>.service \
-       --property=Result --property=ExecMainStatus --property=ActiveState
-
-``ActiveState=activating`` means the section is still running, ``active`` or
-``failed`` is terminal; ``Result`` carries systemd's outcome enum
-(``success`` / ``exit-code`` / ``signal`` / ``timeout`` / ...). Follow the live
-journal of a section, the same stream the job log shows:
-
-.. code-block:: console
-   :class: cmd-host
-
    $ ssh <vm> journalctl --unit=xfstests@<section>.service --follow
 
-Each test's progress line (``generic/310``, then its elapsed seconds), its
-``[failed, ...]`` verdict, and the ``.out.bad`` path on a mismatch all appear
-here. The per-section results, the ``.out.bad`` diffs and the ``check.log`` also
-land on the host side of the share under
-``$WORKERS_DIR/shared/fstests/<vm>/<kver>/`` once ``collect`` runs, and the
-folded run verdict is written to ``report.json`` in that directory.
+The per-section results, the ``.out.bad`` diffs and the ``check.log`` also land
+on the host side of the share under ``$WORKERS_DIR/shared/fstests/<vm>/<kver>/``
+once ``collect`` runs, and the folded run verdict is written to ``report.json``
+in that directory.
 
 Where the run lives on the guest
 ================================
@@ -253,25 +213,14 @@ form, so by-hand edits are a scratch pad, overwritten on the next run.
 Restarting a hung test
 ======================
 
-A single test can wedge: a livelock, or a thread stuck in uninterruptible
-sleep. Because the section unit is ``TimeoutStartSec=infinity``, nothing bounds
-that one test unless the per-test watchdog is armed. The **Per-test Timeout**
-form field (``test_timeout`` → ``TEST_TIMEOUT``) sets each test's scope
-:cmd:`RuntimeMaxSec`, so systemd kills an overrunning test and the run
-continues; it is **0 (no limit) by default**, taking effect on a guest whose
-xfstests carries the overlay's watchdog. When it is unset, or you want to
-intervene on a run already in flight, kill the test by hand: this reproduces
-exactly what the watchdog would have done.
+A single test can wedge, and :doc:`guests` covers the general procedure: spot
+the stalled run, find its in-flight scope, and stop that scope to skip the one
+test. The **Per-test Timeout** form field (``test_timeout`` → ``TEST_TIMEOUT``)
+arms the watchdog that does it for you on a deadline, taking effect on a guest
+whose xfstests carries the overlay's patch; it is **0 (no limit) by default**.
 
-The symptom is a section that makes no progress: its journal stops emitting new
-``generic/<n>`` lines and ``status`` keeps reporting ``activating`` for far
-longer than the test should take. Find the in-flight scope and confirm which
-test it is:
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> list-units --type=scope
+Two details are particular to xfstests. Its scopes are named for the test they
+wrap, so the listing names it outright:
 
 .. code-block:: text
    :class: cmd-guest
@@ -279,7 +228,8 @@ test it is:
    UNIT                  ACTIVE SUB      DESCRIPTION
    fsgeneric-310.scope   active running  [systemd-run] ... generic/310
 
-Kill that scope:
+And ``./check`` needs the harder signal, so kill the scope rather than stopping
+it:
 
 .. code-block:: console
    :class: cmd-host
@@ -299,21 +249,5 @@ example:
      +/tmp/xfstests.XXXXXX/check: line 700: NNNNNN Killed  systemd-run ...
 
 and the run moves on to ``generic/311``.
-
-To abort the **whole** section instead of skipping one test, stop its unit (this
-is the documented fallback in :src:`f/fstests/stop.py`, and also what the flow's
-``failure_module`` runs when you cancel the Windmill job):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> stop         xfstests@<section>.service
-   $ systemctl --host <vm> reset-failed xfstests@<section>.service
-
-The ``wait`` step observes the unit go inactive and the run ends that section.
-Cancelling the Windmill job (a clean cancel, not a force-kill of the worker)
-runs the ``failure_module`` for you, so it tears the running section down on the
-guest; a force-kill bypasses that and leaves ``./check`` burning CPU under
-``TimeoutStartSec=infinity``.
 
 .. _xfstests: https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git/

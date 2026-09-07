@@ -60,10 +60,6 @@ kunit_tool`_). A KUnit-carrying kernel is a test kernel; the same page notes
 KUnit is not designed for production systems, which is exactly why the guest
 is a disposable VM.
 
-Every step carries a worker tag: the quick lifecycle and control steps run on
-the ``vm`` tag, and the ``wait`` poll runs on the ``vm-run`` tag, so a hung or
-oopsing suite never starves a quick control op. See :doc:`../deployment/nix`.
-
 The run form
 ============
 
@@ -165,9 +161,8 @@ nowhere else); read that output from the kernel journal:
 Service units to query
 ======================
 
-A run exposes two template units on the guest, which you drive with the
-tools in :doc:`guests` (:cmd:`systemctl` ``--host <vm> …`` for the units,
-``ssh <vm>`` :cmd:`journalctl` ``…`` for their logs):
+A run exposes two template units on the guest, driven as :doc:`guests`
+describes:
 
 - ``kunit@<suite>.service``: one per re-runnable KUnit suite, running the
   suite once. The ``<suite>`` is a directory entry under
@@ -199,33 +194,20 @@ rolled into ``report.json``.
 Querying suite status and logs
 ==============================
 
-List the suites the guest exposes, and the units a run has instantiated:
+List the suites the guest exposes; querying the units a run instantiates is
+the recipe in :doc:`guests`, run against ``kunit@<suite>.service``:
 
 .. code-block:: console
    :class: cmd-host
 
    $ ssh <vm> ls /sys/kernel/debug/kunit
-   $ systemctl --host <vm> list-units 'kunit@*'
 
-Full status of one suite's unit (its state, the last run's result, and the
-tail of its journal):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> status kunit@<suite>.service
-
-The ``wait`` step does not poll unit state (a sub-second instance may already
-be gone); it reads the run's outcome from the unit's journal past the cursor
-``start`` captured, where systemd logs exactly one of ``Finished`` (success)
-or ``Failed to start`` per start job. Unit state is still the quickest manual
-check while a suite runs: ``ActiveState=activating`` means still running,
-``inactive`` is the success terminus and ``failed`` the failure terminus.
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> show kunit@<suite>.service --property=ActiveState
+Unlike the other suites, the ``wait`` step here does not poll unit state at
+all: a KUnit suite is sub-second, so the instance may already be gone and
+deactivated before the first poll. It reads the run's outcome from the unit's
+journal past the cursor ``start`` captured, where systemd logs exactly one of
+``Finished`` (success) or ``Failed to start`` per start job. Unit state is
+still the quickest manual check while a suite runs.
 
 The unit's exit status only says whether the results were readable (the
 suite exists); the pass/fail verdict is in the KTAP, not any exit code.
@@ -267,21 +249,10 @@ is telling you about its own hygiene, not necessarily a regression.
 Stopping a run
 ==============
 
-To abort a suite, stop its unit (the documented fallback in
-:src:`f/kunit/stop.py`, and what the flow's ``failure_module`` runs when you
-cancel the Windmill job):
-
-.. code-block:: console
-   :class: cmd-host
-
-   $ systemctl --host <vm> stop         kunit@<suite>.service
-   $ systemctl --host <vm> reset-failed kunit@<suite>.service
-
-The ``wait`` step sees the stop in the run's journal and ends that suite.
-Cancelling the Windmill job (a clean cancel, not a force-kill of the worker)
-runs the ``failure_module`` for you, so it tears the running units down on
-the guest; a force-kill bypasses that, and the manual stop above is the
-recovery.
+Stopping a suite by hand is the recipe in :doc:`guests`, run against
+``kunit@<suite>.service``; :src:`f/kunit/stop.py` documents it as the fallback
+and the flow's ``failure_module`` runs it for you on a clean cancel. The
+``wait`` step sees the stop in the run's journal and ends that suite.
 
 A suite whose test oopses the guest takes the VM down; ``wait`` detects this
 by crash-checking the host ``qemu-system@<vm>.service`` on each poll, and
