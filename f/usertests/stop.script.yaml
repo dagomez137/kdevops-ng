@@ -1,16 +1,12 @@
 summary: Stop a usertests run on a guest
 description: |-
-  Stop run items' `usertests@<instance>.service` units on the guest over
-  vsock-SSH (plus `reset-failed` to clear any latched state), the instance
-  systemd-escaped exactly as `start` escapes it. Wired as the `run.flow`
-  `failure_module` so cancelling a run from the Windmill UI, or any step
-  erroring out mid-run, tears the running unit down on the guest. Stops are
-  idempotent; a guest unreachable from the worker is logged and skipped so the
-  failure handler never itself fails. Force-stopping a Windmill job bypasses
-  `failure_module`; the manual fallback is `systemctl --host <vm> stop
-  usertests@<instance>.service`.
+  Stop the run's `usertests@<instance>.service` units on the guest over
+  vsock-SSH. Wired as `run.flow`'s `failure_module`, so cancelling a run from
+  the Windmill UI tears the guest side down instead of leaving a harness
+  spinning.
 
-  Returns `{vm_name, stopped, skipped_no_transport}`.
+  Returns `{vm_name, stopped, skipped_no_transport}`. Idempotent; a guest
+  unreachable from the worker is logged and skipped, never raised.
 lock: '!inline f/usertests/stop.script.lock'
 kind: script
 schema:

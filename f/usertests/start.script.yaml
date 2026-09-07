@@ -1,16 +1,12 @@
 summary: Start a usertests harness on a guest
 description: |-
   Capture the guest journal's end-of-now cursor, then start the item's
-  `usertests@<instance>.service` over vsock-SSH with `--no-block`; the
-  instance is the systemd-escaped `<dir>/<binary>` item (`radix-tree/main` ->
-  `radix\x2dtree-main`). The cursor is the run's identity: journal entries
-  past it belong to this run and nothing before it does, so `wait`/`collect`
-  can never confuse this run with a previous one. The template's `ExecStart`
-  carries no `-` prefix, so exit codes are REAL: a `done` job outcome proves
-  the harness exited 0, and an assert or sanitizer abort surfaces as a failed
-  job with `EXIT_STATUS` populated.
+  `usertests@<instance>.service` over vsock-SSH with `--no-block`, so the call
+  returns while the harness runs. `f/usertests/wait` polls for the outcome.
 
-  Returns `{vm, item, unit, cursor}`.
+  Returns `{vm, item, unit, cursor}`. The cursor is the run's identity: wait
+  and collect read only past it, so they can never confuse this run with a
+  previous one.
 lock: '!inline f/usertests/start.script.lock'
 kind: script
 schema:

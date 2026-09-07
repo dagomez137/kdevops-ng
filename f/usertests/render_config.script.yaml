@@ -1,15 +1,11 @@
 summary: Write the per-harness env files onto the share
 description: |-
   Render one `<share>/<kver>/env/<dir>/<binary>.env` per discovered harness,
-  the per-instance `EnvironmentFile` the guest template reads
-  (`EnvironmentFile=-/var/lib/usertests/%v/env/%I.env`; `%I` unescapes back to
-  the item path). Each file carries one `ARGS=` line: `radix-tree/main`
-  composes its flags from the knobs (`-s <seed>` when seed > 0, `-l` when
-  long_run), `memblock/main` gets its fixed `--verbose`, every other harness
-  an empty `ARGS=`. Written atomically and echoed to the job log; the host
-  never contacts the guest.
+  the per-instance `EnvironmentFile` the guest template reads. Each carries one
+  `ARGS=` line, composed per harness from the run form's knobs.
 
-  Returns `{vm, env_root, args, seed, long_run}`.
+  Returns `{vm, env_root, args, seed, long_run}`. The host never contacts the
+  guest.
 lock: '!inline f/usertests/render_config.script.lock'
 kind: script
 schema:

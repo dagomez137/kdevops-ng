@@ -1,14 +1,11 @@
 summary: Lay the built usertests tree onto the share
 description: |-
-  Copy the published Nix store tree `discover` resolved to the guest's
-  `usertests` share at `<share>/<kver>/tree/`, the directory the
-  `usertests@<instance>.service` template executes from (`ExecStart=...
-  /var/lib/usertests/%v/tree/%I`). When the copied tree's `MANIFEST` already
-  matches the store's, the copy is skipped; otherwise any stale tree is
-  removed and replaced (`cp --archive`, then `chmod --recursive u+w`: store
-  modes are read-only). The host never contacts the guest.
+  Copy the store tree `discover` resolved onto the guest's `usertests` share at
+  `<share>/<kver>/tree/`, the directory the `usertests@<instance>.service`
+  template executes from. A tree whose `MANIFEST` already matches the store's
+  is left in place.
 
-  Returns `{vm, tree, reused}`.
+  Returns `{vm, tree, reused}`. The host never contacts the guest.
 lock: '!inline f/usertests/prepare.script.lock'
 kind: script
 schema:

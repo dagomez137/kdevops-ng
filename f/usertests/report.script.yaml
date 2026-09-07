@@ -1,17 +1,11 @@
 summary: Aggregate harness results into a verdict
 description: |-
-  Fold the list of `f/usertests/collect` results (one per run item) into one
-  rollup, with a `status` of `passed` only when every item passed (a failed
-  or crashed item fails the run, and so does an empty item list; `run_status`
-  is the one rule shared with `f/usertests/judge`). Returns a Windmill
-  `render_all` of three native tables (no markdown): run info (testsuite,
-  kernel, guest, harnesses, time(s)), one row per harness (harness, tests,
-  passed, failed, time(s), status; the counts stay 0 for the silent and bench
-  entries), and one row per check across all items (failures first; a passing
-  `radix-tree/main` row carries its captured random seed). When `vm_name` is
-  given it also writes the structured rollup to
-  `$WORKERS_DIR/shared/usertests/<vm>/<kver>/report.json`. The host never
-  contacts the guest.
+  Fold the per-item `f/usertests/collect` results into one rollup, `passed`
+  only when every item passed. Returns a Windmill `render_all` of three native
+  tables: run info, one row per harness (counts stay 0 for the silent and bench
+  entries, whose verdict is not printed counts), and one row per check across
+  all items, failures first. With a `vm_name` it also writes the rollup to
+  `<share>/<kver>/report.json`. The host never contacts the guest.
 lock: '!inline f/usertests/report.script.lock'
 kind: script
 schema:

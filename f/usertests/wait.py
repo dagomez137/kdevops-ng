@@ -21,7 +21,8 @@ The unit is `TimeoutStartSec=infinity`, so this poll deadline is the only
 bound on the run. Each poll also checks the host `qemu-system@<vm>.service`:
 any not-alive state (`failed`, or `inactive` after a clean outside stop) means
 the guest is gone and the wait ends with `crashed=True` rather than burning
-the timeout on a dead transport.
+the timeout on a dead transport. On expiry the unit is stopped, so a timed-out
+harness leaves nothing running on the guest for the next item to contend with.
 
 Equivalent commands:
 

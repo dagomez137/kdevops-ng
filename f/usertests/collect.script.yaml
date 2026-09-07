@@ -1,23 +1,16 @@
 summary: Fold a harness run into a verdict
 description: |-
-  Judge the run `f/usertests/wait` observed against the item's catalog entry
-  (bounded by start's journal cursor, so the output can only be this run's);
-  the guest is never contacted, so a crashed guest still gets an honest
-  verdict. A crash, a timeout, a job outcome other than `done`, or a nonzero
-  `exec_status` fails the item (exit codes are REAL: an assert or sanitizer
-  abort arrives as a failed job carrying its signal, and that IS the test
-  failure). Then the global scans: any AddressSanitizer/LeakSanitizer/UBSan
-  line fails, and so does any `assertion failed at` line outside idr-test's
-  expected noise block (stripped before the scan). Then the per-entry evidence
-  rule: summary counts that must all pass, memblock's `--verbose` per-test
-  line counts, radix-tree/main's `tests completed` sentinel, or, for the
-  silent harnesses, the clean exit alone. `radix-tree/main`'s logged `random
-  seed %u` is extracted into the returned row. Returns a scalar overview
-  `{item, vm_name, kernel_version, status, result, exec_status, crashed,
-  timed_out, runtime, started_realtime_ms, ended_realtime_ms, seed, tests,
-  passed, failed, skipped}` plus a `detail`
-  object carrying the per-check rows and the output tail (consumed by
-  `f/usertests/report`).
+  Judge the run `f/usertests/wait` observed against the item's catalog entry.
+  The guest is never contacted, so a crashed guest still gets an honest
+  verdict, and each harness is judged by its own upstream output convention
+  rather than a house rule.
+
+  Returns a scalar overview `{item, vm_name, kernel_version, status, result,
+  exec_status, crashed, timed_out, runtime, started_realtime_ms,
+  ended_realtime_ms, seed, tests, passed, failed, skipped}` plus a `detail`
+  object carrying the per-check rows and the output tail. A passing
+  `radix-tree/main` carries its captured random seed, so the run is
+  reproducible with `-s <seed>`.
 lock: '!inline f/usertests/collect.script.lock'
 kind: script
 schema:

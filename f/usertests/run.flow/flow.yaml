@@ -3,36 +3,20 @@ description: |-
   Run the kernel tree's userspace test harnesses (the tools/testing
   radix-tree, vma, rbtree, memblock and scatterlist binaries) against an
   already-booted guest, driving each harness as its own systemd template unit
-  without rebooting: `usertests@<instance>.service` runs one
-  `<dir>/<binary>` item, the instance being the systemd-escaped item name
-  (`radix-tree/main` -> `radix\x2dtree-main`). The binaries are compiled from
-  the kernel build's SOURCE tree and published to the Nix store (the
-  `usertests-<kver>` entry), so the run exercises that source's
-  data-structure code in userspace; the guest only hosts the run. The unit's
-  `ExecStart` carries no `-` prefix, so exit codes are REAL: an assert or
-  sanitizer abort is a failed job, and that IS the test failure.
+  without rebooting: `usertests@<instance>.service` runs one `<dir>/<binary>`
+  item, the instance being the systemd-escaped item name (`radix-tree/main` ->
+  `radix\x2dtree-main`). The binaries are compiled from the kernel build's
+  SOURCE tree and published to the Nix store (the `usertests-<kver>` entry), so
+  the run exercises that source's data-structure code in userspace; the guest
+  only hosts the run. The unit's `ExecStart` carries no `-` prefix, so exit
+  codes are REAL: an assert or sanitizer abort is a failed job, and that IS the
+  test failure.
 
-  Steps mirror the tools/testing and systemd vocabulary 1:1:
+  Each item runs sequentially through start, wait and collect. The lifecycle
+  and control steps run on the `vm` worker tag (the dedicated worker that
+  reaches the guest over the vsock-SSH transport); the `wait` poll runs on
+  `vm-run`, so a hung harness never starves a quick control op.
 
-  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
-  is-system-running`, the `usertests@.service` template present), resolve the
-  running kernel's built tree from the store index, and enumerate the
-  harnesses from its `MANIFEST`. 2. `prepare`: copy the store tree to the
-  share's `<kver>/tree/` (skipped when already current). 3. `render_config`:
-  write the per-instance `EnvironmentFile`s (`ARGS=`; the seed and long-run
-  knobs for `radix-tree/main`, `--verbose` for `memblock/main`). 4. for each
-  item: `start` (capture a guest journal cursor, then `systemctl --host <vm>
-  start --no-block` the item's unit) → `wait` (poll the unit's journal past
-  the cursor for systemd's job-outcome record, crash-check the host
-  `qemu-system@<vm>`) → `collect` (judge the run-scoped output against the
-  harness catalog: real exit codes, sanitizer/assertion scans with idr-test's
-  expected-noise whitelist, per-entry summary/sentinel/count rules). 5.
-  `report`: aggregate the per-item results into one summary. 6. `judge`: fail
-  the job unless every item passed.
-
-  The lifecycle and control steps run on the `vm` worker tag (the dedicated
-  worker that reaches the guest over the vsock-SSH transport); the `wait`
-  poll runs on `vm-run`, so a hung harness never starves a quick control op.
   **Harnesses** empty runs every harness the MANIFEST lists. Returns the
   `report` summary.
 value:

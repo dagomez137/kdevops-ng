@@ -1,26 +1,16 @@
 summary: Wait for a usertests harness to finish
 description: |-
-  Poll the guest's journal for the unit `f/usertests/start` started, reading
-  only entries past start's cursor, until systemd's job-outcome record
-  appears: PID1 logs exactly one of "Finished <unit>" (`result=done`) or
-  "Failed to start <unit>" (`result=failed`) per start job, and "Stopped" when
-  an outside stop ended it. The same records carry the harness's line-buffered
-  output and the unit's process exits, so the returned `output` is the
-  run-scoped text `f/usertests/collect` parses and `exec_status` carries a
-  failing harness's exit status or signal when there is one (successful exits
-  are journal-logged only at debug level, so a clean run leaves it empty). The
-  `ExecStart` carries no `-` prefix, so exit codes are REAL: an assert or
-  sanitizer abort arrives as `result=failed` with `exec_status` populated, and
-  that IS the test failure.
-
-  Each poll also checks the host `qemu-system@<vm>.service`: any not-alive
-  state means the guest is gone and the wait ends with `crashed` set. On
-  expiry of the timeout the unit is stopped (`timed_out`).
+  Poll the guest's journal past start's cursor until systemd's own job-outcome
+  record for the unit appears, then return the run-scoped harness output that
+  record stream carries. Each poll also checks the host
+  `qemu-system@<vm>.service`, so a guest that dies ends the wait instead of
+  burning the timeout on a dead transport.
 
   Returns `{vm, item, unit, result, exec_status, output, crashed, timed_out,
-  runtime, started_realtime_ms, ended_realtime_ms}` (the `*_realtime_ms` pair
-  is the run's wall-clock window in milliseconds since the epoch, from the
-  journal records' `__REALTIME_TIMESTAMP`; null when the record is missing).
+  runtime, started_realtime_ms, ended_realtime_ms}`; the `*_realtime_ms` pair
+  is the run's wall-clock window in milliseconds since the epoch, taken from
+  the journal records' `__REALTIME_TIMESTAMP` and null when the record is
+  missing.
 lock: '!inline f/usertests/wait.script.lock'
 kind: script
 schema:
