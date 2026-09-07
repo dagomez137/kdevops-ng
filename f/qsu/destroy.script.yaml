@@ -1,17 +1,14 @@
 summary: Destroy a VM
 description: |-
-  Stop `qemu-system@<vm>`, then remove every per-VM artefact:
+  Stop `qemu-system@<vm>` and remove every per-VM artefact: the env file, the
+  drop-in dirs, the virtiofsd env files, the systemd `StateDirectory` holding
+  the NVMe qcow2 backing files, the reuse sidecar that lists the VM in the
+  bringup Reuse dropdown, and the `ssh <vm>` alias.
 
-  - `~/.config/systemd/qemu-system/<vm>.env`; -
-  `~/.config/systemd/user/qemu-system@<vm>.service.d/`; -
-  `~/.config/systemd/user/virtiofsd@<vm>-*.service.d/` and
-  `~/.config/systemd/virtiofsd/<vm>-*.env`; - the systemd `StateDirectory`
-  `~/.local/state/qemu-system/<vm>/` (the NVMe qcow2 backing files + runtime
-  sockets).
-
-  machined unregisters automatically on stop. The host-wide template units
-  (`qemu-system@.service`, `virtiofsd@.service`/`.socket`) are shared across VMs
-  and left in place. A final `daemon-reload` drops the removed drop-ins.
+  Destroying the **last** VM also tears down the host-wide units and config dirs
+  the VMs shared, matching the qsu manual's "Remove everything"; `f/qsu/boot`
+  re-renders those unconditionally, so the next deploy self-heals. While other
+  VMs remain, the shared files stay in place.
 lock: '!inline f/qsu/destroy.script.lock'
 kind: script
 schema:

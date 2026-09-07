@@ -1,20 +1,16 @@
 summary: Render the qemu-system unit and env
 description: |-
   Render the **qemu-system** component of the QEMU-in-systemd unit set into the
-  host user manager's search path (`$HOME/.config/systemd`):
-
-  - the host-wide `qemu-system@.service` template (written once) and the
-  `qmp-powerdown` helper its `ExecStop=` pipes over QMP; - the per-VM `<vm>.env`
-  (`vm.env.j2`, which imports the `nvme.env.j2` macros) holding
-  `QEMU_ARGS`/`KERNEL_ARGS`; - the per-VM
-  `qemu-system@<vm>.service.d/override.conf` drop-in (virtiofsd `Requires=`,
-  `QEMU_EXTRA_ARGS`, vsock-cid registration).
+  host user manager's search path (`$HOME/.config/systemd`): the host-wide
+  `qemu-system@.service` template and its `qmp-powerdown` helper, written once,
+  plus this VM's `<vm>.env` and `qemu-system@<vm>.service.d/override.conf`.
 
   Inputs are upstream **QEMU flag names**. `qemu_binary`/`virtiofsd_binary`
-  default to the `nixos-flake` store paths (so the host-forked unit execs a
-  `/nix/store` binary). The `kernel`/`closure` build manifests supply
-  `-kernel`/`-initrd`/`-append` and the `/lib/modules` share. Returns the
-  written paths, the composed `shares`, and the effective
+  default to the `nixos-flake` store paths, so the host-forked unit execs a
+  `/nix/store` binary, and the `kernel`/`closure` build manifests supply
+  `-kernel`/`-initrd`/`-append` and the `/lib/modules` share.
+
+  Returns the written paths, the composed `shares` and the effective
   `ssh_port`/`vsock_cid`.
 lock: '!inline f/qsu/qemu-system/render.script.lock'
 kind: script

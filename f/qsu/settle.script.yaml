@@ -1,13 +1,13 @@
 summary: Wait for a guest to finish starting up
 description: |-
-  Poll `systemctl --host <vm> is-system-running` over vsock-SSH until the
-  guest reports `running` or `degraded`, closing the race between
-  `f/qsu/boot` returning (the QEMU unit is active, SSH polled only briefly)
-  and a suite flow's gate probing a guest whose closure is still activating.
-  Expiry raises, so a kernel that never brings the guest up fails here
-  rather than handing a dead guest to the next flow.
+  Poll `systemctl --host <vm> is-system-running` over vsock-SSH until the guest
+  reports `running` or `degraded`, closing the race between `f/qsu/boot`
+  returning and a suite flow's gate probing a guest whose closure is still
+  activating.
 
-  Returns `{vm_name, state, polls}`.
+  Returns `{vm_name, state, polls}`. Expiry raises, so a kernel that never
+  brings the guest up fails here rather than handing a dead guest to the next
+  flow.
 lock: '!inline f/qsu/settle.script.lock'
 kind: script
 schema:

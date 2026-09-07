@@ -1,17 +1,13 @@
 summary: Boot a VM
 description: |-
   Boot one QEMU-in-systemd VM against the host `systemd --user` manager:
+  `daemon-reload` so freshly rendered units are seen, then one `restart` of
+  `qemu-system@<vm>`, which applies a re-render in place and simply starts a
+  stopped VM. Then poll the forwarded TCP port until sshd greets.
 
-  1. `systemctl --user daemon-reload` so freshly rendered units/drop-ins are
-  seen. 2. `systemctl --user restart qemu-system@<vm>`: one first-class unit
-  restart. The qsu dependencies (Requires=virtiofsd, the `Before=qemu` drop-in,
-  socket activation) stop the old guest gracefully and bring a fresh virtiofsd
-  up with the re-rendered env; the virtiofsd units are never restarted by hand
-  (that propagates a stop into qemu and hangs it to `TimeoutStopSec`). `restart`
-  applies a re-render in place; on a stopped VM it just starts. 3. Poll the
-  forwarded TCP port until sshd greets with `SSH-2.0` or `wait_timeout`.
-
-  Returns `{vm_name, ssh_port, vsock_cid, active, ssh_ready, state_dir}`. Run on
+  Returns `{vm_name, ssh_port, vsock_cid, active, ssh_ready, state_dir}`. A unit
+  that never reaches `active` raises with the guest's journal tail, so the flow
+  fails at boot rather than reporting success on a VM that never came up. Run on
   a `vm`-tagged worker; the unit forks on the host (see
   `notes/windmill/qsu-execution-model.md`).
 lock: '!inline f/qsu/boot.script.lock'

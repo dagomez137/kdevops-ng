@@ -14,26 +14,18 @@ description: |-
   `WORKERS_DIR` regardless of worker, so the kernel/closure may be built on
   `default`.
 
-  1. `render_qemu_system`: `qemu-system@.service` (once), `<vm>.env`, the per-VM
-  `qemu-system@<vm>.service.d/override.conf`, and the `qmp-powerdown` helper. 2.
-  `render_virtiofsd`: `virtiofsd@.service`/`.socket` (once) and per-share env +
-  drop-in for each composed share (wired from the qemu-system step's `shares`).
-  3. `create_nvme`: `qemu-img create --format qcow2` the per-VM qcow2 backing
-  files (qemu-img from the same store output as the emulator). 4. `boot`:
-  `daemon-reload`, restart the share sockets, start `qemu-system@<vm>`, wait for
-  the guest sshd banner.
-
   Properties are upstream **QEMU flag names** (the rendered units' variable
   surface). Pass the `kernel`/`closure` build manifests to supply
   `-kernel`/`-initrd`/`-append` and the `/lib/modules` share. Returns the `boot`
   step's access manifest.
 
-  Equivalent manual workflow, once the units are rendered, against the host
-  `systemd --user` manager (long-form, mirroring qsu's README quick-start):
+  Once the units are rendered, the same VM is driven by hand against the host
+  `systemd --user` manager, mirroring qsu's README quick-start:
 
-  systemctl --user daemon-reload systemctl --user start qemu-system@<vm>
-  systemctl --user list-units 'qemu-system@*' journalctl
-  --user-unit=qemu-system@<vm>.service systemctl --user stop qemu-system@<vm>
+      systemctl --user start qemu-system@<vm>
+      systemctl --user list-units 'qemu-system@*'
+      journalctl --user-unit=qemu-system@<vm>.service
+      systemctl --user stop qemu-system@<vm>
 value:
   modules:
     - id: render_qemu_system

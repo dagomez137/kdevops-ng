@@ -1,11 +1,12 @@
 summary: Stop a VM
 description: |-
   `systemctl --user stop qemu-system@<vm>`, which runs the unit's graceful
-  `ExecStop=` (QMP `system_powerdown`, then SIGKILL after
-  `TimeoutStopSec=2min`). Best-effort: a partially-cleaned tree still stops
-  cleanly, so a non-zero rc is not fatal. virtiofsd auto-stops via
-  `StopWhenUnneeded=yes`. Leaves the rendered units and state in place; use
-  `destroy` to remove them.
+  `ExecStop=` (QMP `system_powerdown`, then SIGKILL after its stop timeout).
+  Best-effort: a partially-cleaned tree still stops cleanly, so a non-zero rc is
+  not fatal.
+
+  Leaves the rendered units and the VM's state in place; use `destroy` to remove
+  them.
 lock: '!inline f/qsu/stop.script.lock'
 kind: script
 schema:

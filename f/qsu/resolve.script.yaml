@@ -1,11 +1,13 @@
 summary: Resolve a bringup's reuse artifacts
 description: |-
   Map a bringup's reuse picks to the boot manifest: a store-index
-  `kernel-<release>` / `qemu-<identity>` back to the image + modules / the
+  `kernel-<release>` or `qemu-<identity>` back to the image and modules or the
   `qemu-system-*` binary, and a closure `reuse` to the `init`/`initrd` and share
-  contract a refreshed VM recorded in its render sidecar. Always returns the
-  host operator (the closure build's `home_dir` default). An unresolvable pick
-  raises.
+  contract a refreshed VM recorded in its render sidecar.
+
+  Always returns the host operator (the closure build's `home_dir` default). A
+  pick that no longer resolves raises here, rather than rendering a VM that
+  cannot boot.
 lock: '!inline f/qsu/resolve.script.lock'
 kind: script
 schema:
