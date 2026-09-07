@@ -1,17 +1,12 @@
 summary: Stop a group on a guest
 description: |-
-  Stop `blktests@<group>.service` on the guest over vsock-SSH (plus
-  `reset-failed` to clear any latched state), then stop any lingering
-  `blktests-*.scope` unit: the per-test transient scopes live outside the
-  service cgroup, so stopping the service alone can orphan an in-flight scoped
-  test. Wired as the `check.flow` `failure_module` so cancelling a run from
-  the Windmill UI, or any step erroring out mid-group, tears the running unit
-  down on the guest. Stops are idempotent; a guest unreachable from the worker
-  is logged and skipped so the failure handler never itself fails.
-  Force-stopping a Windmill job bypasses `failure_module`; the manual fallback
-  is `systemctl --host <vm> stop blktests@<group>.service`.
+  Stop the run's `blktests@<group>.service` units on the guest over vsock-SSH,
+  and any lingering per-test `blktests-*.scope`. Wired as `check.flow`'s
+  `failure_module`, so cancelling a run from the Windmill UI tears the guest
+  side down instead of leaving `./check` burning CPU.
 
-  Returns `{vm_name, stopped, skipped_no_transport}`.
+  Returns `{vm_name, stopped, skipped_no_transport}`. Idempotent; a guest
+  unreachable from the worker is logged and skipped, never raised.
 lock: '!inline f/blktests/stop.script.lock'
 kind: script
 schema:

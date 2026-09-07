@@ -8,28 +8,12 @@ description: |-
   one-to-one to a `./check` positional or a `config` variable blktests itself
   defines; there is no wrapper vocabulary.
 
-  Steps mirror blktests/systemd vocabulary 1:1:
-
-  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
-  is-system-running`, the `blktests@.service` template present, the packaged
-  `./check` executable) and enumerate its `/dev/nvme*n1` devices, installed
-  groups, and kernel release. 2. `render_config`: write the one rendered
-  blktests `config` and each selected group's `BLKTESTS_ARGS`
-  `EnvironmentFile` onto the host side of the share; the ordered groups drive
-  the loop. 3. for each `group`, sequentially: `wipe` (chosen `TEST_DEVS`
-  only, doubly gated) → `start` (remove the group's previous
-  `results/*/<group>` subtrees from the share, then `systemctl --host <vm>
-  start --no-block blktests@<group>`) → `wait` (poll `show
-  --property=Result,ExecMainStatus,ActiveState` to terminal, crash-check the
-  host `qemu-system@<vm>`) → `collect` (walk the group's per-test TSV rows
-  from the share, gated by the run's crash/timeout/unit outcome; zero result
-  files is `notrun`, never a pass). 4. `report`: aggregate the per-group
-  results into one summary. 5. `judge`: fail the job unless every group
-  passed.
-
-  The lifecycle and control steps run on the `vm` worker tag (the dedicated
-  worker that reaches the guest over the vsock-SSH transport); the long-lived
-  `wait` poll runs on `vm-run`. Returns the `report` summary.
+  Each selected group runs sequentially through wipe, start, wait and
+  collect, so one group's devices and results are never in flight while
+  another group runs. The lifecycle and control steps run on the `vm` worker
+  tag (the dedicated worker that reaches the guest over the vsock-SSH
+  transport); the long-lived `wait` poll runs on `vm-run`. Returns the
+  `report` summary.
 value:
   modules:
     - id: discover

@@ -1,19 +1,12 @@
 summary: Start a group on a guest
 description: |-
-  Remove the group's previous result subtrees (`results/*/<group>`) from the
-  host side of the share (`./check` writes one TSV file per test only as it
-  runs, and a failed `group_requires` writes zero files while exiting 0, so a
-  leftover tree from an earlier run of the same group on the same kernel would
-  otherwise read as a false pass for a run that skipped or never started),
-  then start `blktests@<group>.service` on the guest over vsock-SSH with
-  `--no-block`. The unit is `Type=oneshot`, so a blocking `start` would not
-  return until the whole group finished (hours); `--no-block` returns
-  immediately and `f/blktests/wait` polls for the outcome. The `ActiveState`
-  read-back after the start is informational only: a small or all-skip group
-  can finish before it, so a terminal state here is a legitimate
-  already-finished run, never a start failure.
+  Clear the group's previous results from the share, then start
+  `blktests@<group>.service` on the guest over vsock-SSH with `--no-block`,
+  so the call returns while `./check` runs. `f/blktests/wait` polls for the
+  outcome.
 
-  Returns `{vm, group, unit, active_state}`.
+  Returns `{vm, group, unit, active_state}`; `active_state` is informational,
+  never a verdict.
 lock: '!inline f/blktests/start.script.lock'
 kind: script
 schema:

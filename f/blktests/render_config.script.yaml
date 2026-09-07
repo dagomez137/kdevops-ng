@@ -1,25 +1,13 @@
 summary: Render the blktests run config
 description: |-
-  Write the blktests run's host-side config onto the VM's `blktests` virtiofs
-  share (`$WORKERS_DIR/shared/blktests/<vm>/`), the files the guest's
-  `blktests@<group>.service` reads from its `/var/lib/blktests` mount:
+  Write the run's `config` and one `<group>.env` per selected group onto the
+  host side of the VM's `blktests` share
+  (`$WORKERS_DIR/shared/blktests/<vm>/`), the files the guest's
+  `blktests@<group>.service` reads from its `/var/lib/blktests` mount.
 
-  - `config`: the one rendered blktests config (a sourced Bash file the unit
-  passes to `./check` via `--config`). Every knob maps one-to-one to an upstream
-  `config.example` variable under its upstream name; only what the form carries
-  is emitted (`NORMAL_USER` always, and the form pre-fills
-  `NVME_IMG_SIZE`/`NVME_NUM_ITER` with upstream's own defaults), with
-  `TEST_DEVS`/`EXCLUDE` as Bash arrays. The gated raw `config` override replaces
-  the rendered file wholesale. - `<group>.env`: the systemd per-instance
-  `EnvironmentFile` (read as `%i.env`): `BLKTESTS_ARGS=<positionals>` (the group
-  name, or that group's explicit `group/nnn` test list). The unit itself
-  supplies `--output=.../%v/results`, so results are keyed by the guest's kernel
-  release.
-
-  All files are written atomically and echoed to the job log. Returns the
-  ordered group names for the per-group forloop plus the written paths; stale
-  `<group>.env` files are pruned, and `clean_results` removes the whole
-  `<kver>/results` tree for a fresh start. The host never contacts the guest.
+  Returns the ordered group names that drive the per-group forloop, plus the
+  written paths. `clean_results` wipes the whole `<kver>/results` tree first,
+  for a fresh start. The host never contacts the guest.
 lock: '!inline f/blktests/render_config.script.lock'
 kind: script
 schema:

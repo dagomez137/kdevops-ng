@@ -1,21 +1,14 @@
 summary: 'Collect a group''s results from the share'
 description: |-
-  Read one blktests group's per-test TSV results back from the `blktests`
-  virtiofs share. The guest's `./check` writes one file per test at
-  `$WORKERS_DIR/shared/blktests/<vm>/<kver>/results/<devdir>/<group>/<nnn>`
-  (results follow the unit's `--output=.../%v/results`, so they are keyed by
-  the guest's kernel release); `f/blktests/start` removed the group's previous
-  subtrees before starting, so anything present is this run's. `<devdir>` is
-  `nodev` or a device basename, optionally suffixed by a set_conditions
-  variant, so one test number can yield several rows; every row is reported,
-  keyed (devdir, group/nnn), failures first, each with its `reason` and
-  runtime. Returns `{group, status, crashed, timed_out, started_realtime_ms,
-  ended_realtime_ms, rows, stats}` with `stats` the pass/fail/notrun counts.
+  Read one group's per-test TSV results back from the `blktests` share, under
+  `$WORKERS_DIR/shared/blktests/<vm>/<kver>/results/`. One test number can
+  yield several rows (one per device dir and set_conditions variant); every
+  row is reported, failures first, each with its `reason` and runtime.
 
-  A crashed guest, a timed-out group, or a unit that did not finish cleanly
-  (`unit_ok` false) is `failed` even when rows exist; ZERO rows is `notrun`
-  and never a pass (a failed `group_requires` prints one stdout-only line,
-  writes no files, and exits 0). Read-only; the host never contacts the guest.
+  Returns `{group, status, crashed, timed_out, started_realtime_ms,
+  ended_realtime_ms, rows, stats}`, `stats` being the pass/fail/notrun counts.
+  The run's outcome from `f/blktests/wait` gates the verdict, and zero rows is
+  `notrun`, never a pass. Read-only; the host never contacts the guest.
 lock: '!inline f/blktests/collect.script.lock'
 kind: script
 schema:
