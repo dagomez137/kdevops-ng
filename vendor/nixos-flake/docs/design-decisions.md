@@ -218,6 +218,10 @@ non-essential modules. This reduces the system closure size from
 ~500MB to ~200MB. The closure contains only systemd, SSH, network
 configuration, and coreutils.
 
+Libvirt does not import this profile. A disk-image deployment
+persists across boots and carries the full system, which is also why
+it can use the scripted-networking path the minimal profile excludes.
+
 ## Password authentication
 
 ```nix
