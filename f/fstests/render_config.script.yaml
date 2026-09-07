@@ -1,25 +1,19 @@
 summary: Render the xfstests run config
 description: |-
-  Write the xfstests run's host-side config onto the VM's `fstests` virtiofs
-  share (`$WORKERS_DIR/shared/fstests/<vm>/`), the files the guest's
-  `xfstests@<section>.service` reads from its `/var/lib/xfstests` mount, one set
-  per selected section:
+  Write one `<section>.config` and `<section>.env` per section onto the host
+  side of the VM's `fstests` share (`$WORKERS_DIR/shared/fstests/<vm>/`), the
+  files the guest's `xfstests@<section>.service` reads from its
+  `/var/lib/xfstests` mount.
 
-  - `<section>.config`: that section's one-section `HOST_OPTIONS` config. The
-  device-agnostic editable catalog (the `local.config` field; default = the
-  shipped XFS profile matrix, `FSTYP=xfs` plus each section's
-  `MKFS_OPTIONS`/`MOUNT_OPTIONS`) is the source: its section list is
-  auto-discovered, `sections` narrows the run (empty = all), and the discovered
-  `devices` are injected into each selected section at render time. -
-  `<section>.env`: the systemd per-instance `EnvironmentFile` (read as
-  `%i.env`): `HOST_OPTIONS=/var/lib/xfstests/<section>.config` (the **guest**
-  path; `./check` runs in the guest) and `XFSTESTS_CHECK_ARGS` composed from the
-  Check group. `RESULT_BASE` is left unset; the `xfstests-check` wrapper forces
-  it to `$PWD/results`.
+  The editable `local.config` catalog is the source: its section list is
+  auto-discovered, `sections` narrows the run (empty = all), and the
+  discovered devices are injected per section at render time. By default every
+  device-valid catalog section is armed, so a later `-s <section>` run needs no
+  re-render.
 
-  All files are written atomically and echoed to the job log; `results/` is
-  created for the guest to write into. Returns the `[section]` names for the
-  per-section forloop plus the written paths. The host never contacts the guest.
+  Returns the `[section]` names that drive the per-section forloop, the
+  written paths, and any sections skipped as device-invalid. The host never
+  contacts the guest.
 lock: '!inline f/fstests/render_config.script.lock'
 kind: script
 schema:

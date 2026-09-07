@@ -1,17 +1,12 @@
 summary: Start a section on a guest
 description: |-
-  Remove the section's previous `result.xml` from the host side of the share
-  (xfstests writes the xunit report only at run end and never truncates it at
-  start, so a leftover report from an earlier run of the same section on the
-  same kernel would otherwise read as a false pass for a run that crashed or
-  never finished), then start `xfstests@<section>.service` on the guest over
-  vsock-SSH with `--no-block`. The unit is `Type=oneshot`, so a blocking `start`
-  would not return until the whole section finished (hours); `--no-block`
-  returns immediately and `f/fstests/wait` polls for the outcome. After
-  starting, reads back `ActiveState` and asserts it is `activating`/`active`, so
-  a start that never took fails here.
+  Clear the section's previous `result.xml` from the share, then start
+  `xfstests@<section>.service` on the guest over vsock-SSH with `--no-block`,
+  so the call returns while `./check` runs. `f/fstests/wait` polls for the
+  outcome.
 
-  Returns `{vm, section, unit, active_state}`.
+  Returns `{vm, section, unit, active_state}`. A start that never took fails
+  here rather than silently in the wait step.
 lock: '!inline f/fstests/start.script.lock'
 kind: script
 schema:

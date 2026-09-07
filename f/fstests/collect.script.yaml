@@ -1,22 +1,16 @@
 summary: 'Collect a section''s results from the share'
 description: |-
-  Read one xfstests section's `-R xunit` report back from the `fstests` virtiofs
-  share. The guest's `./check -s <section>` writes
-  `$WORKERS_DIR/shared/fstests/<vm>/<kver>/results/<section>/result.xml`
-  (RESULT_BASE follows the unit's `WorkingDirectory=.../%v`, so results are
-  keyed by the guest's kernel release); `f/fstests/start` removed any previous
-  run's report before starting, so anything present is this run's. Returns a
-  scalar overview `{section, fstype, status, crashed, timed_out,
+  Read one section's `-R xunit` report back from the `fstests` share, under
+  `$WORKERS_DIR/shared/fstests/<vm>/<kver>/results/<section>/`.
+
+  Returns a scalar overview `{section, fstype, status, crashed, timed_out,
   started_realtime_ms, ended_realtime_ms, report_present, tests, passed,
-  failed, notrun, iterations}` (so the check flow's per-section
-  forloop renders a tidy one-row-per-section table) plus a `detail` object
-  carrying the per-test rows, failing test names with their messages, the
-  notruns, the configured filesystem `geometry` (FSTYP, mkfs/mount options,
-  block/sector size from the rendered `<section>.config`), and the paths of any
-  `.out.bad` diffs and the section `check.log` (consumed by `f/fstests/report`).
-  A crashed guest or an aborted (timed-out) section is `failed` even when a
-  report exists; a missing or partial report degrades to zeros with
-  `report_present` false. Read-only; the host never contacts the guest.
+  failed, notrun, iterations}` plus a `detail` object carrying the per-test
+  rows, the failing tests with their messages, the notruns, the configured
+  filesystem `geometry`, and the paths of any `.out.bad` diffs and the section
+  `check.log`. The run's outcome from `f/fstests/wait` gates the verdict, and a
+  missing report degrades to zeros with `report_present` false rather than
+  raising. Read-only; the host never contacts the guest.
 lock: '!inline f/fstests/collect.script.lock'
 kind: script
 schema:

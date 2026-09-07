@@ -8,7 +8,9 @@ The guest's `./check -s <section> -R xunit` writes its report to
 (this run's: `f/fstests/start` removed any previous run's report before starting)
 and returns a summary (`passed`/`failed`/`skipped`, the failing test names +
 messages, the notruns), plus the paths of any `.out.bad` diffs and the section
-`check.log` xfstests left beside it. The verdict is gated by the run's outcome
+`check.log` xfstests left beside it. The counts stay scalar at the top level and
+everything per-test hangs off `detail`, so the flow's per-section forloop renders
+one tidy row per section instead of a nested blob. The verdict is gated by the run's outcome
 from `f/fstests/wait`: a crashed guest or an aborted (timed-out) section is
 `failed` even when a report exists, and a missing report degrades to zeros with
 a flag rather than raising. Read-only; the host never contacts the guest.

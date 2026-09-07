@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Prepare a booted guest for one xfstests section over vsock-SSH.
 
-Loads the section's filesystem driver and creates the xfstests mount points for
-the section whose `xfstests@<section>.service` reads its own `<section>.config`
+Loads the section's filesystem driver and creates the xfstests mount points
+(`TEST_DIR`, `SCRATCH_MNT`), which live on the guest's tmpfs root and are lost
+each boot, for the section whose `xfstests@<section>.service` reads its own `<section>.config`
 (via `<section>.env`); this step no longer writes `local.config`. It does NOT
 format or mount any device: xfstests owns that. `./check` reformats `SCRATCH_DEV`
 before every test, mounts and unmounts both `TEST_DEV` and `SCRATCH_DEV` itself

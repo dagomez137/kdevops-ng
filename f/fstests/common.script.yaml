@@ -1,14 +1,12 @@
 summary: xfstests share config and result helpers
 description: |-
   Library module imported by the `f/fstests/*` steps (`from f.fstests.common
-  import share_dir, render_local_config, parse_sections, ...`). Not a runnable
-  step on its own. Holds the host end of the single rw `fstests` virtiofs share
-  the guest mounts at `/var/lib/xfstests`: it renders each section's
-  `HOST_OPTIONS` config (`<section>.config`) and its systemd `EnvironmentFile`
-  (`<section>.env`) the `xfstests@<section>.service` unit reads, parses
-  `[section]` headers, composes the verbatim `./check` flag string, and parses
-  the `-R xunit` `result.xml` the guest writes to `RESULT_BASE`. Never contacts
-  the guest.
+  import share_dir, render_local_config, parse_sections, ...`), not a runnable
+  step. Holds the host end of the `fstests` virtiofs share: the per-section
+  `HOST_OPTIONS` config and `EnvironmentFile` renderers, the `[section]`
+  parser, the `./check` flag composer, and the `-R xunit` report parser. The
+  module header states the share contract both ends keep. Never contacts the
+  guest.
 lock: '!inline f/fstests/common.script.lock'
 kind: script
 schema:

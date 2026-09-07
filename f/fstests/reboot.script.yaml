@@ -1,16 +1,12 @@
 summary: Cold power-cycle a guest and wait
 description: |-
-  Run-global startup step: cold power-cycle a guest by restarting its host
-  `qemu-system@<vm>.service` unit, then block until a fresh boot reaches
-  `running`/`degraded`: clears leaked kernel state, stuck D-state tasks, and
-  dirty page cache before a run. Off by default.
+  Run-global startup step, off by default: cold power-cycle a guest by
+  restarting its host `qemu-system@<vm>.service` unit, then block until a fresh
+  boot reaches `running`/`degraded`, so a run starts from clean kernel state.
 
-  A HOST power-cycle, not a guest `systemctl reboot`: it can't hang on a wedged
-  guest (SIGKILL on the unit's stop timeout) and fully resets device/kernel
-  state. The device wipe is a SEPARATE step (`f/fstests/wipe`); run this before
-  it so the wipe acts on a fresh boot.
-
-  Returns `{vm, rebooted}` (`+ boot_id`, `system_state` when it rebooted).
+  Run it before `f/fstests/wipe`, which is a separate step, so the wipe acts on
+  a fresh boot. Returns `{vm, rebooted}`, plus `boot_id` and `system_state`
+  when it did reboot.
 lock: '!inline f/fstests/reboot.script.lock'
 kind: script
 schema:
