@@ -50,12 +50,11 @@ in
     nfs-utils
     cifs-utils
 
-    # The xfstests-dev test harness. The overlay in overlays/xfstests.nix
-    # bumps the nixpkgs version (2023.05.14 broken with modern GCC) to
-    # a current upstream snapshot. Installing it here puts `check` on
-    # the guest's PATH via /run/current-system/sw/bin so consumers
-    # that skip the in-guest clone-and-build path can drive the same
-    # binary the package builds from source.
+    # The xfstests-dev test harness, as overlays/xfstests.nix builds it
+    # (that file states which version it pins and why). Installing it
+    # here puts `check` on the guest's PATH via /run/current-system/sw/bin
+    # so consumers that skip the in-guest clone-and-build path can drive
+    # the same binary the package builds from source.
     xfstests
 
     # Runtime deps xfstests ./check (and the individual test scripts
