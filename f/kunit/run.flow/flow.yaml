@@ -6,22 +6,11 @@ description: |-
   `kunit-results@<suite>.service` reads back an init-only suite's boot-time
   results.
 
-  Steps mirror KUnit/systemd vocabulary 1:1:
+  Each suite runs sequentially through start, wait and collect. The lifecycle
+  and control steps run on the `vm` worker tag (the dedicated worker that
+  reaches the guest over the vsock-SSH transport); the `wait` poll runs on
+  `vm-run`, so a hung or oopsing suite never starves a quick control op.
 
-  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
-  is-system-running`, the `kunit@.service` template present, `/sys/kernel/
-  debug/kunit/` mounted, at least one suite exposed) and enumerate the suites
-  and which are re-runnable. 2. for each `suite`: `start` (capture a guest
-  journal cursor, then `systemctl --host <vm> start --no-block` the suite's
-  unit) → `wait` (poll the unit's journal past the cursor for systemd's
-  job-outcome record, crash-check the host `qemu-system@<vm>`) → `collect`
-  (parse the run-scoped KTAP `wait` captured; plan-checked, so a truncated
-  journal never passes). 3. `report`: aggregate the per-suite results into one
-  summary. 4. `judge`: fail the job unless every suite passed.
-
-  The lifecycle and control steps run on the `vm` worker tag (the dedicated
-  worker that reaches the guest over the vsock-SSH transport); the `wait` poll
-  runs on `vm-run`, so a hung or oopsing suite never starves a quick control op.
   Empty **Suites** runs every re-runnable suite the guest exposes (an init-only
   suite has no `run` node and only carries results when the kernel opted into
   boot-time autorun, so it runs only when picked explicitly); the curated

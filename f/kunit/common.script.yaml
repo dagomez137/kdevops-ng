@@ -1,11 +1,10 @@
 summary: KTAP parser and KUnit suite listing
 description: |-
   Library module imported by the `f/kunit/*` steps (`from f.kunit.common import
-  parse_ktap, list_suites, ...`). Not a runnable step on its own. Parses the
-  KTAP a KUnit suite emits to its `kunit@<suite>.service` journal into per-test
-  pass/fail/notrun counts, lists a booted guest's available suites from
-  `/sys/kernel/debug/kunit/`, and writes the run's `report.json` rollup onto the
-  shared `kunit` tree. Never contacts the guest except through the
+  parse_ktap, list_suites, ...`), not a runnable step. Parses the KTAP a suite
+  emits to its `kunit@<suite>.service` journal, lists a booted guest's
+  available suites from `/sys/kernel/debug/kunit/`, and writes the run's rollup
+  onto the shared `kunit` tree. Contacts the guest only through the
   `f.common.remote` transport in `list_suites`.
 lock: '!inline f/kunit/common.script.lock'
 kind: script

@@ -1,11 +1,9 @@
 summary: Fail the job unless the run passed
 description: |-
-  Apply `f.kunit.common.run_status` (the one rule `f/kunit/report` also uses) to
-  the per-suite collect results and raise unless every suite passed, so a red
-  run is a red Windmill job: schedules, callers, and flows embedding this one
-  see the verdict in the job state, not only in the report tables. On a pass,
-  return the report rollup unchanged, keeping the report's tables as the flow
-  result. The report step's own result stays viewable either way.
+  Raise unless every suite passed, so a red run is a red Windmill job that
+  schedules, callers and embedding flows can see in the job state and not only
+  in the report tables. On a pass, return the report rollup unchanged. The
+  report step's own result stays viewable either way.
 lock: '!inline f/kunit/judge.script.lock'
 kind: script
 schema:

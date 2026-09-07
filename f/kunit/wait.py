@@ -20,7 +20,8 @@ A KUnit suite is sub-second, so the poll deadline only matters for a hang or an
 oops. Each poll also checks the host `qemu-system@<vm>.service`: any not-alive
 state (`failed`, or `inactive` after a clean outside stop) means the guest is
 gone and the wait ends with `crashed=True` rather than burning the timeout on a
-dead transport.
+dead transport. On expiry the unit is stopped, so a timed-out suite leaves
+nothing running on the guest for the next one to contend with.
 
 Equivalent commands:
 

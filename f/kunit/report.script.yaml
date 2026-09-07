@@ -1,15 +1,10 @@
 summary: Aggregate suite results into a verdict
 description: |-
-  Fold the list of `f/kunit/collect` results (one per suite) into one rollup,
-  with a `status` of `passed` only when every suite passed (a failed, crashed,
-  or notrun suite fails the run, and so does an empty suite list; `run_status`
-  is the one rule shared with `f/kunit/judge`). Returns a Windmill `render_all`
-  of three native tables (no markdown): run info (testsuite, kernel, guest,
-  time(s)), one row per suite (suite, tests, passed, failed, notrun, time(s),
-  status), and one row per test across all suites (failures first). When
-  `vm_name` is given it also writes the structured rollup to
-  `$WORKERS_DIR/shared/kunit/<vm>/<kver>/report.json`. The host never contacts
-  the guest.
+  Fold the per-suite `f/kunit/collect` results into one rollup, `passed` only
+  when every suite passed. Returns a Windmill `render_all` of three native
+  tables: run info, one row per suite, and one row per test across all suites,
+  failures first. With a `vm_name` it also writes the rollup to
+  `<share>/<kver>/report.json`. The host never contacts the guest.
 lock: '!inline f/kunit/report.script.lock'
 kind: script
 schema:

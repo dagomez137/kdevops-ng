@@ -1,19 +1,14 @@
 summary: Fold a suite's KTAP into a verdict
 description: |-
-  Parse the run-scoped KTAP `f/kunit/wait` captured (bounded by start's journal
-  cursor, so it can only be this run's output) into per-test pass/fail/notrun
-  counts; the guest is never contacted, so a crashed guest still gets an honest
-  verdict. `passed` needs the start job finished (`result=done`), the unit's
-  final `cat` exited 0, no crash, no timeout, the suite's `# Subtest` block
-  present with its `1..N` plan matching the parsed result lines (a truncated
-  journal can never pass), and no `not ok` line. A run that passed nothing at
-  all (empty body, or every test skipped) is `notrun`; anything else is
-  `failed`. Returns a scalar overview `{suite, vm_name, kernel_version, status,
-  result, exec_status, crashed, timed_out, runtime, started_realtime_ms,
-  ended_realtime_ms, tests, passed, failed,
-  notrun}` (so the run flow's per-suite forloop renders a tidy
-  one-row-per-suite table) plus a `detail` object carrying the per-test rows,
-  the failing tests, and the raw KTAP (consumed by `f/kunit/report`).
+  Parse the run-scoped KTAP `f/kunit/wait` captured into per-test
+  pass/fail/notrun counts. The guest is never contacted, so a crashed guest
+  still gets an honest verdict.
+
+  Returns a scalar overview `{suite, vm_name, kernel_version, status, result,
+  exec_status, crashed, timed_out, runtime, started_realtime_ms,
+  ended_realtime_ms, tests, passed, failed, notrun}` plus a `detail` object
+  carrying the per-test rows, the failing tests and the raw KTAP. A suite that
+  passed nothing at all is `notrun`, never a silent pass.
 lock: '!inline f/kunit/collect.script.lock'
 kind: script
 schema:

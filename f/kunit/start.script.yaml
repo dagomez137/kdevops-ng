@@ -2,14 +2,12 @@ summary: Start a KUnit suite on a guest
 description: |-
   Capture the guest journal's end-of-now cursor, then start the suite's unit
   over vsock-SSH with `--no-block`: `kunit@<suite>.service` for a re-runnable
-  suite, `kunit-results@<suite>.service` for an init-only suite (no debugfs
-  `run` node; only its boot-time results can be read). The cursor is the run's
-  identity: journal entries past it belong to this run and nothing before it
-  does, however fast the oneshot finishes, so `wait`/`collect` can never confuse
-  this run with a previous one. The unit's exit codes carry no pass/fail
-  verdict; the verdict is the KTAP in the journal.
+  suite, `kunit-results@<suite>.service` for an init-only one, whose boot-time
+  results are all there is to read.
 
-  Returns `{vm, suite, unit, cursor}`.
+  Returns `{vm, suite, unit, cursor}`. The cursor is the run's identity: wait
+  and collect read only past it, so they can never confuse this run with a
+  previous one, however fast the oneshot finishes.
 lock: '!inline f/kunit/start.script.lock'
 kind: script
 schema:
