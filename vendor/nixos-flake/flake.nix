@@ -109,26 +109,25 @@
       };
 
       # Expose the custom packages as direct flake outputs so they can be
-      # built without going through a NixOS configuration.
-      packages = forAllSystems (pkgs: {
-        inherit (pkgs)
-          blktests
-          cpupower
-          damo
-          ebpf_exporter
-          ebpf-syscall
-          libbpf-tools
-          nfstest
-          pynfs
-          systing
-          xnvme
-          qemu
-          virtiofsd
-          socat
-          git
-          git-subrepo
-          ;
-      });
+      # built without going through a NixOS configuration, alongside the
+      # nixpkgs tools a consumer resolves from here.
+      #
+      # The custom set is named by pkgs/default.nix, not repeated here:
+      # intersectAttrs reads its attribute names (lazily, so no package is
+      # evaluated) and takes the matching values from the overlaid pkgs.
+      packages = forAllSystems (
+        pkgs:
+        builtins.intersectAttrs (import ./pkgs { }) pkgs
+        // {
+          inherit (pkgs)
+            qemu
+            virtiofsd
+            socat
+            git
+            git-subrepo
+            ;
+        }
+      );
 
       # Reproducible build toolchains usable on any host (NixOS or not). Nix
       # provides the environment; the build picks the compiler/flags inside it.
