@@ -1,18 +1,12 @@
 summary: Resolve source overrides (b4 series + developer group)
 description: |-
-  Resolve the closure's source overrides before rendering. An override with
-  a `b4_series` gets the kernel-build treatment: the project's worker
-  worktree is laid at the ref, the mailed series is applied with `b4 am`,
-  and the result is published to the Bare as `b4/<slug>`; the override's
-  effective ref becomes that published branch. The one developer group a
-  deploy tail uses is derived here too: a series names it after its cover
-  subject, an upstream tag keeps `vanilla`, a full commit id its short sha,
-  and any other ref its own slug; differing derivations warn in the job log
-  and the first wins.
+  Resolve the closure's source overrides before rendering: an override carrying
+  a `b4_series` gets the kernel-build treatment, so the flake input clones
+  exactly what was reviewed rather than the bare ref.
 
   Returns the effective `source_overrides` (`{pkg: {ref}}`) for
-  `render_config`, the `overrides` rows (`{pkg, project, ref}`) for the
-  deploy tail, and the `worktree_group`.
+  `render_config`, the `overrides` rows (`{pkg, project, ref}`) for the deploy
+  tail, and the `worktree_group` the tail lays its worktrees under.
 lock: '!inline f/nix/prepare_overrides.script.lock'
 kind: script
 schema:

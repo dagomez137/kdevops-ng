@@ -7,17 +7,12 @@ description: |-
   `/nix/store` and `/lib/modules` shared from the host). Other products (e.g. a
   disk-image `libvirt` system) could be added under this same flow later. This
   is the Windmill reimplementation of kdevops's `nixosfi` role; booting the
-  closure is the qsu half (parked: see notes/windmill/qsu-execution-model.md).
+  closure is the qsu half (see notes/windmill/qsu-execution-model.md).
 
-  Steps (pinned to one worker via `same_worker`, so each sees the previous
+  Steps are pinned to one worker (`same_worker`), so each sees the previous
   step's per-VM config directory under
-  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`):
-
-  1. `render_config`: write `flake.nix` (from the vendored imageless template) +
-  `default.nix` (composed from the typed inputs: profiles, testSuites, shares,
-  SSH keys, source overrides). 2. `lock_config`: `nix flake lock` the per-VM
-  config for reproducibility. 3. `build_closure`: `nix build .#toplevel` and
-  read the bootspec (`init`/`initrd`) from `boot.json`.
+  `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`, and each is independently
+  runnable.
 
   By default the system is fully featured: every guest profile (devel,
   build-tools, monitoring) and all eight test suites. `controller` is a host

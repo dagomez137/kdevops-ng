@@ -4,18 +4,14 @@ description: |-
   `$WORKERS_DIR/$WORKER_INDEX/nix/<vm_name>/`: the Windmill equivalent of
   kdevops's `nixosfi` generate-configs phase.
 
-  - `flake.nix` is a near-verbatim copy of the vendored imageless **template**
-  (`vendor/nixos-flake/templates/imageless/flake.nix`); only the `nixos-flake`
-  path input is set, plus one `<pkg>-src` non-flake input per source override.
-  The closure it builds is therefore byte-for-byte what kdevops builds. -
-  `default.nix` is generated from the typed inputs and carries the per-VM
-  composition: which `profiles.*` / `testSuites.*` / `mounts.shares` to import,
-  the hostname, SSH keys, virtiofs shares, and package source overrides. The
-  flake's modules list already imports the imageless backend + user + overlay,
-  so this file only adds to that.
+  `flake.nix` is a near-verbatim copy of the vendored imageless **template**, so
+  the closure it builds is byte-for-byte what kdevops builds; `default.nix` is
+  generated from the typed inputs below and carries the per-VM composition,
+  which `profiles.*`, `testSuites.*` and `mounts.shares` to import, the
+  hostname, SSH keys, virtiofs shares and package source overrides.
 
-  Both files are echoed to the job log. Returns `config_dir` for the lock/build
-  steps.
+  Both files are echoed to the job log. Returns `config_dir` for the lock and
+  build steps.
 lock: '!inline f/nix/render_config.script.lock'
 kind: script
 schema:
