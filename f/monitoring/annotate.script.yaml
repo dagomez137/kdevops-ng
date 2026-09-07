@@ -1,22 +1,18 @@
 summary: Post the run window to Grafana
 description: |-
-  Post one region annotation spanning the suite run's wall-clock window (the
-  earliest `started_realtime_ms` to the latest `ended_realtime_ms` over the
-  per-item collect results) to Grafana's `/api/annotations`, tagged
-  `suite-run` plus the suite, VM, kernel, and verdict, so the shipped
-  dashboard's annotations panel (filtering tag `suite-run`) shows test runs
-  over the metrics.
+  Post one region annotation spanning the suite run's wall-clock window to
+  Grafana, tagged `suite-run` plus the suite, VM, kernel and verdict, so the
+  shipped dashboard's annotations panel shows test runs over the metrics.
 
-  One-time setup: create the Windmill resource `f/monitoring/grafana` by hand
-  in the UI with fields `base_url` (such as `http://127.0.0.1:3000`) and
-  `token` (a Grafana service-account token). It is intentionally kept out of
-  git (a sync would clobber it); this step fetches it at runtime. When the
-  resource is absent or blank, or no item carries a usable window, the step
-  logs why and returns `{posted: false}` instead of failing the run; a
-  configured but broken Grafana does fail the step.
+  One-time setup: create the Windmill resource `f/monitoring/grafana` by hand in
+  the UI, with fields `base_url` (such as `http://127.0.0.1:3000`) and `token`
+  (a Grafana service-account token). It is deliberately kept out of git, since a
+  sync would clobber it, and this step fetches it at run time.
 
-  Returns `{posted, id, verdict, time, timeEnd}` on a post, else
-  `{posted, reason}`.
+  Returns `{posted, id, verdict, time, timeEnd}` on a post, else `{posted,
+  reason}`: an absent or blank resource, or a run with no usable window, logs
+  why and does not fail the run. A configured but broken Grafana does fail the
+  step.
 lock: '!inline f/monitoring/annotate.script.lock'
 kind: script
 schema:
