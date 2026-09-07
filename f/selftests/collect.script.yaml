@@ -1,21 +1,14 @@
 summary: Fold an item's KTAP into a verdict
 description: |-
-  Parse the run-scoped KTAP `f/selftests/wait` captured (bounded by start's
-  journal cursor, so it can only be this run's output) into per-test
-  pass/fail/notrun counts; the guest is never contacted, so a crashed guest
-  still gets an honest verdict. `passed` needs the start job finished
-  (`result=done`), a clean exit (with `--no-error-on-fail`, passed where the
-  tree's runner supports it, a nonzero exit is an infrastructure error; on an
-  old tree, a test failure), no crash, no timeout, the document's `1..N` plan
-  matching the parsed result lines (a truncated journal can never pass), and no
-  `not ok` line. A run that passed nothing at all (empty body, or every test
-  skipped) is `notrun`; anything else is `failed`. Returns a scalar overview
-  `{item, vm_name, kernel_version, status, result, exec_status, crashed,
-  timed_out, runtime, started_realtime_ms, ended_realtime_ms, tests, passed,
-  failed, skipped}` (so the run flow's
-  per-item forloop renders a tidy one-row-per-item table) plus a `detail`
-  object carrying the per-test rows, the failing tests, and the raw KTAP
-  (consumed by `f/selftests/report`).
+  Parse the run-scoped KTAP `f/selftests/wait` captured into per-test
+  pass/fail/notrun counts. The guest is never contacted, so a crashed guest
+  still gets an honest verdict.
+
+  Returns a scalar overview `{item, vm_name, kernel_version, status, result,
+  exec_status, crashed, timed_out, runtime, started_realtime_ms,
+  ended_realtime_ms, tests, passed, failed, skipped}` plus a `detail` object
+  carrying the per-test rows, the failing tests and the raw KTAP. An item that
+  passed nothing at all is `notrun`, never a silent pass.
 lock: '!inline f/selftests/collect.script.lock'
 kind: script
 schema:

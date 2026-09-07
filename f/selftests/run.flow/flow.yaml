@@ -10,25 +10,13 @@ description: |-
   Nix store (the `kselftests-<kver>` entry the kernel build publishes) and is
   copied onto the guest's writable `selftests` share.
 
-  Steps mirror kselftest/systemd vocabulary 1:1:
+  Each item runs sequentially through start, wait and collect, so one
+  collection's devices and network namespaces are never in flight while another
+  runs. The lifecycle and control steps run on the `vm` worker tag (the
+  dedicated worker that reaches the guest over the vsock-SSH transport); the
+  `wait` poll runs on `vm-run`, so a hung collection never starves a quick
+  control op.
 
-  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
-  is-system-running`, the `kselftest@.service` template present), resolve the
-  running kernel's built tree from the store index, and enumerate its
-  collections from `kselftest-list.txt`. 2. `prepare`: copy the store tree to
-  the share's `<kver>/tree/` (skipped when already current). 3. `render_config`:
-  write `kselftest.env` (the units' `EnvironmentFile`) with the optional
-  per-test timeout override. 4. for each item: `start` (capture a guest journal
-  cursor, then `systemctl --host <vm> start --no-block` the item's unit) →
-  `wait` (poll the unit's journal past the cursor for systemd's job-outcome
-  record, crash-check the host `qemu-system@<vm>`) → `collect` (parse the
-  run-scoped KTAP `wait` captured; plan-checked, so a truncated journal never
-  passes). 5. `report`: aggregate the per-item results into one summary. 6.
-  `judge`: fail the job unless every item passed.
-
-  The lifecycle and control steps run on the `vm` worker tag (the dedicated
-  worker that reaches the guest over the vsock-SSH transport); the `wait` poll
-  runs on `vm-run`, so a hung collection never starves a quick control op.
   **Tests** (explicit COLLECTION:TEST entries) takes precedence over
   **Collections**; both empty runs every collection the built tree lists.
   Returns the `report` summary.

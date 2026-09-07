@@ -1,14 +1,11 @@
 summary: Write kselftest.env onto the share
 description: |-
   Render `<share>/kselftest.env`, the systemd `EnvironmentFile` both guest
-  templates read: `KSELFTEST_ARGS=<extra run_kselftest.sh flags>`.
-  `override_timeout` > 0 emits `-o <seconds>` (`run_kselftest.sh
-  --override-timeout`), replacing every collection's own upstream `settings`
-  timeout (default 45 s per test); 0 emits no flag and keeps the upstream
-  timeouts. Written atomically and echoed to the job log; the host never
-  contacts the guest.
+  templates read, carrying `KSELFTEST_ARGS`. The one knob is the per-test
+  timeout: `override_timeout` > 0 replaces every collection's own upstream
+  `settings` timeout (default 45 s per test), 0 keeps them.
 
-  Returns `{vm, env_path, kselftest_args}`.
+  Returns `{vm, env_path, kselftest_args}`. The host never contacts the guest.
 lock: '!inline f/selftests/render_config.script.lock'
 kind: script
 schema:

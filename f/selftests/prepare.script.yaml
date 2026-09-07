@@ -1,16 +1,11 @@
 summary: Lay the built kselftest tree onto the share
 description: |-
-  Copy the published Nix store tree `discover` resolved to the guest's
-  `selftests` share at `<share>/<kver>/tree/`, the writable directory the
-  `kselftest@<instance>.service` templates execute (`WorkingDirectory=
-  .../%v/tree`; tests write into their collection dirs, so the read-only store
-  path cannot run in place). When the copied tree's `VERSION` and
-  `kselftest-list.txt` already match the store's, the copy is skipped; otherwise
-  any stale tree is removed and replaced (`cp --archive`, then `chmod
-  --recursive u+w`: store modes are read-only). The host never contacts the
-  guest.
+  Copy the store tree `discover` resolved onto the guest's `selftests` share at
+  `<share>/<kver>/tree/`, the writable directory the `kselftest@` templates
+  execute from. An already-matching tree is left in place, so files a caller
+  added beside it survive.
 
-  Returns `{vm, tree, reused}`.
+  Returns `{vm, tree, reused}`. The host never contacts the guest.
 lock: '!inline f/selftests/prepare.script.lock'
 kind: script
 schema:

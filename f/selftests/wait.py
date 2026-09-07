@@ -22,7 +22,8 @@ default 45 s, or the run form's Per-test Timeout), and the unit is
 whole run. Each poll also checks the host `qemu-system@<vm>.service`: any
 not-alive state (`failed`, or `inactive` after a clean outside stop) means the
 guest is gone and the wait ends with `crashed=True` rather than burning the
-timeout on a dead transport.
+timeout on a dead transport. On expiry the unit is stopped, so a timed-out item
+leaves nothing running on the guest for the next one to contend with.
 
 Equivalent commands:
 

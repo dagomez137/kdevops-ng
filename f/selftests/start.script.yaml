@@ -1,17 +1,12 @@
 summary: Start a kselftest run item on a guest
 description: |-
-  Capture the guest journal's end-of-now cursor, then start the item's unit over
-  vsock-SSH with `--no-block`: `kselftest@<instance>.service` for a whole
-  collection (`run_kselftest.sh --collection`), `kselftest-test@<instance>.
-  service` for a single COLLECTION:TEST entry (`run_kselftest.sh --test`); the
-  instance is the systemd-escaped item name. The cursor is the run's identity:
-  journal entries past it belong to this run and nothing before it does, so
-  `wait`/`collect` can never confuse this run with a previous one. The unit's
-  exit codes carry no pass/fail verdict (the templates pass
-  `--no-error-on-fail` where the tree's runner supports it); the verdict is
-  the KTAP in the journal.
+  Capture the guest journal's end-of-now cursor, then start the item's unit
+  over vsock-SSH with `--no-block`, so the call returns while the collection
+  runs. `f/selftests/wait` polls for the outcome.
 
-  Returns `{vm, item, unit, cursor}`.
+  Returns `{vm, item, unit, cursor}`. The cursor is the run's identity: wait
+  and collect read only past it, so they can never confuse this run with a
+  previous one.
 lock: '!inline f/selftests/start.script.lock'
 kind: script
 schema:
