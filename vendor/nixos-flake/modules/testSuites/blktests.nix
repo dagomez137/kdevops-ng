@@ -138,8 +138,8 @@ in
     # profile on PATH; it carries everything this module adds to
     # environment.systemPackages.
     path = [ "/run/current-system/sw" ];
-    # Programmatic re-runs of one group may exceed the default start
-    # rate limit (5 starts per 10 s).
+    # Programmatic re-runs of one group may exceed systemd's default
+    # start rate limit (5 starts per 10 s).
     startLimitIntervalSec = 0;
     serviceConfig = {
       Type = "oneshot";

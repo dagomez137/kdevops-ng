@@ -97,7 +97,8 @@ let
     inherit documentation;
     # The runner and the tests invoke system tools by bare name.
     path = [ "/run/current-system/sw" ];
-    # Programmatic re-runs may exceed the default start rate limit.
+    # Programmatic re-runs of one collection may exceed systemd's
+    # default start rate limit (5 starts per 10 s).
     unitConfig.StartLimitIntervalSec = 0;
   };
 in

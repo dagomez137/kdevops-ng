@@ -34,7 +34,8 @@ in
   systemd.services."usertests@" = {
     description = "Kernel userspace test harness %I";
     inherit documentation;
-    # Programmatic re-runs may exceed the default start rate limit.
+    # Programmatic re-runs of one harness may exceed systemd's default
+    # start rate limit (5 starts per 10 s).
     unitConfig.StartLimitIntervalSec = 0;
     serviceConfig = {
       Type = "oneshot";

@@ -41,8 +41,8 @@ let
   };
   unitCommon = {
     inherit documentation;
-    # Programmatic re-runs of one suite may exceed the default start
-    # rate limit (5 starts per 10 s).
+    # Programmatic re-runs of one suite may exceed systemd's default
+    # start rate limit (5 starts per 10 s).
     unitConfig.StartLimitIntervalSec = 0;
   };
   # A test module is one whose ELF carries the `.kunit_test_suites`
