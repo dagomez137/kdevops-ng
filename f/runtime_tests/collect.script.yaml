@@ -1,28 +1,15 @@
 summary: Judge a module's run-scoped outcome
 description: |-
-  Judge one module load against its catalog entry (pure; the guest is never
-  contacted, so a crashed guest still gets an honest verdict). The rules
-  compose: a crash or timeout fails; the start job must be `done` (a `skipped`
-  outcome means the module was already loaded and nothing ran); the post-run
-  load state must match the catalog's `loaded_on_pass` (the exit-honest class
-  stays loaded on a pass, the auto-unload class must be gone, and test_ida
-  INVERTS the convention: it unloads on pass and stays loaded on failure). The
-  load state stands in for the exit status, which is structurally
-  unobservable: modprobe@'s `-` prefixed `ExecStart` makes any exit expected,
-  and expected exits are logged only at debug level, so `exec_status` is
-  carried for forensics only, never a rule input. Any `WARNING:`/`BUG:`/`Call
-  Trace:` line in the cursor-scoped kmsg fails regardless (the only failure
-  channel of the -EAGAIN class); a module-specific failure regex fails on
-  match; run evidence is required (pass counts that parse, cover at least one
-  test and all pass, or the module's sentinel line), its absence failing a
-  test module and marking a stress/benchmark one `notrun`, never a pass.
+  Judge one module load against its catalog entry. The guest is never
+  contacted, so a crashed guest still gets an honest verdict, and each module
+  is judged by its own upstream exit convention rather than a house rule.
+
   Returns a scalar overview `{item, vm_name, kernel_version, status, result,
   loaded, exec_status, crashed, timed_out, runtime, started_realtime_ms,
-  ended_realtime_ms, tests, passed, failed,
-  skipped}` (so the run flow's per-item forloop renders a tidy
-  one-row-per-item table) plus a `detail` object carrying a synthetic
-  per-module row, the failure reasons, and the kmsg tail (consumed by
-  `f/runtime_tests/report`).
+  ended_realtime_ms, tests, passed, failed, skipped}` plus a `detail` object
+  carrying a synthetic per-module row, the failure reasons and the kmsg tail.
+  A module that produced no run evidence at all fails when it is a test module
+  and is `notrun` when it is a stress or benchmark one, never a pass.
 lock: '!inline f/runtime_tests/collect.script.lock'
 kind: script
 schema:

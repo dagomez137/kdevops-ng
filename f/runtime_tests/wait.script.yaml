@@ -1,31 +1,18 @@
 summary: Wait for a runtime-test module load to finish
 description: |-
-  Poll the guest's journal for the `modprobe@<module>.service` instance
-  `f/runtime_tests/start` started, reading only entries past start's cursor,
-  until systemd's job-outcome record appears: "Finished" (`result=done`),
-  "Failed to start" (`result=failed`), a condition skip (`result=skipped`, the
-  module was already loaded and nothing ran), or "Stopped" for an outside stop.
-  The unit's `ExecStart` carries systemd's `-` prefix, so a failed modprobe
-  still finishes the job `done`, and the init's exit status never reaches the
-  journal (the prefix makes any exit expected, and expected exits are logged
-  only at debug level): `exec_status` is returned for forensics but stays
-  empty. The observable init outcome is the module's post-run load state, so
-  after the job outcome one extra probe checks `/sys/module/<module>` and
-  returns it as `loaded`.
-
-  The suite's results ride the kernel ring buffer, not the unit's output, so
-  each poll also fetches the cursor-scoped `_TRANSPORT=kernel` records; the
-  collected lines are returned as `kmsg`, the verdict channel
-  `f/runtime_tests/collect` scans and parses. Each poll also checks the host
-  `qemu-system@<vm>.service`: any not-alive state means the guest is gone (a
-  crash-on-fail module BUGs it) and the wait ends with `crashed` set. On expiry
-  of the timeout the unit is stopped (`timed_out`).
+  Poll the guest's journal past start's cursor until systemd's own job-outcome
+  record for the unit appears, collecting the cursor-scoped kernel ring buffer
+  as it goes, since that, not the unit's output, is where the suite's results
+  land. One probe of `/sys/module/<module>` after the outcome returns the
+  module's post-run load state. Each poll also checks the host
+  `qemu-system@<vm>.service`, so a guest a crash-on-fail module BUGs ends the
+  wait instead of burning the timeout on a dead transport.
 
   Returns `{vm, module, unit, result, loaded, exec_status, kmsg, crashed,
-  timed_out, runtime, started_realtime_ms, ended_realtime_ms}` (the
-  `*_realtime_ms` pair is the run's wall-clock window in milliseconds since
-  the epoch, from the journal records' `__REALTIME_TIMESTAMP`; null when the
-  record is missing).
+  timed_out, runtime, started_realtime_ms, ended_realtime_ms}`; the
+  `*_realtime_ms` pair is the run's wall-clock window in milliseconds since the
+  epoch, taken from the journal records' `__REALTIME_TIMESTAMP` and null when
+  the record is missing.
 lock: '!inline f/runtime_tests/wait.script.lock'
 kind: script
 schema:

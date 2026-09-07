@@ -30,7 +30,8 @@ Module init is synchronous and unbounded by the unit (`Type=oneshot`), so this
 poll deadline is the only bound on the run. Each poll also checks the host
 `qemu-system@<vm>.service`: any not-alive state (a crash-on-fail module like
 atomic64_test BUGs the guest) ends the wait as `crashed` rather than burning
-the timeout on a dead transport.
+the timeout on a dead transport. On expiry the unit is stopped, so a timed-out
+load leaves nothing running on the guest for the next module to contend with.
 
 Equivalent commands:
 

@@ -5,39 +5,21 @@ description: |-
   an already-booted guest, without rebooting. A run item is a MODULE: loading it
   runs its whole suite in module_init, and the executor is upstream systemd's
   `modprobe@<module>.service` (already on every guest), whose start job
-  synchronizes on the module's init. Exit conventions are per module and
-  deliberately inconsistent upstream, so the curated catalog encodes each one,
-  verified against the sources: the exit-honest class (test_xarray, test_bpf,
-  ...) returns 0 on pass and stays loaded; the auto-unload class (rbtree_test,
-  percpu_test, test_vmalloc, ...) always returns -EAGAIN and reports real
-  failures only as kernel WARNING/BUG lines; test_ida INVERTS the convention
-  (-EINVAL on pass, 0 on fail); atomic64_test BUGs the guest on failure. The
-  unit's `ExecStart` carries systemd's `-` prefix, so the job finishes `done`
-  either way and the init's exit status never reaches the journal (the prefix
-  makes any exit expected, and expected exits are logged only at debug level);
-  the verdict therefore reads the module's post-run load state
+  synchronizes on the module's init.
+
+  The unit's `ExecStart` carries systemd's `-` prefix, so the job finishes
+  `done` either way and the init's exit status never reaches the journal (the
+  prefix makes any exit expected, and expected exits are logged only at debug
+  level). The verdict therefore reads the module's post-run load state
   (`/sys/module/<module>`, which each class's init return determines) plus the
   cursor-scoped kernel journal (pass counts, sentinel lines, WARNING/BUG
-  splats).
+  splats), judged against the curated per-module exit convention.
 
-  Steps mirror the systemd/modprobe vocabulary 1:1:
+  Each module runs sequentially through start, wait and collect. The lifecycle
+  and control steps run on the `vm` worker tag (the dedicated worker that
+  reaches the guest over the vsock-SSH transport); the `wait` poll runs on
+  `vm-run`, so a wedged module load never starves a quick control op.
 
-  1. `discover`: gate the guest over vsock (`systemctl --host <vm>
-  is-system-running`, the `modprobe@.service` template present) and derive the
-  present catalog modules from one read of the booted kernel's `modules.dep`. 2.
-  for each module: `start` (clear the previous instance, unload a stay-loaded
-  module so the tests re-run, capture a guest journal cursor, then `systemctl
-  --host <vm> start --no-block` the instance) → `wait` (poll the unit's journal
-  past the cursor for systemd's job-outcome record, capture the run-scoped
-  kernel journal, probe the module's post-run load state, crash-check the host
-  `qemu-system@<vm>`) → `collect` (judge the outcome against the module's
-  catalog entry; a WARNING/BUG splat, a wrong post-run load state, or missing
-  run evidence never pass). 3. `report`: aggregate the per-module results into
-  one summary. 4. `judge`: fail the job unless every module passed.
-
-  The lifecycle and control steps run on the `vm` worker tag (the dedicated
-  worker that reaches the guest over the vsock-SSH transport); the `wait` poll
-  runs on `vm-run`, so a wedged module load never starves a quick control op.
   **Modules** empty runs every present catalog module. Returns the `report`
   summary.
 value:
