@@ -79,13 +79,13 @@ The same toolchain is available on any host without building a NixOS
 system:
 
 ```shell
-nix develop .#build-kernel -c make ...        # kernel build env (gcc)
-nix develop .#build-kernel -c make LLVM=1 ... # clang
-nix develop .#build-qemu   -c make ...        # QEMU build env
-nix develop .#systemd -c systemctl --user list-units  # host systemd control
+nix develop .#build-kernel -c make ...
 ```
 
-See [docs/usage.md](docs/usage.md) for what each shell provides.
+`build-kernel` and `build-qemu` are the kernel and QEMU build
+environments, `systemd` the host systemd control toolkit. See
+[docs/usage.md](docs/usage.md) for every invocation and what each
+shell provides.
 
 ## How it boots
 
@@ -146,19 +146,13 @@ imageless module declares for the virtiofs case.
 
 ## Controller
 
-The `profiles.controller` module turns a NixOS host into a control node:
-the toolchain to build a kernel and drive `make menuconfig`,
-Ansible and its Python runtime, git, the QEMU and virtiofs
-tooling, and system libvirt with the QEMU/KVM stack. Enable it on
-top of a backend on a real machine:
-
-```nix
-modules = [
-  nixos-flake.nixosModules.backends.libvirt
-  nixos-flake.nixosModules.profiles.controller
-  { nixos-flake.controller.enable = true; }
-];
-```
+The `profiles.controller` module turns a NixOS host into a control
+node: the toolchain to build a kernel and drive `make menuconfig`,
+Ansible and its Python runtime, git, the QEMU and virtiofs tooling,
+and system libvirt with the QEMU/KVM stack. It composes on top of a
+disk-booted backend on a real machine; see
+[Controller host](docs/usage.md#controller-host) for the modules to
+list and how the account reaches libvirt without sudo.
 
 The same host can also import a test-suite module and run the
 suite itself — the baremetal case above, driven from the
