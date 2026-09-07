@@ -9,9 +9,17 @@ why it exists and what it does.
 Why: the whole history is `nixfmt-rfc-style`-clean; a commit that drifts
 breaks that invariant.
 
-What: rewrites every `.nix` file in place to the canonical style. Run
-`git diff` afterwards — a non-empty diff means your change introduced
-unformatted code; stage the reformat.
+What: rewrites every tracked `.nix` file in place to the canonical
+style. Run `git diff` afterwards — a non-empty diff means your change
+introduced unformatted code; stage the reformat.
+
+The formatter is `nixfmt` itself, which takes files. Give it the tracked
+ones; a bare `nix fmt` reads stdin and formats nothing, and passing `.`
+is deprecated.
+
+```shell
+nix fmt $(git ls-files '*.nix')
+```
 
 ## 2. Evaluate and build the system closures — `nix flake check`
 
