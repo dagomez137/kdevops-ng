@@ -62,6 +62,7 @@
     bpf-perf-tools
     bpftools
     bpftrace
+    ebpf_exporter
     ebpf-fix-latency-tool
     ebpf-syscall
     faster-biolatency
@@ -87,6 +88,7 @@
     sysstat
 
     # Test suites and runtime dependencies
+    blktests
     xfstests
 
     # fstests/blktests/selftests runtime dependencies
