@@ -59,6 +59,7 @@
     # BPF and tracing
     bcc
     blktrace
+    bpf-perf-tools
     bpftools
     bpftrace
     ebpf-syscall
