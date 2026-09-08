@@ -62,6 +62,7 @@
     bpf-perf-tools
     bpftools
     bpftrace
+    ebpf-fix-latency-tool
     ebpf-syscall
     faster-biolatency
     fustip

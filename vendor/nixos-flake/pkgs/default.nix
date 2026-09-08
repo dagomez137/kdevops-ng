@@ -17,6 +17,7 @@ pkgs: {
   cpupower = pkgs.callPackage ./cpupower.nix { };
   damo = pkgs.callPackage ./damo.nix { };
   ebpf_exporter = pkgs.callPackage ./ebpf_exporter.nix { };
+  ebpf-fix-latency-tool = pkgs.callPackage ./ebpf-fix-latency-tool.nix { };
   ebpf-syscall = pkgs.callPackage ./ebpf-syscall.nix { };
   faster-biolatency = pkgs.callPackage ./faster-biolatency.nix { };
   fustip = pkgs.callPackage ./fustip.nix { };
