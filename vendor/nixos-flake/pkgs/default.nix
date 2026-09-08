@@ -18,6 +18,7 @@ pkgs: {
   ebpf_exporter = pkgs.callPackage ./ebpf_exporter.nix { };
   ebpf-syscall = pkgs.callPackage ./ebpf-syscall.nix { };
   faster-biolatency = pkgs.callPackage ./faster-biolatency.nix { };
+  fustip = pkgs.callPackage ./fustip.nix { };
   libbpf-tools = pkgs.callPackage ./libbpf-tools.nix { };
   nfstest = pkgs.callPackage ./nfstest.nix { };
   nvme-bpf = pkgs.callPackage ./nvme-bpf.nix { };

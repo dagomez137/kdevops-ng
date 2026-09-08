@@ -63,6 +63,7 @@
     bpftrace
     ebpf-syscall
     faster-biolatency
+    fustip
     libbpf-tools
     nvme-bpf
     systing
