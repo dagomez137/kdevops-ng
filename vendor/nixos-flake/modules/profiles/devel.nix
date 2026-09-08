@@ -64,6 +64,7 @@
     ebpf-syscall
     faster-biolatency
     libbpf-tools
+    nvme-bpf
     systing
     trace-cmd
 
