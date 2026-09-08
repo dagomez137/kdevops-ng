@@ -62,6 +62,7 @@
     bpftools
     bpftrace
     ebpf-syscall
+    faster-biolatency
     libbpf-tools
     systing
     trace-cmd

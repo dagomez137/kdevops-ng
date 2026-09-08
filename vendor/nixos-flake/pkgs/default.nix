@@ -17,6 +17,7 @@ pkgs: {
   damo = pkgs.callPackage ./damo.nix { };
   ebpf_exporter = pkgs.callPackage ./ebpf_exporter.nix { };
   ebpf-syscall = pkgs.callPackage ./ebpf-syscall.nix { };
+  faster-biolatency = pkgs.callPackage ./faster-biolatency.nix { };
   libbpf-tools = pkgs.callPackage ./libbpf-tools.nix { };
   nfstest = pkgs.callPackage ./nfstest.nix { };
   pynfs = pkgs.callPackage ./pynfs.nix { };
