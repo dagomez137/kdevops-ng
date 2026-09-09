@@ -60,11 +60,28 @@
         ];
       };
 
-      # System closure for the imageless VM. The output directory
-      # exposes `kernel` and `initrd` symlinks consumers hand to
-      # QEMU via -kernel and -initrd; the closure itself is what
-      # virtiofsd serves to the guest as /nix/store.
-      # Run: nix build .#toplevel  (or .#packages.<system>.toplevel)
-      packages.${system}.toplevel = self.nixosConfigurations.vm.config.system.build.toplevel;
+      packages.${system} = {
+        # System closure for the imageless VM. The output directory
+        # exposes `kernel` and `initrd` symlinks consumers hand to
+        # QEMU via -kernel and -initrd; the closure itself is what
+        # virtiofsd serves to the guest as /nix/store.
+        # Run: nix build .#toplevel  (or .#packages.<system>.toplevel)
+        toplevel = self.nixosConfigurations.vm.config.system.build.toplevel;
+
+        # The VM's own systemPackages as one directory of symlinks, for
+        # running the same binaries where there is no guest.
+        # Run: nix build .#env  (then ./result/bin, or nix shell .#env)
+        env =
+          let
+            cfg = self.nixosConfigurations.vm;
+          in
+          cfg.pkgs.buildEnv {
+            name = "vm-env";
+            paths = cfg.config.environment.systemPackages;
+            # Two providers of one name (man pages, completions) is routine;
+            # the guest's own profile resolves them the same way.
+            ignoreCollisions = true;
+          };
+      };
     };
 }
