@@ -56,5 +56,5 @@ What: `bash -n <rendered>/transient-run.sh` after rendering it.
 Why: the project enforces strict commit conventions (see CLAUDE.md).
 
 What: subject in imperative mood; body in plain-English paragraphs,
-never bullet lists; `Generated-by:` immediately followed by
+never bullet lists; `Assisted-by:` immediately followed by
 `Signed-off-by:` with no blank line between them.
