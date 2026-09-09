@@ -29,14 +29,16 @@ while IFS= read -r f; do
 		fi
 done < <(git ls-files "${scope[@]}")
 
-# 3. HEAD commit message: Signed-off-by present, and Generated-by (if any)
+# 3. HEAD commit message: Signed-off-by present, and Assisted-by (if any)
 #    immediately followed by Signed-off-by with no blank line between.
+#    Commits made before the tag changed carry Generated-by; this only
+#    ever looks at HEAD, so those are never revisited.
 msg="$(git log --max-count=1 --format=%B 2>/dev/null || true)"
 if [ -n "$msg" ]; then
-		if printf '%s\n' "$msg" | grep --quiet '^Generated-by:'; then
-				if ! printf '%s\n' "$msg" | grep --after-context=1 '^Generated-by:' \
+		if printf '%s\n' "$msg" | grep --quiet '^Assisted-by:'; then
+				if ! printf '%s\n' "$msg" | grep --after-context=1 '^Assisted-by:' \
 						| grep --quiet '^Signed-off-by:'; then
-						echo "error: HEAD: 'Generated-by:' must be immediately followed by 'Signed-off-by:'"
+						echo "error: HEAD: 'Assisted-by:' must be immediately followed by 'Signed-off-by:'"
 						status=1
 				fi
 		fi
