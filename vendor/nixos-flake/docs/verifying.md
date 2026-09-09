@@ -80,6 +80,6 @@ nix build $(nix eval --raw --impure --expr \
 Why: the project enforces strict commit conventions (see CLAUDE.md).
 
 What: subject in imperative mood, at or below 50 characters; body in
-plain-English paragraphs, never bullet lists; `Generated-by:`
+plain-English paragraphs, never bullet lists; `Assisted-by:`
 immediately followed by `Signed-off-by:` with no blank line between
 them.
