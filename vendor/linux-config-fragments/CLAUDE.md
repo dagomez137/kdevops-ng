@@ -55,7 +55,14 @@ All commits must follow these rules.
 3. Wrap the commit body at 75 columns.
 4. Sign off with the git-configured identity (`git commit -s`, a
    `Signed-off-by` trailer). This certifies the [DCO](DCO).
-5. Mark AI-generated work with a `Generated-by: Claude AI` trailer placed
-   immediately before `Signed-off-by`, with no blank line between them.
+5. Mark AI-assisted work with an `Assisted-by: LLM` trailer placed immediately
+   before `Signed-off-by`, with no blank line between them. This is the
+   kernel's own tag, from `Documentation/process/coding-assistants.rst`
+   (added by 78d979db6cef, v7.0-rc1, and required by 6252e5c1c20e). Its full
+   form is `Assisted-by: LLM [TOOL1] [TOOL2]`, where the optional names are
+   specialized analysis tools actually run (coccinelle, sparse, smatch,
+   clang-tidy) and never basic ones such as git, gcc, make or an editor, so
+   the bare tag is the usual form. Commits predating this carry
+   `Generated-by: Claude AI`; leave them alone.
 6. Run `scripts/verify_config.sh` on an affected merge before committing a
    fragment change.
