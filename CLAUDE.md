@@ -226,17 +226,32 @@ All commits must follow these six rules.
    `git config user.name` and `git config user.email`, then add a
    `Signed-off-by` trailer.
 
-4. Mark AI-generated work with a `Generated-by: Claude AI` trailer placed
-   immediately before `Signed-off-by`, with no blank line between them:
+4. Mark AI-assisted work with an `Assisted-by: LLM` trailer placed immediately
+   before `Signed-off-by`, with no blank line between them:
 
    ```
    subsystem: summarise the change in the imperative mood
 
    Plain-English description of what changed and why, wrapped at 75 columns.
 
-   Generated-by: Claude AI
+   Assisted-by: LLM
    Signed-off-by: User Name <user.name@domain.org>
    ```
+
+   This is the kernel's own tag, adopted here for the same reason rule 2
+   takes the kernel's subject limit: a contributor moving between this
+   repository and the kernel should not have to keep two conventions in
+   mind. The tag arrived in v7.0-rc1 with commit 78d979db6cef ("docs: add
+   AI Coding Assistants documentation"), which added
+   Documentation/process/coding-assistants.rst and defines the format as
+   `Assisted-by: LLM [TOOL1] [TOOL2]`; 6252e5c1c20e ("docs: add an
+   Assisted-by mention to submitting-patches.rst") then made the
+   acknowledgment a submission requirement. The optional tool names are for
+   specialized analysis tools actually run (coccinelle, sparse, smatch,
+   clang-tidy); basic tools such as git, gcc, make and editors are never
+   listed, so the bare `Assisted-by: LLM` is the usual form. Earlier
+   commits here and in the vendored subprojects carry
+   `Generated-by: Claude AI`, which this replaces; leave those alone.
 
 5. No shopping-cart lists. Write the body as plain-English paragraphs, not
    bullet points or itemised lists, wrapped at 75 columns (trailers are exempt,
