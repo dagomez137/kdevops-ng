@@ -73,11 +73,14 @@ DEFAULT_LINUX_SOURCE = "kernel.org"
 # The transport every source defaults to and is guaranteed to offer.
 DEFAULT_PROTOCOL = "https"
 
-# Curated Linux trees the form offers as a checklist: name -> path after git.kernel.org.
-# The bare name is the label, the one a kernel developer or maintainer reads at a glance
-# (torvalds, axboe, vfs, mcgrof); these are the core trees plus the set kdevops mirrors
-# today, all one kernel object graph, so they live as remotes on one merged linux.git.
-# Extend freely.
+# Curated Linux trees the form offers as a checklist. The bare name is the label, the one
+# a kernel developer or maintainer reads at a glance (torvalds, axboe, vfs, mcgrof);
+# these are the core trees plus the set kdevops mirrors today, all one kernel object
+# graph, so they live as remotes on one merged linux.git. Extend freely. A value is
+# either the path after the chosen LINUX_SOURCES host (the usual form, for a tree
+# kernel.org carries) or a transport -> clone-URL map pinning a tree to its own host,
+# for one that lives off kernel.org and so cannot follow the source and transport the
+# rest of the mirror uses.
 KERNEL_TREES = {
     "torvalds": "pub/scm/linux/kernel/git/torvalds/linux",
     "linux-next": "pub/scm/linux/kernel/git/next/linux-next",
@@ -92,6 +95,10 @@ KERNEL_TREES = {
     "cel": "pub/scm/linux/kernel/git/cel/linux",
     "jlayton": "pub/scm/linux/kernel/git/jlayton/linux",
     "cxl": "pub/scm/linux/kernel/git/cxl/cxl",
+    # Christoph Hellwig's nvme tree, the subsystem tree NVMe patches land in. It is not
+    # on kernel.org, and infradead serves no smart HTTP, so git:// is the only anonymous
+    # transport (ssh://git.infradead.org/srv/git/nvme.git wants an account there).
+    "nvme": {"git": "git://git.infradead.org/nvme.git"},
     "djwong": "pub/scm/linux/kernel/git/djwong/xfs-linux",
     "xfs": "pub/scm/fs/xfs/xfs-linux",
 }
@@ -241,29 +248,33 @@ def list_mirror_projects(filterText: str = "", **_: object) -> list[dict]:
     return mirror_project_options(filterText)
 
 
-def _effective_protocol(sources: dict, source: str, protocol: str) -> str:
-    """The transport to use for `source`: the requested `protocol` when it offers it,
-    else its preferred (first) one, with a note. A curated host may not serve every
-    transport (the googlesource and GitHub mirrors are https only), so a `git` pick
-    degrades to `https` rather than failing."""
-    if source not in sources:
-        raise ValueError(f"unknown source {source!r} (curated: {', '.join(sources)})")
-    schemes = sources[source]
+def _transport(schemes: dict, protocol: str, what: str) -> str:
+    """The transport to use out of `schemes`: the requested `protocol` when it is
+    offered, else the preferred (first) one, with a note naming `what` degraded. A
+    curated host may not serve every transport (the googlesource and GitHub mirrors are
+    https only, infradead git:// only), so the pick degrades rather than failing."""
     if protocol in schemes:
         return protocol
     fallback = next(iter(schemes))
     print(
-        f"note: source {source!r} has no {protocol!r} transport; using {fallback!r}",
+        f"note: {what} has no {protocol!r} transport; using {fallback!r}",
         flush=True,
     )
     return fallback
 
 
+def _effective_protocol(sources: dict, source: str, protocol: str) -> str:
+    """The transport to use for `source` (see `_transport`)."""
+    if source not in sources:
+        raise ValueError(f"unknown source {source!r} (curated: {', '.join(sources)})")
+    return _transport(sources[source], protocol, f"source {source!r}")
+
+
 def _linux_mirror(cfg: dict, mirror_dir: Path) -> dict:
     """The merged linux.git mirror from the linux `cfg` (`trees`, `source`, `protocol`):
     the curated `trees` (names in KERNEL_TREES) as remotes from one host over one
-    transport. torvalds is always the primary object base (refs/heads/*); the rest land
-    at refs/remotes/<name>/*."""
+    transport, bar a tree that pins its own host. torvalds is always the primary object
+    base (refs/heads/*); the rest land at refs/remotes/<name>/*."""
     trees = cfg.get("trees") or DEFAULT_KERNEL_TREES
     source = cfg.get("source") or DEFAULT_LINUX_SOURCE
     proto = _effective_protocol(
@@ -277,10 +288,15 @@ def _linux_mirror(cfg: dict, mirror_dir: Path) -> dict:
             raise ValueError(
                 f"unknown kernel tree {name!r} (curated: {', '.join(KERNEL_TREES)})"
             )
+        tree = KERNEL_TREES[name]
+        if isinstance(tree, str):
+            url = template.format(path=tree)
+        else:
+            url = tree[_transport(tree, proto, f"tree {name!r}")]
         remotes.append(
             {
                 "name": name,
-                "url": template.format(path=KERNEL_TREES[name]),
+                "url": url,
                 "primary": name == "torvalds",
                 "tags": name in TAG_TREES,
             }

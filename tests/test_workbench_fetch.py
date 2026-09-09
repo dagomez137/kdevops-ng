@@ -119,6 +119,24 @@ def test_mirror_tags_stay_with_the_version_publishers(tmp_path):
     assert qemu["remotes"][0]["tags"] is True
 
 
+def test_linux_mirror_pins_a_tree_that_lives_off_kernel_org(tmp_path, capsys):
+    entry = fetch._linux_mirror({"trees": ["nvme", "xfs"]}, tmp_path)
+    urls = {r["name"]: r["url"] for r in entry["remotes"]}
+    assert urls["nvme"] == "git://git.infradead.org/nvme.git"
+    # The pin is the tree's alone: xfs still follows the run's source and transport.
+    assert urls["xfs"] == "https://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git"
+    assert (
+        "tree 'nvme' has no 'https' transport; using 'git'" in capsys.readouterr().out
+    )
+
+
+def test_linux_mirror_pinned_tree_keeps_quiet_on_a_matching_transport(tmp_path, capsys):
+    entry = fetch._linux_mirror({"trees": ["nvme"], "protocol": "git"}, tmp_path)
+    urls = {r["name"]: r["url"] for r in entry["remotes"]}
+    assert urls["nvme"] == "git://git.infradead.org/nvme.git"
+    assert "no 'git' transport" not in capsys.readouterr().out
+
+
 def test_linux_mirror_rejects_an_uncurated_tree(tmp_path):
     with pytest.raises(ValueError, match="unknown kernel tree"):
         fetch._linux_mirror({"trees": ["evil"]}, tmp_path)
@@ -356,6 +374,19 @@ def test_progress_phrases():
 
 
 def test_kernel_trees_paths_live_under_kernel_org_scm():
-    assert all(path.startswith("pub/scm/") for path in fetch.KERNEL_TREES.values())
+    paths = [t for t in fetch.KERNEL_TREES.values() if isinstance(t, str)]
+    assert all(path.startswith("pub/scm/") for path in paths)
     assert set(fetch.DEFAULT_KERNEL_TREES) <= set(fetch.KERNEL_TREES)
     assert Path(fetch.KERNEL_TREES["torvalds"]).name == "linux"
+
+
+def test_kernel_trees_off_kernel_org_pin_a_transport_and_url():
+    pinned = {n: t for n, t in fetch.KERNEL_TREES.items() if not isinstance(t, str)}
+    assert pinned, "the pinned-host form needs a tree exercising it"
+    for name, schemes in pinned.items():
+        assert schemes, name
+        assert all(url.startswith(f"{proto}://") for proto, url in schemes.items())
+        # A pinned tree is somebody's subsystem tree, never a version publisher, so its
+        # tags stay out of the merged mirror's one shared refs/tags/*.
+        assert name not in fetch.TAG_TREES
+        assert name not in fetch.DEFAULT_KERNEL_TREES

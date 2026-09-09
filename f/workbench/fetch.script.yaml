@@ -63,7 +63,8 @@ schema:
           type: array
           description: |-
             Trees to integrate into the merged linux.git as remotes (torvalds is
-            always the base).
+            always the base). A tree that lives off kernel.org, such as nvme on
+            infradead, pins its own host and transport.
           default:
             - torvalds
             - linux-next
@@ -93,6 +94,7 @@ schema:
               - cel
               - jlayton
               - cxl
+              - nvme
               - djwong
               - xfs
           title: Trees
