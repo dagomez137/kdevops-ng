@@ -47,6 +47,11 @@ QEMU_EXTRA_ARGS="
 {% else %}
 QEMU_EXTRA_ARGS=""
 {% endif %}
+{#- Free-form flags last, matching the persistent unit, so an operator's
+    device can reference anything the composed command line defines. #}
+{% if extra_qemu_args | default("") | trim %}
+QEMU_EXTRA_ARGS="$QEMU_EXTRA_ARGS {{ extra_qemu_args | trim }}"
+{% endif %}
 export QEMU_EXTRA_ARGS
 
 exec systemd-run --user --pty --collect \

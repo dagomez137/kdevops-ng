@@ -48,6 +48,11 @@ Environment="QEMU_EXTRA_ARGS=
 {%- if not autostart | default(true) -%}
 {{- " " }}-S
 {%- endif -%}
+{#- Free-form flags last, so an operator's device can reference anything the
+    composed command line defines above it (a chardev, a bus, an object). #}
+{%- if extra_qemu_args | default("") | trim -%}
+{{- " " }}{{ extra_qemu_args | trim }}
+{%- endif -%}
 "
 {# Override the base registration with one that carries vSockCid.
    See docs/design-decisions.md "machined registration". #}
