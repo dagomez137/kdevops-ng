@@ -392,12 +392,13 @@ for k in ("qemu_source", "qemu_binary"):
 
 # Boot-args toggles only: the manifests and overrides in kernel_boot are
 # computed from the build/reuse results, so the group surfaces just the
-# curated kernel parameters.
+# curated kernel parameters and the free-text field that adds to them.
 boot_kernel = copy.deepcopy(bsch["kernel_boot"])
+_BOOT_KERNEL_KNOBS = ("kernel_parameters", "extra_kernel_parameters")
 for k in list(boot_kernel["properties"]):
-    if k != "kernel_parameters":
+    if k not in _BOOT_KERNEL_KNOBS:
         boot_kernel["properties"].pop(k)
-boot_kernel["order"] = ["kernel_parameters"]
+boot_kernel["order"] = list(_BOOT_KERNEL_KNOBS)
 
 for newkey, src, title in [
     ("boot_qemu", boot_qemu, "QEMU machine"),

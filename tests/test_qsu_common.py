@@ -598,3 +598,34 @@ def test_emit_vars_yaml_snapshots_sorted_vars(monkeypatch, tmp_path):
     dest = Path(out)
     assert dest == tmp_path / "vendor/qemu-system-units/vars/demo.yaml"
     assert yaml.safe_load(dest.read_text()) == {"a": 1, "b": 2}
+
+
+def _kernel_boot(fi):
+    return common._kernel(fi, {"vmlinuz": "/boot/bzImage"}, {"init": "/init"})
+
+
+def test_curated_kernel_parameters_ride_after_the_composed_cmdline():
+    got = _kernel_boot({"kernel_parameters": ["kunit.autorun=1"]})
+    assert got["append"].endswith("init=/init kunit.autorun=1")
+
+
+def test_free_text_kernel_parameters_add_to_the_curated_ones():
+    # A carve-out has to coexist with the curated entries: replacing them would
+    # silently drop whatever the form already asked for.
+    got = _kernel_boot(
+        {
+            "kernel_parameters": ["kunit.autorun=1"],
+            "extra_kernel_parameters": "memmap=16M$0x17F000000",
+        }
+    )
+    assert got["append"].endswith("kunit.autorun=1 memmap=16M$0x17F000000")
+
+
+def test_free_text_kernel_parameters_split_on_whitespace():
+    got = _kernel_boot({"extra_kernel_parameters": "  a=1   b=2 "})
+    assert got["append"].endswith("init=/init a=1 b=2")
+
+
+def test_no_kernel_parameters_leaves_the_composed_cmdline_alone():
+    got = _kernel_boot({})
+    assert got["append"] == "root=tmpfs console=ttyS0,115200 console=hvc0 init=/init"

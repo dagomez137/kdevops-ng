@@ -39,6 +39,7 @@ schema:
     - kernel_initrd
     - kernel_append
     - kernel_parameters
+    - extra_kernel_parameters
     - modules_dir
     - shares
     - fstests
@@ -485,6 +486,18 @@ schema:
         initrd for `-initrd`. Empty = `closure.initrd` (the imageless closure's
         bootspec initrd).
       default: ''
+    extra_kernel_parameters:
+      type: string
+      description: |-
+        Extra kernel parameters the curated list above does not carry,
+        space separated, appended after it. This is how a device emulator
+        gets its physical carve-out: `memmap=16M$0x17F000000` reserves the
+        top of the guest's high RAM window so a framework such as pciem can
+        claim it. Check the guest's own `/proc/iomem` before choosing an
+        address; the window differs per machine, and on this shape
+        `0x80000000` is PCI hole rather than RAM.
+      default: ''
+      title: Extra Kernel Parameters
     kernel_parameters:
       type: array
       description: |-
