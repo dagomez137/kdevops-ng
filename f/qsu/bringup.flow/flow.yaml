@@ -127,7 +127,7 @@ value:
           expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), usertests: (flow_input.closure?.closure?.test_suites || []).includes("usertests"), blktests: (flow_input.closure?.closure?.test_suites || []).includes("blktests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
         kernel_boot:
           type: javascript
-          expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_parameters: flow_input.boot_kernel?.kernel_parameters})'
+          expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_parameters: flow_input.boot_kernel?.kernel_parameters, extra_kernel_parameters: flow_input.boot_kernel?.extra_kernel_parameters})'
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

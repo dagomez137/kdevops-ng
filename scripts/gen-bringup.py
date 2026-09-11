@@ -479,10 +479,13 @@ boot_transforms = {
         "home_share: (flow_input.closure?.guest?.home === true), "
         "home_share_readwrite: (flow_input.closure?.guest?.home === true) }))"
     ),
+    # Built rather than spread, so a knob the group surfaces and this does not
+    # name is accepted by the form and silently dropped.
     "kernel_boot": jx(
         '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, '
         'closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, '
-        "kernel_parameters: flow_input.boot_kernel?.kernel_parameters})"
+        + ", ".join(f"{k}: flow_input.boot_kernel?.{k}" for k in _BOOT_KERNEL_KNOBS)
+        + "})"
     ),
 }
 

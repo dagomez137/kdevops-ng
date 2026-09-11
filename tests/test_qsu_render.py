@@ -6,6 +6,7 @@ import inspect
 from pathlib import Path
 
 import pytest
+import yaml
 
 from f.qsu import common
 
@@ -101,3 +102,21 @@ def test_extra_qemu_args_reach_render_from_the_boot_flow():
 def test_extra_qemu_args_are_offered_by_the_bringup_form():
     flow = Path("f/qsu/bringup.flow/flow.yaml").read_text()
     assert "extra_qemu_args" in flow
+
+
+# A group the generator forwards key by key drops any knob its list forgot:
+# the form still shows it, the run still succeeds, the value goes nowhere.
+@pytest.mark.parametrize("group", ["boot_qemu", "boot_kernel"])
+def test_every_boot_knob_the_form_offers_reaches_the_boot_subflow(group):
+    flow = yaml.safe_load(Path("f/qsu/bringup.flow/flow.yaml").read_text())
+    boot = next(m for m in flow["value"]["modules"] if m["id"] == "boot")
+    exprs = " ".join(
+        t["expr"] for t in boot["value"]["input_transforms"].values() if "expr" in t
+    )
+    if f"...flow_input.{group}" in exprs:
+        return  # spread forwards the whole group, knob by knob is moot
+    for knob in flow["schema"]["properties"][group]["properties"]:
+        assert f"flow_input.{group}?.{knob}" in exprs, (
+            f"{group}.{knob} is on the form but no transform carries it into "
+            f"f/qsu/boot, so a value set there is silently dropped"
+        )
