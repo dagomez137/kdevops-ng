@@ -2321,6 +2321,7 @@ schema:
       - detect_zeroes
       - write_cache
       - mdts
+      - ioeventfd
       - cmb_size_mb
       - legacy_cmb
       - pmr_size
@@ -2495,6 +2496,20 @@ schema:
           default: '4096'
           showExpr: fields.customize_drives === true
           title: Discard Granularity
+        ioeventfd:
+          type: boolean
+          description: 'Deliver I/O queue doorbell writes through an eventfd: `-device
+
+            nvme,ioeventfd=on`. On, a doorbell write is signalled to the main
+
+            loop and the vCPU thread never leaves the guest; off (QEMU''s
+
+            default) every write traps out to userspace on the vCPU thread.
+
+            Admin queue doorbells always take the exit. Applies to every drive.'
+          default: true
+          showExpr: fields.customize_drives === true
+          title: Doorbell eventfd
         legacy_cmb:
           type: boolean
           description: 'Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled):

@@ -90,6 +90,17 @@ def test_every_suite_share_tag_is_canonical_so_destroy_cleans_it(flag):
     assert flag in common.CANONICAL_SHARE_TAGS
 
 
+# The one NVMe default not inherited from QEMU: at QEMU's false every doorbell
+# write exits to userspace on the vCPU thread, a fixed cost per command.
+def test_the_doorbell_eventfd_is_on_by_default():
+    assert inspect.signature(qemu_system.main).parameters["ioeventfd"].default is True
+
+
+def test_ioeventfd_reaches_render_from_the_boot_flow():
+    flow = Path("f/qsu/boot.flow/flow.yaml").read_text()
+    assert "expr: flow_input.nvme?.ioeventfd" in flow
+
+
 def test_extra_qemu_args_reach_the_render_step():
     assert "extra_qemu_args" in inspect.signature(qemu_system.main).parameters
 

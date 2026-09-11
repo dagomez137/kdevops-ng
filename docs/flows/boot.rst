@@ -96,6 +96,32 @@ already grew needs the guest to discard what it no longer uses
 deleting the backing file and letting ``create_nvme`` lay a fresh one on
 the next boot.
 
+Where the doorbell write lands
+==============================
+
+A guest tells an emulated NVMe controller that it has queued a command
+by writing that queue's doorbell register, and where the write lands
+decides most of the device's throughput. By default QEMU traps it: the
+write faults out of the guest, KVM hands it to QEMU userspace on the
+vCPU thread, and that thread runs no guest code again until the
+controller has taken the command. The ``ioeventfd`` knob moves the write
+onto an eventfd instead, so KVM signals the main loop and the vCPU
+thread never leaves the guest.
+
+QEMU leaves ``ioeventfd`` off and this form turns it on for every drive,
+because nothing measured here prefers the trap. A pair of boots that
+differ in the doorbell alone, same image, same ``aio`` and cache mode,
+put the eventfd at roughly double the request rate at queue depth one,
+with the gain shrinking as the commands grow and gone by 1 MiB: the exit
+is a fixed cost per command, not per byte. The admin queue keeps the
+trap either way, and ``hw/nvme/ctrl.c`` has no ``iothread`` property, so
+the I/O still runs in the main loop: what the eventfd removes is the
+vCPU exit, not the emulation.
+
+Turn it off to reproduce a measurement taken before this default
+changed. A number captured under the trap does not compare with one
+captured without it.
+
 Watching and driving the VM
 ===========================
 

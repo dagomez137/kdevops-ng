@@ -366,6 +366,11 @@ def test_nvme_drives_atomic_dn_marks_every_controller():
     assert all(d["atomic.dn"] is True for d in drives)
 
 
+def test_nvme_drives_ioeventfd_marks_every_controller():
+    drives = common.nvme_drives({"nvme_drive_count": 2, "ioeventfd": True})
+    assert all(d["ioeventfd"] is True for d in drives)
+
+
 def test_nvme_drives_ns_knobs_force_explicit_namespaces():
     fi = {"nvme_drive_count": 1, "atomic_nawun": "3", "logical_block_size": "4096"}
     drives = common.nvme_drives(fi)

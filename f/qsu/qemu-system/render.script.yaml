@@ -64,6 +64,7 @@ schema:
     - detect_zeroes
     - write_cache
     - mdts
+    - ioeventfd
     - cmb_size_mb
     - legacy_cmb
     - pmr_size
@@ -454,6 +455,16 @@ schema:
       description: Mount the home share read-write (default read-only).
       default: false
       title: Home Share Readwrite
+    ioeventfd:
+      type: boolean
+      description: |-
+        Deliver I/O queue doorbell writes through an eventfd: `-device
+        nvme,ioeventfd=on`. On, a doorbell write is signalled to the main loop
+        and the vCPU thread never leaves the guest; off (QEMU's default) every
+        write traps out to userspace on the vCPU thread. Admin queue doorbells
+        always take the exit. Applies to every drive.
+      default: true
+      title: Doorbell eventfd
     iommu:
       type: object
       description: |-

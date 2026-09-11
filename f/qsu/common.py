@@ -370,6 +370,9 @@ def _nvme_drives(fi: dict) -> list[dict]:
         # atomic.dn is a controller boolean, not a comma-list.
         if fi.get("atomic_dn"):
             ctrl["atomic.dn"] = True
+        # ioeventfd is a controller boolean, not a comma-list.
+        if fi.get("ioeventfd"):
+            ctrl["ioeventfd"] = True
         # atomic.mam is a namespace boolean, not a comma-list.
         if fi.get("atomic_mam"):
             ns["atomic.mam"] = True
