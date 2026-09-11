@@ -1431,13 +1431,25 @@ schema:
           properties:
             update_lock:
               type: boolean
-              description: 'Re-pin the vendored nixos-flake input instead of only filling
+              description: 'Re-resolve the vendored nixos-flake input instead of only
 
-                missing lock entries. On by default: each worker keeps its own
+                filling missing lock entries. It reaches nothing else:
 
-                per-VM config dir, and a stale lock there silently rebuilds
+                nixpkgs is pinned inside that vendored flake, and a source
 
-                yesterday''s vendored flake.'
+                override is re-locked to its branch tip either way. On by
+
+                default, and the only way a change to a vendored module (after
+
+                `nix run .#windmill-install` copies it in) reaches a closure:
+
+                each worker keeps its own per-VM config dir, and a stale lock
+
+                there rebuilds yesterday''s vendored flake, so the guest comes
+
+                up missing whatever the module gained and the symptom looks
+
+                like a packaging bug rather than a stale lock.'
               default: true
           title: Lock
           showExpr: fields.mode === "build"

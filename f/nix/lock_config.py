@@ -11,7 +11,12 @@ The `<pkg>-src` inputs are different: they are local source-override checkouts
 They are re-locked to the branch tip on EVERY build so a freshly committed patch in
 the checkout lands in the next closure without a manual lock bump; that is what
 makes `f/qsu/bringup` (closure_source=build) leverage the checkout sources. The
-vendored `nixos-flake` is only re-locked when `update` is set.
+vendored `nixos-flake` is only re-locked when `update` is set, and a change to a
+vendored module reaches a closure by no other route: the vendor tree is a plain
+copy (`nix run .#windmill-install` lays it down) with no revision of its own, so
+its lock entry is a content hash nothing else invalidates. With `update` off, a
+build silently reuses the previous copy and the guest comes up missing whatever
+the module gained.
 
 Equivalent bash:
 
