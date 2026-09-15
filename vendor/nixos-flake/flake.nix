@@ -248,6 +248,11 @@
                   pip
                 ]
               ))
+              # --enable-vfio-user-server builds the libvfio-user subproject
+              # qemu vendors, which needs json-c and cmocka that qemu does not.
+              # Nixpkgs qemu leaves the server off, so neither is in inputsFrom.
+              pkgs.json_c
+              pkgs.cmocka
             ];
             env.RUST_LIB_SRC = rustLibSrc;
             shellHook = reproducibleShellHook;
