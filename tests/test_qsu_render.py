@@ -90,16 +90,25 @@ def test_every_suite_share_tag_is_canonical_so_destroy_cleans_it(flag):
     assert flag in common.CANONICAL_SHARE_TAGS
 
 
-# The two NVMe defaults not inherited from QEMU: at its ioeventfd=off every
-# doorbell write exits to userspace on the vCPU thread, a fixed cost per
-# command, and at its mdts=7 a transfer stops at 512 KiB, so a 1 MiB request
-# costs two commands. The form default has to agree with the step default, or an
-# untouched field hands the guest QEMU's number back.
-@pytest.mark.parametrize(("knob", "value"), (("ioeventfd", "on"), ("mdts", "9")))
+# The drive settings that measured fastest, which the form has to agree with the
+# step on or an untouched field undoes: the doorbell on an eventfd rather than
+# QEMU's trap out to the vCPU thread, a 2 MiB transfer limit rather than QEMU's
+# 512 KiB, and a null block driver rather than an image.
+@pytest.mark.parametrize(
+    ("knob", "value"), (("ioeventfd", "on"), ("mdts", "9"), ("driver", "null-co"))
+)
 def test_the_measured_nvme_defaults_survive_an_untouched_form(knob, value):
     assert inspect.signature(qemu_system.main).parameters[knob].default == value
     flow = yaml.safe_load(Path("f/qsu/boot.flow/flow.yaml").read_text())
     assert flow["schema"]["properties"]["nvme"]["properties"][knob]["default"] == value
+
+
+# The shipped drive stores nothing, so nvme/create has no image to lay down for
+# it, and a read fills the guest buffer instead of leaving it untouched.
+def test_the_default_drive_asks_for_no_image():
+    drive = common.nvme_drives({"nvme_drive_count": 1, "driver": "null-co"})[0]
+    assert "file" not in drive
+    assert drive["read-zeroes"] == "on"
 
 
 def test_ioeventfd_reaches_render_from_the_boot_flow():

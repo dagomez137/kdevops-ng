@@ -106,7 +106,7 @@ def main(
     discard: str = "unmap",
     detect_zeroes: str = "",
     write_cache: str = "",
-    driver: str = "",
+    driver: str = "null-co",
     format: str = "qcow2",
     aio: str = "",
     cache: str = "",

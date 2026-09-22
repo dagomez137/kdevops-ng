@@ -482,10 +482,12 @@ schema:
       type: string
       description: |-
         Block driver behind the drive instead of an image file: `-drive
-        driver=`. Empty = a file. `null-co` and `null-aio` answer every request
-        in the block layer without touching storage. Single value or per-drive
-        comma-list.
-      default: ''
+        driver=`. `null-co`, the default here, answers every request in the
+        block layer without touching storage: the fastest drive QEMU can
+        emulate, and no place for a filesystem, since writes go nowhere and
+        reads come back zeroed. `null-aio` is the same from the AIO path. Empty
+        = an image file. Single value or per-drive comma-list.
+      default: null-co
       title: Backing Driver
     format:
       type: string

@@ -28,7 +28,8 @@ The flow is thin:
    and drop-in for each composed share, wired from the shares the first
    step composed.
 3. ``create_nvme``: :cmd:`qemu-img` ``create --format qcow2`` the per-VM
-   backing file of each emulated NVMe drive.
+   backing file of each emulated NVMe drive that has one. A drive on a
+   block driver has no file, and the shipped drive is one of those.
 4. ``boot``: ``daemon-reload``, restart the share sockets, start
    ``qemu-system@<vm>``, and wait for the guest's sshd banner. Its
    access manifest is the flow result.
@@ -56,11 +57,24 @@ variable surface), grouped:
 - **File sharing** composes the virtiofs shares (modules, controller)
   and picks the :cmd:`virtiofsd` binary.
 - **NVMe** declares the emulated NVMe drives (``-device
-  nvme``/``nvme-ns``, one qcow2 per drive); ``discard`` and
-  ``detect_zeroes`` govern how much host disk they hold, and the
-  testing-oriented knobs are covered by :doc:`nvme-testing`.
+  nvme``/``nvme-ns``, a block driver or an image file each);
+  ``discard`` and ``detect_zeroes`` govern how much host disk an image
+  holds, and the testing-oriented knobs are covered by
+  :doc:`nvme-testing`.
 - **Orchestration** bounds the flow-level boot wait and the debug
   snapshot.
+
+What the shipped drive is
+=========================
+
+``driver`` decides what a drive sits on, and it ships as ``null-co``:
+the request is answered in the QEMU block layer and never reaches
+storage. A sweep of the block modes (backing driver, image format,
+``aio`` mode, cache mode) put that one on top, at roughly twice the
+request rate of the qcow2 image this form used to ship. Nothing is
+stored, a read comes back zeroed, and a guest that has to hold a
+filesystem needs ``driver`` cleared on the drives that do. Clearing it
+gives an image file, and the rest of this page is about those.
 
 Keeping the drive images thin
 =============================
@@ -128,30 +142,31 @@ One boot, several block modes
 Every drive knob takes either one value for all the drives or a
 comma-list that assigns by drive index, so one guest can carry several
 block configurations at once and a measurement can compare them without
-a reboot in between. An empty part takes the knob's own default.
+a reboot in between. An empty part takes the knob's own default, except
+on ``driver``, where an empty part is how a drive asks for an image.
 
-``driver`` replaces the image with a QEMU block driver that has no file:
-``null-co`` and ``null-aio`` answer a request in the block layer and
-never reach storage, which prices the emulated controller on its own.
-``format`` picks the image format and names the backing file after it.
-``aio`` picks how the host submits the image's I/O (a thread pool,
-Linux AIO, or io_uring) and ``cache`` picks the host cache mode, where
+``driver`` carries the null block driver on every drive by default
+(``null-co``, or ``null-aio`` to answer from the AIO path instead).
+Clearing it on a drive gives that drive an image file, and the image
+knobs follow: ``format`` picks the format and names the backing file
+after it, ``aio`` picks how the host submits its I/O (a thread pool,
+Linux AIO, or io_uring), and ``cache`` picks the host cache mode, where
 ``none`` and ``directsync`` open the file ``O_DIRECT``.
 
 Linux AIO only works on an ``O_DIRECT`` file. QEMU refuses that
 combination when it opens the image, which is halfway through boot, so
 the render refuses it first.
 
-Five drives, the first keeping the shipped configuration and each of the
-others changing one thing:
+Five drives, the first keeping the shipped null driver and the other
+four on images, each changing one thing:
 
 .. code-block:: json
 
    "boot_nvme": {"nvme_drive_count": 5, "customize_drives": true,
-                 "driver": ",,,,null-co",
-                 "format": "qcow2,qcow2,raw,raw",
-                 "aio": "threads,io_uring,io_uring,native",
-                 "cache": "writeback,writeback,writeback,none"}
+                 "driver": "null-co,,,,",
+                 "format": ",qcow2,qcow2,raw,raw",
+                 "aio": ",threads,io_uring,io_uring,native",
+                 "cache": ",writeback,writeback,writeback,none"}
 
 Watching and driving the VM
 ===========================

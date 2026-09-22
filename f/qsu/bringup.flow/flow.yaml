@@ -2302,11 +2302,13 @@ schema:
       title: File sharing
     boot_nvme:
       type: object
-      description: 'Emulated NVMe drives (`-device nvme`/`nvme-ns` + a qcow2 per drive). The
+      description: 'Emulated NVMe drives (`-device nvme`/`nvme-ns`, a block driver or an
 
-        per-drive knobs are the QEMU device properties verbatim; see
+        image file each). The per-drive knobs are the QEMU device properties
 
-        `qemu-system-x86_64 -device nvme,help` and `-device nvme-ns,help`.'
+        verbatim; see `qemu-system-x86_64 -device nvme,help` and `-device
+
+        nvme-ns,help`.'
       default: {}
       order:
       - nvme_drive_count
@@ -2527,12 +2529,16 @@ schema:
           type: string
           description: 'Block driver behind the drive instead of an image file: `-drive
 
-            driver=`. Empty = a file. `null-co` and `null-aio` answer every
+            driver=`. `null-co`, the default here, answers every request in the
 
-            request in the block layer without touching storage. Single value
+            block layer without touching storage: the fastest drive QEMU can
 
-            or per-drive comma-list.'
-          default: ''
+            emulate, and no place for a filesystem, since writes go nowhere and
+
+            reads come back zeroed. `null-aio` is the same from the AIO path.
+
+            Empty = an image file. Single value or per-drive comma-list.'
+          default: null-co
           showExpr: fields.customize_drives === true
           title: Backing Driver
         format:
@@ -2687,12 +2693,14 @@ schema:
           title: Minimum I/O Size
         nvme_drive_count:
           type: integer
-          description: Number of NVMe drives (`-device nvme` + a qcow2 file each).
+          description: Number of NVMe drives (`-device nvme` each).
           default: 5
           title: Drive Count
         nvme_drive_size_gb:
           type: integer
-          description: Virtual size in GiB for each qcow2 NVMe backing file.
+          description: 'Virtual size in GiB of each drive: the image nvme/create lays down,
+
+            and the size a null driver reports.'
           default: 20
           title: Drive Size (GiB)
         opt_io_size:

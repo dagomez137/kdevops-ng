@@ -289,7 +289,7 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
 def nvme_drives(fi: dict) -> list[dict]:
     """The per-VM nvme drive dicts (file/format/serial + BlockConf knobs).
 
-    Public so nvme/create creates exactly the qcow2 files vm.env references.
+    Public so nvme/create lays down exactly the files vm.env references.
     """
     return _nvme_drives(fi)
 
