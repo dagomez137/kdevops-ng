@@ -87,3 +87,17 @@ def test_every_suite_share_flag_is_derived_by_the_bringup_flow(flag):
 @pytest.mark.parametrize("flag", SUITE_SHARE_FLAGS)
 def test_every_suite_share_tag_is_canonical_so_destroy_cleans_it(flag):
     assert flag in common.CANONICAL_SHARE_TAGS
+
+
+def test_extra_qemu_args_reach_the_render_step():
+    assert "extra_qemu_args" in inspect.signature(qemu_system.main).parameters
+
+
+def test_extra_qemu_args_reach_render_from_the_boot_flow():
+    flow = Path("f/qsu/boot.flow/flow.yaml").read_text()
+    assert "expr: flow_input.qemu?.extra_qemu_args" in flow
+
+
+def test_extra_qemu_args_are_offered_by_the_bringup_form():
+    flow = Path("f/qsu/bringup.flow/flow.yaml").read_text()
+    assert "extra_qemu_args" in flow

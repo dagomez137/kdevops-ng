@@ -550,6 +550,10 @@ def build_vars(
         v["kernel"] = k
     if fi.get("iommu"):
         v["iommu"] = fi["iommu"]
+    # Omitted rather than set to None: Jinja's default("") fills an undefined
+    # name only, so a None renders the word "None" onto the command line.
+    if fi.get("extra_qemu_args"):
+        v["extra_qemu_args"] = fi["extra_qemu_args"]
     return v
 
 

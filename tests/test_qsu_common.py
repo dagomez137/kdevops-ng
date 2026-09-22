@@ -549,6 +549,20 @@ def test_build_vars_defaults_and_ports(monkeypatch):
     assert "iommu" not in v
 
 
+# build_vars is what the template sees: a knob that reaches the step and not
+# this dict is one the guest never gets.
+def test_build_vars_carries_the_free_form_qemu_flags(monkeypatch):
+    _clear_env(monkeypatch)
+    flags = "-device pcie-root-port,id=rp0"
+    v = common.build_vars(_fi(extra_qemu_args=flags))
+    assert v["extra_qemu_args"] == flags
+
+
+def test_build_vars_leaves_the_free_form_flags_out_when_unset(monkeypatch):
+    _clear_env(monkeypatch)
+    assert "extra_qemu_args" not in common.build_vars(_fi())
+
+
 def test_build_vars_hashed_offset_feeds_both_ports(monkeypatch):
     _clear_env(monkeypatch)
     v = common.build_vars(_fi())

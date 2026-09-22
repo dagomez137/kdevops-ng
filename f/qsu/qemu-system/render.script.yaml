@@ -40,6 +40,7 @@ schema:
     - kernel_append
     - kernel_parameters
     - extra_kernel_parameters
+    - extra_qemu_args
     - modules_dir
     - shares
     - fstests
@@ -498,6 +499,18 @@ schema:
         `0x80000000` is PCI hole rather than RAM.
       default: ''
       title: Extra Kernel Parameters
+    extra_qemu_args:
+      type: string
+      description: |-
+        Extra QEMU flags appended verbatim to the composed command line,
+        after everything it defines, so a device here can reference a
+        chardev, bus or object above it. This is how a guest gets a device
+        the form does not model: a vfio-user client, for instance, needs
+        `-device pcie-root-port,id=rp0,bus=pcie.0,chassis=1,slot=1 -device
+        vfio-user-pci,bus=rp0,socket=<path>`. Unvalidated: a wrong flag
+        fails the guest at start, visible in the unit's journal.
+      default: ''
+      title: Extra QEMU Arguments
     kernel_parameters:
       type: array
       description: |-
