@@ -2667,10 +2667,14 @@ schema:
           type: string
           description: 'Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units:
 
-            `-device nvme,mdts=`. Empty = QEMU default. Single value or
+            `-device nvme,mdts=`. `9`, the default here, is 2 MiB and QEMU''s
 
-            per-drive comma-list.'
-          default: ''
+            current ceiling; its own default of `7` splits a 1 MiB request into
+
+            two commands. Empty = QEMU default. Single value or per-drive
+
+            comma-list.'
+          default: '9'
           showExpr: fields.customize_drives === true
           title: Maximum Data Transfer Size (MDTS)
         min_io_size:

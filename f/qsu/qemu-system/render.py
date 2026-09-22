@@ -95,8 +95,9 @@ def main(
     nvme_drive_count: int = 5,
     nvme_drive_size_gb: int = 20,
     # Per-drive NVMe knobs (single value or per-drive comma-list); 4kn defaults on
-    # the BlockConf sizes, unmap on discard, the rest empty/false. See NVME_*_KNOBS
-    # in f/qsu/common.
+    # the BlockConf sizes, unmap on discard, ioeventfd and mdts off QEMU's own
+    # defaults (the schema says why), the rest empty/false. See NVME_*_KNOBS in
+    # f/qsu/common.
     logical_block_size: str = "4096",
     physical_block_size: str = "4096",
     min_io_size: str = "4096",
@@ -112,7 +113,7 @@ def main(
     aio_max_batch: str = "",
     read_zeroes: str = "",
     latency_ns: str = "",
-    mdts: str = "",
+    mdts: str = "9",
     max_ioqpairs: str = "",
     msix_qsize: str = "",
     mqes: str = "",
