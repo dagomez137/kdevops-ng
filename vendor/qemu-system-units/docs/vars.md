@@ -342,8 +342,23 @@ if omitted). The template defaults to `nvme0`, `nvme1`, etc.
 Explicit `namespaces` key gives full per-namespace control.
 
 Drive backend properties (simple and explicit forms): `file`,
-`format` (default: qcow2), `aio`, `cache`, `discard`,
-`detect-zeroes`.
+`format` (default: qcow2), `aio`, `cache`, `file.aio-max-batch`,
+`discard`, `detect-zeroes`.
+
+`file.aio-max-batch` is spelled for the protocol layer on purpose. QEMU
+rejects the bare `aio-max-batch` on a drive that names a format, with
+"Block format 'qcow2' does not support the option 'aio-max-batch'", and
+rejects it on `raw` too; the option belongs to the file behind the
+format. Maps to `-drive file.aio-max-batch=`.
+
+`driver` replaces the file with a block driver that has none. `null-co`
+and `null-aio` complete every request in the block layer, so a
+measurement against one of them prices the emulated controller with the
+storage taken out. Maps to `-drive driver=`. With it, `size` (bytes,
+maps to `-drive size=`), `read-zeroes` (whether a read fills the buffer
+or leaves it untouched, maps to `-drive read-zeroes=`) and `latency-ns`
+(a delay added to every request, maps to `-drive latency-ns=`) replace
+`file` and `format`. See: `<qemu_binary> -drive driver=null-co,help`.
 
 Controller properties (maps to `-device nvme`): `serial`,
 `max_ioqpairs`, `msix_qsize`, `mdts`, `vsl`, `cmb_size_mb`,
