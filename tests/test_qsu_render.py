@@ -2,12 +2,20 @@
 """Fixture tests for the qsu render steps' pure paths (`f/qsu/*/render`)."""
 
 import importlib
+import inspect
+from pathlib import Path
 
 import pytest
+
+from f.qsu import common
 
 cloud_init = importlib.import_module("f.qsu.cloud-init.render")
 qemu_system = importlib.import_module("f.qsu.qemu-system.render")
 vfio = importlib.import_module("f.qsu.vfio.render")
+
+# A flag that stops anywhere along the chain below gives a guest that mounts a
+# tag nobody serves, and it drops to emergency mode on `tag not found`.
+SUITE_SHARE_FLAGS = ("fstests", "selftests", "usertests", "blktests")
 
 
 def test_cloud_init_render_is_a_deferred_scaffold():
@@ -54,3 +62,28 @@ def test_render_refuses_a_kernelless_vm(monkeypatch, tmp_path):
             virtiofsd_binary="/b/bin/virtiofsd",
             nvme_drive_count=0,
         )
+
+
+@pytest.mark.parametrize("flag", SUITE_SHARE_FLAGS)
+def test_every_suite_share_flag_is_a_render_parameter(flag):
+    assert flag in inspect.signature(qemu_system.main).parameters
+
+
+@pytest.mark.parametrize("flag", SUITE_SHARE_FLAGS)
+def test_every_suite_share_flag_reaches_render_from_the_boot_flow(flag):
+    flow = Path("f/qsu/boot.flow/flow.yaml").read_text()
+    assert f"expr: flow_input.sharing?.{flag}" in flow
+
+
+@pytest.mark.parametrize("flag", SUITE_SHARE_FLAGS)
+def test_every_suite_share_flag_is_derived_by_the_bringup_flow(flag):
+    flow = Path("f/qsu/bringup.flow/flow.yaml").read_text()
+    assert (
+        f'{flag}: (flow_input.closure?.closure?.test_suites || []).includes("{flag}")'
+        in flow
+    )
+
+
+@pytest.mark.parametrize("flag", SUITE_SHARE_FLAGS)
+def test_every_suite_share_tag_is_canonical_so_destroy_cleans_it(flag):
+    assert flag in common.CANONICAL_SHARE_TAGS
