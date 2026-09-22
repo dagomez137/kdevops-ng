@@ -122,6 +122,37 @@ Turn it off to reproduce a measurement taken before this default
 changed. A number captured under the trap does not compare with one
 captured without it.
 
+One boot, several block modes
+=============================
+
+Every drive knob takes either one value for all the drives or a
+comma-list that assigns by drive index, so one guest can carry several
+block configurations at once and a measurement can compare them without
+a reboot in between. An empty part takes the knob's own default.
+
+``driver`` replaces the image with a QEMU block driver that has no file:
+``null-co`` and ``null-aio`` answer a request in the block layer and
+never reach storage, which prices the emulated controller on its own.
+``format`` picks the image format and names the backing file after it.
+``aio`` picks how the host submits the image's I/O (a thread pool,
+Linux AIO, or io_uring) and ``cache`` picks the host cache mode, where
+``none`` and ``directsync`` open the file ``O_DIRECT``.
+
+Linux AIO only works on an ``O_DIRECT`` file. QEMU refuses that
+combination when it opens the image, which is halfway through boot, so
+the render refuses it first.
+
+Five drives, the first keeping the shipped configuration and each of the
+others changing one thing:
+
+.. code-block:: json
+
+   "boot_nvme": {"nvme_drive_count": 5, "customize_drives": true,
+                 "driver": ",,,,null-co",
+                 "format": "qcow2,qcow2,raw,raw",
+                 "aio": "threads,io_uring,io_uring,native",
+                 "cache": "writeback,writeback,writeback,none"}
+
 Watching and driving the VM
 ===========================
 

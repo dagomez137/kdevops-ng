@@ -93,12 +93,36 @@ def test_every_suite_share_tag_is_canonical_so_destroy_cleans_it(flag):
 # The one NVMe default not inherited from QEMU: at QEMU's false every doorbell
 # write exits to userspace on the vCPU thread, a fixed cost per command.
 def test_the_doorbell_eventfd_is_on_by_default():
-    assert inspect.signature(qemu_system.main).parameters["ioeventfd"].default is True
+    assert inspect.signature(qemu_system.main).parameters["ioeventfd"].default == "on"
 
 
 def test_ioeventfd_reaches_render_from_the_boot_flow():
     flow = Path("f/qsu/boot.flow/flow.yaml").read_text()
     assert "expr: flow_input.nvme?.ioeventfd" in flow
+
+
+# Every drive knob the form offers has to reach the render step, which is the
+# only thing that turns one into a QEMU flag. A knob that stops at the flow is
+# a field an operator sets and a guest never sees.
+def test_every_nvme_knob_the_form_offers_reaches_the_render_step():
+    flow = yaml.safe_load(Path("f/qsu/boot.flow/flow.yaml").read_text())
+    render = next(
+        m for m in flow["value"]["modules"] if m["id"] == "render_qemu_system"
+    )
+    exprs = " ".join(
+        t["expr"] for t in render["value"]["input_transforms"].values() if "expr" in t
+    )
+    create = next(m for m in flow["value"]["modules"] if m["id"] == "create_nvme")
+    create_exprs = " ".join(
+        t["expr"] for t in create["value"]["input_transforms"].values() if "expr" in t
+    )
+    for knob in flow["schema"]["properties"]["nvme"]["properties"]:
+        if knob == "customize_drives":
+            continue  # a form gate, not a QEMU flag
+        assert (
+            f"flow_input.nvme?.{knob}" in exprs
+            or f"flow_input.nvme?.{knob}" in create_exprs
+        ), f"{knob} reaches neither the render step nor create_nvme"
 
 
 def test_extra_qemu_args_reach_the_render_step():

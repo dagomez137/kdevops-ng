@@ -299,14 +299,33 @@ def nvme_drives(fi: dict) -> list[dict]:
 # BLOCKCONF -> whichever device owns the drive backend, BACKEND -> the -drive
 # entry itself, so it travels with `file`/`format` into either form.
 NVME_BACKEND_KNOBS = (
+    ("aio", "aio"),
+    ("cache", "cache"),
+    ("aio_max_batch", "file.aio-max-batch"),
     ("discard", "discard"),
     ("detect_zeroes", "detect-zeroes"),
 )
+# The null drivers have no file, so the file-backend knobs above do not apply to
+# them; these take their place.
+NVME_NULL_KNOBS = (
+    ("read_zeroes", "read-zeroes"),
+    ("latency_ns", "latency-ns"),
+)
 NVME_CTRL_KNOBS = (
     ("mdts", "mdts"),
+    ("max_ioqpairs", "max_ioqpairs"),
+    ("msix_qsize", "msix_qsize"),
+    ("mqes", "mqes"),
+    ("dbcs", "dbcs"),
     ("atomic_awun", "atomic.awun"),
     ("atomic_awupf", "atomic.awupf"),
 )
+# Block drivers that take a size instead of a file: null-aio answers a request
+# from the AIO path, null-co from a coroutine, neither touching storage.
+NVME_NULL_DRIVERS = ("null-co", "null-aio")
+# aio=native is the one mode QEMU refuses to open without O_DIRECT, and these are
+# the two -drive cache= shorthands that set it.
+CACHE_DIRECT = ("none", "directsync")
 NVME_NS_KNOBS = (
     ("atomic_nawun", "atomic.nawun"),
     ("atomic_nawupf", "atomic.nawupf"),
@@ -337,6 +356,26 @@ def _drive_pick(raw: str | None, i: int) -> str:
     return value.strip()
 
 
+_TRUE = ("on", "true", "1", "yes")
+_FALSE = ("off", "false", "0", "no", "none")
+
+
+def _drive_onoff(raw, i: int, default: bool) -> bool:
+    """Resolve an on/off per-drive knob, so one boot can carry both settings.
+
+    Same comma-list rule as `_drive_pick`; an empty part takes `default`, which
+    is how a bare "off" on drive 0 leaves the rest of the drives alone.
+    """
+    v = _drive_pick(raw, i).lower()
+    if not v:
+        return default
+    if v in _TRUE:
+        return True
+    if v in _FALSE:
+        return False
+    raise ValueError(f"expected on or off, got {v!r}")
+
+
 def _bucket(fi: dict, knobs, i: int) -> dict:
     out = {}
     for param, tkey in knobs:
@@ -350,28 +389,59 @@ def _nvme_drives(fi: dict) -> list[dict]:
     if fi.get("nvme_drives"):
         return fi["nvme_drives"]
     count = int(fi.get("nvme_drive_count", 0) or 0)
+    size_gb = int(fi.get("nvme_drive_size_gb", 0) or 0)
     drives = []
     for i in range(count):
-        base = {"file": f"nvme{i}.qcow2", "format": "qcow2", "serial": f"kdevops{i}"}
-        backend = _bucket(fi, NVME_BACKEND_KNOBS, i)
-        # QEMU rejects the image at open when detect-zeroes unmaps but discard does
-        # not, so fail here rather than let the VM die deep in boot.
-        if (
-            backend.get("detect-zeroes") == "unmap"
-            and backend.get("discard") != "unmap"
-        ):
+        driver = _drive_pick(fi.get("driver"), i)
+        fmt = _drive_pick(fi.get("format"), i) or "qcow2"
+        if driver and driver not in NVME_NULL_DRIVERS:
             raise ValueError(
-                f"nvme drive {i} detect_zeroes unmap requires discard unmap; QEMU "
-                "refuses to open the image otherwise"
+                f"nvme drive {i} driver {driver!r} is not one of "
+                f"{', '.join(NVME_NULL_DRIVERS)}; leave it empty for a file"
             )
+        if driver:
+            # No qemu-img lays these down, so the namespace size comes from here.
+            base = {"driver": driver, "serial": f"kdevops{i}"}
+            if size_gb:
+                base["size"] = size_gb * 1024**3
+            backend = _bucket(fi, NVME_NULL_KNOBS, i)
+            # null-co leaves the guest buffer untouched by default.
+            backend.setdefault("read-zeroes", "on")
+        else:
+            base = {
+                "file": f"nvme{i}.{fmt}",
+                "format": fmt,
+                "serial": f"kdevops{i}",
+            }
+            backend = _bucket(fi, NVME_BACKEND_KNOBS, i)
+            # QEMU rejects the image at open when detect-zeroes unmaps but discard does
+            # not, so fail here rather than let the VM die deep in boot.
+            if (
+                backend.get("detect-zeroes") == "unmap"
+                and backend.get("discard") != "unmap"
+            ):
+                raise ValueError(
+                    f"nvme drive {i} detect_zeroes unmap requires discard unmap; QEMU "
+                    "refuses to open the image otherwise"
+                )
+            # aio=native is Linux AIO, which only works on an O_DIRECT file. QEMU
+            # says so and exits, so say it here instead of deep in boot.
+            if backend.get("aio") == "native" and backend.get("cache") not in (
+                CACHE_DIRECT
+            ):
+                raise ValueError(
+                    f"nvme drive {i} aio native requires cache "
+                    f"{' or '.join(CACHE_DIRECT)} (O_DIRECT); QEMU refuses to open "
+                    "the image otherwise"
+                )
         ctrl = _bucket(fi, NVME_CTRL_KNOBS, i)
         ns = _bucket(fi, NVME_NS_KNOBS, i)
         blockconf = _bucket(fi, NVME_BLOCKCONF_KNOBS, i)
         # atomic.dn is a controller boolean, not a comma-list.
         if fi.get("atomic_dn"):
             ctrl["atomic.dn"] = True
-        # ioeventfd is a controller boolean, not a comma-list.
-        if fi.get("ioeventfd"):
+        # Per-drive, on unless the drive's own part of the list says otherwise.
+        if _drive_onoff(fi.get("ioeventfd"), i, default=True):
             ctrl["ioeventfd"] = True
         # atomic.mam is a namespace boolean, not a comma-list.
         if fi.get("atomic_mam"):
@@ -434,8 +504,9 @@ def _nvme_drives(fi: dict) -> list[dict]:
                     **ctrl,
                     "namespaces": [
                         {
-                            "file": base["file"],
-                            "format": base["format"],
+                            # Everything but the serial: that is the controller's,
+                            # and a null driver has no file to name here.
+                            **{k: v for k, v in base.items() if k != "serial"},
                             **backend,
                             **blockconf,
                             **ns,

@@ -312,12 +312,14 @@ def test_nvme_drives_simple_mode_names_and_blockconf():
             "file": "nvme0.qcow2",
             "format": "qcow2",
             "serial": "kdevops0",
+            "ioeventfd": True,
             "logical_block_size": "4096",
         },
         {
             "file": "nvme1.qcow2",
             "format": "qcow2",
             "serial": "kdevops1",
+            "ioeventfd": True,
             "logical_block_size": "512",
         },
     ]
@@ -333,6 +335,7 @@ def test_nvme_drives_backend_knobs_ride_the_drive_entry():
             "serial": "kdevops0",
             "discard": "unmap",
             "detect-zeroes": "unmap",
+            "ioeventfd": True,
         }
     ]
 
@@ -366,9 +369,79 @@ def test_nvme_drives_atomic_dn_marks_every_controller():
     assert all(d["atomic.dn"] is True for d in drives)
 
 
-def test_nvme_drives_ioeventfd_marks_every_controller():
-    drives = common.nvme_drives({"nvme_drive_count": 2, "ioeventfd": True})
-    assert all(d["ioeventfd"] is True for d in drives)
+def test_nvme_drives_ioeventfd_is_on_unless_a_drive_says_otherwise():
+    drives = common.nvme_drives({"nvme_drive_count": 3, "ioeventfd": "off,on"})
+    assert [d.get("ioeventfd") for d in drives] == [None, True, True]
+    assert all(
+        d["ioeventfd"] is True for d in common.nvme_drives({"nvme_drive_count": 2})
+    )
+
+
+def test_nvme_drives_ioeventfd_rejects_a_value_that_is_not_on_or_off():
+    with pytest.raises(ValueError, match="expected on or off"):
+        common.nvme_drives({"nvme_drive_count": 1, "ioeventfd": "yes please"})
+
+
+def test_nvme_drives_null_driver_takes_a_size_instead_of_a_file():
+    drives = common.nvme_drives(
+        {"nvme_drive_count": 2, "nvme_drive_size_gb": 1, "driver": ",null-co"}
+    )
+    assert "file" not in drives[1]
+    assert drives[1]["driver"] == "null-co"
+    assert drives[1]["size"] == 1024**3
+    assert drives[1]["read-zeroes"] == "on"
+    assert drives[0]["file"] == "nvme0.qcow2"
+
+
+def test_nvme_drives_format_names_the_backing_file():
+    drives = common.nvme_drives({"nvme_drive_count": 2, "format": "raw,qcow2"})
+    assert [d["file"] for d in drives] == ["nvme0.raw", "nvme1.qcow2"]
+
+
+def test_nvme_drives_reject_an_unknown_driver():
+    with pytest.raises(ValueError, match="is not one of"):
+        common.nvme_drives({"nvme_drive_count": 1, "driver": "qcow2"})
+
+
+def test_nvme_drives_native_aio_needs_an_o_direct_cache_mode():
+    fi = {"nvme_drive_count": 1, "aio": "native", "cache": "writeback"}
+    with pytest.raises(ValueError, match="requires cache"):
+        common.nvme_drives(fi)
+    ok = common.nvme_drives({**fi, "cache": "none"})
+    assert ok[0]["aio"] == "native"
+
+
+def test_nvme_drives_aio_max_batch_lands_on_the_protocol_layer():
+    # QEMU rejects the bare spelling on a drive that names a format.
+    drives = common.nvme_drives({"nvme_drive_count": 1, "aio_max_batch": "8"})
+    assert drives[0]["file.aio-max-batch"] == "8"
+    assert "aio-max-batch" not in drives[0]
+
+
+def test_nvme_drives_null_driver_takes_no_file_backend_knobs():
+    # null_open never reads the open flags, and it rejects the batch option.
+    drives = common.nvme_drives(
+        {
+            "nvme_drive_count": 1,
+            "driver": "null-co",
+            "aio": "io_uring",
+            "cache": "none",
+            "discard": "unmap",
+            "aio_max_batch": "8",
+        }
+    )
+    for knob in ("aio", "cache", "discard", "file.aio-max-batch"):
+        assert knob not in drives[0]
+
+
+def test_nvme_drives_backend_knobs_are_per_drive():
+    drives = common.nvme_drives(
+        {"nvme_drive_count": 2, "aio": "threads,io_uring", "cache": "writeback,none"}
+    )
+    assert [(d["aio"], d["cache"]) for d in drives] == [
+        ("threads", "writeback"),
+        ("io_uring", "none"),
+    ]
 
 
 def test_nvme_drives_ns_knobs_force_explicit_namespaces():
@@ -377,6 +450,7 @@ def test_nvme_drives_ns_knobs_force_explicit_namespaces():
     assert drives == [
         {
             "serial": "kdevops0",
+            "ioeventfd": True,
             "namespaces": [
                 {
                     "file": "nvme0.qcow2",

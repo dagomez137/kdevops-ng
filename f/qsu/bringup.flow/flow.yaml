@@ -2320,7 +2320,18 @@ schema:
       - discard
       - detect_zeroes
       - write_cache
+      - driver
+      - format
+      - aio
+      - cache
+      - aio_max_batch
+      - read_zeroes
+      - latency_ns
       - mdts
+      - max_ioqpairs
+      - msix_qsize
+      - mqes
+      - dbcs
       - ioeventfd
       - cmb_size_mb
       - legacy_cmb
@@ -2497,19 +2508,141 @@ schema:
           showExpr: fields.customize_drives === true
           title: Discard Granularity
         ioeventfd:
-          type: boolean
+          type: string
           description: 'Deliver I/O queue doorbell writes through an eventfd: `-device
 
-            nvme,ioeventfd=on`. On, a doorbell write is signalled to the main
+            nvme,ioeventfd=`. `on`, the default here, signals the main loop and
 
-            loop and the vCPU thread never leaves the guest; off (QEMU''s
+            leaves the vCPU thread in the guest; `off`, which is QEMU''s own
 
-            default) every write traps out to userspace on the vCPU thread.
+            default, traps every write out to userspace on the vCPU thread.
 
-            Admin queue doorbells always take the exit. Applies to every drive.'
-          default: true
+            Admin queue doorbells always take the exit. Single value or
+
+            per-drive comma-list.'
+          default: 'on'
           showExpr: fields.customize_drives === true
           title: Doorbell eventfd
+        driver:
+          type: string
+          description: 'Block driver behind the drive instead of an image file: `-drive
+
+            driver=`. Empty = a file. `null-co` and `null-aio` answer every
+
+            request in the block layer without touching storage. Single value
+
+            or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Backing Driver
+        format:
+          type: string
+          description: 'Image format: `-drive format=`. The backing file is named for it, so
+
+            `raw` gives `nvme0.raw`. Ignored on a drive that has a `driver`.
+
+            Single value or per-drive comma-list.'
+          default: qcow2
+          showExpr: fields.customize_drives === true
+          title: Image Format
+        aio:
+          type: string
+          description: 'How QEMU submits the image''s I/O to the host: `-drive aio=`.
+
+            `threads` is a worker pool, `native` is Linux AIO and needs an
+
+            O_DIRECT cache mode, `io_uring` is io_uring. Empty = QEMU default.
+
+            Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: AIO Mode
+        cache:
+          type: string
+          description: 'Host cache mode for the image: `-drive cache=`. `writeback` is
+
+            QEMU''s default, `none` and `directsync` open the file O_DIRECT,
+
+            `unsafe` drops flushes. Empty = QEMU default. Single value or
+
+            per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Cache Mode
+        aio_max_batch:
+          type: string
+          description: 'Largest number of requests QEMU hands the host engine at once:
+
+            `-drive file.aio-max-batch=`, which is where the option lives: QEMU
+
+            rejects the bare spelling on any drive that names a format, and on
+
+            a driver that has no file at all. Empty = the engine''s own default.
+
+            Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: AIO Max Batch
+        read_zeroes:
+          type: string
+          description: 'Whether a read from a null driver fills the guest buffer: `-drive
+
+            read-zeroes=`. Defaults to `on` on those drives, because a read that
+
+            leaves memory untouched costs less than a memset and is not
+
+            comparable with a device. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Read Zeroes
+        latency_ns:
+          type: string
+          description: 'Delay a null driver adds to every request, in nanoseconds: `-drive
+
+            latency-ns=`. Empty = no delay, which is the only setting with no
+
+            device in it. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Latency (ns)
+        max_ioqpairs:
+          type: string
+          description: 'I/O queue pairs the controller offers: `-device
+
+            nvme,max_ioqpairs=`. Empty = QEMU default. Single value or per-drive
+
+            comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Max I/O Queue Pairs
+        msix_qsize:
+          type: string
+          description: 'MSI-X table size: `-device nvme,msix_qsize=`. Empty = QEMU default.
+
+            Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: MSI-X Queue Size
+        mqes:
+          type: string
+          description: 'Maximum Queue Entries Supported, 0-based: `-device nvme,mqes=`.
+
+            Empty = QEMU default. Single value or per-drive comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Maximum Queue Entries (MQES)
+        dbcs:
+          type: string
+          description: 'Doorbell Buffer Config support: `-device nvme,dbcs=`. QEMU defaults
+
+            it on, which lets the guest keep its doorbells in a shared buffer
+
+            and write the register less often. Single value or per-drive
+
+            comma-list.'
+          default: ''
+          showExpr: fields.customize_drives === true
+          title: Shadow Doorbells (DBCS)
         legacy_cmb:
           type: boolean
           description: 'Use the NVMe 1.3 CMB register scheme (CMBLOC/CMBSZ always enabled):

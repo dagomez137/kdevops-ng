@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-"""Create the per-VM NVMe qcow2 backing files (ports render-per-vm.yml's qemu-img step).
+"""Create the per-VM NVMe backing files (ports render-per-vm.yml's qemu-img step).
 
-The qcow2 files live under the VM's systemd `StateDirectory`
+The image files live under the VM's systemd `StateDirectory`
 (`~/.local/state/qemu-system/<vm>`), the same directory `qemu-system@<vm>.service`
-sets `WorkingDirectory=` to, so vm.env's relative `file=nvme<i>.qcow2` paths resolve at
-run time. Idempotent: an existing file is left untouched (matches ansible `creates:`).
+sets `WorkingDirectory=` to, so vm.env's relative `file=nvme<i>.<format>` paths resolve
+at run time. Idempotent: an existing file is left untouched (matches ansible
+`creates:`). Takes the rendered drive list, so a drive renders and is created in one
+format, and a drive whose driver takes no file at all gets none.
 
 `qemu-img` comes from the reproducible nixos-flake `qemu`, host-visible in `/nix/store`
 from every worker; never a host/distro qemu-img, and never the VM's own `qemu-system`
@@ -44,8 +46,15 @@ def main(
     for d in drives:
         # In explicit-namespace mode the backend file + format live on the namespace.
         ns = d.get("namespaces", [{}])[0]
-        backing_file = d.get("file") or ns["file"]
+        backing_file = d.get("file") or ns.get("file")
         fmt = d.get("format") or ns.get("format") or "qcow2"
+        # A null-co or null-aio drive answers every request in the block layer,
+        # so there is no file to lay down for it.
+        if not backing_file:
+            driver = d.get("driver") or ns.get("driver")
+            print(f"{d.get('serial')}: {driver} takes no file, skipping", flush=True)
+            skipped.append(f"{d.get('serial')} ({driver})")
+            continue
         path = sdir / backing_file
         if path.exists():
             print(f"exists, skipping: {path}", flush=True)
