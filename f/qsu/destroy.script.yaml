@@ -1,31 +1,31 @@
-summary: Destroy a VM
+summary: Destroy VMs
 description: |-
-  Stop `qemu-system@<vm>` and remove every per-VM artefact: the env file, the
-  drop-in dirs, the virtiofsd env files, the systemd `StateDirectory` holding
-  the NVMe qcow2 backing files, the reuse sidecar that lists the VM in the
-  bringup Reuse dropdown, and the `ssh <vm>` alias.
+  Stop `qemu-system@<vm>` and remove every per-VM artefact, for each VM picked:
+  the env file, the drop-in dirs, the virtiofsd env files, the systemd
+  `StateDirectory` holding the NVMe qcow2 backing files, the reuse sidecar that
+  lists the VM in the bringup Reuse dropdown, and the `ssh <vm>` alias.
 
-  Destroying the **last** VM also tears down the host-wide units and config dirs
-  the VMs shared, matching the qsu manual's "Remove everything"; `f/qsu/boot`
-  re-renders those unconditionally, so the next deploy self-heals. While other
-  VMs remain, the shared files stay in place.
+  A selection that leaves **no** VM behind also tears down the host-wide units
+  and config dirs the VMs shared, matching the qsu manual's "Remove
+  everything"; `f/qsu/boot` re-renders those unconditionally, so the next
+  deploy self-heals. While other VMs remain, the shared files stay in place.
 lock: '!inline f/qsu/destroy.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   order:
-    - vm_name
+    - vm_names
   properties:
-    vm_name:
+    vm_names:
       type: object
       description: |-
-        VM to stop and tear down. The dropdown lists every destroyable VM: the
-        running VMs (`systemctl --user list-units 'qemu-system@*'`, across the
-        local host and registered peers) plus any with a rendered `<vm>.env`
-        still on disk.
-      format: dynselect-list_vms
-      title: VM Name
-  required:
-    - vm_name
+        VMs to stop and tear down, torn down in the order picked. The list holds
+        every destroyable VM: the running VMs (`systemctl --user list-units
+        'qemu-system@*'`, across the local host and registered peers) plus any
+        with a rendered `<vm>.env` still on disk.
+      default: []
+      format: dynmultiselect-list_vms
+      title: VM Names
+  required: []
 tag: vm

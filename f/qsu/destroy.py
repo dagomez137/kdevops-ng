@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-"""Destroy one QEMU/systemd VM (ports destroy.yml's per-VM teardown).
+"""Destroy QEMU/systemd VMs (ports destroy.yml's per-VM teardown).
 
-Stop the instance, then remove every per-VM artefact: the `<vm>.env`, the
+Stop each instance, then remove every per-VM artefact: the `<vm>.env`, the
 `qemu-system@<vm>.service.d` drop-in dir, the `virtiofsd@<vm>-*.service.d` drop-in
 dirs and `virtiofsd@<vm>-*.env` files, the systemd `StateDirectory`
 (`~/.local/state/qemu-system/<vm>`: the NVMe qcow2 backing files + runtime sockets),
@@ -12,8 +12,8 @@ once the guest is gone).
 machined unregisters automatically on stop. A final `daemon-reload` drops the removed
 drop-ins.
 
-When this VM is the LAST one (no rendered `<vm>.env` remains after the per-VM removals)
-the host-wide artefacts shared across VMs are torn down too, matching the qsu manual's
+When the selection leaves NO rendered `<vm>.env` behind, the host-wide artefacts
+shared across VMs are torn down too, matching the qsu manual's
 "Remove everything": the virtiofsd listening sockets are stopped (they socket-activate
 new virtiofsd processes until stopped, since `qemu-system@<vm>.service` does not pin
 them), the host-wide template units (`qemu-system@.service`, `virtiofsd@.service`,
@@ -23,12 +23,12 @@ re-renders all of these unconditionally on the next deploy, so the slate is clea
 self-heals on first boot. While other VMs remain the shared files stay in place.
 
 Equivalent commands, against the host `systemd --user` manager (plus the per-VM
-artefact removals):
+artefact removals), once per selected VM:
 
     systemctl --user stop qemu-system@<vm>.service
     systemctl --user daemon-reload
 
-and, only on the last VM, additionally (qsu manual "Remove everything"):
+and, only once no VM is left, additionally (qsu manual "Remove everything"):
 
     systemctl --user stop 'virtiofsd@*.socket'
     rm --recursive --force \\
@@ -82,19 +82,10 @@ def _teardown_shared(systemd: Systemd, cfg: Path) -> list[str]:
     return [r for r in (_rm(p) for p in targets) if r]
 
 
-def list_vms(filterText: str = "", **_: object) -> list[dict]:
-    """`dynselect-list_vms` entrypoint for `vm_name`: see `f.qsu.common.vm_options`."""
-    return vm_options(filterText)
-
-
-def main(vm_name: str) -> dict:
-    workers = Path(os.environ["WORKERS_DIR"])
-    systemd = Systemd(workers)
-    rc = systemd.systemctl("stop", f"qemu-system@{vm_name}.service", check=False)
-
-    cfg = systemd_config()
+def _targets(cfg: Path, workers: Path, vm_name: str) -> list[Path]:
+    """Every per-VM artefact of `vm_name`, in removal order."""
     user = cfg / "user"
-    targets = [
+    return [
         cfg / "qemu-system" / f"{vm_name}.env",
         user / f"qemu-system@{vm_name}.service.d",
         state_dir(vm_name),
@@ -103,22 +94,46 @@ def main(vm_name: str) -> dict:
         *user.glob(f"virtiofsd@{vm_name}-*.service.d"),
         *(cfg / "virtiofsd").glob(f"{vm_name}-*.env"),
     ]
-    removed = [r for r in (_rm(p) for p in targets) if r]
 
-    # vm_options enumerates VMs by rendered `<vm>.env` (union with live machines); the
-    # target's env is gone now and the machine is stopped, so no remaining env means this
-    # was the last VM and the shared host-wide files are orphaned.
+
+def list_vms(filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_vms` entrypoint: see `f.qsu.common.vm_options`."""
+    return vm_options(filterText)
+
+
+def main(vm_names: list[str]) -> dict:
+    names = list(dict.fromkeys(vm_names or []))
+    if not names:
+        raise ValueError("pick at least one VM to destroy")
+
+    workers = Path(os.environ["WORKERS_DIR"])
+    systemd = Systemd(workers)
+    cfg = systemd_config()
+
+    destroyed = []
+    removed: list[str] = []
+    for vm_name in names:
+        rc = systemd.systemctl("stop", f"qemu-system@{vm_name}.service", check=False)
+        paths = [r for r in (_rm(p) for p in _targets(cfg, workers, vm_name)) if r]
+        for r in paths:
+            print(f"removed {r}", flush=True)
+        destroyed.append({"vm_name": vm_name, "stopped": rc == 0, "removed": paths})
+        removed += paths
+
+    # vm_options enumerates VMs by rendered `<vm>.env` (union with live machines), so no
+    # remaining env means the selection took the last VM with it and the shared host-wide
+    # files are orphaned.
     shared_torn_down = not any((cfg / "qemu-system").glob("*.env"))
     if shared_torn_down:
-        removed += _teardown_shared(systemd, cfg)
-
-    for r in removed:
-        print(f"removed {r}", flush=True)
+        shared = _teardown_shared(systemd, cfg)
+        for r in shared:
+            print(f"removed {r}", flush=True)
+        removed += shared
 
     systemd.systemctl("daemon-reload", check=False)
     return {
-        "vm_name": vm_name,
-        "stopped": rc == 0,
+        "vm_names": names,
+        "destroyed": destroyed,
         "removed": removed,
         "shared_torn_down": shared_torn_down,
     }
