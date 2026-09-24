@@ -1,0 +1,12 @@
+summary: kvcache shared library (share layout, presets, env files)
+description: |-
+  Shared library for the f/kvcache steps.
+lock: '!inline f/kvcache/common.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
+tag: vm

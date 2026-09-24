@@ -12,6 +12,7 @@
 # /nix/store and qemu/virtiofsd binary resolution lives in f.qsu.binaries.
 import hashlib
 import os
+import re
 from pathlib import Path
 
 import jinja2
@@ -36,6 +37,7 @@ CANONICAL_SHARE_TAGS = [
     "selftests",
     "usertests",
     "blktests",
+    "kvcache",
     "home",
     "controller-share",
 ]
@@ -289,7 +291,7 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
 def nvme_drives(fi: dict) -> list[dict]:
     """The per-VM nvme drive dicts (file/format/serial + BlockConf knobs).
 
-    Public so nvme/create lays down exactly the files vm.env references.
+    Public so nvme/create creates exactly the qcow2 files vm.env references.
     """
     return _nvme_drives(fi)
 
@@ -299,33 +301,14 @@ def nvme_drives(fi: dict) -> list[dict]:
 # BLOCKCONF -> whichever device owns the drive backend, BACKEND -> the -drive
 # entry itself, so it travels with `file`/`format` into either form.
 NVME_BACKEND_KNOBS = (
-    ("aio", "aio"),
-    ("cache", "cache"),
-    ("aio_max_batch", "file.aio-max-batch"),
     ("discard", "discard"),
     ("detect_zeroes", "detect-zeroes"),
 )
-# The null drivers have no file, so the file-backend knobs above do not apply to
-# them; these take their place.
-NVME_NULL_KNOBS = (
-    ("read_zeroes", "read-zeroes"),
-    ("latency_ns", "latency-ns"),
-)
 NVME_CTRL_KNOBS = (
     ("mdts", "mdts"),
-    ("max_ioqpairs", "max_ioqpairs"),
-    ("msix_qsize", "msix_qsize"),
-    ("mqes", "mqes"),
-    ("dbcs", "dbcs"),
     ("atomic_awun", "atomic.awun"),
     ("atomic_awupf", "atomic.awupf"),
 )
-# Block drivers that take a size instead of a file: null-aio answers a request
-# from the AIO path, null-co from a coroutine, neither touching storage.
-NVME_NULL_DRIVERS = ("null-co", "null-aio")
-# aio=native is the one mode QEMU refuses to open without O_DIRECT, and these are
-# the two -drive cache= shorthands that set it.
-CACHE_DIRECT = ("none", "directsync")
 NVME_NS_KNOBS = (
     ("atomic_nawun", "atomic.nawun"),
     ("atomic_nawupf", "atomic.nawupf"),
@@ -356,26 +339,6 @@ def _drive_pick(raw: str | None, i: int) -> str:
     return value.strip()
 
 
-_TRUE = ("on", "true", "1", "yes")
-_FALSE = ("off", "false", "0", "no", "none")
-
-
-def _drive_onoff(raw, i: int, default: bool) -> bool:
-    """Resolve an on/off per-drive knob, so one boot can carry both settings.
-
-    Same comma-list rule as `_drive_pick`; an empty part takes `default`, which
-    is how a bare "off" on drive 0 leaves the rest of the drives alone.
-    """
-    v = _drive_pick(raw, i).lower()
-    if not v:
-        return default
-    if v in _TRUE:
-        return True
-    if v in _FALSE:
-        return False
-    raise ValueError(f"expected on or off, got {v!r}")
-
-
 def _bucket(fi: dict, knobs, i: int) -> dict:
     out = {}
     for param, tkey in knobs:
@@ -389,60 +352,26 @@ def _nvme_drives(fi: dict) -> list[dict]:
     if fi.get("nvme_drives"):
         return fi["nvme_drives"]
     count = int(fi.get("nvme_drive_count", 0) or 0)
-    size_gb = int(fi.get("nvme_drive_size_gb", 0) or 0)
     drives = []
     for i in range(count):
-        driver = _drive_pick(fi.get("driver"), i)
-        fmt = _drive_pick(fi.get("format"), i) or "qcow2"
-        if driver and driver not in NVME_NULL_DRIVERS:
+        base = {"file": f"nvme{i}.qcow2", "format": "qcow2", "serial": f"kdevops{i}"}
+        backend = _bucket(fi, NVME_BACKEND_KNOBS, i)
+        # QEMU rejects the image at open when detect-zeroes unmaps but discard does
+        # not, so fail here rather than let the VM die deep in boot.
+        if (
+            backend.get("detect-zeroes") == "unmap"
+            and backend.get("discard") != "unmap"
+        ):
             raise ValueError(
-                f"nvme drive {i} driver {driver!r} is not one of "
-                f"{', '.join(NVME_NULL_DRIVERS)}; leave it empty for a file"
+                f"nvme drive {i} detect_zeroes unmap requires discard unmap; QEMU "
+                "refuses to open the image otherwise"
             )
-        if driver:
-            # No qemu-img lays these down, so the namespace size comes from here.
-            base = {"driver": driver, "serial": f"kdevops{i}"}
-            if size_gb:
-                base["size"] = size_gb * 1024**3
-            backend = _bucket(fi, NVME_NULL_KNOBS, i)
-            # null-co leaves the guest buffer untouched by default.
-            backend.setdefault("read-zeroes", "on")
-        else:
-            base = {
-                "file": f"nvme{i}.{fmt}",
-                "format": fmt,
-                "serial": f"kdevops{i}",
-            }
-            backend = _bucket(fi, NVME_BACKEND_KNOBS, i)
-            # QEMU rejects the image at open when detect-zeroes unmaps but discard does
-            # not, so fail here rather than let the VM die deep in boot.
-            if (
-                backend.get("detect-zeroes") == "unmap"
-                and backend.get("discard") != "unmap"
-            ):
-                raise ValueError(
-                    f"nvme drive {i} detect_zeroes unmap requires discard unmap; QEMU "
-                    "refuses to open the image otherwise"
-                )
-            # aio=native is Linux AIO, which only works on an O_DIRECT file. QEMU
-            # says so and exits, so say it here instead of deep in boot.
-            if backend.get("aio") == "native" and backend.get("cache") not in (
-                CACHE_DIRECT
-            ):
-                raise ValueError(
-                    f"nvme drive {i} aio native requires cache "
-                    f"{' or '.join(CACHE_DIRECT)} (O_DIRECT); QEMU refuses to open "
-                    "the image otherwise"
-                )
         ctrl = _bucket(fi, NVME_CTRL_KNOBS, i)
         ns = _bucket(fi, NVME_NS_KNOBS, i)
         blockconf = _bucket(fi, NVME_BLOCKCONF_KNOBS, i)
         # atomic.dn is a controller boolean, not a comma-list.
         if fi.get("atomic_dn"):
             ctrl["atomic.dn"] = True
-        # Per-drive, on unless the drive's own part of the list says otherwise.
-        if _drive_onoff(fi.get("ioeventfd"), i, default=True):
-            ctrl["ioeventfd"] = True
         # atomic.mam is a namespace boolean, not a comma-list.
         if fi.get("atomic_mam"):
             ns["atomic.mam"] = True
@@ -504,9 +433,8 @@ def _nvme_drives(fi: dict) -> list[dict]:
                     **ctrl,
                     "namespaces": [
                         {
-                            # Everything but the serial: that is the controller's,
-                            # and a null driver has no file to name here.
-                            **{k: v for k, v in base.items() if k != "serial"},
+                            "file": base["file"],
+                            "format": base["format"],
                             **backend,
                             **blockconf,
                             **ns,
@@ -531,11 +459,9 @@ def _kernel(fi: dict, kernel: dict | None, closure: dict | None) -> dict | None:
     append = fi.get("kernel_append") or (
         f"root=tmpfs console=ttyS0,115200 console=hvc0 init={init}" if init else None
     )
-    # Curated parameters ride after the composed cmdline, the free-text field
-    # after those. Both add; neither replaces what the form already asked for.
-    curated = list(fi.get("kernel_parameters") or [])
-    extra = (fi.get("extra_kernel_parameters") or "").split()
-    params = " ".join(curated + extra)
+    # Curated extra parameters (e.g. kunit.autorun=1) ride after the composed
+    # cmdline, or stand alone when there is none.
+    params = " ".join(fi.get("kernel_parameters") or [])
     if params:
         append = f"{append} {params}" if append else params
     k = {"image": image}
@@ -572,6 +498,47 @@ def _port_offset(fi: dict) -> int:
         return idx
     digest = hashlib.sha256((fi.get("vm_name") or "").encode()).hexdigest()
     return int(digest[:8], 16) % PORT_OFFSET_MODULO
+
+
+# A full domain:bus:slot.function address. Validated on the way in: an
+# unparsable address must fail the render rather than silently drop a device
+# and boot a GPU-less guest that the workload then fails on much later.
+_PCI_ADDR_RE = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$")
+
+
+def _pci_passthrough(fi: dict) -> list[dict]:
+    """Compose the `pci_passthrough` var for the qemu-system-units templates.
+
+    Emits the vendored contract (vendor/qemu-system-units/docs/vars.md): a list
+    of `{addr, opts}`. The templates own everything downstream -- the
+    `-device vfio-pci,host=` line (vm.env.j2), the `Requires=vfio-bind@<addr>`
+    dependency, `DeviceAllow=/dev/vfio/vfio`, and the `LimitMEMLOCK=<ram+256>M`
+    bump (qemu-system-override.conf.j2). We only supply the list.
+
+    Host VFIO setup (vfio-pci module, udev rules, group access) is the one-time
+    manual sudo procedure in docs/getting-started/requirements.rst and is
+    deliberately not automated here. The per-device `/dev/vfio/<iommu-group>`
+    DeviceAllow is likewise the operator's `service:` override, per the
+    security-hardening section of the vendored design-decisions.md: group
+    numbers are not render-time knowable.
+
+    Accepts a comma- or newline-separated string; the short `81:00.0` form
+    operators paste from `lspci -nn` gets the `0000:` domain implied.
+    """
+    raw = fi.get("pci_passthrough_addrs") or ""
+    addrs = [a.strip() for a in raw.replace("\n", ",").split(",") if a.strip()]
+    addrs = [a if a.count(":") == 2 else f"0000:{a}" for a in addrs]
+    for a in addrs:
+        if not _PCI_ADDR_RE.match(a):
+            raise ValueError(
+                f"invalid PCI address {a!r}: expected domain:bus:slot.function, "
+                "e.g. 0000:81:00.0 (see `lspci -nn -D`); every endpoint in the "
+                "device's IOMMU group must be listed"
+            )
+    if len(set(addrs)) != len(addrs):
+        raise ValueError(f"duplicate PCI addresses in {addrs}")
+    opts = (fi.get("pci_passthrough_opts") or "").strip()
+    return [{"addr": a, **({"opts": opts} if opts else {})} for a in addrs]
 
 
 def build_vars(
@@ -624,10 +591,9 @@ def build_vars(
         v["kernel"] = k
     if fi.get("iommu"):
         v["iommu"] = fi["iommu"]
-    # Omitted rather than set to None: Jinja's default("") fills an undefined
-    # name only, so a None renders the word "None" onto the command line.
-    if fi.get("extra_qemu_args"):
-        v["extra_qemu_args"] = fi["extra_qemu_args"]
+    devs = _pci_passthrough(fi)
+    if devs:
+        v["pci_passthrough"] = devs
     return v
 
 

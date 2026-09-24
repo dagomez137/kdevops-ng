@@ -5,9 +5,9 @@ excludes: []
 skipScripts: false
 skipFlows: false
 skipApps: false
-skipResources: false       # track resources (ensure secret fields are $var refs, not literals)
+skipResources: false
 skipResourceTypes: false
-skipVariables: true        # variables hold secrets -> keep out of git
+skipVariables: true
 skipSecrets: true
 includeSchedules: true
 includeTriggers: true
@@ -15,6 +15,7 @@ workspaces:
   kdevops:
     baseUrl: http://localhost:8002/
     gitBranch: main
-  staging:                   # promote gate: push WIP here, promote to kdevops once proven
+  staging:
     baseUrl: http://localhost:8002/
     gitBranch: main
+  kvcache-v3: {}

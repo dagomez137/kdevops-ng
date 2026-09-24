@@ -1,0 +1,147 @@
+summary: Render vllm-serve.env + <preset>.env onto the share
+description: |-
+  Render a KV cache run's config onto the `kvcache` virtiofs share.
+
+  Writes onto `$WORKERS_DIR/shared/kvcache/<vm>` (the host side of the
+  guest's `/var/lib/kvcache` mount) the files the guest's units read:
+
+    - `vllm-serve.env`: `vllm-serve.service`'s EnvironmentFile. VLLM_MODEL,
+      VLLM_SERVE_ARGS (max-model-len, dtype, gpu-memory-utilization, prefix
+      caching, the LMCache KV-connector wiring) and the LMCACHE_* variables
+      selecting the offload backend and buffer size.
+    - `<preset>.env`: `kvcache-bench@<preset>.service`'s EnvironmentFile.
+      Dataset, source filter, session cap, worker count, endpoint.
+
+  Both are written atomically and echoed to the job log. Because config
+  arrives over virtiofs rather than in the closure (the fstests
+  contract), changing a model, cache backend or preset needs no closure
+  rebuild. The host never contacts the guest.
+
+  Equivalent commands:
+
+      cat > "$WORKERS_DIR/shared/kvcache/<vm>/vllm-serve.env"
+      cat > "$WORKERS_DIR/shared/kvcache/<vm>/<preset>.env"
+lock: '!inline f/kvcache/render_config.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - model
+  - max_model_len
+  - dtype
+  - gpu_memory_utilization
+  - enable_prefix_caching
+  - lmcache_enabled
+  - lmcache_cpu_buffer_gb
+  - lmcache_local_disk
+  - extra_serve_args
+  - dataset
+  - source
+  - max_sessions
+  - workers
+  - max_tokens
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      title: Preset
+      description: |-
+        Replay preset (kvcache-bench@<preset>.service instance name). The
+        preset dropdown reads the per-VM cache discover writes.
+    model:
+      type: string
+      default: facebook/opt-125m
+      title: Model
+      description: |-
+        HF model id the engine serves (VLLM_MODEL).
+    max_model_len:
+      type: integer
+      default: 8192
+      title: Max Model Len
+      description: |-
+        vLLM --max-model-len.
+    dtype:
+      type: string
+      default: auto
+      title: Dtype
+      description: |-
+        vLLM --dtype.
+    gpu_memory_utilization:
+      type: number
+      default: 0.85
+      title: Gpu Memory Utilization
+      description: |-
+        vLLM --gpu-memory-utilization fraction.
+    enable_prefix_caching:
+      type: boolean
+      default: true
+      title: Enable Prefix Caching
+      description: |-
+        Pass --enable-prefix-caching to the engine.
+    lmcache_enabled:
+      type: boolean
+      default: true
+      title: Lmcache Enabled
+      description: |-
+        Wire the LMCache KV connector into the engine.
+    lmcache_cpu_buffer_gb:
+      type: integer
+      default: 40
+      title: Lmcache Cpu Buffer Gb
+      description: |-
+        LMCACHE_MAX_LOCAL_CPU_SIZE in GiB.
+    lmcache_local_disk:
+      type: string
+      default: ''
+      title: Lmcache Local Disk
+      description: |-
+        LMCache local-disk backend path (e.g. file:///var/lib/kvcache/disk-
+        cache/); empty = CPU buffer only.
+    extra_serve_args:
+      type: string
+      default: ''
+      title: Extra Serve Args
+      description: |-
+        Appended verbatim to VLLM_SERVE_ARGS.
+    dataset:
+      type: string
+      default: sammshen/lmcache-agentic-traces
+      title: Dataset
+      description: |-
+        HF dataset of agentic traces to replay.
+    source:
+      type: string
+      default: ''
+      title: Source
+      description: |-
+        Dataset source-column filter; empty = all sources.
+    max_sessions:
+      type: integer
+      default: 0
+      title: Max Sessions
+      description: |-
+        Session cap; 0 replays the whole dataset.
+    workers:
+      type: integer
+      default: 4
+      title: Workers
+      description: |-
+        Concurrent sessions before the preset's own multiplier.
+    max_tokens:
+      type: integer
+      default: 256
+      title: Max Tokens
+      description: |-
+        max_tokens per turn (KVBENCH_MAX_TOKENS).
+  required:
+  - vm_name
+  - preset
+tag: vm

@@ -64,6 +64,7 @@
           build-tools = ./modules/profiles/build-tools.nix;
           controller = ./modules/profiles/controller.nix;
           devel = ./modules/profiles/devel.nix;
+          gpu = ./modules/profiles/gpu.nix;
           monitoring = ./modules/profiles/monitoring.nix;
           telemetry = ./modules/profiles/telemetry.nix;
         };
@@ -78,6 +79,7 @@
           fstests = ./modules/testSuites/fstests.nix;
           gitr = ./modules/testSuites/gitr.nix;
           kunit = ./modules/testSuites/kunit.nix;
+          kvcache = ./modules/testSuites/kvcache.nix;
           ltp = ./modules/testSuites/ltp.nix;
           mmtests = ./modules/testSuites/mmtests.nix;
           pynfs = ./modules/testSuites/pynfs.nix;
@@ -109,25 +111,24 @@
       };
 
       # Expose the custom packages as direct flake outputs so they can be
-      # built without going through a NixOS configuration, alongside the
-      # nixpkgs tools a consumer resolves from here.
-      #
-      # The custom set is named by pkgs/default.nix, not repeated here:
-      # intersectAttrs reads its attribute names (lazily, so no package is
-      # evaluated) and takes the matching values from the overlaid pkgs.
-      packages = forAllSystems (
-        pkgs:
-        builtins.intersectAttrs (import ./pkgs { }) pkgs
-        // {
-          inherit (pkgs)
-            qemu
-            virtiofsd
-            socat
-            git
-            git-subrepo
-            ;
-        }
-      );
+      # built without going through a NixOS configuration.
+      packages = forAllSystems (pkgs: {
+        inherit (pkgs)
+          blktests
+          cpupower
+          damo
+          ebpf_exporter
+          libbpf-tools
+          nfstest
+          pynfs
+          xnvme
+          qemu
+          virtiofsd
+          socat
+          git
+          git-subrepo
+          ;
+      });
 
       # Reproducible build toolchains usable on any host (NixOS or not). Nix
       # provides the environment; the build picks the compiler/flags inside it.
@@ -248,11 +249,6 @@
                   pip
                 ]
               ))
-              # --enable-vfio-user-server builds the libvfio-user subproject
-              # qemu vendors, which needs json-c and cmocka that qemu does not.
-              # Nixpkgs qemu leaves the server off, so neither is in inputsFrom.
-              pkgs.json_c
-              pkgs.cmocka
             ];
             env.RUST_LIB_SRC = rustLibSrc;
             shellHook = reproducibleShellHook;

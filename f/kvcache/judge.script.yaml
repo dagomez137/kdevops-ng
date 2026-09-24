@@ -1,0 +1,33 @@
+summary: Fail the flow unless the run passed
+description: |-
+  Fail the flow unless the replay ran and completed successfully.
+
+  The single gate downstream consumers rely on: `wait` must have
+  observed a `success` terminus (Result=success, ExecMainStatus=0 -- the
+  replayer's own failed-session-rate gate is inside that exit code) and
+  `collect` must have found a summary. Raising here fails the Windmill
+  job, so a red run is meaningful rather than advisory. Pure function of
+  its inputs.
+lock: '!inline f/kvcache/judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - wait
+  - collected
+  properties:
+    wait:
+      type: object
+      description: |-
+        The wait step's result.
+      title: Wait
+    collected:
+      type: object
+      description: |-
+        The collect step's result.
+      title: Collected
+  required:
+  - wait
+  - collected
+tag: vm

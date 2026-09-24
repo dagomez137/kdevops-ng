@@ -1,0 +1,46 @@
+summary: Remove one preset's prior results
+description: |-
+  Remove one preset's prior results for one kernel from the share (host
+  side).
+
+  Deletes `<share>/<kver>/results/<preset>` so a fresh run starts from a
+  clean directory. Scoped to exactly one (vm, kernel, preset) triple and
+  path-escape hardened in common.results_dir; never touches the env
+  files or other kernels' results.
+
+  Equivalent commands:
+
+      rm -rf "$WORKERS_DIR/shared/kvcache/<vm>/<kver>/results/<preset>"
+lock: '!inline f/kvcache/wipe.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - kernel_version
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      title: Preset
+      description: |-
+        Replay preset (kvcache-bench@<preset>.service instance name). The
+        preset dropdown reads the per-VM cache discover writes.
+    kernel_version:
+      type: string
+      title: Kernel Version
+      description: |-
+        The guest's kernel release (`uname -r`, from discover); keys the
+        results subtree.
+  required:
+  - vm_name
+  - preset
+  - kernel_version
+tag: vm

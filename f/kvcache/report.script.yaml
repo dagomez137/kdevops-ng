@@ -1,0 +1,31 @@
+summary: Summarise a run for the result table
+description: |-
+  Summarise a KV cache run for the job result table.
+
+  Takes the collect step's output and flattens the headline numbers
+  (TTFT percentiles first: TTFT is the number prefix-cache hits move)
+  plus the cache counter deltas into one flat dict Windmill renders as
+  the flow's result. Pure function of its inputs; touches neither host
+  nor guest.
+lock: '!inline f/kvcache/report.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - collected
+  - wait
+  properties:
+    collected:
+      type: object
+      description: |-
+        The collect step's result.
+      title: Collected
+    wait:
+      type: object
+      description: |-
+        The wait step's result.
+      title: Wait
+  required:
+  - collected
+tag: vm

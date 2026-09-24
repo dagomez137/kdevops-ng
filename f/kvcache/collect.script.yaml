@@ -1,0 +1,50 @@
+summary: Collect a replay's results from the share
+description: |-
+  Collect one replay's results from the host side of the `kvcache`
+  share.
+
+  Reads `<share>/<kver>/results/<preset>/{summary,failures}.json` --
+  written by the guest's replayer, visible to every worker through
+  virtiofs -- and returns the parsed summary (TTFT/latency percentiles,
+  token counts, failed-session accounting, and the engine's
+  lmcache_*/prefix-cache counter deltas). Zero files is reported as
+  `collected=False`, never as an empty pass: a run that crashed before
+  writing anything must stay visibly incomplete. Reads only; mutates
+  nothing.
+
+  Equivalent commands:
+
+      cat .../shared/kvcache/<vm>/<kver>/results/<preset>/summary.json
+lock: '!inline f/kvcache/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - kernel_version
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      title: Preset
+      description: |-
+        Replay preset (kvcache-bench@<preset>.service instance name). The
+        preset dropdown reads the per-VM cache discover writes.
+    kernel_version:
+      type: string
+      title: Kernel Version
+      description: |-
+        The guest's kernel release (`uname -r`, from discover); keys the
+        results subtree.
+  required:
+  - vm_name
+  - preset
+  - kernel_version
+tag: vm
