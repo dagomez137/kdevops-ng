@@ -14,18 +14,26 @@ description: |-
   `WORKERS_DIR` regardless of worker, so the kernel/closure may be built on
   `default`.
 
+  1. `render_qemu_system`: `qemu-system@.service` (once), `<vm>.env`, the per-VM
+  `qemu-system@<vm>.service.d/override.conf`, and the `qmp-powerdown` helper. 2.
+  `render_virtiofsd`: `virtiofsd@.service`/`.socket` (once) and per-share env +
+  drop-in for each composed share (wired from the qemu-system step's `shares`).
+  3. `create_nvme`: `qemu-img create --format qcow2` the per-VM qcow2 backing
+  files (qemu-img from the same store output as the emulator). 4. `boot`:
+  `daemon-reload`, restart the share sockets, start `qemu-system@<vm>`, wait for
+  the guest sshd banner.
+
   Properties are upstream **QEMU flag names** (the rendered units' variable
   surface). Pass the `kernel`/`closure` build manifests to supply
   `-kernel`/`-initrd`/`-append` and the `/lib/modules` share. Returns the `boot`
   step's access manifest.
 
-  Once the units are rendered, the same VM is driven by hand against the host
-  `systemd --user` manager, mirroring qsu's README quick-start:
+  Equivalent manual workflow, once the units are rendered, against the host
+  `systemd --user` manager (long-form, mirroring qsu's README quick-start):
 
-      systemctl --user start qemu-system@<vm>
-      systemctl --user list-units 'qemu-system@*'
-      journalctl --user-unit=qemu-system@<vm>.service
-      systemctl --user stop qemu-system@<vm>
+  systemctl --user daemon-reload systemctl --user start qemu-system@<vm>
+  systemctl --user list-units 'qemu-system@*' journalctl
+  --user-unit=qemu-system@<vm>.service systemctl --user stop qemu-system@<vm>
 value:
   modules:
     - id: render_qemu_system
@@ -120,45 +128,6 @@ value:
           home_share_readwrite:
             type: javascript
             expr: flow_input.sharing?.home_share_readwrite
-          ioeventfd:
-            type: javascript
-            expr: flow_input.nvme?.ioeventfd
-          driver:
-            type: javascript
-            expr: flow_input.nvme?.driver
-          format:
-            type: javascript
-            expr: flow_input.nvme?.format
-          aio:
-            type: javascript
-            expr: flow_input.nvme?.aio
-          cache:
-            type: javascript
-            expr: flow_input.nvme?.cache
-          aio_max_batch:
-            type: javascript
-            expr: flow_input.nvme?.aio_max_batch
-          read_zeroes:
-            type: javascript
-            expr: flow_input.nvme?.read_zeroes
-          latency_ns:
-            type: javascript
-            expr: flow_input.nvme?.latency_ns
-          max_ioqpairs:
-            type: javascript
-            expr: flow_input.nvme?.max_ioqpairs
-          msix_qsize:
-            type: javascript
-            expr: flow_input.nvme?.msix_qsize
-          mqes:
-            type: javascript
-            expr: flow_input.nvme?.mqes
-          dbcs:
-            type: javascript
-            expr: flow_input.nvme?.dbcs
-          nvme_drive_size_gb:
-            type: javascript
-            expr: flow_input.nvme?.nvme_drive_size_gb
           iommu:
             type: javascript
             expr: flow_input.qemu?.iommu
@@ -174,12 +143,6 @@ value:
           kernel_initrd:
             type: javascript
             expr: flow_input.kernel_boot?.kernel_initrd
-          extra_kernel_parameters:
-            type: javascript
-            expr: flow_input.kernel_boot?.extra_kernel_parameters
-          extra_qemu_args:
-            type: javascript
-            expr: flow_input.qemu?.extra_qemu_args
           kernel_parameters:
             type: javascript
             expr: flow_input.kernel_boot?.kernel_parameters
@@ -207,6 +170,12 @@ value:
           opt_io_size:
             type: javascript
             expr: flow_input.nvme?.opt_io_size
+          pci_passthrough_addrs:
+            type: javascript
+            expr: flow_input.passthrough?.pci_passthrough_addrs
+          pci_passthrough_opts:
+            type: javascript
+            expr: flow_input.passthrough?.pci_passthrough_opts
           physical_block_size:
             type: javascript
             expr: flow_input.nvme?.physical_block_size
@@ -304,9 +273,6 @@ value:
           nvme_drive_size_gb:
             type: javascript
             expr: flow_input.nvme?.nvme_drive_size_gb
-          nvme_drives_override:
-            type: javascript
-            expr: results.render_qemu_system.drives
           vm_name:
             type: javascript
             expr: results.render_qemu_system.vm_name
@@ -366,6 +332,7 @@ schema:
   order:
     - vm
     - qemu
+    - passthrough
     - networking
     - kernel_boot
     - sharing
@@ -382,7 +349,6 @@ schema:
         - kernel
         - closure
         - kernel_parameters
-        - extra_kernel_parameters
         - kernel_image
         - kernel_initrd
         - kernel_append
@@ -400,18 +366,6 @@ schema:
             `modules_dir`, `uts_release`); supplies `-kernel` and the
             `/lib/modules` share.
           default: {}
-        extra_kernel_parameters:
-          type: string
-          description: |-
-            Extra kernel parameters the curated list above does not carry,
-            space separated, appended after it. This is how a device emulator
-            gets its physical carve-out: `memmap=16M$0x17F000000` reserves the
-            top of the guest's high RAM window so a framework such as pciem can
-            claim it. Check the guest's own `/proc/iomem` before choosing an
-            address; the window differs per machine, and on this shape
-            `0x80000000` is PCI hole rather than RAM.
-          default: ''
-          title: Extra Kernel Parameters
         kernel_append:
           type: string
           description: |-
@@ -502,10 +456,9 @@ schema:
     nvme:
       type: object
       description: |-
-        Emulated NVMe drives (`-device nvme`/`nvme-ns`, a block driver or an
-        image file each). The per-drive knobs are the QEMU device properties
-        verbatim; see `qemu-system-x86_64 -device nvme,help` and `-device
-        nvme-ns,help`.
+        Emulated NVMe drives (`-device nvme`/`nvme-ns` + a qcow2 per drive). The
+        per-drive knobs are the QEMU device properties verbatim; see
+        `qemu-system-x86_64 -device nvme,help` and `-device nvme-ns,help`.
       default: {}
       order:
         - nvme_drive_count
@@ -519,19 +472,7 @@ schema:
         - discard
         - detect_zeroes
         - write_cache
-        - driver
-        - format
-        - aio
-        - cache
-        - aio_max_batch
-        - read_zeroes
-        - latency_ns
         - mdts
-        - max_ioqpairs
-        - msix_qsize
-        - mqes
-        - dbcs
-        - ioeventfd
         - cmb_size_mb
         - legacy_cmb
         - pmr_size
@@ -682,124 +623,6 @@ schema:
           default: '4096'
           showExpr: fields.customize_drives === true
           title: Discard Granularity
-        ioeventfd:
-          type: string
-          description: |-
-            Deliver I/O queue doorbell writes through an eventfd: `-device
-            nvme,ioeventfd=`. `on`, the default here, signals the main loop and
-            leaves the vCPU thread in the guest; `off`, which is QEMU's own
-            default, traps every write out to userspace on the vCPU thread.
-            Admin queue doorbells always take the exit. Single value or
-            per-drive comma-list.
-          default: 'on'
-          showExpr: fields.customize_drives === true
-          title: Doorbell eventfd
-        driver:
-          type: string
-          description: |-
-            Block driver behind the drive instead of an image file: `-drive
-            driver=`. `null-co`, the default here, answers every request in the
-            block layer without touching storage: the fastest drive QEMU can
-            emulate, and no place for a filesystem, since writes go nowhere and
-            reads come back zeroed. `null-aio` is the same from the AIO path.
-            Empty = an image file. Single value or per-drive comma-list.
-          default: null-co
-          showExpr: fields.customize_drives === true
-          title: Backing Driver
-        format:
-          type: string
-          description: |-
-            Image format: `-drive format=`. The backing file is named for it, so
-            `raw` gives `nvme0.raw`. Ignored on a drive that has a `driver`.
-            Single value or per-drive comma-list.
-          default: qcow2
-          showExpr: fields.customize_drives === true
-          title: Image Format
-        aio:
-          type: string
-          description: |-
-            How QEMU submits the image's I/O to the host: `-drive aio=`.
-            `threads` is a worker pool, `native` is Linux AIO and needs an
-            O_DIRECT cache mode, `io_uring` is io_uring. Empty = QEMU default.
-            Single value or per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: AIO Mode
-        cache:
-          type: string
-          description: |-
-            Host cache mode for the image: `-drive cache=`. `writeback` is
-            QEMU's default, `none` and `directsync` open the file O_DIRECT,
-            `unsafe` drops flushes. Empty = QEMU default. Single value or
-            per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: Cache Mode
-        aio_max_batch:
-          type: string
-          description: |-
-            Largest number of requests QEMU hands the host engine at once:
-            `-drive file.aio-max-batch=`, which is where the option lives: QEMU
-            rejects the bare spelling on any drive that names a format, and on
-            a driver that has no file at all. Empty = the engine's own default.
-            Single value or per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: AIO Max Batch
-        read_zeroes:
-          type: string
-          description: |-
-            Whether a read from a null driver fills the guest buffer: `-drive
-            read-zeroes=`. Defaults to `on` on those drives, because a read that
-            leaves memory untouched costs less than a memset and is not
-            comparable with a device. Single value or per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: Read Zeroes
-        latency_ns:
-          type: string
-          description: |-
-            Delay a null driver adds to every request, in nanoseconds: `-drive
-            latency-ns=`. Empty = no delay, which is the only setting with no
-            device in it. Single value or per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: Latency (ns)
-        max_ioqpairs:
-          type: string
-          description: |-
-            I/O queue pairs the controller offers: `-device
-            nvme,max_ioqpairs=`. Empty = QEMU default. Single value or per-drive
-            comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: Max I/O Queue Pairs
-        msix_qsize:
-          type: string
-          description: |-
-            MSI-X table size: `-device nvme,msix_qsize=`. Empty = QEMU default.
-            Single value or per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: MSI-X Queue Size
-        mqes:
-          type: string
-          description: |-
-            Maximum Queue Entries Supported, 0-based: `-device nvme,mqes=`.
-            Empty = QEMU default. Single value or per-drive comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: Maximum Queue Entries (MQES)
-        dbcs:
-          type: string
-          description: |-
-            Doorbell Buffer Config support: `-device nvme,dbcs=`. QEMU defaults
-            it on, which lets the guest keep its doorbells in a shared buffer
-            and write the register less often. Single value or per-drive
-            comma-list.
-          default: ''
-          showExpr: fields.customize_drives === true
-          title: Shadow Doorbells (DBCS)
         legacy_cmb:
           type: boolean
           description: |-
@@ -822,11 +645,9 @@ schema:
           type: string
           description: |-
             Maximum Data Transfer Size (MDTS) as a power of two in MPSMIN units:
-            `-device nvme,mdts=`. `9`, the default here, is 2 MiB and QEMU's
-            current ceiling; its own default of `7` splits a 1 MiB request into
-            two commands. Empty = QEMU default. Single value or per-drive
-            comma-list.
-          default: '9'
+            `-device nvme,mdts=`. Empty = QEMU default. Single value or
+            per-drive comma-list.
+          default: ''
           showExpr: fields.customize_drives === true
           title: Maximum Data Transfer Size (MDTS)
         min_io_size:
@@ -840,14 +661,12 @@ schema:
         nvme_drive_count:
           type: integer
           description: |-
-            Number of NVMe drives (`-device nvme` each).
+            Number of NVMe drives (`-device nvme` + a qcow2 file each).
           default: 5
           title: Drive Count
         nvme_drive_size_gb:
           type: integer
-          description: |-
-            Virtual size in GiB of each drive: the image nvme/create lays down,
-            and the size a null driver reports.
+          description: Virtual size in GiB for each qcow2 NVMe backing file.
           default: 20
           title: Drive Size (GiB)
         opt_io_size:
@@ -925,6 +744,34 @@ schema:
             Seconds to poll `127.0.0.1:<ssh_port>` for the guest sshd banner.
           default: 300
       title: Orchestration
+    passthrough:
+      type: object
+      description: |-
+        PCI passthrough (VFIO). Requires the one-time manual host setup from
+        the getting-started requirements guide; the vendored qemu-system-units
+        templates render everything from this list.
+      default: {}
+      order:
+        - pci_passthrough_addrs
+        - pci_passthrough_opts
+      properties:
+        pci_passthrough_addrs:
+          type: string
+          description: |-
+            Host PCI addresses to hand to the guest via VFIO, comma-separated
+            (`0000:81:00.0,0000:81:00.1`). Devices must already be bound to
+            vfio-pci by the one-time host setup. Every endpoint in the
+            device's IOMMU group must be listed.
+          default: ''
+          title: PCI Passthrough Devices
+        pci_passthrough_opts:
+          type: string
+          description: |-
+            Extra `-device vfio-pci` properties applied to each device, e.g.
+            `rombar=0`.
+          default: ''
+          title: PCI Passthrough Options
+      title: PCI Passthrough
     qemu:
       type: object
       description: |-
@@ -940,7 +787,6 @@ schema:
         - cpus
         - machine_type
         - iommu
-        - extra_qemu_args
       properties:
         accel:
           type: string
@@ -1124,18 +970,6 @@ schema:
             - host
             - max
           title: CPU
-        extra_qemu_args:
-          type: string
-          description: |-
-            Extra QEMU flags appended verbatim to the composed command line,
-            after everything it defines, so a device here can reference a
-            chardev, bus or object above it. This is how a guest gets a device
-            the form does not model: a vfio-user client, for instance, needs
-            `-device pcie-root-port,id=rp0,bus=pcie.0,chassis=1,slot=1 -device
-            vfio-user-pci,bus=rp0,socket=<path>`. Unvalidated: a wrong flag
-            fails the guest at start, visible in the unit's journal.
-          default: ''
-          title: Extra QEMU Arguments
         cpus:
           type: integer
           description: |-

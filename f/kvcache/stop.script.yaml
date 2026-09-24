@@ -1,0 +1,47 @@
+summary: Stop a replay (optionally the engine)
+description: |-
+  Stop a replay (and optionally the engine) on a booted guest over
+  vsock-SSH.
+
+  Stops `kvcache-bench@<preset>.service`; with `stop_engine`, also
+  `vllm-serve.service` (which takes `vllm-ready.service` down with it
+  via its Requires= binding), releasing the GPU memory. Stopping a
+  Type=oneshot mid-run lands Result=canceled/killed, which `wait`
+  reports faithfully.
+
+  Equivalent commands:
+
+      systemctl --host <vm> stop kvcache-bench@<preset>.service
+      systemctl --host <vm> stop vllm-serve.service   # stop_engine
+lock: '!inline f/kvcache/stop.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - stop_engine
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      title: Preset
+      description: |-
+        Replay preset (kvcache-bench@<preset>.service instance name). The
+        preset dropdown reads the per-VM cache discover writes.
+    stop_engine:
+      type: boolean
+      default: false
+      title: Stop Engine
+      description: |-
+        Also stop vllm-serve.service, releasing GPU memory.
+  required:
+  - vm_name
+  - preset
+tag: vm

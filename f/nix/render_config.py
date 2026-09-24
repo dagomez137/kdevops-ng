@@ -30,12 +30,13 @@ from f.common.devshell import system_dir, vendor_dir
 from f.common.gitrefs import qualify_ref
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
-_PROFILES = {"build-tools", "controller", "devel", "monitoring", "telemetry"}
+_PROFILES = {"build-tools", "controller", "devel", "gpu", "monitoring", "telemetry"}
 _TEST_SUITES = [
     "blktests",
     "fstests",
     "gitr",
     "kunit",
+    "kvcache",
     "ltp",
     "mmtests",
     "pynfs",
@@ -46,24 +47,10 @@ _TEST_SUITES = [
 
 # Packages whose nixos-flake recipe a src override composes with, build-verified
 # from a git checkout: fio, xfstests and xfsprogs (overlays), libbpf-tools (custom
-# pkg, src from iovisor/bcc), blktests (custom pkg, carries the scope patch),
-# ebpf-syscall (custom pkg, src from SamsungDS/ebpf-syscall; a source bump that
-# changes the kvio engine crate's dependencies also needs the pinned Cargo.lock
-# next to its recipe regenerated), and systing (custom pkg, src from
-# josefbacik/systing; its recipe vendors the crates from the lockfile of the
-# source being built, so a ref only has to keep the same set of git
-# dependencies). Packages for other suites (spdk, xnvme, nfstest, pynfs, ...)
-# join as verified.
+# pkg, src from iovisor/bcc), and blktests (custom pkg, carries the scope patch).
+# Packages for other suites (spdk, xnvme, nfstest, pynfs, ...) join as verified.
 # The advanced `extra_overrides` takes any other nixpkgs package.
-_OVERRIDABLE_PKGS = [
-    "fio",
-    "xfstests",
-    "xfsprogs",
-    "libbpf-tools",
-    "blktests",
-    "ebpf-syscall",
-    "systing",
-]
+_OVERRIDABLE_PKGS = ["fio", "xfstests", "xfsprogs", "libbpf-tools", "blktests"]
 
 # The mirror project whose Bare carries each overridable package's source
 # (f/workbench/fetch cuts one Bare per project under $SYSTEM_DIR/bare).
@@ -73,8 +60,6 @@ _PKG_PROJECTS = {
     "xfsprogs": "xfsprogs-dev",
     "libbpf-tools": "bcc",
     "blktests": "blktests",
-    "ebpf-syscall": "ebpf-syscall",
-    "systing": "systing",
 }
 
 # nixpkgs builds these from a release tarball that ships a prepared `./configure`; a
@@ -148,9 +133,13 @@ _TELEMETRY_COLLECTORS = [
 ]
 
 # A fully-featured guest by default: every guest profile plus all test suites. Pare
-# these back per run for a lighter closure.
+# these back per run for a lighter closure. kvcache is deliberately excluded from
+# the featured default: it drags CUDA, the GPU driver stack and vLLM into the
+# closure (multi-GB), dead weight for a guest with no GPU passed through. Opt in
+# per-run, together with the `gpu` profile (also non-featured, like controller
+# and telemetry).
 _FEATURED_PROFILES = ["devel", "build-tools", "monitoring"]
-_FEATURED_TEST_SUITES = list(_TEST_SUITES)
+_FEATURED_TEST_SUITES = [t for t in _TEST_SUITES if t not in {"kvcache"}]
 
 _VM_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 _PKG_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
@@ -227,6 +216,11 @@ def main(
     #  - blktests: auto whenever the closure runs the blktests suite.
     if "blktests" in test_suites:
         shares.setdefault("/var/lib/blktests", {"tag": "blktests"})
+    #  - kvcache: auto whenever the closure runs the kvcache suite. The guest's
+    #    vllm-serve/kvcache-bench units read config from and write results under
+    #    this directory (same contract as fstests' /var/lib/xfstests).
+    if "kvcache" in test_suites:
+        shares.setdefault("/var/lib/kvcache", {"tag": "kvcache"})
     #  - home: the operator's host home (tag `home`, served once by qsu) mounted at
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
     #    in your home (writable via the root->operator virtiofsd uid-map, with no extra

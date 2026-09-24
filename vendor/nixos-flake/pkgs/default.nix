@@ -13,18 +13,13 @@
 # Reference: https://nix.dev/tutorials/callpackage
 pkgs: {
   blktests = pkgs.callPackage ./blktests.nix { };
-  bpf-perf-tools = pkgs.callPackage ./bpf-perf-tools.nix { };
   cpupower = pkgs.callPackage ./cpupower.nix { };
   damo = pkgs.callPackage ./damo.nix { };
   ebpf_exporter = pkgs.callPackage ./ebpf_exporter.nix { };
-  ebpf-fix-latency-tool = pkgs.callPackage ./ebpf-fix-latency-tool.nix { };
-  ebpf-syscall = pkgs.callPackage ./ebpf-syscall.nix { };
-  faster-biolatency = pkgs.callPackage ./faster-biolatency.nix { };
-  fustip = pkgs.callPackage ./fustip.nix { };
+  kvcache-bench = pkgs.callPackage ./kvcache-bench.nix { };
+  lmcache = pkgs.callPackage ./lmcache.nix { };
   libbpf-tools = pkgs.callPackage ./libbpf-tools.nix { };
   nfstest = pkgs.callPackage ./nfstest.nix { };
-  nvme-bpf = pkgs.callPackage ./nvme-bpf.nix { };
   pynfs = pkgs.callPackage ./pynfs.nix { };
-  systing = pkgs.callPackage ./systing.nix { };
   xnvme = pkgs.callPackage ./xnvme.nix { };
 }

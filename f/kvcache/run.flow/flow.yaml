@@ -1,0 +1,374 @@
+summary: Run the KV cache workload against a booted guest
+description: |-
+  Drive one KV cache replay preset against an already-booted, kvcache-
+  ready guest (produced by `f/qsu/bringup` with the `kvcache` test suite
+  and the `gpu` profile in the closure, and a GPU passed through via the
+  boot flow's passthrough group).
+
+  Steps: `discover` gates readiness and reads the kernel release;
+  `render_config` writes `vllm-serve.env` + `<preset>.env` onto the
+  `kvcache` share (the fstests virtiofs contract -- no closure rebuild
+  to change a model or preset); `wipe` clears the preset's prior results
+  for this kernel; `start` starts `kvcache-bench@<preset>.service` with
+  `--no- block` -- the ONLY start issued: the unit `Requires=vllm-
+  ready.service` which requires `vllm-serve.service`, so systemd brings
+  the engine up and gates on a real /health response itself; `wait`
+  polls the oneshot to its terminus with host-side crash detection;
+  `collect` reads `summary.json` back off the share; `report` flattens
+  the headline numbers (TTFT percentiles, cache counter deltas) into the
+  flow result; `judge` fails the job unless the run passed.
+
+  Telemetry (Grafana annotations / perfetto capture) is deliberately not
+  wired here yet, pending the host-event-capture design discussion.
+value:
+  modules:
+  - id: discover
+    summary: Gate kvcache readiness, read kernel + presets
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/kvcache/discover
+      tag_override: vm
+    timeout:
+      type: static
+      value: 300
+  - id: render_config
+    summary: Write vllm-serve.env + <preset>.env onto the share
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        model:
+          type: javascript
+          expr: flow_input.engine?.model
+        max_model_len:
+          type: javascript
+          expr: flow_input.engine?.max_model_len
+        dtype:
+          type: javascript
+          expr: flow_input.engine?.dtype
+        gpu_memory_utilization:
+          type: javascript
+          expr: flow_input.engine?.gpu_memory_utilization
+        enable_prefix_caching:
+          type: javascript
+          expr: flow_input.engine?.enable_prefix_caching
+        lmcache_enabled:
+          type: javascript
+          expr: flow_input.cache?.lmcache_enabled
+        lmcache_cpu_buffer_gb:
+          type: javascript
+          expr: flow_input.cache?.lmcache_cpu_buffer_gb
+        lmcache_local_disk:
+          type: javascript
+          expr: flow_input.cache?.lmcache_local_disk
+        extra_serve_args:
+          type: javascript
+          expr: flow_input.engine?.extra_serve_args
+        dataset:
+          type: javascript
+          expr: flow_input.replay?.dataset
+        source:
+          type: javascript
+          expr: flow_input.replay?.source
+        max_sessions:
+          type: javascript
+          expr: flow_input.replay?.max_sessions
+        workers:
+          type: javascript
+          expr: flow_input.replay?.workers
+        max_tokens:
+          type: javascript
+          expr: flow_input.replay?.max_tokens
+      path: f/kvcache/render_config
+      tag_override: vm
+    timeout:
+      type: static
+      value: 120
+  - id: wipe
+    summary: Clear the preset's prior results for this kernel
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        kernel_version:
+          type: javascript
+          expr: results.discover.kernel_version
+      path: f/kvcache/wipe
+      tag_override: vm
+    timeout:
+      type: static
+      value: 120
+  - id: start
+    summary: Start kvcache-bench@<preset> (engine pulled up by Requires=)
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        kernel_version:
+          type: javascript
+          expr: results.discover.kernel_version
+      path: f/kvcache/start
+      tag_override: vm
+    timeout:
+      type: static
+      value: 300
+  - id: wait
+    summary: Poll the replay to its terminus (crash-detecting)
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        timeout:
+          type: javascript
+          expr: flow_input.service?.timeout
+        poll_interval:
+          type: javascript
+          expr: flow_input.service?.poll_interval
+        stream_logs:
+          type: javascript
+          expr: flow_input.service?.stream_logs
+      path: f/kvcache/wait
+      tag_override: vm-run
+    timeout:
+      type: static
+      value: 90000
+  - id: collect
+    summary: Read summary.json back off the share
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        kernel_version:
+          type: javascript
+          expr: results.discover.kernel_version
+      path: f/kvcache/collect
+      tag_override: vm
+    timeout:
+      type: static
+      value: 300
+  - id: report
+    summary: Flatten the headline numbers into the flow result
+    value:
+      type: script
+      input_transforms:
+        collected:
+          type: javascript
+          expr: results.collect
+        wait:
+          type: javascript
+          expr: results.wait
+      path: f/kvcache/report
+      tag_override: vm
+    timeout:
+      type: static
+      value: 120
+  - id: judge
+    summary: Fail the job unless the run passed
+    value:
+      type: script
+      input_transforms:
+        wait:
+          type: javascript
+          expr: results.wait
+        collected:
+          type: javascript
+          expr: results.collect
+      path: f/kvcache/judge
+      tag_override: vm
+    timeout:
+      type: static
+      value: 120
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - engine
+  - cache
+  - replay
+  - service
+  properties:
+    vm_name:
+      type: string
+      description: |-
+        Resolved VM name from `f/qsu/bringup` (its result's `vm_name`). The
+        guest must carry the `kvcache` suite and (for a real GPU) the `gpu`
+        profile in its closure.
+      title: VM Name
+    preset:
+      type: string
+      description: |-
+        Replay preset (`kvcache-bench@<preset>.service` instance): swebench-
+        realistic, swebench-burst, gaia-realistic, gaia-burst, wildclaw-heavy,
+        max-pressure. `f/kvcache/discover` caches the guest's advertised list
+        per VM.
+      default: swebench-realistic
+      title: Preset
+    engine:
+      type: object
+      description: |-
+        vLLM engine knobs (written to vllm-serve.env on the share).
+      default: {}
+      order:
+      - model
+      - max_model_len
+      - dtype
+      - gpu_memory_utilization
+      - enable_prefix_caching
+      - extra_serve_args
+      properties:
+        model:
+          type: string
+          description: |-
+            HF model id the engine serves.
+          default: facebook/opt-125m
+          title: Model
+        max_model_len:
+          type: integer
+          default: 8192
+          title: Max Model Len
+        dtype:
+          type: string
+          default: auto
+          title: Dtype
+        gpu_memory_utilization:
+          type: number
+          default: 0.85
+          title: GPU Memory Utilization
+        enable_prefix_caching:
+          type: boolean
+          default: true
+          title: Enable Prefix Caching
+        extra_serve_args:
+          type: string
+          description: |-
+            Appended verbatim to VLLM_SERVE_ARGS.
+          default: ''
+          title: Extra Serve Args
+      title: Engine
+    cache:
+      type: object
+      description: |-
+        LMCache offload knobs.
+      default: {}
+      order:
+      - lmcache_enabled
+      - lmcache_cpu_buffer_gb
+      - lmcache_local_disk
+      properties:
+        lmcache_enabled:
+          type: boolean
+          default: true
+          title: LMCache Enabled
+        lmcache_cpu_buffer_gb:
+          type: integer
+          description: |-
+            LMCACHE_MAX_LOCAL_CPU_SIZE in GiB.
+          default: 40
+          title: CPU Buffer (GiB)
+        lmcache_local_disk:
+          type: string
+          description: |-
+            Local-disk backend path (e.g. file:///var/lib/kvcache/disk-cache/);
+            empty = CPU buffer only. Point it at a guest NVMe mount to
+            characterise the offload path.
+          default: ''
+          title: Local Disk Backend
+      title: Cache
+    replay:
+      type: object
+      description: |-
+        Trace replay knobs (written to <preset>.env on the share).
+      default: {}
+      order:
+      - dataset
+      - source
+      - max_sessions
+      - workers
+      - max_tokens
+      properties:
+        dataset:
+          type: string
+          default: sammshen/lmcache-agentic-traces
+          title: Dataset
+        source:
+          type: string
+          description: |-
+            Dataset source-column filter; empty = all.
+          default: ''
+          title: Source
+        max_sessions:
+          type: integer
+          description: |-
+            Session cap; 0 replays the whole dataset.
+          default: 8
+          title: Max Sessions
+        workers:
+          type: integer
+          description: |-
+            Concurrent sessions before the preset's multiplier.
+          default: 4
+          title: Workers
+        max_tokens:
+          type: integer
+          default: 256
+          title: Max Tokens / Turn
+      title: Replay
+    service:
+      type: object
+      description: |-
+        Run supervision knobs.
+      default: {}
+      order:
+      - timeout
+      - poll_interval
+      - stream_logs
+      properties:
+        timeout:
+          type: integer
+          description: |-
+            Wall-clock budget in seconds for the replay.
+          default: 86400
+          title: Timeout (s)
+        poll_interval:
+          type: integer
+          default: 15
+          title: Poll Interval (s)
+        stream_logs:
+          type: boolean
+          default: true
+          title: Stream Logs
+      title: Service
+  required:
+  - vm_name
+  - preset

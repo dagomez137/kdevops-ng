@@ -1,0 +1,74 @@
+summary: Wait for a replay to finish (crash-detecting)
+description: |-
+  Wait for one KV cache replay to finish on a booted guest, with crash
+  detection.
+
+  Polls `kvcache-bench@<preset>.service` (over vsock-SSH) until its
+  `ActiveState` settles to `inactive` (the `Type=oneshot` success
+  terminus) or `failed`, or the timeout elapses. The outcome is read
+  from `Result` and `ExecMainStatus` (the replayer's exit code; non-zero
+  includes the failed-session-rate gate). Because the unit `Requires=`
+  the engine, an engine crash mid-run fails this unit's dependency chain
+  and lands here as a `failed` Result rather than a hang.
+
+  Each poll also checks the HOST `qemu-system@<vm>.service`: any not-
+  alive state means the guest is gone and we stop with `crashed=True`
+  rather than burning the timeout on a dead transport. With
+  `stream_logs` the guest's new journal for the unit (which also carries
+  vllm-serve lines via the console) is drained into the job log every
+  poll.
+
+  Equivalent commands:
+
+      systemctl --host <vm> show kvcache-bench@<preset>.service \
+          --property=Result --property=ExecMainStatus \
+          --property=ActiveState
+      systemctl --user is-active qemu-system@<vm>.service
+      ssh <vm> journalctl \
+          -u kvcache-bench@<preset>.service --after-cursor ...
+lock: '!inline f/kvcache/wait.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - timeout
+  - poll_interval
+  - stream_logs
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      title: Preset
+      description: |-
+        Replay preset (kvcache-bench@<preset>.service instance name). The
+        preset dropdown reads the per-VM cache discover writes.
+    timeout:
+      type: integer
+      default: 86400
+      title: Timeout
+      description: |-
+        Overall wall-clock budget in seconds for the replay to finish.
+    poll_interval:
+      type: integer
+      default: 15
+      title: Poll Interval
+      description: |-
+        Seconds between unit-state polls.
+    stream_logs:
+      type: boolean
+      default: true
+      title: Stream Logs
+      description: |-
+        Drain the guest's unit journal into the job log every poll.
+  required:
+  - vm_name
+  - preset
+tag: vm

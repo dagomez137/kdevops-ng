@@ -1,0 +1,44 @@
+summary: Discover a guest's kvcache readiness
+description: |-
+  Discover a booted guest's kvcache readiness over vsock-SSH (read-
+  only).
+
+  Checks the guest is up and kvcache-ready: the `kvcache-bench@.service`
+  template and `vllm-serve.service` are present (the closure carried the
+  kvcache suite), the packaged replayer is executable at the path the
+  unit's own `ExecStart` names, the `/var/lib/kvcache` share is mounted
+  and writable (the units' EnvironmentFile contract), and a GPU node is
+  visible when the `gpu` profile is expected to have loaded a driver.
+  Enumerates the running kernel release and the replayer's presets, and
+  writes the presets to the per-VM picker cache on the share -- the
+  source the run form's dropdown reads. Mutates nothing on the guest.
+
+  Equivalent commands, against the guest over vsock-SSH:
+
+      systemctl --host <vm> is-system-running
+      systemctl --host <vm> list-unit-files \
+          kvcache-bench@.service vllm-serve.service
+      systemctl --host <vm> show kvcache-bench@probe.service \
+          --property=ExecStart
+      ssh <vm> test -x <ExecStart path>
+      ssh <vm> sh -c 'test -d /var/lib/kvcache \
+          && touch /var/lib/kvcache/.probe'
+      ssh <vm> ls /dev/nvidia0 /dev/kfd
+      ssh <vm> cat /proc/sys/kernel/osrelease
+lock: '!inline f/kvcache/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+  - vm_name
+tag: vm
