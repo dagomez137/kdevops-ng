@@ -66,3 +66,8 @@ parallel sessions are needed), delete the `staging` workspace to free the slot,
 enable git sync on `kdevops`, and move work-in-progress isolation from the
 prune gate to forks. The `deploy-staging` and `deploy-kdevops` apps and the
 prune list retire at that point.
+
+## Status
+
+superseded (2026-10-01): the `staging` workspace is gone and every flow
+deploys to `kdevops`; `deploy-staging` and the prune list were removed.
