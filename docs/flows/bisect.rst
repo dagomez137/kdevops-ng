@@ -96,6 +96,15 @@ turns a userspace process killed by a signal during the run into a bad
 verdict even when the KTAP passes, which is how a ``kmod`` run whose
 usermode-helper ``modprobe`` segfaults is caught.
 
+A failure that needs a particular guest (a QEMU build, a closure, the drive
+layout) can be hunted on that guest's shape: paste the inputs of the
+``f/qsu/bringup`` run that boots it into **Guest Override**, and every
+candidate boots with exactly those inputs. The bisect still sets the VM
+name, drops a pasted developer worktree (so candidates never land in your
+checkout), sets the kernel ref (the candidate, dropping a pasted ref or b4
+series), **Compiler** and **Make Flags**, store reuse, and adds the picked
+suites and the payload's closure test suite to the pasted lists.
+
 Two more guest payloads cover the XArray and maple tree test families,
 one per execution form. ``runtime_tests`` loads the candidate's
 module-init test modules (``test_xarray``, ``test_maple_tree``, and the

@@ -54,6 +54,15 @@ value:
                 max_runtime:
                   type: javascript
                   expr: flow_input.max_runtime ?? 0
+                compiler:
+                  type: javascript
+                  expr: flow_input.compiler ?? "gcc"
+                make_flags:
+                  type: javascript
+                  expr: flow_input.make_flags ?? ""
+                guest:
+                  type: javascript
+                  expr: flow_input.guest ?? {}
               path: f/kernel/bisect_step
               tag_override: vm
             stop_after_if:
@@ -88,62 +97,39 @@ value:
             value:
               type: flow
               input_transforms:
-                boot_orchestration:
-                  type: javascript
-                  expr: '({wait_timeout: 300, emit_vars_yaml_snapshot: false})'
-                vm:
-                  type: javascript
-                  expr: '({vm_target: "new", auto_vm_name: false, vm_name:
-                    flow_input.vm_name})'
-                qemu:
-                  type: javascript
-                  expr: '({mode: "nixpkgs"})'
-                boot_kernel:
-                  type: javascript
-                  expr: '({kernel_parameters: []})'
-                closure:
-                  type: javascript
-                  expr: '({mode: "build", lock: {update_lock: true}, guest:
-                    {vm_name: flow_input.vm_name, home: true, shares: {},
-                    home_dir: "", ssh_keys: [], user_name: "kdevops"},
-                    closure: {profiles: ["devel"], overrides: [],
-                    test_suites: {selftests: ["selftests"], usertests:
-                    ["usertests"], runtime_tests: []}[flow_input.payload]
-                    ?? ["kunit"]}})'
-                boot_nvme:
-                  type: javascript
-                  expr: '({customize_drives: false, nvme_drive_count: 4,
-                    nvme_drive_size_gb: 20})'
                 kernel:
                   type: javascript
-                  expr: '({mode: "build", build: {ccache: true, compiler:
-                    flow_input.compiler ?? "gcc", make_flags:
-                    flow_input.make_flags ?? "", reproducible: true},
-                    reuse: {reuse: true,
-                    use_peers: true}, installation: {install: true,
-                    modules_install: true}, configuration: {config_method:
-                    "preset", preset: "imageless_defconfig"}, worktree:
-                    {custom_ref: true, git_ref: results.step.candidate,
-                    b4_series: "", custom_label: false}, selftests:
-                    flow_input.payload === "selftests" ? {enable: true,
-                    targets: flow_input.suites, extra_targets: ""} :
-                    {enable: false, targets: [], extra_targets: ""},
-                    usertests: flow_input.payload === "usertests" ?
-                    {enable: true, harnesses: [...new
-                    Set((flow_input.suites ?? []).map(s =>
-                    s.split("/")[0]))]} : {enable: false, harnesses: []}})'
+                  expr: results.step.bringup.kernel
+                closure:
+                  type: javascript
+                  expr: results.step.bringup.closure
+                qemu:
+                  type: javascript
+                  expr: results.step.bringup.qemu
+                worktree:
+                  type: javascript
+                  expr: results.step.bringup.worktree ?? {}
                 boot_qemu:
                   type: javascript
-                  expr: '({cpu: "host", ram: 4096, cpus: 4, accel: "kvm",
-                    iommu: "", machine_type: "q35"})'
+                  expr: results.step.bringup.boot_qemu
+                boot_kernel:
+                  type: javascript
+                  expr: results.step.bringup.boot_kernel
                 boot_networking:
                   type: javascript
-                  expr: '({vm_index: 0, ssh_port_base: 10022, vsock_cid_base:
-                    100, custom_ssh_port: false, custom_vsock_cid: false})'
+                  expr: results.step.bringup.boot_networking
                 boot_sharing:
                   type: javascript
-                  expr: '({home_share: true, controller_share: false,
-                    custom_virtiofsd: false, home_share_readwrite: true})'
+                  expr: results.step.bringup.boot_sharing
+                boot_nvme:
+                  type: javascript
+                  expr: results.step.bringup.boot_nvme
+                boot_orchestration:
+                  type: javascript
+                  expr: results.step.bringup.boot_orchestration
+                vm:
+                  type: javascript
+                  expr: results.step.bringup.vm
               path: f/qsu/bringup
             skip_if:
               expr: flow_input.payload === 'usertests_build'
@@ -309,6 +295,7 @@ schema:
     - vm_name
     - max_steps
     - service
+    - guest
   properties:
     payload:
       type: string
@@ -463,6 +450,19 @@ schema:
           default: false
           title: Fail On Userspace Crash
       title: Service
+    guest:
+      type: object
+      description: |-
+        Advanced override: paste the inputs of the `f/qsu/bringup` run whose
+        guest reproduces the failure (the run's input JSON, as the Windmill
+        run page shows it) and every candidate's guest is booted with
+        exactly those inputs. The bisect still sets the VM to VM Name, the
+        kernel ref to the candidate (dropping a pasted ref or b4 series),
+        Compiler and Make Flags, store reuse, and adds the picked suites and
+        the payload's closure test suite to the pasted lists. Empty keeps
+        the bisect's built-in guest.
+      default: {}
+      title: Guest Override
   required:
     - bad
     - good

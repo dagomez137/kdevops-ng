@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Fixture tests for the bisect machinery's pure parts (f.kernel.bisect_*)."""
 
+import copy
 import json
 import os
 import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 from f.kernel import bisect_judge, bisect_step, check_usertests
 
@@ -245,3 +247,248 @@ def test_check_usertests_failure_without_the_signature_passes(monkeypatch, tmp_p
         harnesses=["vma", "memblock"],
     )
     assert (out["status"], out["failed"], out["matched"]) == ("passed", ["vma"], False)
+
+
+REPO = Path(__file__).resolve().parent.parent
+
+PASTED_GUEST = {
+    "kernel": {
+        "mode": "build",
+        "build": {
+            "ccache": True,
+            "compiler": "gcc",
+            "make_flags": "",
+            "reproducible": True,
+            "ccache_max_size": 10,
+            "targets": "",
+            "timestamp_from_commit": False,
+        },
+        "reuse": {"reuse": True, "use_peers": False},
+        "devtools": {"compile_commands": True, "rust_analyzer": False},
+        "worktree": {
+            "ref": "modules-next",
+            "b4_series": "20260922-module-string-v1-0-c18766690185@suse.com",
+            "custom_ref": False,
+            "wipe_build": False,
+            "custom_label": False,
+            "recreate_build_worktree": False,
+        },
+        "selftests": {
+            "enable": True,
+            "targets": ["firmware", "kmod", "module"],
+            "extra_targets": "",
+        },
+        "usertests": {"enable": True, "harnesses": ["radix-tree", "vma", "memblock"]},
+        "installation": {"install": True, "modules_install": True},
+        "configuration": {"preset": "imageless_defconfig", "config_method": "preset"},
+    },
+    "closure": {
+        "lock": {"update_lock": True},
+        "mode": "build",
+        "guest": {
+            "home": True,
+            "shares": {},
+            "vm_name": "modules",
+            "home_dir": "",
+            "ssh_keys": [],
+            "user_name": "kdevops",
+        },
+        "closure": {
+            "profiles": ["devel", "build-tools", "monitoring"],
+            "test_suites": ["blktests", "fstests", "kunit", "usertests"],
+            "telemetry_ebpf": False,
+        },
+    },
+    "qemu": {"mode": "reuse", "qemu_pick": "qemu-11.1.1-vanilla-24c216fd7853"},
+    "worktree": {
+        "custom_group": True,
+        "worktree_group": "modules",
+        "deploy_developer_worktree": True,
+        "recreate_developer_worktree": False,
+    },
+    "boot_qemu": {
+        "cpu": "host",
+        "ram": 4096,
+        "cpus": 4,
+        "accel": "kvm",
+        "iommu": "",
+        "machine_type": "q35",
+        "extra_qemu_args": "",
+    },
+    "boot_kernel": {"kernel_parameters": [], "extra_kernel_parameters": ""},
+    "boot_networking": {"vm_index": 0, "custom_ssh_port": False},
+    "boot_sharing": {"home_share": True, "controller_share": False},
+    "boot_nvme": {
+        "customize_drives": False,
+        "nvme_drive_count": 5,
+        "nvme_drive_size_gb": 20,
+    },
+    "boot_orchestration": {"wait_timeout": 300, "emit_vars_yaml_snapshot": False},
+    "vm": {"vm_name": "modules", "vm_target": "new", "auto_vm_name": False},
+}
+
+
+def _bringup(payload, suites, guest=None, **kwargs):
+    return bisect_step.bringup_args(
+        "abc123", "bisect", payload, suites, guest=guest, **kwargs
+    )
+
+
+def _flow(path):
+    return yaml.safe_load((REPO / path / "flow.yaml").read_text())
+
+
+def test_bringup_builtin_selftests_targets_are_the_suites():
+    args = _bringup("selftests", ["kmod", "firmware"])
+    kernel = args["kernel"]
+    assert kernel["selftests"] == {
+        "enable": True,
+        "targets": ["kmod", "firmware"],
+        "extra_targets": "",
+    }
+    assert kernel["usertests"] == {"enable": False, "harnesses": []}
+    assert args["closure"]["closure"]["test_suites"] == ["selftests"]
+    assert kernel["worktree"]["git_ref"] == "abc123"
+    assert args["vm"]["vm_name"] == args["closure"]["guest"]["vm_name"] == "bisect"
+    assert args["qemu"] == {"mode": "nixpkgs"}
+    assert args["boot_nvme"]["nvme_drive_count"] == 4
+
+
+def test_bringup_builtin_usertests_harnesses_are_the_suite_dirs():
+    args = _bringup("usertests", ["radix-tree/xarray", "radix-tree/maple", "vma"])
+    assert args["kernel"]["usertests"] == {
+        "enable": True,
+        "harnesses": ["radix-tree", "vma"],
+    }
+    assert args["kernel"]["selftests"]["enable"] is False
+    assert args["closure"]["closure"]["test_suites"] == ["usertests"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "suites"),
+    [("kunit", ["kunit"]), ("runtime_tests", []), ("usertests_build", ["kunit"])],
+)
+def test_bringup_builtin_closure_test_suites(payload, suites):
+    args = _bringup(payload, ["x"])
+    assert args["closure"]["closure"]["test_suites"] == suites
+
+
+def test_bringup_builtin_takes_compiler_and_make_flags():
+    build = _bringup("kunit", ["s"], compiler="clang", make_flags="W=1")["kernel"][
+        "build"
+    ]
+    assert build == {
+        "ccache": True,
+        "compiler": "clang",
+        "make_flags": "W=1",
+        "reproducible": True,
+    }
+
+
+def test_bringup_override_keeps_the_pasted_guest_shape():
+    args = _bringup("selftests", ["kmod"], guest=PASTED_GUEST)
+    for key in ("qemu", "boot_qemu", "boot_nvme", "boot_kernel"):
+        assert args[key] == PASTED_GUEST[key]
+    assert args["closure"]["closure"]["profiles"] == [
+        "devel",
+        "build-tools",
+        "monitoring",
+    ]
+    assert args["closure"]["lock"] == PASTED_GUEST["closure"]["lock"]
+    assert args["kernel"]["devtools"] == PASTED_GUEST["kernel"]["devtools"]
+
+
+def test_bringup_override_forces_what_the_bisect_owns():
+    args = _bringup(
+        "selftests", ["kmod"], guest=PASTED_GUEST, compiler="clang", make_flags="W=1"
+    )
+    assert args["vm"] == {
+        "vm_target": "new",
+        "auto_vm_name": False,
+        "vm_name": "bisect",
+    }
+    assert args["closure"]["guest"]["vm_name"] == "bisect"
+    kernel = args["kernel"]
+    assert kernel["worktree"] == {
+        "custom_ref": True,
+        "git_ref": "abc123",
+        "b4_series": "",
+        "custom_label": False,
+        "wipe_build": False,
+        "recreate_build_worktree": False,
+    }
+    assert kernel["build"]["compiler"] == "clang"
+    assert kernel["build"]["make_flags"] == "W=1"
+    assert kernel["build"]["ccache_max_size"] == 10
+    assert kernel["reuse"] == {"reuse": True, "use_peers": True}
+
+
+def test_bringup_override_does_not_mutate_the_input():
+    pasted = copy.deepcopy(PASTED_GUEST)
+    _bringup("selftests", ["kmod"], guest=pasted)
+    assert pasted == PASTED_GUEST
+
+
+def test_bringup_override_unions_selftests_targets_and_closure_suite():
+    args = _bringup("selftests", ["kmod", "lib"], guest=PASTED_GUEST)
+    selftests = args["kernel"]["selftests"]
+    assert selftests["targets"] == ["firmware", "kmod", "module", "lib"]
+    assert selftests["enable"] is True
+    assert args["closure"]["closure"]["test_suites"] == [
+        "blktests",
+        "fstests",
+        "kunit",
+        "usertests",
+        "selftests",
+    ]
+
+
+def test_bringup_override_unions_usertests_harness_dirs():
+    args = _bringup("usertests", ["radix-tree/maple", "maple"], guest=PASTED_GUEST)
+    assert args["kernel"]["usertests"]["harnesses"] == [
+        "radix-tree",
+        "vma",
+        "memblock",
+        "maple",
+    ]
+    assert args["closure"]["closure"]["test_suites"].count("usertests") == 1
+
+
+def test_bringup_override_creates_a_missing_closure_guest():
+    guest = {"kernel": {}, "closure": {}}
+    args = _bringup("runtime_tests", ["test_xarray"], guest=guest)
+    assert args["closure"]["guest"] == {"vm_name": "bisect"}
+    assert args["closure"]["closure"]["test_suites"] == []
+    assert args["kernel"]["worktree"]["git_ref"] == "abc123"
+
+
+@pytest.mark.parametrize("guest", [{"kernel": {}}, ["kernel", "closure"], "x"])
+def test_bringup_override_rejects_a_non_bringup_guest(guest):
+    with pytest.raises(ValueError, match="kernel` and `closure"):
+        _bringup("kunit", ["s"], guest=guest)
+
+
+def test_bisect_step_rejects_an_invalid_guest_before_touching_state():
+    with pytest.raises(ValueError, match="kernel` and `closure"):
+        bisect_step.main("vm", "v7.0", "v7.1", suites=["s"], guest={"qemu": {}})
+
+
+def test_bisect_flow_passes_every_bringup_input_from_the_step():
+    flow = _flow("f/kernel/bisect.flow")
+    loop = flow["value"]["modules"][0]["value"]["modules"]
+    bringup = next(m for m in loop if m["id"] == "bringup")["value"]
+    transforms = bringup["input_transforms"]
+    accepted = set(_flow("f/qsu/bringup.flow")["schema"]["properties"])
+    assert set(transforms) == accepted
+    for key, transform in transforms.items():
+        assert transform["expr"].startswith(f"results.step.bringup.{key}")
+    assert set(_bringup("kunit", ["s"])) <= accepted
+    assert set(_bringup("kunit", ["s"], guest=PASTED_GUEST)) <= accepted
+
+
+def test_bringup_args_override_drops_the_developer_worktree():
+    args = bisect_step.bringup_args(
+        "abc123", "bisect", "selftests", ["kmod"], guest=PASTED_GUEST
+    )
+    assert "worktree" not in args
+    assert PASTED_GUEST["worktree"]["worktree_group"] == "modules"

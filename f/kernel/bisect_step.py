@@ -22,7 +22,9 @@ failures); `verify_good` tests the good ref (a failure ends as
 until git names the first bad commit. A kernel that fails to build or boot
 reads as `skip`, so this flow bisects suite verdicts, not boot failures.
 Changing the good/bad/suites inputs, or rerunning after a concluded run,
-resets the state and starts over.
+resets the state and starts over. The result carries the candidate's
+`f/qsu/bringup` inputs (`bringup_args`), so a pasted `guest` override boots
+every candidate on that guest's shape.
 
 Equivalent commands, in the state clone:
 
@@ -34,6 +36,7 @@ Equivalent commands, in the state clone:
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import shutil
@@ -120,6 +123,179 @@ def _fresh_verdict(
     return "good"
 
 
+_CLOSURE_SUITE = {"selftests": "selftests", "usertests": "usertests"}
+
+
+def _closure_suites(payload: str) -> list[str]:
+    if payload == "runtime_tests":
+        return []
+    return [_CLOSURE_SUITE.get(payload, "kunit")]
+
+
+def _union(base: list[str], extra: list[str]) -> list[str]:
+    return list(dict.fromkeys([*base, *extra]))
+
+
+def _harness_dirs(suites: list[str]) -> list[str]:
+    return _union([], [s.split("/")[0] for s in suites])
+
+
+def _check_guest(guest: object) -> None:
+    if guest and (
+        not isinstance(guest, dict) or not {"kernel", "closure"} <= guest.keys()
+    ):
+        raise ValueError(
+            "guest must be an f/qsu/bringup run's inputs, with at least its "
+            "`kernel` and `closure` groups"
+        )
+
+
+def bringup_args(
+    candidate: str,
+    vm_name: str,
+    payload: str,
+    suites: list[str],
+    compiler: str = "gcc",
+    make_flags: str = "",
+    guest: dict | None = None,
+) -> dict:
+    """The `f/qsu/bringup` inputs that build and boot one candidate.
+
+    Without `guest` this is the bisect's built-in guest. With `guest` (a
+    pasted bringup run's inputs) every key is kept except what the bisect
+    owns: the VM identity, the developer worktree (dropped), the kernel ref (`git_ref` = candidate, a pasted
+    `ref` or `b4_series` dropped), the compiler and make flags, store reuse,
+    and the payload's kselftest targets, usertests harnesses and closure
+    test suite, each unioned into the pasted lists.
+    """
+    vm = {"vm_target": "new", "auto_vm_name": False, "vm_name": vm_name}
+    worktree = {
+        "custom_ref": True,
+        "git_ref": candidate,
+        "b4_series": "",
+        "custom_label": False,
+    }
+    reuse = {"reuse": True, "use_peers": True}
+    if not guest:
+        selftests = payload == "selftests"
+        usertests = payload == "usertests"
+        return {
+            "boot_orchestration": {
+                "wait_timeout": 300,
+                "emit_vars_yaml_snapshot": False,
+            },
+            "vm": vm,
+            "qemu": {"mode": "nixpkgs"},
+            "boot_kernel": {"kernel_parameters": []},
+            "closure": {
+                "mode": "build",
+                "lock": {"update_lock": True},
+                "guest": {
+                    "vm_name": vm_name,
+                    "home": True,
+                    "shares": {},
+                    "home_dir": "",
+                    "ssh_keys": [],
+                    "user_name": "kdevops",
+                },
+                "closure": {
+                    "profiles": ["devel"],
+                    "overrides": [],
+                    "test_suites": _closure_suites(payload),
+                },
+            },
+            "boot_nvme": {
+                "customize_drives": False,
+                "nvme_drive_count": 4,
+                "nvme_drive_size_gb": 20,
+            },
+            "kernel": {
+                "mode": "build",
+                "build": {
+                    "ccache": True,
+                    "compiler": compiler,
+                    "make_flags": make_flags,
+                    "reproducible": True,
+                },
+                "reuse": reuse,
+                "installation": {"install": True, "modules_install": True},
+                "configuration": {
+                    "config_method": "preset",
+                    "preset": "imageless_defconfig",
+                },
+                "worktree": worktree,
+                "selftests": {
+                    "enable": selftests,
+                    "targets": list(suites) if selftests else [],
+                    "extra_targets": "",
+                },
+                "usertests": {
+                    "enable": usertests,
+                    "harnesses": _harness_dirs(suites) if usertests else [],
+                },
+            },
+            "boot_qemu": {
+                "cpu": "host",
+                "ram": 4096,
+                "cpus": 4,
+                "accel": "kvm",
+                "iommu": "",
+                "machine_type": "q35",
+            },
+            "boot_networking": {
+                "vm_index": 0,
+                "ssh_port_base": 10022,
+                "vsock_cid_base": 100,
+                "custom_ssh_port": False,
+                "custom_vsock_cid": False,
+            },
+            "boot_sharing": {
+                "home_share": True,
+                "controller_share": False,
+                "custom_virtiofsd": False,
+                "home_share_readwrite": True,
+            },
+        }
+
+    _check_guest(guest)
+    args = copy.deepcopy(guest)
+    args["vm"] = vm
+    # A pasted developer-worktree group would check every candidate out there.
+    args.pop("worktree", None)
+    closure = args["closure"]
+    closure.setdefault("guest", {})["vm_name"] = vm_name
+    closure_body = closure.setdefault("closure", {})
+    closure_body["test_suites"] = _union(
+        closure_body.get("test_suites") or [], _closure_suites(payload)
+    )
+    kernel = args["kernel"]
+    kernel["mode"] = "build"
+    pasted_worktree = kernel.get("worktree") or {}
+    pasted_worktree.pop("ref", None)
+    kernel["worktree"] = {**pasted_worktree, **worktree}
+    kernel["build"] = {
+        **(kernel.get("build") or {}),
+        "compiler": compiler,
+        "make_flags": make_flags,
+    }
+    kernel["reuse"] = reuse
+    if payload == "selftests":
+        pasted = kernel.get("selftests") or {}
+        kernel["selftests"] = {
+            **pasted,
+            "enable": True,
+            "targets": _union(pasted.get("targets") or [], suites),
+        }
+    elif payload == "usertests":
+        pasted = kernel.get("usertests") or {}
+        kernel["usertests"] = {
+            **pasted,
+            "enable": True,
+            "harnesses": _union(pasted.get("harnesses") or [], _harness_dirs(suites)),
+        }
+    return args
+
+
 def _bisect_feed(git: Git, repo: Path, verdict: str, sha: str) -> str:
     out = git.capture("-C", str(repo), "bisect", verdict, sha, check=False)
     if out.strip():
@@ -142,8 +318,13 @@ def main(
     payload: str = "kunit",
     error_re: str = "",
     max_runtime: float = 0.0,
+    compiler: str = "gcc",
+    make_flags: str = "",
+    guest: dict | None = None,
 ) -> dict:
     suites = list(suites or [])
+    guest = guest or {}
+    _check_guest(guest)
     if not suites:
         raise ValueError("suites must name at least one suite to bisect on")
     if payload not in (*_REPORT_ROOTS, "usertests_build"):
@@ -177,6 +358,7 @@ def main(
         or state.get("payload", "kunit") != payload
         or state.get("error_re", "") != error_re
         or state.get("max_runtime", 0.0) != max_runtime
+        or state.get("guest", {}) != guest
         or state.get("outcome")
     )
 
@@ -199,6 +381,7 @@ def main(
             "payload": payload,
             "error_re": error_re,
             "max_runtime": max_runtime,
+            "guest": guest,
             "good_sha": _resolve(git, repo, good),
             "bad_sha": bad_sha,
             "phase": "verify_bad",
@@ -275,6 +458,9 @@ def main(
         "candidate": state["candidate"],
         "outcome": state.get("outcome", ""),
         "steps": state["steps"],
+        "bringup": bringup_args(
+            state["candidate"], vm_name, payload, suites, compiler, make_flags, guest
+        ),
     }
     if done:
         print(f"outcome={state['outcome']}", flush=True)
