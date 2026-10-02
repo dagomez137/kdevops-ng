@@ -47,7 +47,6 @@ Equivalent commands:
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from pathlib import Path
@@ -88,39 +87,6 @@ def _realtime_ms(rec: dict) -> int | None:
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_vms` entrypoint for `vm_name`: see `f.common.remote.list_vms`."""
     return _list_vms(filterText)
-
-
-def _journal_kernel(
-    remote: RemoteSystemd, cursor: str | None
-) -> tuple[str | None, list[dict]]:
-    """This boot's `_TRANSPORT=kernel` journal records past `cursor`, parsed.
-
-    The kernel-transport twin of `f.common.remote.journal_unit`, with its own
-    cursor: printk output (a module's summary lines, WARN/BUG splats) rides the
-    kernel transport and carries no `_SYSTEMD_UNIT`, so the unit fetch cannot
-    see it. Raises on a failed fetch, like `journal_unit`.
-    """
-    args = [
-        "journalctl",
-        "--no-pager",
-        "--output=json",
-        "--show-cursor",
-        "_TRANSPORT=kernel",
-    ]
-    args += [f"--after-cursor={cursor}"] if cursor else ["--boot"]
-    out = remote.ssh(*args, quiet=True) or ""
-    next_cursor, records = cursor, []
-    for line in out.splitlines():
-        if line.startswith("-- cursor:"):
-            next_cursor = line.split(":", 1)[1].strip()
-            continue
-        if not line.startswith("{"):
-            continue
-        try:
-            records.append(json.loads(line))
-        except ValueError:
-            continue
-    return next_cursor, records
 
 
 def main(
@@ -202,7 +168,7 @@ def main(
         nonlocal run_cursor, kmsg_cursor
         run_cursor, records = remote.journal_unit(unit, run_cursor)
         scan(records)
-        kmsg_cursor, krecords = _journal_kernel(remote, kmsg_cursor)
+        kmsg_cursor, krecords = remote.journal_kernel(kmsg_cursor)
         kmsg_lines.extend(journal_message(r) for r in krecords)
 
     while True:

@@ -35,6 +35,22 @@ def journal_message(record: dict) -> str:
     return msg if isinstance(msg, str) else ""
 
 
+def _parse_journal_json(out: str, cursor: str | None) -> tuple[str | None, list]:
+    """`journalctl --output=json --show-cursor` output as `(next_cursor, records)`."""
+    next_cursor, records = cursor, []
+    for line in out.splitlines():
+        if line.startswith("-- cursor:"):
+            next_cursor = line.split(":", 1)[1].strip()
+            continue
+        if not line.startswith("{"):
+            continue
+        try:
+            records.append(json.loads(line))
+        except ValueError:
+            continue
+    return next_cursor, records
+
+
 class RemoteSystemd:
     """Drive a booted guest's `systemd` over vsock-SSH, from the vm worker.
 
@@ -258,18 +274,41 @@ class RemoteSystemd:
             f"--unit={unit}",
         ]
         args += [f"--after-cursor={cursor}"] if cursor else ["--boot"]
-        out = self.ssh(*args, quiet=quiet) or ""
-        next_cursor, records = cursor, []
-        for line in out.splitlines():
-            if line.startswith("-- cursor:"):
-                next_cursor = line.split(":", 1)[1].strip()
-                continue
-            if not line.startswith("{"):
-                continue
-            try:
-                records.append(json.loads(line))
-            except ValueError:
-                continue
+        return _parse_journal_json(self.ssh(*args, quiet=quiet) or "", cursor)
+
+    def journal_kernel(
+        self, cursor: str | None = None, grep: str = "", quiet: bool = True
+    ) -> tuple[str | None, list[dict]]:
+        """This boot's `_TRANSPORT=kernel` journal records past `cursor`, parsed.
+
+        The kernel-transport twin of `journal_unit`: printk output (a module's
+        summary lines, WARN/BUG splats, a userspace crash report) carries no
+        `_SYSTEMD_UNIT`, so the unit fetch cannot see it. `grep` filters on the
+        guest (`journalctl --grep`, case-sensitive PCRE2), so a chatty run's
+        kmsg never crosses the transport. Raises on a failed fetch; a `grep`
+        that matches nothing is an empty read, not a failure.
+        """
+        args = [
+            "journalctl",
+            "--no-pager",
+            "--output=json",
+            "--show-cursor",
+        ]
+        if grep:
+            args += [f"--grep={grep}", "--case-sensitive=true"]
+        args.append("_TRANSPORT=kernel")
+        args += [f"--after-cursor={cursor}"] if cursor else ["--boot"]
+        if not grep:
+            return _parse_journal_json(self.ssh(*args, quiet=quiet) or "", cursor)
+        # journalctl exits 1 when --grep matches nothing, mimicking grep(1);
+        # the "-- cursor:" line it still prints tells that from a failed fetch.
+        out = self.ssh(*args, check=False, quiet=quiet) or ""
+        next_cursor, records = _parse_journal_json(out, cursor)
+        if not records and not any(
+            line.startswith(("-- cursor:", "-- No entries --"))
+            for line in out.splitlines()
+        ):
+            raise RuntimeError(f"journalctl --grep returned no output: {out!r}")
         return next_cursor, records
 
     def unit_exists(self, template: str) -> bool:
