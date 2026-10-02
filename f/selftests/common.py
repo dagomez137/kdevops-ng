@@ -92,6 +92,20 @@ _TOTALS_RE = re.compile(
 _SKIP_RE = re.compile(r"^\s*SKIP\b", re.IGNORECASE)
 _XFAIL_RE = re.compile(r"^\s*XFAIL\b", re.IGNORECASE)
 
+# The kernel's report of a userspace process killed by an unhandled signal,
+# passed to `journalctl --grep` (PCRE2) by f/selftests/wait, so it stays in the
+# subset PCRE2 and Python `re` share. x86 `show_signal_msg`: `comm[pid]:
+# segfault at`; x86 `show_signal` and CET: `comm[pid] general protection fault
+# ip:` (no `fault` on older kernels), `comm[pid] trap <name> ip:`, `comm[pid]
+# control protection ip:`; arm64 `arm64_show_signal`: `comm[pid]: unhandled
+# exception:` (`comm[pid]: unhandled level N <kind> fault` on older kernels).
+USER_CRASH_PATTERN = (
+    r"\[[0-9]+\]: segfault at "
+    r"|\[[0-9]+\] (?:general protection(?: fault)?|control protection"
+    r"|trap [^:]+) ip:"
+    r"|\[[0-9]+\]: unhandled (?:exception: |level [0-9]+ [a-z ]+ fault)"
+)
+
 
 def _empty_summary() -> dict:
     return {

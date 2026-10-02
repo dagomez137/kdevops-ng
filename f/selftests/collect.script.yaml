@@ -6,8 +6,9 @@ description: |-
 
   Returns a scalar overview `{item, vm_name, kernel_version, status, result,
   exec_status, crashed, timed_out, runtime, started_realtime_ms,
-  ended_realtime_ms, tests, passed, failed, skipped}` plus a `detail` object
-  carrying the per-test rows, the failing tests and the raw KTAP. An item that
+  ended_realtime_ms, tests, passed, failed, skipped, user_crashes}` plus a
+  `detail` object carrying the per-test rows, the failing tests, the crash
+  lines and the raw KTAP. An item that
   passed nothing at all is `notrun`, never a silent pass.
 lock: '!inline f/selftests/collect.script.lock'
 kind: script
@@ -26,6 +27,9 @@ schema:
     - runtime
     - started_realtime_ms
     - ended_realtime_ms
+    - user_crashes
+    - user_crash_count
+    - fail_on_user_crash
   properties:
     crashed:
       type: boolean
@@ -52,6 +56,13 @@ schema:
         the flag, a test failure).
       default: ''
       title: Exec Status
+    fail_on_user_crash:
+      type: boolean
+      description: |-
+        Fail the item when the run window logged a userspace crash, even when
+        the KTAP passes.
+      default: false
+      title: Fail On Userspace Crash
     item:
       type: string
       description: |-
@@ -103,6 +114,22 @@ schema:
         forces a `failed` verdict.
       default: false
       title: Timed Out
+    user_crash_count:
+      type: integer
+      description: |-
+        Userspace crash lines `f/selftests/wait` found in the run window; null
+        when the scan could not run.
+      default: null
+      title: User Crash Count
+    user_crashes:
+      type: array
+      description: |-
+        The run window's userspace crash lines from `f/selftests/wait`
+        (capped).
+      default: []
+      items:
+        type: string
+      title: User Crashes
     vm_name:
       type: object
       description: |-

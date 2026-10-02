@@ -121,6 +121,9 @@ value:
                 exec_status:
                   type: javascript
                   expr: results.wait.exec_status
+                fail_on_user_crash:
+                  type: javascript
+                  expr: flow_input.fail_on_user_crash ?? false
                 item:
                   type: javascript
                   expr: flow_input.iter.value
@@ -142,6 +145,12 @@ value:
                 timed_out:
                   type: javascript
                   expr: results.wait.timed_out
+                user_crash_count:
+                  type: javascript
+                  expr: results.wait.user_crash_count
+                user_crashes:
+                  type: javascript
+                  expr: results.wait.user_crashes ?? []
                 vm_name:
                   type: javascript
                   expr: flow_input.vm_name
@@ -150,11 +159,14 @@ value:
         iterator:
           type: javascript
           expr: |-
-            (flow_input.tests && flow_input.tests.length)
-              ? flow_input.tests
-              : ((flow_input.collections && flow_input.collections.length)
-                  ? flow_input.collections
-                  : results.discover.collections)
+            ((picked) => (flow_input.repeats ?? 1) > 1
+              ? picked.flatMap(m => Array(flow_input.repeats).fill(m))
+              : picked)(
+              (flow_input.tests && flow_input.tests.length)
+                ? flow_input.tests
+                : ((flow_input.collections && flow_input.collections.length)
+                    ? flow_input.collections
+                    : results.discover.collections))
         parallel: false
         skip_failures: true
     - id: report
@@ -226,7 +238,9 @@ schema:
     - vm_name
     - collections
     - tests
+    - repeats
     - override_timeout
+    - fail_on_user_crash
     - service
   properties:
     vm_name:
@@ -258,6 +272,17 @@ schema:
       default: []
       format: dynmultiselect-list_tests
       title: Tests
+    repeats:
+      type: integer
+      description: |-
+        Statistical repeats: run each picked item this many times back to
+        back. The report folds same-item runs into one entry (median
+        `time(s)`, min/max spread, per-run list, a count-variance flag),
+        which is what every consumer of the rollup reads; the job verdict
+        still fails on any single failing run, so repeats also catch an
+        intermittent failure. 1 = one run, no folding.
+      default: 1
+      title: Repeats
     override_timeout:
       type: integer
       description: |-
@@ -266,6 +291,19 @@ schema:
         s per test). 0 keeps the upstream timeouts.
       default: 0
       title: Per-test Timeout
+    fail_on_user_crash:
+      type: boolean
+      description: |-
+        Fail an item when a userspace process crashed during its run (a
+        kernel `segfault at`, `general protection fault`, `trap` or
+        `unhandled exception` line). Crash lines are always recorded; this
+        makes them a verdict. Opt-in because many kselftests crash a child
+        deliberately (`seccomp`, `ptrace`, `exec`, `sigaltstack`) and the
+        kernel logs those too. Turn it on for a collection whose tests should
+        never see a userspace crash, such as `kmod`, where a segfaulting
+        usermode-helper `modprobe` can still pass the KTAP.
+      default: false
+      title: Fail On Userspace Crash
     service:
       type: object
       description: |-

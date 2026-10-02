@@ -25,11 +25,22 @@ guest is gone and the wait ends with `crashed=True` rather than burning the
 timeout on a dead transport. On expiry the unit is stopped, so a timed-out item
 leaves nothing running on the guest for the next one to contend with.
 
+Once the run ends, one more fetch reads the kernel-transport records past
+start's cursor that match `USER_CRASH_PATTERN` (a userspace process killed by
+an unhandled signal), filtered on the guest so a chatty collection's kmsg never
+crosses the transport. They return as `user_crashes` (capped at
+`_CRASH_LINES`) and `user_crash_count`; `f/selftests/collect` records them and,
+when asked, fails the item. A failed fetch (or a guest that went down) leaves the count `None`,
+unknown rather than zero, and never fails the item here.
+
 Equivalent commands:
 
     # guest, over vsock-SSH, each poll:
     ssh <vm> journalctl --output=json --after-cursor=<cursor> \
         --unit=kselftest@<instance>.service
+    # guest, over vsock-SSH, once after the run:
+    ssh <vm> journalctl --output=json --after-cursor=<cursor> \
+        --grep=<USER_CRASH_PATTERN> --case-sensitive=true _TRANSPORT=kernel
     # host systemd --user, each poll (liveness check):
     systemctl --user is-active qemu-system@<vm>.service
 """
@@ -51,9 +62,11 @@ from f.common.remote import (
     journal_message,
 )
 from f.common.remote import list_vms as _list_vms
+from f.selftests.common import USER_CRASH_PATTERN
 
 _ALIVE = ("active", "activating", "reloading", "refreshing")
 _TAIL_LINES = 40
+_CRASH_LINES = 20
 
 
 def _monotonic_us(rec: dict) -> int | None:
@@ -70,6 +83,19 @@ def _realtime_ms(rec: dict) -> int | None:
         return int(rec["__REALTIME_TIMESTAMP"]) // 1000
     except (KeyError, TypeError, ValueError):
         return None
+
+
+def _user_crashes(
+    remote: RemoteSystemd, vm_name: str, cursor: str
+) -> tuple[list[str], int | None]:
+    """The run window's userspace crash lines (capped) and their full count."""
+    try:
+        _, records = remote.journal_kernel(cursor, grep=USER_CRASH_PATTERN)
+    except Exception as exc:
+        print(f"{vm_name}: userspace crash scan failed ({exc})", flush=True)
+        return [], None
+    lines = [journal_message(r) for r in records]
+    return lines[:_CRASH_LINES], len(lines)
 
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
@@ -213,6 +239,14 @@ def main(
         print(f"{vm_name}: {unit} journal tail ({len(tail)} lines):", flush=True)
         print("\n".join(tail), flush=True)
 
+    user_crashes: list[str] = []
+    user_crash_count: int | None = None
+    if not crashed:
+        user_crashes, user_crash_count = _user_crashes(remote, vm_name, cursor)
+        if user_crash_count:
+            print(f"{vm_name}: {user_crash_count} userspace crash line(s):", flush=True)
+            print("\n".join(user_crashes), flush=True)
+
     runtime = (
         round((ended_at - started_at) / 1e6, 2)
         if started_at is not None and ended_at is not None
@@ -220,7 +254,8 @@ def main(
     )
     print(
         f"{vm_name}: {unit} finished result={result!r} exec_status={exec_status!r} "
-        f"crashed={crashed} timed_out={timed_out} runtime={runtime}",
+        f"crashed={crashed} timed_out={timed_out} runtime={runtime} "
+        f"user_crashes={user_crash_count}",
         flush=True,
     )
     return {
@@ -235,4 +270,6 @@ def main(
         "runtime": runtime,
         "started_realtime_ms": started_realtime_ms,
         "ended_realtime_ms": ended_realtime_ms,
+        "user_crashes": user_crashes,
+        "user_crash_count": user_crash_count,
     }

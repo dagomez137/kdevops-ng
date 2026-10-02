@@ -7,7 +7,8 @@ description: |-
   transport.
 
   Returns `{vm, item, unit, result, exec_status, ktap, crashed, timed_out,
-  runtime, started_realtime_ms, ended_realtime_ms}`; the `*_realtime_ms` pair
+  runtime, started_realtime_ms, ended_realtime_ms, user_crashes,
+  user_crash_count}`; the `*_realtime_ms` pair
   is the run's wall-clock window in milliseconds since the epoch, taken from
   the journal records' `__REALTIME_TIMESTAMP` and null when the record is
   missing.

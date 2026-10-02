@@ -13,7 +13,11 @@ it either way), no crash, no
 timeout, the document's `1..N` plan matching the parsed result lines (a journal
 truncated mid-run can never pass), and no `not ok` line. An item whose parsed
 run passed nothing at all (an empty body, or every test skipped) is `notrun`,
-never a silent pass; anything else is `failed`. Returns a scalar-topped dict so
+never a silent pass; anything else is `failed`. The run window's userspace
+crash lines from `wait` are always recorded (`user_crashes` counts them, `None`
+when the scan could not run); with `fail_on_user_crash` any crash also fails
+the item, through a synthetic `userspace crash` failure entry so the report's
+failures table names it. Returns a scalar-topped dict so
 the run flow's per-item forloop renders a tidy one-row-per-item table; the
 per-test detail and the raw KTAP ride under `detail`, consumed by
 `f/selftests/report`.
@@ -42,8 +46,26 @@ def main(
     runtime: float | None = None,
     started_realtime_ms: int | None = None,
     ended_realtime_ms: int | None = None,
+    user_crashes: list[str] | None = None,
+    user_crash_count: int | None = None,
+    fail_on_user_crash: bool = False,
 ) -> dict:
     summary = parse_ktap(ktap or "")
+    crash_lines = list(user_crashes or [])
+    if user_crash_count is None and crash_lines:
+        user_crash_count = len(crash_lines)
+    failures = [t for t in summary["tests"] if t["status"] == "failed"]
+    crash_fails = fail_on_user_crash and bool(user_crash_count)
+    if crash_fails:
+        first = crash_lines[0] if crash_lines else "no line captured"
+        failures.append(
+            {
+                "collection": item,
+                "test": "userspace crash",
+                "status": "failed",
+                "message": f"{first} ({user_crash_count} crash line(s))",
+            }
+        )
 
     # A successful process exit is journal-logged only at debug level, so
     # exec_status is EMPTY on a clean run; the "done" job record already proves
@@ -55,7 +77,7 @@ def main(
         and not crashed
         and not timed_out
     )
-    if not plumbing_ok or not summary["complete"] or summary["failed"]:
+    if not plumbing_ok or not summary["complete"] or summary["failed"] or crash_fails:
         status = "failed"
     elif summary["passed"] == 0:
         status = "notrun"
@@ -66,7 +88,7 @@ def main(
         f"exec_status={exec_status!r} crashed={crashed} timed_out={timed_out} "
         f"passed={summary['passed']} failed={summary['failed']} "
         f"notrun={summary['skipped']} plan={summary['plan']} "
-        f"complete={summary['complete']}",
+        f"complete={summary['complete']} user_crashes={user_crash_count}",
         flush=True,
     )
     return {
@@ -86,9 +108,11 @@ def main(
         "passed": summary["passed"],
         "failed": summary["failed"],
         "skipped": summary["skipped"],
+        "user_crashes": user_crash_count,
         "detail": {
             "per_test": summary["tests"],
-            "failures": [t for t in summary["tests"] if t["status"] == "failed"],
+            "failures": failures,
+            "user_crashes": crash_lines,
             "ktap": ktap,
         },
     }

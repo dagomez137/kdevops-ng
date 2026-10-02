@@ -91,6 +91,20 @@ seconds or more. ``firmware`` is the opposite: it carries an upstream
 ``settings`` timeout of 165 seconds sized to its own fallback-handshake
 math, so the default already bounds it and no override is needed.
 
+**Repeats** runs each picked collection that many times back to back. The
+report folds the runs of one collection into a single row: the median
+``time(s)``, the spread, and the sample count. The job still fails when any
+single run fails, so repeats also catch a failure that only shows up
+sometimes.
+
+Every run records the userspace crashes the kernel logged during it (a
+process killed by an unhandled signal, such as ``segfault at``), in the
+report's ``crashes`` column. **Fail On Userspace Crash** makes them part of
+the verdict: an item with a crash fails even when its KTAP passes. It is off
+by default because many collections crash a child on purpose (``seccomp``,
+``ptrace``, ``exec``) and the kernel logs those too; turn it on for a
+collection that should never see one, such as ``kmod``.
+
 Two collections need guest state the closure provides. The module-driven
 tests (``sysctl``, ``lib``, ``kmod``, ``module``) load kernel modules
 through the ``/sbin/modprobe`` compat symlink the suite module ships. The
