@@ -206,6 +206,40 @@ can run straight from the share, or from the guest:
    $ cat "$WORKERS_DIR/shared/selftests/<vm>/<kver>/tree/kselftest-list.txt"
    $ ssh <vm> /var/lib/kselftests/<kver>/tree/run_kselftest.sh --list
 
+Running a collection directly
+=============================
+
+The unit runs the runner with ``--summary``, so the journal carries the KTAP
+result lines but not each test's own output. To see that output, or to run
+one step of a test script, run the runner or the script on the guest
+yourself. The tree is the one the flow's ``prepare`` laid on the share, so run
+the flow once for the booted kernel first:
+
+.. code-block:: console
+   :caption: guest
+   :class: cmd-guest
+
+   # cd /var/lib/kselftests/$(uname -r)/tree
+   # ./run_kselftest.sh --collection kmod --override-timeout 600
+   # cd kmod && ./kmod.sh
+   # ./kmod.sh -t 0008
+
+The runner still applies its per-test watchdog (hence the override for
+``kmod``); calling a test script directly skips it. Either way the output
+goes to your terminal only, not to the journal.
+
+A test can pass while a process it drove crashed: ``kmod`` loads modules
+through the kernel's usermode helper, and a ``modprobe`` killed by a signal
+does not always fail the test. The kernel logs every unhandled
+userspace signal, and :cmd:`coredumpctl` lists the crashed processes, so
+check both after a run:
+
+.. code-block:: console
+   :class: cmd-guest
+
+   # journalctl --dmesg --grep segfault
+   # coredumpctl list
+
 Querying collection status and logs
 ===================================
 

@@ -85,6 +85,7 @@ cmd_links = {
     "socat": "http://www.dest-unreach.org/socat/doc/socat.html",
     "systemctl": f"{_SYSTEMD}/systemctl.html",
     "journalctl": f"{_SYSTEMD}/journalctl.html",
+    "coredumpctl": f"{_SYSTEMD}/coredumpctl.html",
     "timedatectl": f"{_SYSTEMD}/timedatectl.html",
     "loginctl": f"{_SYSTEMD}/loginctl.html",
     "systemd-analyze": f"{_SYSTEMD}/systemd-analyze.html",
