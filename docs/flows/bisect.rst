@@ -88,6 +88,14 @@ scripts travel with the tree, the first bad commit may land in the test
 itself rather than the kernel; either way it names what changed the
 runtime.
 
+An intermittent failure needs two more **Service** knobs. **Repeats** runs
+each collection that many times per candidate, and any failing run makes
+the candidate bad, so a failure that shows up in two runs out of three is
+missed only when every repeat comes up clean. **Fail On Userspace Crash**
+turns a userspace process killed by a signal during the run into a bad
+verdict even when the KTAP passes, which is how a ``kmod`` run whose
+usermode-helper ``modprobe`` segfaults is caught.
+
 Two more guest payloads cover the XArray and maple tree test families,
 one per execution form. ``runtime_tests`` loads the candidate's
 module-init test modules (``test_xarray``, ``test_maple_tree``, and the

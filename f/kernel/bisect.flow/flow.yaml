@@ -194,9 +194,15 @@ value:
                 tests:
                   type: javascript
                   expr: '[]'
+                repeats:
+                  type: javascript
+                  expr: flow_input.service?.repeats ?? 1
                 override_timeout:
                   type: javascript
                   expr: flow_input.service?.override_timeout ?? 0
+                fail_on_user_crash:
+                  type: javascript
+                  expr: flow_input.service?.fail_on_user_crash ?? false
                 service:
                   type: javascript
                   expr: '({timeout: flow_input.service?.timeout ?? 600,
@@ -419,6 +425,7 @@ schema:
         - timeout
         - override_timeout
         - repeats
+        - fail_on_user_crash
       properties:
         timeout:
           type: integer
@@ -439,12 +446,22 @@ schema:
         repeats:
           type: integer
           description: |-
-            [payload=runtime_tests|usertests] Statistical repeats per
-            candidate: the suite runs each item this many times and its
+            [payload=runtime_tests|usertests|selftests] Statistical repeats
+            per candidate: the suite runs each item this many times and its
             report's median runtime is what `max_runtime` judges, so a
-            runtime hunt is not at the mercy of one noisy boot.
+            runtime hunt is not at the mercy of one noisy boot. Repeats also
+            catch an intermittent failure: any failing run fails the
+            candidate.
           default: 1
           title: Repeats
+        fail_on_user_crash:
+          type: boolean
+          description: |-
+            [payload=selftests] Turn a userspace crash during the run (such as
+            a segfaulting usermode-helper `modprobe`) into a bad verdict, even
+            when the KTAP passes.
+          default: false
+          title: Fail On Userspace Crash
       title: Service
   required:
     - bad
