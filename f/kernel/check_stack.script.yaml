@@ -1,0 +1,50 @@
+summary: List the largest stack frames
+description: |-
+  `make checkstack` over vmlinux and every module. Never fails: frames over the
+  512 bytes submit-checklist.rst names are counted as warnings, only for the
+  functions the series defines under `scope=series`.
+lock: '!inline f/kernel/check_stack.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - patches
+    - scope
+    - make_flags
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        The Worktree's Build (from prepare_worktree).
+    make_flags:
+      type: string
+      description: |-
+        Make variables from build_flags, space-separated.
+      default: ''
+    patches:
+      type: array
+      description: |-
+        The series' patch files (from format_patch), read for the functions it
+        defines.
+      default: []
+      items:
+        type: string
+    scope:
+      type: string
+      description: |-
+        `series` counts the series' own functions; `worktree` counts every frame
+        over 512 bytes.
+      default: series
+      enum:
+        - series
+        - worktree
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - build_dir

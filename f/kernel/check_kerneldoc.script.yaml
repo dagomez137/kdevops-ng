@@ -1,0 +1,35 @@
+summary: Check kernel-doc comments
+description: |-
+  `scripts/kernel-doc --none -Wall` over the C files and headers the series
+  touches (`scope=series`) or every source directory. Warnings are counted.
+lock: '!inline f/kernel/check_kerneldoc.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - files
+    - scope
+  properties:
+    files:
+      type: array
+      description: |-
+        Files the series adds or modifies (from format_patch).
+      items:
+        type: string
+    scope:
+      type: string
+      description: |-
+        `series` checks the series' own files; `worktree` checks every file.
+      default: series
+      enum:
+        - series
+        - worktree
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - files

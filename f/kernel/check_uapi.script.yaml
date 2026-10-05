@@ -1,0 +1,33 @@
+summary: Check UAPI header compatibility
+description: |-
+  `scripts/check-uapi.sh` between the series' base and HEAD, when the series
+  touches a UAPI header. An ABI difference fails the check; a missing
+  prerequisite fails the step.
+lock: '!inline f/kernel/check_uapi.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - files
+    - base_commit
+  properties:
+    base_commit:
+      type: string
+      description: |-
+        The series' merge base (from format_patch).
+    files:
+      type: array
+      description: |-
+        Files the series adds or modifies (from format_patch).
+      items:
+        type: string
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - files
+    - base_commit
