@@ -1,0 +1,33 @@
+summary: Run checkpatch.pl over the series
+description: |-
+  `scripts/checkpatch.pl --terse --show-types [--strict]` over the patch files
+  from the Worktree root. An ERROR fails the check; WARNING and CHECK are
+  counted.
+lock: '!inline f/kernel/check_style.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - patches
+    - strict
+  properties:
+    patches:
+      type: array
+      description: |-
+        The series' patch files, cover letter excluded (from format_patch).
+      items:
+        type: string
+    strict:
+      type: boolean
+      description: |-
+        Add `--strict` (the CHECK-level tests).
+      default: true
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - patches

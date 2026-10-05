@@ -1,0 +1,49 @@
+summary: Count the warnings of a W=1 build
+description: |-
+  Rebuild with `W=1` as this check's own make flag, leaving the Build identity
+  unchanged: the series' objects (`scope=series`), counting the warnings in its
+  files, or every object (`scope=worktree`), counting all of them. An object
+  that does not build fails the check; warnings are counted.
+lock: '!inline f/kernel/check_warnings.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - files
+    - scope
+    - make_flags
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        The Worktree's Build (from prepare_worktree).
+    files:
+      type: array
+      description: |-
+        Files the series adds or modifies (from format_patch).
+      items:
+        type: string
+    make_flags:
+      type: string
+      description: |-
+        Make variables from build_flags, space-separated.
+      default: ''
+    scope:
+      type: string
+      description: |-
+        `series` checks the series' own files; `worktree` checks every file.
+      default: series
+      enum:
+        - series
+        - worktree
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - build_dir
+    - files
