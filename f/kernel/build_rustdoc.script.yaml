@@ -1,0 +1,29 @@
+summary: Build the Rust documentation
+description: |-
+  `make rustdoc`. A failed build fails the check; rustdoc warnings are counted.
+lock: '!inline f/kernel/build_rustdoc.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - make_flags
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        The Worktree's Build (from prepare_worktree).
+    make_flags:
+      type: string
+      description: |-
+        Make variables from build_flags, space-separated.
+      default: ''
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - build_dir

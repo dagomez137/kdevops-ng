@@ -1,0 +1,30 @@
+summary: Check the Rust toolchain
+description: |-
+  `make rustavailable`: whether the devShell's Rust toolchain is one the kernel
+  accepts.
+lock: '!inline f/kernel/check_rustavailable.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - make_flags
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        The Worktree's Build (from prepare_worktree).
+    make_flags:
+      type: string
+      description: |-
+        Make variables from build_flags, space-separated.
+      default: ''
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - build_dir
