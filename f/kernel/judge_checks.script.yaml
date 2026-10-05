@@ -1,0 +1,23 @@
+summary: Fail unless every check passed
+description: |-
+  Raise when any check failed or raised, so a red series is a red job. On a
+  pass, return the report unchanged.
+lock: '!inline f/kernel/judge_checks.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - results
+    - report
+  properties:
+    report:
+      type: object
+      description: |-
+        The report result, returned on a pass.
+    results:
+      type: object
+      description: |-
+        Check step id to its result.
+  required:
+    - results

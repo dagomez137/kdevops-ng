@@ -1,0 +1,35 @@
+summary: Pick the checks that run
+description: |-
+  Resolve the picked check names (empty takes the default set) against the
+  configured Build: the Rust checks need `CONFIG_RUST=y` and the Clang analyzers
+  a Clang Build. Returns which steps run and why any picked check is skipped.
+lock: '!inline f/kernel/select_checks.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - build_dir
+    - checks
+    - scope
+  properties:
+    build_dir:
+      type: string
+      description: |-
+        The Worktree's Build (from prepare_worktree).
+    checks:
+      type: array
+      description: |-
+        Check names, by the upstream tool's name. Omitted takes the default set.
+      items:
+        type: string
+    scope:
+      type: string
+      description: |-
+        `series` checks the series' own files; `worktree` checks every file.
+      default: series
+      enum:
+        - series
+        - worktree
+  required:
+    - build_dir

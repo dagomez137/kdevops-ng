@@ -21,6 +21,12 @@ description: |-
   the Nix store; `deploy_worktree` and `fetch_devel` lay a developer worktree on
   request; `collect` returns the manifest.
 
+  **Checks** (optional): `format_patch` writes the series, `select_checks`
+  picks the checks the Build can take, one step runs each, `find_maintainers`
+  lists the recipients, and `report_checks` and `judge_checks` give the tables
+  and the verdict. They run after publishing, so nothing they rebuild (Clippy's
+  objects) is installed.
+
   See `docs/flows/kernel-build.rst` for the step, schema, identity, and reuse
   reference.
 value:
@@ -256,6 +262,7 @@ value:
       skip_if:
         expr: results.reuse_check?.present === true &&
           flow_input.reuse?.reuse !== false &&
+          flow_input.checks?.enable !== true &&
           (flow_input.worktree?.deploy_developer_worktree !== true ||
           results.reuse_check?.devel_present === true)
       timeout:
@@ -532,6 +539,455 @@ value:
       timeout:
         type: static
         value: 1800
+    - id: format_patch
+      summary: git format-patch the series
+      value:
+        type: script
+        input_transforms:
+          b4_series:
+            type: javascript
+            expr: flow_input.worktree?.b4_series
+          base:
+            type: javascript
+            expr: flow_input.checks?.base
+          git_ref:
+            type: javascript
+            expr: results.prepare_worktree.git_ref
+          subject_prefix:
+            type: javascript
+            expr: flow_input.checks?.subject_prefix
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/format_patch
+      skip_if:
+        expr: flow_input.checks?.enable !== true
+      timeout:
+        type: static
+        value: 300
+    - id: select_checks
+      summary: Pick the checks this tree can take
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          checks:
+            type: javascript
+            expr: flow_input.checks?.checks
+          scope:
+            type: javascript
+            expr: flow_input.checks?.scope
+        path: f/kernel/select_checks
+      skip_if:
+        expr: flow_input.checks?.enable !== true
+      timeout:
+        type: static
+        value: 60
+    - id: check_warnings
+      summary: W=1 warnings
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_warnings
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_warnings'
+      timeout:
+        type: static
+        value: 3600
+    - id: check_style
+      summary: checkpatch.pl over the patches
+      value:
+        type: script
+        input_transforms:
+          patches:
+            type: javascript
+            expr: results.format_patch.patches
+          strict:
+            type: javascript
+            expr: flow_input.checks?.strict
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_style
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_style'
+      timeout:
+        type: static
+        value: 600
+    - id: check_sparse
+      summary: sparse (make C=2)
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_sparse
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_sparse'
+      timeout:
+        type: static
+        value: 7200
+    - id: check_stack
+      summary: make checkstack
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          patches:
+            type: javascript
+            expr: results.format_patch.patches
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_stack
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_stack'
+      timeout:
+        type: static
+        value: 900
+    - id: check_kerneldoc
+      summary: kernel-doc -Wall
+      value:
+        type: script
+        input_transforms:
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_kerneldoc
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_kerneldoc'
+      timeout:
+        type: static
+        value: 3600
+    - id: check_uapi
+      summary: scripts/check-uapi.sh
+      value:
+        type: script
+        input_transforms:
+          base_commit:
+            type: javascript
+            expr: results.format_patch.base_commit
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_uapi
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_uapi'
+      timeout:
+        type: static
+        value: 1800
+    - id: check_cocci
+      summary: Coccinelle (make coccicheck)
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_cocci
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_cocci'
+      timeout:
+        type: static
+        value: 21600
+    - id: check_clang
+      summary: clang-tidy, clang-analyzer
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          tools:
+            type: javascript
+            expr: results.select_checks.clang_tools
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_clang
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_clang'
+      timeout:
+        type: static
+        value: 21600
+    - id: build_htmldocs
+      summary: make htmldocs
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/build_htmldocs
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.build_htmldocs'
+      timeout:
+        type: static
+        value: 3600
+    - id: check_rustavailable
+      summary: make rustavailable
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_rustavailable
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_rustavailable'
+      timeout:
+        type: static
+        value: 300
+    - id: check_rustfmt
+      summary: make rustfmtcheck
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_rustfmt
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_rustfmt'
+      timeout:
+        type: static
+        value: 600
+    - id: check_clippy
+      summary: make CLIPPY=1
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          files:
+            type: javascript
+            expr: results.format_patch.files
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          scope:
+            type: javascript
+            expr: results.select_checks.scope
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/check_clippy
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.check_clippy'
+      timeout:
+        type: static
+        value: 3600
+    - id: build_rustdoc
+      summary: make rustdoc
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/build_rustdoc
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.build_rustdoc'
+      timeout:
+        type: static
+        value: 1800
+    - id: run_rusttest
+      summary: make rusttest
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/run_rusttest
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.run_rusttest'
+      timeout:
+        type: static
+        value: 1800
+    - id: find_maintainers
+      summary: get_maintainer.pl over the patches
+      value:
+        type: script
+        input_transforms:
+          patches:
+            type: javascript
+            expr: results.format_patch.patches
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/find_maintainers
+      continue_on_error: true
+      skip_if:
+        expr: '!results.select_checks?.run?.find_maintainers'
+      timeout:
+        type: static
+        value: 300
+    - id: report_checks
+      summary: Fold the results into one report
+      value:
+        type: script
+        input_transforms:
+          maintainers:
+            type: javascript
+            expr: results.find_maintainers
+          results:
+            type: javascript
+            expr: '({ check_warnings: results.select_checks?.run?.check_warnings ? results.check_warnings : null, check_style: results.select_checks?.run?.check_style ? results.check_style : null, check_sparse: results.select_checks?.run?.check_sparse ? results.check_sparse : null, check_stack: results.select_checks?.run?.check_stack ? results.check_stack : null, check_kerneldoc: results.select_checks?.run?.check_kerneldoc ? results.check_kerneldoc : null, check_uapi: results.select_checks?.run?.check_uapi ? results.check_uapi : null, check_cocci: results.select_checks?.run?.check_cocci ? results.check_cocci : null, check_clang: results.select_checks?.run?.check_clang ? results.check_clang : null, build_htmldocs: results.select_checks?.run?.build_htmldocs ? results.build_htmldocs : null, check_rustavailable: results.select_checks?.run?.check_rustavailable ? results.check_rustavailable : null, check_rustfmt: results.select_checks?.run?.check_rustfmt ? results.check_rustfmt : null, check_clippy: results.select_checks?.run?.check_clippy ? results.check_clippy : null, build_rustdoc: results.select_checks?.run?.build_rustdoc ? results.build_rustdoc : null, run_rusttest: results.select_checks?.run?.run_rusttest ? results.run_rusttest : null, find_maintainers: results.select_checks?.run?.find_maintainers ? results.find_maintainers : null })'
+          selection:
+            type: javascript
+            expr: results.select_checks
+          series:
+            type: javascript
+            expr: results.format_patch
+        path: f/kernel/report_checks
+      skip_if:
+        expr: flow_input.checks?.enable !== true
+      timeout:
+        type: static
+        value: 120
+    - id: judge_checks
+      summary: Fail unless every check passed
+      value:
+        type: script
+        input_transforms:
+          report:
+            type: javascript
+            expr: results.report_checks
+          results:
+            type: javascript
+            expr: '({ check_warnings: results.select_checks?.run?.check_warnings ? results.check_warnings : null, check_style: results.select_checks?.run?.check_style ? results.check_style : null, check_sparse: results.select_checks?.run?.check_sparse ? results.check_sparse : null, check_stack: results.select_checks?.run?.check_stack ? results.check_stack : null, check_kerneldoc: results.select_checks?.run?.check_kerneldoc ? results.check_kerneldoc : null, check_uapi: results.select_checks?.run?.check_uapi ? results.check_uapi : null, check_cocci: results.select_checks?.run?.check_cocci ? results.check_cocci : null, check_clang: results.select_checks?.run?.check_clang ? results.check_clang : null, build_htmldocs: results.select_checks?.run?.build_htmldocs ? results.build_htmldocs : null, check_rustavailable: results.select_checks?.run?.check_rustavailable ? results.check_rustavailable : null, check_rustfmt: results.select_checks?.run?.check_rustfmt ? results.check_rustfmt : null, check_clippy: results.select_checks?.run?.check_clippy ? results.check_clippy : null, build_rustdoc: results.select_checks?.run?.build_rustdoc ? results.build_rustdoc : null, run_rusttest: results.select_checks?.run?.run_rusttest ? results.run_rusttest : null, find_maintainers: results.select_checks?.run?.find_maintainers ? results.find_maintainers : null })'
+        path: f/kernel/judge_checks
+      skip_if:
+        expr: flow_input.checks?.enable !== true
+      timeout:
+        type: static
+        value: 60
     - id: collect
       summary: Merge step results into one manifest
       value:
@@ -589,6 +1045,7 @@ schema:
     - installation
     - selftests
     - usertests
+    - checks
   properties:
     build:
       type: object
@@ -648,6 +1105,105 @@ schema:
             fixed default.
           default: false
       title: Build
+    checks:
+      type: object
+      description: |-
+        Optional pre-submission checks from the kernel's documentation
+        (Documentation/process/submit-checklist.rst, submitting-patches.rst,
+        Documentation/dev-tools/, Documentation/rust/), run on the Build after
+        it is published. A failed check fails the run.
+      default: {}
+      order:
+        - enable
+        - checks
+        - base
+        - scope
+        - subject_prefix
+        - strict
+      properties:
+        base:
+          type: string
+          description: |-
+            The upstream ref the series sits on: a tag (`v7.2`) or a mirror
+            branch (`master`). The series is the commits from its merge base
+            with the checked-out ref up to HEAD. Empty takes the checked-out
+            ref when a b4 series is applied on top of it.
+          default: ''
+          showExpr: fields.enable === true
+        checks:
+          type: array
+          description: |-
+            The checks to run, by the upstream tool's name. The default set is
+            fast enough for every series; Coccinelle, the Clang analyzers and
+            the documentation build are slow and opt-in. The Rust checks run
+            only when the Build has `CONFIG_RUST=y`, the Clang analyzers only
+            when it uses Clang.
+          default:
+            - W=1
+            - checkpatch
+            - sparse
+            - checkstack
+            - kernel-doc
+            - check-uapi
+            - rustavailable
+            - rustfmt
+            - clippy
+            - rustdoc
+            - rusttest
+            - get_maintainer
+          items:
+            type: string
+            enum:
+              - W=1
+              - checkpatch
+              - sparse
+              - checkstack
+              - kernel-doc
+              - check-uapi
+              - coccicheck
+              - clang-tidy
+              - clang-analyzer
+              - htmldocs
+              - rustavailable
+              - rustfmt
+              - clippy
+              - rustdoc
+              - rusttest
+              - get_maintainer
+          showExpr: fields.enable === true
+        enable:
+          type: boolean
+          description: |-
+            Check the series on top of the Build after it is published: patch
+            files, recipients, and one step per picked check. Turns off the
+            reuse skip for compile, since the checks read a built Build.
+          default: false
+        scope:
+          type: string
+          description: |-
+            `series` narrows the checks that can read every file to the files
+            the series touches; `worktree` checks every file, as a maintainer
+            does before pushing.
+          default: series
+          enum:
+            - series
+            - worktree
+          showExpr: fields.enable === true
+        strict:
+          type: boolean
+          description: |-
+            Pass `--strict` to `checkpatch.pl`, which adds the CHECK-level
+            tests.
+          default: true
+          showExpr: fields.enable === true
+        subject_prefix:
+          type: string
+          description: |-
+            The bracketed subject prefix: `PATCH`, `PATCH v2`, `RFC PATCH`,
+            `PATCH net-next`.
+          default: PATCH
+          showExpr: fields.enable === true
+      title: Checks
     configuration:
       type: object
       description: How the kernel `.config` is produced.

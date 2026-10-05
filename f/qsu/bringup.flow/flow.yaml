@@ -58,6 +58,9 @@ value:
         usertests:
           type: javascript
           expr: flow_input.kernel?.usertests
+        checks:
+          type: javascript
+          expr: flow_input.kernel?.checks
   - id: build_nix
     summary: Build the NixOS closure (f/nix/build)
     skip_if:
@@ -161,6 +164,7 @@ schema:
       - installation
       - selftests
       - usertests
+      - checks
       properties:
         mode:
           title: Kernel
@@ -816,6 +820,115 @@ schema:
                 - scatterlist
               showExpr: fields.enable === true
           title: Usertests
+          showExpr: fields.mode === "build"
+        checks:
+          type: object
+          description: 'Optional pre-submission checks from the kernel''s documentation
+
+            (Documentation/process/submit-checklist.rst, submitting-patches.rst,
+
+            Documentation/dev-tools/, Documentation/rust/), run on the Build after
+
+            it is published. A failed check fails the run.'
+          default: {}
+          order:
+          - enable
+          - checks
+          - base
+          - scope
+          - subject_prefix
+          - strict
+          properties:
+            base:
+              type: string
+              description: 'The upstream ref the series sits on: a tag (`v7.2`) or a mirror
+
+                branch (`master`). The series is the commits from its merge base
+
+                with the checked-out ref up to HEAD. Empty takes the checked-out
+
+                ref when a b4 series is applied on top of it.'
+              default: ''
+              showExpr: fields.enable === true
+            checks:
+              type: array
+              description: 'The checks to run, by the upstream tool''s name. The default set is
+
+                fast enough for every series; Coccinelle, the Clang analyzers and
+
+                the documentation build are slow and opt-in. The Rust checks run
+
+                only when the Build has `CONFIG_RUST=y`, the Clang analyzers only
+
+                when it uses Clang.'
+              default:
+              - W=1
+              - checkpatch
+              - sparse
+              - checkstack
+              - kernel-doc
+              - check-uapi
+              - rustavailable
+              - rustfmt
+              - clippy
+              - rustdoc
+              - rusttest
+              - get_maintainer
+              items:
+                type: string
+                enum:
+                - W=1
+                - checkpatch
+                - sparse
+                - checkstack
+                - kernel-doc
+                - check-uapi
+                - coccicheck
+                - clang-tidy
+                - clang-analyzer
+                - htmldocs
+                - rustavailable
+                - rustfmt
+                - clippy
+                - rustdoc
+                - rusttest
+                - get_maintainer
+              showExpr: fields.enable === true
+            enable:
+              type: boolean
+              description: 'Check the series on top of the Build after it is published: patch
+
+                files, recipients, and one step per picked check. Turns off the
+
+                reuse skip for compile, since the checks read a built Build.'
+              default: false
+            scope:
+              type: string
+              description: '`series` narrows the checks that can read every file to the files
+
+                the series touches; `worktree` checks every file, as a maintainer
+
+                does before pushing.'
+              default: series
+              enum:
+              - series
+              - worktree
+              showExpr: fields.enable === true
+            strict:
+              type: boolean
+              description: 'Pass `--strict` to `checkpatch.pl`, which adds the CHECK-level
+
+                tests.'
+              default: true
+              showExpr: fields.enable === true
+            subject_prefix:
+              type: string
+              description: 'The bracketed subject prefix: `PATCH`, `PATCH v2`, `RFC PATCH`,
+
+                `PATCH net-next`.'
+              default: PATCH
+              showExpr: fields.enable === true
+          title: Checks
           showExpr: fields.mode === "build"
     closure:
       type: object

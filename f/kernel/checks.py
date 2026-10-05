@@ -282,3 +282,17 @@ def result(check: str, findings: list[dict], log: Path | None, **extra) -> dict:
         **extra,
         "findings": findings[:MAX_FINDINGS],
     }
+
+
+def outcome(step_result) -> str:
+    """A check step's status as the flow saw it.
+
+    A step that did not run leaves no result; one that raised under
+    `continue_on_error` leaves Windmill's error object, which fails the run
+    like a failed check does.
+    """
+    if not step_result:
+        return "not run"
+    if "error" in step_result and "status" not in step_result:
+        return "error"
+    return step_result.get("status", "error")

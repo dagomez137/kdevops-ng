@@ -1,0 +1,36 @@
+summary: Fold the check results into one report
+description: |-
+  Write every result to `report.json` in `check/` and return a `render_all`
+  of four native tables: the series, one row per check, every finding (errors
+  first), and the recipients.
+lock: '!inline f/kernel/report_checks.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - series
+    - selection
+    - results
+    - maintainers
+  properties:
+    maintainers:
+      type: object
+      description: |-
+        The find_maintainers result.
+    results:
+      type: object
+      description: |-
+        Check step id to its result.
+    selection:
+      type: object
+      description: |-
+        The select_checks result.
+    series:
+      type: object
+      description: |-
+        The format_patch result.
+  required:
+    - series
+    - selection
+    - results
