@@ -108,3 +108,23 @@ def test_merge_prefix_map_folds_both_user_vars():
         "KAFLAGS=-g -fdebug-prefix-map=/p/=",
     ]
     assert parts == []
+
+
+def test_extra_warn_levels_combine_into_one_w():
+    out = build_flags.main(reproducible=False, ccache=False, extra_warn=["e", "1", "2"])
+    assert _tokens(out) == ["W=12e"]
+
+
+def test_kcflags_picks_merge_with_make_flags_and_the_prefix_map(tmp_path):
+    worktree = tmp_path / "linux"
+    out = build_flags.main(
+        reproducible=True,
+        ccache=False,
+        kcflags=["-W", "-Wno-error"],
+        make_flags="KCFLAGS=-O2",
+        worktree=str(worktree),
+        build_dir=str(worktree / "build"),
+    )
+    prefix_map = f"-fdebug-prefix-map={worktree}/="
+    assert f"KCFLAGS=-O2 -W -Wno-error {prefix_map}" in _tokens(out)
+    assert sum(t.startswith("KCFLAGS=") for t in _tokens(out)) == 1

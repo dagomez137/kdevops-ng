@@ -81,6 +81,12 @@ value:
           compiler:
             type: javascript
             expr: flow_input.build?.compiler
+          extra_warn:
+            type: javascript
+            expr: flow_input.build?.extra_warn
+          kcflags:
+            type: javascript
+            expr: flow_input.build?.kcflags
           make_flags:
             type: javascript
             expr: flow_input.build?.make_flags
@@ -1053,8 +1059,10 @@ schema:
       default: {}
       order:
         - targets
-        - make_flags
         - compiler
+        - extra_warn
+        - kcflags
+        - make_flags
         - reproducible
         - timestamp_from_commit
         - ccache
@@ -1080,11 +1088,41 @@ schema:
           enum:
             - gcc
             - clang
+        extra_warn:
+          type: array
+          description: |-
+            kbuild's extra warning levels (`W=`), combined: `1` for warnings
+            that may be relevant and do not occur too often, `2` for ones that
+            occur quite often, `3` for more obscure ones, `e` to make them
+            errors (`make help`).
+          default: []
+          items:
+            type: string
+            enum:
+              - '1'
+              - '2'
+              - '3'
+              - e
+          title: W= (KBUILD_EXTRA_WARN)
+        kcflags:
+          type: array
+          description: |-
+            Extra C compiler flags (`KCFLAGS`). `-W` is what
+            Documentation/process/submit-checklist.rst asks new code to be
+            compiled with; `-Wno-error` keeps a `CONFIG_WERROR` Build going
+            past a warning.
+          default: []
+          items:
+            type: string
+            enum:
+              - -W
+              - -Wno-error
+          title: KCFLAGS
         make_flags:
           type: string
           description: |-
-            Extra make variables/flags, space-separated, appended verbatim (e.g.
-            "W=1 KCFLAGS=-O2").
+            Advanced: extra make variables, space-separated, appended verbatim
+            after the picks above. A `KCFLAGS` here merges with the picked ones.
           default: ''
         reproducible:
           type: boolean

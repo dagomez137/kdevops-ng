@@ -18,6 +18,8 @@ schema:
     - timestamp_from_commit
     - ccache
     - ccache_max_size
+    - extra_warn
+    - kcflags
     - make_flags
     - worktree
     - build_dir
@@ -54,6 +56,27 @@ schema:
       enum:
         - gcc
         - clang
+    extra_warn:
+      type: array
+      description: |-
+        kbuild extra warning levels, combined into `W=` (`1`, `2`, `3`, `e`).
+      default: []
+      items:
+        type: string
+        enum:
+          - '1'
+          - '2'
+          - '3'
+          - e
+      title: W= (KBUILD_EXTRA_WARN)
+    kcflags:
+      type: array
+      description: |-
+        Extra C compiler flags, merged into one `KCFLAGS`.
+      default: []
+      items:
+        type: string
+      title: KCFLAGS
     make_flags:
       type: string
       description: |-

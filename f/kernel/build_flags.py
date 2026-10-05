@@ -14,6 +14,11 @@ building via distinct commands (Documentation/kbuild/llvm.rst).
     `KBUILD_BUILD_HOST=kdevops` + `LOCALVERSION=` (Documentation/kbuild/reproducible-builds.rst),
     plus one `-fdebug-prefix-map=<prefix>/=` in `KCFLAGS` and `KAFLAGS`, `<prefix>`
     being the common parent of the worktree and build dir.
+  - extra_warn     -> `W=<levels>`, kbuild's `KBUILD_EXTRA_WARN`: `1`, `2`, `3`
+    and `e` combine (`W=12e`); see `make help`.
+  - kcflags        -> `KCFLAGS`, merged into one set in `make_flags`, and with
+    the prefix map below; Documentation/process/submit-checklist.rst asks for
+    new code compiled with `make KCFLAGS=-W`.
   - ccache         -> `CC="ccache <cc>"` on the command line (the Makefile assigns
     CC, so an env CC would not win); a managed ccache.conf is written here (cache_dir
     + a max_size of `ccache_max_size` GiB, the only non-default settings) and the
@@ -53,6 +58,8 @@ def main(
     ccache_max_size: int = 10,
     timestamp_from_commit: bool = False,
     make_flags: str = "",
+    extra_warn: list[str] | None = None,
+    kcflags: list[str] | None = None,
     worktree: str = "",
     build_dir: str = "",
     commit: str = "",
@@ -97,7 +104,12 @@ def main(
             prefix_map = f"-fdebug-prefix-map={prefix}/="
             print(f"path-prefix map: {prefix}/ -> ''", flush=True)
 
+    if extra_warn:
+        parts.append(f"W={''.join(sorted(set(extra_warn)))}")
+
     extra = shlex.split(make_flags) if make_flags else []
+    if kcflags:
+        extra = _merge_kcflags(extra, kcflags)
     if prefix_map:
         extra = _merge_prefix_map(extra, prefix_map, parts)
 
@@ -117,6 +129,18 @@ def _clang_toolchain(workers: Path) -> tuple[str, str]:
     if not cc or not resource:
         raise RuntimeError("build-kernel devShell exported no KERNEL_CLANG_CC/RESOURCE")
     return cc, resource
+
+
+def _merge_kcflags(extra: list[str], kcflags: list[str]) -> list[str]:
+    """Fold the picked `KCFLAGS` into one already in `make_flags`, else add it."""
+    merged = list(extra)
+    picked = " ".join(kcflags)
+    idx = next((i for i, t in enumerate(merged) if t.startswith("KCFLAGS=")), None)
+    if idx is None:
+        return [*merged, f"KCFLAGS={picked}"]
+    value = merged[idx][len("KCFLAGS=") :]
+    merged[idx] = f"KCFLAGS={f'{value} {picked}'.strip()}"
+    return merged
 
 
 def _merge_prefix_map(extra: list[str], prefix_map: str, parts: list[str]) -> list[str]:

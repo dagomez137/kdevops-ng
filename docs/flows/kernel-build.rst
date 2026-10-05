@@ -243,9 +243,20 @@ Build
    clang). For the wider toolchain picture see
    :doc:`/reference/kernel-toolchains`.
 
+``extra_warn``
+   kbuild's extra warning levels, combined into one ``W=``: ``1``, ``2``,
+   ``3``, and ``e`` to make them errors (``W=12e``).
+
+``kcflags``
+   Extra C compiler flags, from a curated set: ``-W``, which
+   ``Documentation/process/submit-checklist.rst`` asks new code to be compiled
+   with, and ``-Wno-error`` for a Build configured with ``CONFIG_WERROR``.
+
 ``make_flags``
-   Free-form extra make variables and flags, appended verbatim (for example
-   ``W=1``).
+   Advanced: free-form extra make variables and flags, appended verbatim after
+   the picks above. A ``KCFLAGS`` here merges with ``kcflags``.
+
+All three are build flags, so they are part of the Build identity.
 
 ``reproducible``
    Pin ``KBUILD_BUILD_TIMESTAMP``/``USER``/``HOST`` for a reproducible build
