@@ -29,6 +29,7 @@ Reference
 
 - :doc:`/reference/openflow` (add to ``docs/reference/index.rst``)
 - :doc:`/reference/kernel-toolchains` (add to ``docs/reference/index.rst``)
+- :doc:`/reference/process-checklist` (add to ``docs/reference/index.rst``)
 
 Concepts
 ========

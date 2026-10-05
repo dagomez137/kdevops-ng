@@ -118,6 +118,22 @@ cmd_links = {
     "EnvironmentFile": f"{_SYSTEMD}/systemd.exec.html#EnvironmentFile=",
     "pg_dump": "https://www.postgresql.org/docs/current/app-pgdump.html",
     "pg_restore": "https://www.postgresql.org/docs/current/app-pgrestore.html",
+    "make": f"{_MAN7}/make.1.html",
+    "git format-patch": f"{_MAN7}/git-format-patch.1.html",
+    "git send-email": f"{_MAN7}/git-send-email.1.html",
+    "b4": "https://b4.docs.kernel.org/",
+    "checkpatch.pl": "https://docs.kernel.org/dev-tools/checkpatch.html",
+    "get_maintainer.pl": "https://docs.kernel.org/process/submitting-patches.html"
+    "#select-the-recipients-for-your-patch",
+    "sparse": "https://docs.kernel.org/dev-tools/sparse.html",
+    "kernel-doc": "https://docs.kernel.org/doc-guide/kernel-doc.html",
+    "check-uapi.sh": "https://docs.kernel.org/dev-tools/checkuapi.html",
+    "abidiff": "https://sourceware.org/libabigail/manual/abidiff.html",
+    "coccicheck": "https://docs.kernel.org/dev-tools/coccinelle.html",
+    "clang-tidy": "https://clang.llvm.org/extra/clang-tidy/",
+    "rustfmt": "https://rust-lang.github.io/rustfmt/",
+    "clippy-driver": "https://doc.rust-lang.org/clippy/",
+    "rustdoc": "https://doc.rust-lang.org/rustdoc/",
 }
 
 

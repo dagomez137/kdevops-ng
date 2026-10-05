@@ -26,7 +26,8 @@ and sees the previous step's files:
 
    prepare_worktree -> build_flags -> configure -> fetch_identity ->
    reuse_check -> compile -> devtools -> install -> install_modules ->
-   publish -> publish_devel -> deploy_worktree -> fetch_devel -> collect
+   publish -> publish_devel -> deploy_worktree -> fetch_devel ->
+   [checks] -> collect
 
 .. list-table::
    :header-rows: 1
@@ -91,6 +92,10 @@ and sees the previous step's files:
        both its ``clangd`` and its ``rust-analyzer`` index.
      - ``.#transfer``, then
        ``.#build-kernel``
+   * - checks
+     - The optional pre-submission checks, one step per check; see
+       `Pre-submission checks`_.
+     - ``.#check-kernel``
    * - ``collect``
      - Merge the step results into one manifest and return it as the flow
        result.
@@ -281,6 +286,33 @@ Installation
    Add the canonical ``/lib/modules/<release>/source`` symlink after
    ``modules_install``.
 
+Checks
+------
+
+``enable``
+   Run the pre-submission checks after the Build is published (off by
+   default). Turns off the reuse skip for ``compile``, since every check reads
+   a built Build.
+
+``checks``
+   The checks to run, by the upstream tool's name. The default set is fast
+   enough for every series; ``coccicheck``, ``clang-tidy``, ``clang-analyzer``
+   and ``htmldocs`` are opt-in.
+
+``base``
+   The upstream ref the series sits on, a tag (``v7.2``) or a mirror branch
+   (``master``). Empty works only with a ``b4_series``, where the checked-out
+   ref is the base.
+
+``scope``
+   ``series`` narrows the checks that can read every file to the files the
+   series touches; ``worktree`` checks every file, as a maintainer does before
+   pushing.
+
+``subject_prefix``, ``strict``
+   The patch subject prefix (``PATCH v2``), and ``--strict`` for
+   :cmd:`checkpatch.pl`.
+
 The source URL is not a flow input: it is fixed by the mirror, exactly as the
 QEMU build takes a ref but not a URL.
 
@@ -426,6 +458,138 @@ why. The index is still correct and everything except macro expansion resolves
 from it, but ``module!``, ``#[vtable]``, ``#[pin_data]`` and ``pin_init!`` will
 each raise a ``macro-error`` at their use sites until it is fixed.
 
+Pre-submission checks
+=====================
+
+With ``checks.enable`` set, the flow runs the mechanical part of the kernel's
+pre-submission checklist over the series on top of the Build, for C and for
+Rust, after ``publish_devel``. A developer runs it on a branch before
+:cmd:`git send-email`; a maintainer runs it on a series received from lore,
+applied with :cmd:`b4`. :doc:`/reference/process-checklist` maps each check to
+the sentence of the kernel's documentation that asks for it, and lists what is
+left to a person. Bringup composes this flow, so the same Checks group appears
+under its Kernel component.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - Step
+     - Action
+   * - :src:`format_patch <f/kernel/format_patch>`
+     - Find the merge base of ``base`` and HEAD, then :cmd:`git format-patch`
+       ``--base`` the commits above it into the Worker sandbox's
+       ``check/patches/``, with a cover letter for more than one patch.
+       ``check/`` is emptied first; every later step writes its log there.
+   * - :src:`select_checks <f/kernel/select_checks>`
+     - Resolve the picked checks against the configured Build: the Rust ones
+       need ``CONFIG_RUST=y``, the Clang analyzers a Clang Build. A check the
+       Build cannot take is skipped, with the reason in the report.
+   * - :src:`check_warnings <f/kernel/check_warnings>`
+     - Rebuild with ``W=1``: the series' objects, or every object.
+   * - :src:`check_style <f/kernel/check_style>`
+     - ``scripts/checkpatch.pl --terse --show-types [--strict]`` over the
+       patches.
+   * - :src:`check_sparse <f/kernel/check_sparse>`
+     - ``make C=2`` with :cmd:`sparse` over the series' objects, or every
+       file. kbuild rejecting the devShell's ``sparse`` fails the step instead
+       of passing with nothing checked.
+   * - :src:`check_stack <f/kernel/check_stack>`
+     - ``make checkstack``; frames over 512 bytes in the series' own functions
+       are counted.
+   * - :src:`check_kerneldoc <f/kernel/check_kerneldoc>`
+     - :cmd:`kernel-doc` ``--none -Wall`` over the series' C files and
+       headers, which ``W=1`` covers only in part.
+   * - :src:`check_uapi <f/kernel/check_uapi>`
+     - :cmd:`check-uapi.sh` between the base and HEAD, when the series touches
+       a UAPI header.
+   * - :src:`check_cocci <f/kernel/check_cocci>`
+     - `Coccinelle`_'s semantic patches in report mode (:cmd:`coccicheck`),
+       one rule at a time, so a rule the devShell's Coccinelle cannot parse is
+       listed in ``rules_failed`` instead of stopping the rest. Opt-in.
+   * - :src:`check_clang <f/kernel/check_clang>`
+     - :cmd:`clang-tidy` and the Clang Static Analyzer over the series' part of
+       ``compile_commands.json``. Opt-in; needs a Clang Build.
+   * - :src:`build_htmldocs <f/kernel/build_htmldocs>`
+     - ``make htmldocs``, narrowed with ``SPHINXDIRS`` to the Documentation/
+       subdirectories the series touches. Opt-in.
+   * - :src:`check_rustavailable <f/kernel/check_rustavailable>`
+     - ``make rustavailable``.
+   * - :src:`check_rustfmt <f/kernel/check_rustfmt>`
+     - ``make rustfmtcheck`` (:cmd:`rustfmt`).
+   * - :src:`check_clippy <f/kernel/check_clippy>`
+     - ``make CLIPPY=1``, which rebuilds the Rust objects through
+       :cmd:`clippy-driver`.
+   * - :src:`build_rustdoc <f/kernel/build_rustdoc>`
+     - ``make rustdoc`` (:cmd:`rustdoc`).
+   * - :src:`run_rusttest <f/kernel/run_rusttest>`
+     - ``make rusttest``, the Rust host tests.
+   * - :src:`find_maintainers <f/kernel/find_maintainers>`
+     - :cmd:`get_maintainer.pl` over the patches, kept as ``maintainers.txt``.
+   * - :src:`report_checks <f/kernel/report_checks>`
+     - Write ``report.json`` and the report tables.
+   * - :src:`judge_checks <f/kernel/judge_checks>`
+     - Fail the run when a check failed or raised.
+
+The checks never change the Build identity. The flags they need are their own
+make's, not the Build's: ``W=1``, and ``KCFLAGS=-Wno-error`` with
+``KRUSTFLAGS=--cap-lints=warn`` so that a Build configured with
+``CONFIG_WERROR`` counts its warnings instead of stopping on the first. They
+run after ``publish``, so nothing they rebuild (`Clippy`_'s objects among them)
+is installed; the next build of the identity recompiles those objects. Every
+check runs in the ``check-kernel`` devShell of the vendored nixos-flake: the
+``build-kernel`` toolchain plus Clippy, Coccinelle and the `OCaml`_ its scripted
+rules compile with, `libabigail`_, `Sphinx`_ and a Sparse new enough for
+current kernels.
+
+One rule decides a check, the one
+``Documentation/process/submitting-patches.rst`` applies to checkpatch: an
+error fails it, and a warning is counted for the author to justify. A check
+step never fails on its findings; it returns them with a ``status`` and the
+flow continues past it (``continue_on_error``), so a failed check still carries
+its counts. ``judge_checks`` turns any failed check into a failed run, and in
+bringup that stops the run before the guest boots. Where a tool has no error
+level of its own, the step picks one: a ``rustfmtcheck`` hunk fails, since
+formatting is not a judgment call, and so does a ``check-uapi.sh`` ABI
+difference; ``checkstack`` and Coccinelle never fail.
+
+``report_checks`` returns four tables: the series (base, commits, scope,
+patches, report path); one row per check with its status, counts and log;
+every finding, errors first; and the recipients. ``report.json`` holds every
+step's full result:
+
+.. code-block:: text
+
+   $WORKERS_DIR/<worker>/check/
+   ├── patches/           0000-cover-letter.patch, 0001-*.patch, ...
+   ├── checkpatch.log     one file:line: LEVEL:TYPE: line per finding
+   ├── warnings.log       the W=1 rebuild
+   ├── sparse.log         the make C=2 output
+   ├── ...                one log per check that ran
+   ├── maintainers.txt    get_maintainer.pl's list
+   └── report.json        every step's result
+
+To check a developer branch:
+
+.. code-block:: bash
+   :class: cmd-host
+
+   wmill flow run f/kernel/build --data '{
+       "worktree": {"custom_ref": true, "git_ref": "my-topic"},
+       "checks": {"enable": true, "base": "v7.2"}
+   }'
+
+and a series on lore, applied to its base:
+
+.. code-block:: bash
+   :class: cmd-host
+
+   wmill flow run f/kernel/build --data '{
+       "worktree": {"custom_ref": true, "git_ref": "v7.2",
+                    "b4_series": "<message-id>"},
+       "checks": {"enable": true}
+   }'
+
 The output contract
 ===================
 
@@ -472,3 +636,8 @@ up with the running kernel. For inspecting a running guest see
 .. _releases.json: https://www.kernel.org/releases.json
 .. _linux-config-fragments: https://github.com/dagomez137/linux-config-fragments
 .. _b4: https://b4.docs.kernel.org/
+.. _Coccinelle: https://coccinelle.gitlabpages.inria.fr/website/
+.. _libabigail: https://sourceware.org/libabigail/
+.. _Sphinx: https://www.sphinx-doc.org/
+.. _Clippy: https://doc.rust-lang.org/clippy/
+.. _OCaml: https://ocaml.org/
