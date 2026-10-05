@@ -1,0 +1,47 @@
+summary: Write the series as patch files
+description: |-
+  Find the merge base of `base` and HEAD and `git format-patch --base` the
+  commits above it into the Worker sandbox's `check/`, emptied first, with a
+  cover letter for more than one patch. Returns the patch files and the files
+  the series touches. Fails when there is nothing to format.
+lock: '!inline f/kernel/format_patch.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - base
+    - git_ref
+    - b4_series
+    - subject_prefix
+  properties:
+    b4_series:
+      type: string
+      description: |-
+        The lore series applied on top of `git_ref`, if any.
+      default: ''
+      title: b4 Series
+    base:
+      type: string
+      description: |-
+        Upstream ref the series sits on (a tag, or a mirror branch). Empty takes
+        `git_ref` when a b4 series was applied.
+      default: ''
+    git_ref:
+      type: string
+      description: |-
+        The checked-out ref (from prepare_worktree).
+      default: ''
+      title: Git Ref
+    subject_prefix:
+      type: string
+      description: |-
+        Bracketed subject prefix (`PATCH`, `PATCH v2`, `RFC PATCH`).
+      default: PATCH
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree

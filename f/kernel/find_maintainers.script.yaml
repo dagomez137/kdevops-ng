@@ -1,0 +1,26 @@
+summary: List the series' recipients
+description: |-
+  Run `scripts/get_maintainer.pl` over the patch files from the Worktree root
+  and keep the list as `maintainers.txt` in `check/`.
+lock: '!inline f/kernel/find_maintainers.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - patches
+  properties:
+    patches:
+      type: array
+      description: |-
+        The series' patch files, cover letter excluded (from format_patch).
+      items:
+        type: string
+    worktree:
+      type: string
+      description: |-
+        Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - patches
