@@ -184,6 +184,37 @@
             shellHook = reproducibleShellHook + kernelClangHook;
           };
 
+          # build-kernel plus the static checkers. A separate shell, so a
+          # new checker leaves build-kernel's derivation, and anything keyed
+          # on it, unchanged. Nixpkgs' Sparse 0.6.4 lacks __typeof_unqual__,
+          # which v7.2 headers use; kbuild's scripts/checker-valid.sh then
+          # rejects it and builds with no checker at all. v0.6.5-rc1 carries
+          # dc9efe44 ("sparse: implement typeof_unqual()").
+          check-kernel =
+            let
+              sparse = pkgs.sparse.overrideAttrs (_: {
+                version = "0.6.5-rc1";
+                src = pkgs.fetchgit {
+                  url = "https://git.kernel.org/pub/scm/devel/sparse/sparse.git";
+                  rev = "37156835e3d725b6d750f000be33ba3814bb2310";
+                  hash = "sha256-662n1ENn8ZsiBtSBx6Vr1MrRAwzvob0Y1ifnBVtfB5k=";
+                };
+              });
+            in
+            pkgs.mkShell {
+              packages =
+                builtins.filter (p: pkgs.lib.getName p != "sparse") kernelPackages ++ [ sparse ] ++ tc.kernelChecks;
+              env = {
+                RUST_LIB_SRC = rustLibSrc;
+                LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+                  pkgs.elfutils
+                  pkgs.zlib
+                  pkgs.openssl
+                ];
+              };
+              shellHook = reproducibleShellHook + kernelClangHook;
+            };
+
           # The kernel's userspace test harnesses (tools/testing's
           # radix-tree, vma, rbtree, memblock, scatterlist) compile
           # kernel sources into plain userspace binaries: no kernel

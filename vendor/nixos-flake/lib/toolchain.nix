@@ -49,4 +49,25 @@
     rustfmt
     sparse
   ];
+
+  # The checkers the kernel's pre-submission documentation names beyond what
+  # a build needs (Documentation/process/submit-checklist.rst,
+  # Documentation/dev-tools/, Documentation/rust/).
+  kernelChecks = with pkgs; [
+    clippy # make CLIPPY=1
+    coccinelle # make coccicheck
+    # `spatch` compiles the script:ocaml rules against its own interfaces,
+    # so the compiler must be the OCaml Nixpkgs builds Coccinelle with.
+    ocaml-ng.ocamlPackages_4_14.ocaml
+    ocaml-ng.ocamlPackages_4_14.findlib
+    libabigail # scripts/check-uapi.sh runs abidiff
+    # make htmldocs; Documentation/sphinx/requirements.txt
+    (python3.withPackages (
+      ps: with ps; [
+        alabaster
+        sphinx
+        pyyaml
+      ]
+    ))
+  ];
 }
