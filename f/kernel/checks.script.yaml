@@ -1,0 +1,15 @@
+summary: Series, log and finding helpers for the checks
+description: |-
+  Library module imported by the `f/kernel` check steps (`from f.kernel.checks
+  import series_files, diagnostics, result, ...`), not a runnable step. Lists
+  the files a series touches, parses the findings of GCC, Sparse,
+  `checkpatch.pl`, kernel-doc, Coccinelle, Sphinx, `rustc`, Clippy and
+  `rustfmt`, and turns their counts into a check's status.
+lock: '!inline f/kernel/checks.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []
