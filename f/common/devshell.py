@@ -309,6 +309,41 @@ class DevShell:
             cwd=cwd,
         ).stdout
 
+    def tee(
+        self,
+        command: str,
+        *args: str,
+        log: Path,
+        cwd: str | None = None,
+        env: dict | None = None,
+    ) -> int:
+        """Stream stdout and stderr, merged, to the job log and to `log`.
+
+        Returns the exit code without raising, for a checker whose verdict is
+        read from its output rather than its status.
+        """
+        argv = self._argv(command, *args)
+        _log(argv)
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with (
+            log.open("w") as out,
+            subprocess.Popen(
+                argv,
+                env={**self._env, **(env or {})},
+                text=True,
+                errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=cwd,
+            ) as proc,
+        ):
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                print(line, end="", flush=True)
+                out.write(line)
+        print(f"wrote {log}", flush=True)
+        return proc.returncode
+
 
 def _resolve_git(workers: Path | str | None = None) -> str:
     """Resolve the nixos-flake's `git` binary, gc-rooting it for reuse.

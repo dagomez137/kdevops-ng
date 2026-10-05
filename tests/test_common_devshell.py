@@ -87,3 +87,17 @@ def test_nothing_resolvable_raises_keyerror(monkeypatch):
     ):
         with pytest.raises(KeyError):
             resolve()
+
+
+def test_tee_streams_to_the_job_log_and_the_file(monkeypatch, tmp_path, capsys):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("WORKERS_DIR", str(tmp_path / "workers"))
+    shell = devshell.DevShell(tmp_path / "workers")
+    monkeypatch.setattr(shell, "_argv", lambda command, *args: [command, *args])
+    log = tmp_path / "logs" / "out.log"
+    rc = shell.tee("sh", "-c", "echo out; echo err >&2; exit 3", log=log)
+    assert rc == 3
+    assert log.read_text() == "out\nerr\n"
+    printed = capsys.readouterr().out
+    assert "out\nerr\n" in printed
+    assert f"wrote {log}" in printed
