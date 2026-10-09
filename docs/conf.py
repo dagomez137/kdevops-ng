@@ -120,6 +120,7 @@ cmd_links = {
     "pg_restore": "https://www.postgresql.org/docs/current/app-pgrestore.html",
     "psql": "https://www.postgresql.org/docs/current/app-psql.html",
     "git archive": "https://git-scm.com/docs/git-archive",
+    "wmill flow run": "https://www.windmill.dev/docs/advanced/cli/flow",
     "make": f"{_MAN7}/make.1.html",
     "git format-patch": f"{_MAN7}/git-format-patch.1.html",
     "git send-email": f"{_MAN7}/git-send-email.1.html",
