@@ -63,20 +63,46 @@ replace the source ``hash`` with the prefetched one:
 Never pair a new ``rev`` with the old ``hash``: a fixed-output fetch is
 identified by its hash alone, so Nix would silently reuse the old sources.
 
+The same property lets the rebase be built and rolled before it is pushed.
+GitHub serves a revision as its :cmd:`git archive`, so adding that archive
+to the store under the fetcher's name, ``source``, yields the store path the
+pin resolves to, and the build never contacts GitHub. Set ``rev`` and
+``hash`` from the local tree:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ rm --recursive --force /tmp/fork/source
+   $ mkdir --parents /tmp/fork/source
+   $ git archive --format=tar <rev> | tar --extract --directory /tmp/fork/source
+   $ nix store add-path --name source /tmp/fork/source
+   $ nix hash path /tmp/fork/source
+
+Pushing later changes nothing here: the path is already valid, so this host
+never fetches it. Prove that the pushed branch is the one that was tested by
+prefetching the pushed revision, which downloads it from GitHub; it must
+report the pinned ``hash``:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ nix flake prefetch github:dagomez137/windmill/<rev> --json
+
 The vendored dependencies moved too. In
-:src:`deploy/nix/windmill/package.nix`, set ``cargoHash`` and ``npmDepsHash``
-to the fake ``sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=`` and let
-one build report both real values, then fill them in. Each mismatch names the
-derivation it belongs to, ``-vendor-staging`` for the Rust vendor tree and
-``-npm-deps`` for the frontend, so read the value against that name rather
-than the order they appear in:
+:src:`deploy/nix/windmill/package.nix`, set ``cargoHash`` and ``npmDepsHash``,
+and in :src:`deploy/nix/wmill/package.nix` the CLI's ``outputHash``, to the
+fake ``sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=`` and let one build
+report all three real values, then fill them in. Each mismatch names the
+derivation it belongs to, ``-vendor-staging`` for the Rust vendor tree,
+``-npm-deps`` for the frontend and ``windmill-cli-modules`` for the CLI, so
+read the value against that name rather than the order they appear in:
 
 .. code-block:: console
    :class: cmd-host
 
    $ cd deploy/nix
-   $ nix build .#windmill --keep-going --no-link
-   error: hash mismatch in fixed-output derivation '...-vendor.drv':
+   $ nix build .#windmill .#wmill --keep-going --no-link
+   error: hash mismatch in fixed-output derivation '...-vendor-staging.drv':
             specified: sha256-AAAA...
                got:    sha256-vvFtT/Dwb1bvzLo77d6fJ0lgZus4DmxOdlWqothfRvc=
 
@@ -129,14 +155,18 @@ root:
 
    $ nix build .#windmill --out-link "$pkgs/windmill"
    $ systemctl --user restart windmill.service
-   $ journalctl --user --unit windmill.service --since "5 min ago"
+   $ "$pkgs/postgresql/bin/psql" --dbname="$DATABASE_URL" --command \
+         'SELECT max(version), bool_and(success) FROM _sqlx_migrations'
    $ systemctl --user restart windmill-native.service 'windmill-worker@*'
    $ rm "$pkgs/windmill-next"
 
-The journal shows each migration apply. Instance settings and worker groups
-live in the database and the unit drop-ins, so they carry over untouched.
-``windmill-extra`` is an independent package; rebuild it separately only
-when the LSP gateway should track the same sources.
+The :cmd:`psql` query must report the release's last migration as the newest
+applied version (the highest-numbered file under ``backend/migrations``) and
+every migration as successful. The server logs each migration it applies, but
+the table is the record that outlasts the journal. Instance settings and worker
+groups live in the database and the unit drop-ins, so they carry over untouched.
+``windmill-extra`` is an independent package; rebuild it separately only when
+the LSP gateway should track the same sources.
 
 Verify
 ======
