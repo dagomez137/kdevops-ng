@@ -202,6 +202,10 @@ default, so the stack runs untouched; override any by editing that unit's
   reachable ``bin`` on a NixOS host, whose default profile lives under the
   store. It is unset in the unit and read by the step code, so to use it add it
   to ``WHITELIST_ENVS`` (below) as well.
+* ``LIVE_LOGS_URL`` (``http://127.0.0.1:8002``): the server a job's output is
+  streamed to as it is written, for :cmd:`wmill flow run` to show live (see
+  :ref:`running-a-flow`). Unset, the worker streams nothing and its jobs'
+  output appears only once Windmill stores it.
 
 A worker passes only the variables named in ``WHITELIST_ENVS`` into the job's
 environment, so a step sees a build-area path (or ``NIX_BIN``) only because it
@@ -271,23 +275,24 @@ enable as many instances as you want:
    $ systemctl --user edit windmill-worker@
    $ nix run .#windmill-worker-activate -- 4
 
-In the editor ``systemctl edit`` opens, set the server's database for every
-instance:
+In the editor ``systemctl edit`` opens, set the server's database and its API
+for every instance:
 
 .. code-block:: ini
 
    [Service]
    Environment=DATABASE_URL=postgres://user:pw@server:5432/windmill
+   Environment=LIVE_LOGS_URL=http://server:8002
 
 ``windmill-worker-activate`` is idempotent, so scaling up is just re-running it
 with a larger count: ``nix run .#windmill-worker-activate -- 8``. Underneath,
 ``windmill-worker@`` is a systemd template, so each instance points at the one
 unit file and a single one can also be added with ``systemctl --user enable
 --now windmill-worker@0004`` (no rebuild or reinstall either way). The server's
-PostgreSQL must be reachable from this host: it binds ``127.0.0.1`` by default,
-so expose it or tunnel. Build-pool workers also need the :term:`System
-workbench` provisioned here, the same :src:`f/workbench` init flow as on any
-worker host.
+PostgreSQL and API port must be reachable from this host: both bind
+``127.0.0.1`` by default, so expose them or tunnel. Build-pool workers also
+need the :term:`System workbench` provisioned here, the same
+:src:`f/workbench` init flow as on any worker host.
 
 TLS and the base URL
 --------------------
