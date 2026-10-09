@@ -104,7 +104,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     CARGO_INCREMENTAL = "0";
   };
 
-  cargoHash = "sha256-gKiAQdHDAn0x+kQyI6zIPzfTu0IzBJwwzpGpAnKhF8g=";
+  cargoHash = "sha256-+mccmuwePJx0xTEUPCPPr+XCk1b1SzGtii3hSFlfhKQ=";
 
   # oss_core is the full open-source surface (static_frontend, mcp, oauth2, the
   # triggers, smtp, embedding, parquet, quickjs, bedrock, run_inline, ...);
@@ -242,7 +242,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     sourceRoot = "${src.name}/frontend";
 
-    npmDepsHash = "sha256-Got30MI2fRnBnFPC17x6oyw0DKA4WaqDOhPMse7nryI=";
+    npmDepsHash = "sha256-cKLl0hOkoe0b9VjPCS6Lx+rbEeUR2Ng1bZno/j7UZVs=";
 
     # without these you get a
     # FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
