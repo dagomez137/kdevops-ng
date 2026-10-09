@@ -59,6 +59,9 @@ Environment=WORKBENCH_DIR=%S/windmill/workbench
 Environment=SYSTEM_DIR=%S/windmill/workbench/system
 Environment=WORKERS_DIR=%S/windmill/workbench/workers
 Environment=VENDOR_DIR=%S/windmill/vendor
+# The API server a job's output is streamed to live, ahead of the batched log
+# write; a worker on another host points this at the forwarded server port.
+Environment=LIVE_LOGS_URL=http://127.0.0.1:8002
 # WORKTREES_DIR, MIRRORS_DIR, CCACHE_DIR and STORE_INDEX_DIR are intentionally
 # left unset: the step code defaults them to WORKBENCH_DIR (the worktree-group
 # root), SYSTEM_DIR/mirror (the git mirrors), SYSTEM_DIR/ccache (the compiler
