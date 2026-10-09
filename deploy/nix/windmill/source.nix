@@ -10,7 +10,7 @@
   src = fetchFromGitHub {
     owner = "dagomez137";
     repo = "windmill";
-    rev = "4350d4dfbb9490c8620067bd76cb9cfc1f03f290";
-    hash = "sha256-MKFuvAsF+hx0WpFk8VYpKejsEfdvkzZEECBxv5ACZjs=";
+    rev = "07cf9d3ec237cbb6bfdae8069b054b5f65f7c409";
+    hash = "sha256-73YyWLlUOb6aiejyQMK1YYcZD0TjAJ/0lBQTe3HNOIM=";
   };
 }
