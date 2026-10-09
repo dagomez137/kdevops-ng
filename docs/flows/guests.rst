@@ -14,7 +14,8 @@ A flow that runs work on a guest polls it from a ``wait`` (or equivalent) step,
 and that step streams the guest's combined unit and kernel journal into the
 `Windmill`_ job log as the run proceeds. So the normal way to watch progress,
 :cmd:`dmesg`, and the final verdict is the Windmill UI: the job log already
-carries it, live.
+carries it, live. In a terminal, :cmd:`wmill flow run` shows the same output as
+it happens (:ref:`running-a-flow`).
 
 The command-line recipes on the per-flow pages are the out-of-band view. Reach
 for them to inspect or intervene on the guest directly, independently of the
