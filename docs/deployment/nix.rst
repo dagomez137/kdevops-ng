@@ -206,13 +206,17 @@ default, so the stack runs untouched; override any by editing that unit's
   streamed to as it is written, for :cmd:`wmill flow run` to show live (see
   :ref:`running-a-flow`). Unset, the worker streams nothing and its jobs'
   output appears only once Windmill stores it.
+* ``XDG_CACHE_HOME`` (``SYSTEM_DIR/cache``): where the tools a step runs keep
+  their caches, Nix's evaluation cache among them, so a job writes nothing
+  under ``~/.cache``; set it beside ``SYSTEM_DIR`` when you relocate that.
 
 A worker passes only the variables named in ``WHITELIST_ENVS`` into the job's
 environment, so a step sees a build-area path (or ``NIX_BIN``) only because it
-is whitelisted. The shipped list already covers the eight build-area paths and
-``WORKER_INDEX``; to expose any further variable to steps, append its name
-there. ``MODE``, ``WORKER_INDEX``, ``DBUS_SESSION_BUS_ADDRESS`` and
-``WHITELIST_ENVS`` itself are wiring the units set for you, not tuning knobs.
+is whitelisted. The shipped list already covers the eight build-area paths,
+``WORKER_INDEX`` and ``XDG_CACHE_HOME``; to expose any further variable to
+steps, append its name there. ``MODE``, ``WORKER_INDEX``,
+``DBUS_SESSION_BUS_ADDRESS`` and ``WHITELIST_ENVS`` itself are wiring the units
+set for you, not tuning knobs.
 
 Workers
 -------

@@ -63,6 +63,9 @@ Environment=WORKBENCH_DIR=%S/windmill/workbench
 Environment=SYSTEM_DIR=%S/windmill/workbench/system
 Environment=WORKERS_DIR=%S/windmill/workbench/workers
 Environment=VENDOR_DIR=%S/windmill/vendor
+# The caches of the tools a step runs (Nix's evaluation cache among them) stay
+# under the System workbench rather than ~/.cache.
+Environment=XDG_CACHE_HOME=%S/windmill/workbench/system/cache
 # The API server a job's output is streamed to live, ahead of the batched log
 # write; a worker on another host points this at the forwarded server port.
 Environment=LIVE_LOGS_URL=http://127.0.0.1:8002
@@ -72,7 +75,7 @@ Environment=LIVE_LOGS_URL=http://127.0.0.1:8002
 # cache) and SYSTEM_DIR/store-index (the Store's GC-root index), so each tracks
 # its parent on a move. All are whitelisted so a drop-in can relocate the groups,
 # the bulky mirror, the cache, or the index on their own.
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,MIRRORS_DIR,CCACHE_DIR,STORE_INDEX_DIR,WORKERS_DIR,VENDOR_DIR
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,XDG_CACHE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,MIRRORS_DIR,CCACHE_DIR,STORE_INDEX_DIR,WORKERS_DIR,VENDOR_DIR
 EnvironmentFile=%S/windmill/env/database.env
 EnvironmentFile=-%E/windmill/windmill-worker.env
 ExecStart=%S/windmill/pkgs/windmill/bin/windmill
