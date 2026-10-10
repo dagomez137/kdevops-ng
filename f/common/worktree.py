@@ -459,7 +459,7 @@ def _bare(project: str) -> Path:
 
 
 def _allow_safe_directory(git: Git) -> None:
-    """Let git work the build area's trees whatever uid the worker container runs as."""
+    """Let git work the build area's trees whatever uid the worker runs as."""
     existing = git.capture(
         "config", "--global", "--get-all", "safe.directory", check=False
     )
@@ -629,8 +629,8 @@ def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) ->
     comes from a separate `b4 mbox --single-message` fetch of the series-root
     message; that fetch is best-effort and falls back to the first patch subject.
 
-    `git am` needs a committer identity the worker container lacks, and it is passed
-    per-invocation: `git config user.name` inside a linked worktree writes the Bare's
+    `git am` needs a committer identity, passed per-invocation rather than
+    configured: `git config user.name` inside a linked worktree writes the Bare's
     shared config, which every worktree cut from that Bare then inherits, so a
     developer's own tree ends up committing as kdevops.
     """

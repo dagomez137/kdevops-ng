@@ -10,8 +10,8 @@ later.
 
 ## Layout
 
-`BOOTSTRAP.md` is the minimal end-to-end setup. `deploy/` holds the instance
-deployment methods. `nix/` is the current default; `podman/` is retired and
+`docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
+`deploy/` holds the instance deployment methods. `nix/` is the current default;
 `distro/` is planned. See
 `deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
 and resources, no secrets; one workspace, `kdevops`, on branch `main`). `f/`
@@ -25,7 +25,7 @@ and `scripts/` provide the checks, run with `nix flake check` (see
 
 Always use long-form command flags everywhere (scripts, docs, examples): for
 example `mkdir --parents`, `rm --recursive --force`,
-`podman build --tag --file`, `apt install --yes`, `npm install --global`,
+`nix build --out-link`, `apt install --yes`, `npm install --global`,
 `qemu-img create --format qcow2`. Use a short flag only when no long form
 exists, such as `ssh -L`.
 

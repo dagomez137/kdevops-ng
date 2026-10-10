@@ -2,7 +2,7 @@
 #
 # The nix backend for the Windmill instance (deploy/README.md). Builds a custom
 # Windmill server from the dagomez137 fork and runs the whole stack from nix
-# under `systemd --user`, replacing the podman backend. This flake exposes the
+# under `systemd --user`. This flake exposes the
 # windmill package (and the frontend FOD on its own for faster iteration); the
 # systemd-user units land alongside it once the package builds.
 {
@@ -70,9 +70,8 @@
             text = builtins.readFile ./bin/windmill-db-setup;
           };
 
-          # The reverse proxy. The Caddyfile is pure HTTP reverse_proxy (the
-          # podman backend's caddy-l4 image name notwithstanding), so plain
-          # caddy serves it.
+          # The reverse proxy. The Caddyfile is pure HTTP reverse_proxy, so
+          # plain caddy serves it.
           caddy = pkgs.caddy;
 
           # The optional monitoring stack (docs/deployment/monitoring.rst):

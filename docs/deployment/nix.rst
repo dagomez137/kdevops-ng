@@ -421,13 +421,3 @@ deactivate so the cluster is stopped:
 
    $ state=~/.local/state/windmill
    $ rm --recursive --force "$state/pgdata" "$state/pkgs" "$state/env"
-
-Switching from Podman
-=====================
-
-The units reuse the same names as the Podman deployment, and static user units
-shadow podman's quadlet-generated ones, so the two cannot run at once. Retire
-podman first by moving its quadlets aside
-(``~/.config/containers/systemd/windmill*``) and reloading, then deploy the Nix
-one. The workspace itself lives in git, so push it to the fresh instance
-with ``wmill sync push`` once the stack is up.

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
-# One origin in front of the two backends, matching deploy/podman/Caddyfile. The
+# One origin in front of the two backends. The
 # websocket paths go to the windmill-extra LSP gateway, everything else to the
 # server. Copy this to %E/windmill/Caddyfile (where windmill-caddy.service
 # reads it; %E is $XDG_CONFIG_HOME, the config dir, not state).

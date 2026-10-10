@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Windmill extra (the LSP gateway for editor intellisense), run from nix under
-# systemd --user. Mirrors deploy/podman/systemd/windmill-extra.container. The
-# Tornado gateway listens on PORT and spawns a language server per session;
+# systemd --user. The Tornado gateway listens on PORT and spawns a language server per session;
 # caddy routes the /ws* paths here. WINDMILL_BASE_URL lets it pull the instance
 # ruff config from the server.
 #

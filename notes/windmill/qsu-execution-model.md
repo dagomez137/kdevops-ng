@@ -1,5 +1,12 @@
 # qsu / host-systemd execution model (verified)
 
+Status, 2026-10-10: written for the podman deployment, whose worker ran in a
+container; that deployment is removed, and a worker is now a nix-built
+`systemd --user` unit on the host, so the container rows below (uid, hostname,
+mounts, quadlets) are history. What still holds: steps drive the user manager
+only and never the system bus, and every privileged change is a manual step
+(CLAUDE.md, "Privilege boundary").
+
 How a Windmill worker container drives the host to manage QEMU VMs (qsu), what is
 reachable, and the constraints that fall out of it. Verified live on 2026-06-08
 against `windmill-worker-1/2` (stock image `ghcr.io/windmill-labs/windmill:main`)

@@ -6,12 +6,12 @@ delegates the actual copy to an install hook it searches for in this order:
 
     $HOME/bin/installkernel  ->  /sbin/installkernel  ->  arch/$arch/boot/install.sh
 
-On a distro container /sbin/installkernel exists (debianutils) and the arch fallback
+On a distro host /sbin/installkernel exists (debianutils) and the arch fallback
 probes for lilo -- neither is reproducible. So, exactly as nixpkgs' kernel build
 does, we provide the highest-priority hook ($HOME/bin/installkernel) as a tiny script
 that just copies what make install hands it. make install still resolves the
 arch-correct image path (KBUILD_IMAGE); our hook only copies, so the result never
-depends on the container's distro tooling.
+depends on the host's distro tooling.
 
     destdir/boot/   INSTALL_PATH: kernel image + System.map, each named by release
                     (distro-style: bzImage-<release>, System.map-<release>)

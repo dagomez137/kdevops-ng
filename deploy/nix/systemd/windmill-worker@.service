@@ -2,10 +2,9 @@
 # Windmill worker, a systemd template: enable one instance per index with
 # `systemctl --user enable --now windmill-worker@0000 windmill-worker@0001`.
 # Instance names are zero-padded (%i is an arbitrary string, not a number) so
-# they sort in order under `systemctl list-units` and `ls WORKERS_DIR`. Mirrors
-# deploy/podman/windmill-worker.container.tmpl, but with no container the /nix
-# store, the build area, and the user bus are already host-visible, so the
-# bind-mounts drop and only the env contract remains.
+# they sort in order under `systemctl list-units` and `ls WORKERS_DIR`. The /nix
+# store, the build area, and the user bus are host-visible, so the unit carries
+# only the env contract.
 #
 # One unit serves every worker kind; the worker group and tags select which jobs
 # it pulls, the canonical Windmill mechanism. The defaults are the build pool

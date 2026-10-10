@@ -291,8 +291,8 @@ A few conventions follow from the model:
   boot, and VM steps stay independently testable.
 - **N concurrent kernels.** A ``forloopflow`` with ``parallel: true`` and
   ``parallelism: N`` over a list of refs and defconfigs runs one build per
-  iteration; the container cgroups keep ``make --jobs=$(nproc)``
-  self-balancing.
+  iteration; each build's ``make --jobs=$(nproc)`` shares the CPUs with the
+  others per build, through the worker units' equal CPU weight.
 - **Build then boot.** On one worker group, ``same_worker: true``: step one
   returns the manifest and step two reads ``results.build.bzImage``. Across
   worker groups (for example a bringup that builds on ``default`` and boots on

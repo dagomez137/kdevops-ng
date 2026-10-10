@@ -230,8 +230,8 @@ The form surfaces the choices a maintainer actually makes:
 
 The source URL is not a flow input: it is fixed by the mirror, exactly as the
 kernel build takes a ref but not a URL. Build parallelism is
-``make -j$(nproc)``, governed by the container cgroup so concurrent builds
-self-balance.
+``make --jobs=$(nproc)``; concurrent builds share the CPUs per build, through
+the worker units' equal CPU weight.
 
 The developer-worktree tail
 ===========================

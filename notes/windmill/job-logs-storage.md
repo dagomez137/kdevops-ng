@@ -40,6 +40,6 @@ log file to *its* `/tmp/windmill/logs`; the server looks in *its own* and 404s:
 
 The fix is the same one the upstream `docker-compose.yml` uses (its `worker_logs`
 named volume): mount one shared `/tmp/windmill/logs` across the server, the
-native worker and every general worker. The podman deploy does this with a host
-bind-mount `%C/windmill/logs:/tmp/windmill/logs` (also handy: the logs are then
-inspectable directly on the host under `~/.cache/windmill/logs`).
+native worker and every general worker. The containers were the podman
+deployment, since removed; under the nix deployment the server and the workers
+are host processes that share `/tmp/windmill/logs` with no mount at all.

@@ -71,7 +71,7 @@ class RemoteSystemd:
         self._vm = vm_name
         self._shell = DevShell(workers, shell="systemd")
         self._key = system_dir() / "ssh/id_ed25519"
-        # Read OUR managed ssh config instead of the worker container's /etc/ssh/
+        # Read OUR managed ssh config instead of the host's /etc/ssh/
         # ssh_config (which carries a GSSAPIAuthentication option the devShell's ssh
         # build rejects, warning on every call). -F makes the system config ignored;
         # our explicit -o below still take precedence. Fall back to /dev/null if the

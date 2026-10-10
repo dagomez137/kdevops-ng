@@ -48,8 +48,8 @@ documented in `docs/deployment/nix-backend.rst`.
   workbench/teardown), `deploy/nix/README.md` (thin pointer), `docs/concepts/terms.rst`
   + `CONTEXT.md` + `docs/adr/0008-build-area-layout.md` (the build-area glossary,
   just reconciled).
-- The retired podman backend is reference: `deploy/podman/` (quadlets moved to
-  `~/.config/containers/systemd.podman-retired-1000/`, DB data kept).
+- The podman backend has since been removed from the tree; its quadlets were
+  moved to `~/.config/containers/systemd.podman-retired-1000/` on hz-debian.
 
 ## State / gotchas to know before continuing
 

@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 """Compile an already-configured kernel worktree.
 
-Builds inside the nixos-flake build devShell with `make --jobs=$(nproc)` so the
-container cgroup governs CPU and concurrent builds self-balance. `targets` is empty
-by default, so a plain `make` builds the default goal: `vmlinux`, the arch boot
-image (bzImage on x86), and, with CONFIG_MODULES, the modules, which is all the
-install step needs. Pass explicit targets only to narrow the build.
+Builds inside the nixos-flake build devShell with `make --jobs=$(nproc)`, so one
+build uses every CPU and concurrent builds share them per build, through the
+worker units' equal CPU weight.
+`targets` is empty by default, so a plain `make` builds the default goal: `vmlinux`,
+the arch boot image (bzImage on x86), and, with CONFIG_MODULES, the modules, which
+is all the install step needs. Pass explicit targets only to narrow the build.
 
 Equivalent bash, run inside the nixos-flake build devShell:
 

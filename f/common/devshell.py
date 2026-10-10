@@ -28,7 +28,7 @@ from pathlib import Path
 _NIX_BIN = os.environ.get("NIX_BIN", "/nix/var/nix/profiles/default/bin")
 
 # Enable flakes + the new CLI without depending on the worker's nix.conf, so a
-# fresh container behaves the same as a configured one.
+# fresh worker host behaves the same as a configured one.
 _FLAKES = ["--extra-experimental-features", "nix-command flakes"]
 
 
@@ -160,7 +160,7 @@ def workbench_dir() -> Path:
 
     Exposed to workers as WORKBENCH_DIR; falls back to the parent of the
     worker-sandbox root (WORKERS_DIR sits at `<workbench>/workers`) so a local
-    `wmill script preview` outside the container resolves it from a single
+    `wmill script preview` outside a worker resolves it from a single
     exported variable. The worktree-groups (`vanilla`, ...) are its direct
     children; `system/` and `workers/` are reserved siblings of those groups.
     """
@@ -236,9 +236,9 @@ def store_index_dir() -> Path:
 def vendor_dir(workers: Path | str | None = None) -> Path:
     """Top-level `vendor/` of the pinned vendored projects.
 
-    Exposed to workers as VENDOR_DIR (a sibling of the Workbench, bind-mounted
-    read-only at the same absolute path); falls back to that sibling so a local
-    `wmill script preview` outside the container still resolves it. When given
+    Exposed to workers as VENDOR_DIR (a sibling of the Workbench); falls back to
+    that sibling so a local `wmill script preview` outside a worker still
+    resolves it. When given
     the worker-sandbox root it derives the Workbench as its parent.
     """
     if os.environ.get("VENDOR_DIR"):
@@ -449,12 +449,10 @@ class Systemd:
     identical `nix develop <flake>#systemd --command ...` dispatch and copy-pasteable
     `_log`. `capture=True` returns stdout; otherwise streams and returns the exit code.
 
-    From a worker container, the tools reach the host manager over the mounted D-Bus
-    socket (`DBUS_SESSION_BUS_ADDRESS`). They are run with `XDG_RUNTIME_DIR` unset so
-    `systemctl`/`machinectl` use that bus instead of the host manager's private control
-    socket (`$XDG_RUNTIME_DIR/systemd/private`), whose connection the manager refuses
-    across the rootless-podman namespaces. The units' own `%t` paths are resolved by
-    the manager host-side, so unsetting it client-side does not affect them.
+    They run with `XDG_RUNTIME_DIR` unset, so `systemctl`/`machinectl` reach the
+    manager over the session bus (`DBUS_SESSION_BUS_ADDRESS`) rather than its private
+    control socket (`$XDG_RUNTIME_DIR/systemd/private`). The units' own `%t` paths are
+    resolved by the manager, so unsetting it client-side does not affect them.
     """
 
     def __init__(self, workers: Path) -> None:

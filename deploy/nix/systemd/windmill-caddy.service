@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: copyleft-next-0.3.1
 # Windmill reverse proxy (caddy), run from nix under systemd --user. Fronts the
-# server and the LSP gateway on one loopback origin, matching
-# deploy/podman/systemd/windmill-caddy.container. The Caddyfile binds the
+# server and the LSP gateway on one loopback origin. The Caddyfile binds the
 # listener to loopback and defaults to internal TLS (HTTPS on 8000).
 #
 # Binary out-link, and the Caddyfile the operator copies into place:

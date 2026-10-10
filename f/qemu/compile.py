@@ -2,8 +2,9 @@
 """Compile an already-configured QEMU build.
 
 QEMU's out-of-tree build is driven by `make` in the build dir, which in turn drives
-ninja. Builds inside the nixos-flake build devShell with `make --jobs=$(nproc)` so
-the container cgroup governs CPU and concurrent builds self-balance.
+ninja. Builds inside the nixos-flake build devShell with `make --jobs=$(nproc)`, so
+one build uses every CPU and concurrent builds share them per build, through the
+worker units' equal CPU weight.
 
 Equivalent bash, run inside the nixos-flake build devShell:
 

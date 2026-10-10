@@ -12,9 +12,10 @@ Windmill equivalent of a ``make`` of an upstream kernel at a pinned ref,
 optionally with a mailed patch series applied on top. The flow runs over a
 mirror-backed git
 worktree inside the ``nixos-flake`` ``.#build`` devShell, with
-``make --jobs=$(nproc)`` so the container cgroup governs CPU and concurrent
-builds self-balance across workers, and returns a manifest a downstream flow
-reads. :src:`f/qemu/build` deliberately mirrors it for QEMU.
+``make --jobs=$(nproc)``, so one build uses every CPU and concurrent builds
+share them per build, through the worker units' equal CPU weight, and returns
+a manifest a downstream flow reads. :src:`f/qemu/build` deliberately mirrors
+it for QEMU.
 
 The flow
 ========

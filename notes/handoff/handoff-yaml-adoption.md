@@ -53,7 +53,8 @@ the path to "fully fledged wmill features."
 
 1. **Merge decision:** fast-forward/merge `explore/wmill-canonical-form` into
    `main` (or keep exploring). Big diff; coordinate with concurrent sessions.
-2. **Fix `BOOTSTRAP.md` §4 "Daily loop":** it predates this and is now wrong for
+2. **Fix `BOOTSTRAP.md` §4 "Daily loop":** (moot: BOOTSTRAP.md went with the
+   podman deployment, 2026-10-10) it predates this and is now wrong for
    both modes. For Mode A the loop is pull -> `make reflow` -> push -> commit;
    document Mode B as the alternative. (This was a known pending fix.)
 3. **Write `docs/wmill.rst`** (was deferred pending this decision): a "Working
