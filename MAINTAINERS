@@ -105,6 +105,15 @@ L:	kdevops@lists.linux.dev
 S:	Maintained
 F:	f/kernel/
 
+KDEVOPS KV CACHE BENCHMARK
+M:	Devasena Inupakutika <devasena.i@samsung.com>
+M:	Daniel Gomez <da.gomez@kernel.org>
+L:	kdevops@lists.linux.dev
+S:	Maintained
+F:	docs/flows/kvcache.rst
+F:	f/kvcache/
+F:	tests/test_kvcache_*
+
 KDEVOPS NIX CLOSURE BUILD FLOW
 M:	Daniel Gomez <da.gomez@kernel.org>
 L:	kdevops@lists.linux.dev
