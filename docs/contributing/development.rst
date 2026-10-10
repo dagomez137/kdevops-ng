@@ -63,9 +63,8 @@ fixture tests, and tree formatting. CI runs the same single command.
    $ nix build .#checks.x86_64-linux.tests        # just the fixture tests
 
 The ``tests`` check is the hermetic layer of the flow-testing story;
-:doc:`testing` covers all three layers (the fixture tests, the
-``preview-smoke`` app, and the deploy-time selfchecks) and when to run
-each before submitting.
+:doc:`testing` covers both layers (the fixture tests and the
+``preview-smoke`` app) and when to run each before submitting.
 
 The whitespace, end-of-file, and commit-trailer checks need the git repository,
 so they cannot be a sandboxed flake check; run them from the checks shell:

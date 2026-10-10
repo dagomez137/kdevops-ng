@@ -6,14 +6,13 @@
 Testing flows and steps
 ========================
 
-A change to the workspace content is verified in three layers, ordered by
+A change to the workspace content is verified in two layers, ordered by
 when they run: the hermetic fixture tests inside the source gate, before
-every commit; the preview smoke suite against the running instance, before
-a deploy; and the deploy-time selfchecks Windmill runs by itself, after
-every deploy. The first is part of :doc:`development`'s gate, the second is
-one command, and the third needs no command at all. Together they make a
-contract regression visible at the earliest point it can be seen, and they
-are the checks to run before submitting a change.
+every commit; and the preview smoke suite against the running instance,
+before and after a deploy. The first is part of :doc:`development`'s gate,
+the second is one command. Together they make a contract regression visible
+at the earliest point it can be seen, and they are the checks to run before
+submitting a change.
 
 The fixture tests
 =================
@@ -77,24 +76,6 @@ read-only or carry arguments that cannot touch live state.
 Run the smoke suite before a deploy that touches flow steps, and again
 after the push: the second run also proves the deployed copies match.
 
-The deploy-time selfchecks
-==========================
-
-The same contracts re-verify themselves on every deploy, with Windmill's
-own CI-test mechanism. Each suite carries a ``selfcheck`` step (for
-example :src:`f/fstests/selfcheck`) whose leading ``# test:`` annotation
-registers it as a CI test for the suite's flow and scripts; the annotation
-must be the very first line of the file, ahead of the SPDX tag, because
-the backend reads only the opening comment block. When a deploy updates an
-annotated flow or script, Windmill runs the selfcheck automatically: the
-step drives the deployed ``collect``, ``report``, and ``judge`` through
-the shared case table in :src:`f/common/selfcheck` and fails loudly when a
-contract broke, so the deployment itself is badged red in the run history.
-
-There is nothing to invoke by hand. A new suite joins the mechanism by
-adding its own thin ``selfcheck`` step naming its flow and script glob,
-one call into the shared library; see :doc:`test-suites`.
-
 Ad-hoc step previews
 ====================
 
@@ -132,6 +113,5 @@ The order that catches problems earliest:
    $ nix run .#preview-smoke                      # when flow steps changed
 
 The first three are commit rule 6 and gate every commit. The smoke suite
-is the extra step when a change touches flow steps; after the deploy, the
-selfchecks re-run the contracts without being asked, and a rerun of the
-smoke suite confirms the deployed and local copies agree.
+is the extra step when a change touches flow steps; a rerun after the
+deploy confirms the deployed and local copies agree.

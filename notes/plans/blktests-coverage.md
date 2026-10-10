@@ -10,6 +10,9 @@ Upstream: `https://github.com/linux-blktests/blktests`, local expert
 tree at `~/src/blktests` (fc6e3ffbd58c, 2026-08-02): 15 groups, 211
 tests, `check` is 1285 lines of bash, no external runner.
 
+The selfcheck step this plan arms was later dropped with the others
+("common: drop the suite selfchecks"); its mentions below are history.
+
 ## Current state (audited)
 
 What exists today:
