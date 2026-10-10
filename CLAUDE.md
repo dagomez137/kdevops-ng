@@ -49,6 +49,43 @@ or polling loops standing in for `Requires=`/`After=`. Host units are user
 units. `scripts/check-style.sh` (3d) refuses detached processes and cron in
 code. Why: `docs/concepts/principles.rst`.
 
+## Everything runs in a sandbox (never bypass)
+
+A step works only inside what it owns: a worker in its Worker sandbox
+(`WORKERS_DIR/<index>/main/...`), the one place it may reset, clean or force;
+shared state in the System workbench (`SYSTEM_DIR`); the vendored projects
+beside the Workbench (`VENDOR_DIR`); every path from the env contract
+(`WORKBENCH_DIR`, `WORKERS_DIR`, `SYSTEM_DIR`, `VENDOR_DIR` and the derived
+`WORKTREES_DIR`, `MIRRORS_DIR`, `CCACHE_DIR`, `STORE_INDEX_DIR`), never
+hard-coded. A Developer's worktrees are never built in, reset or have a
+branch moved under them, and are removed only when git itself agrees nothing
+is lost; work reaches a worker only as a ref in the Bare. By default a guest
+exchanges data only through its per-VM share, whose path a step checks stays
+under its root. Outside the Workbench a step writes only user units under
+`~/.config/systemd`, VM state under `~/.local/state/qemu-system` and scratch
+under `$TMPDIR` (unset in a job, so `/tmp`), never a user file
+(`~/.gitconfig`, `~/.ssh/config`). Nothing
+enforces this at runtime, so every change keeps it by construction. Why:
+`docs/concepts/principles.rst`; sources: `CONTEXT.md`, `notes/adr/0008`,
+`notes/adr/0010`, `f/common/worktree.py`.
+
+## Commands a developer can run (never bypass)
+
+Whatever a step does, a developer must be able to do by hand from the job log:
+every external command printed exactly as it runs, with the environment and
+directory it needs, and every written file named. No Ansible-style module
+that hides work, no hidden environment; a shell string handed to `sh -c` is
+a last resort, printed whole (the seven that remain are listed in
+`notes/plans/command-plans.md`). The Conventions below ("Compose commands
+explicitly", "Don't restate what the runner logs", the "Equivalent command"
+docstrings) are how this is kept today; the generation/execution split
+planned in `notes/plans/command-plans.md` is the way forward for runner work.
+Why: `docs/concepts/principles.rst`.
+
+The five rules have one home for developers, `docs/concepts/principles.rst`;
+keep it
+and these sections in step.
+
 ## Layout
 
 `docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
