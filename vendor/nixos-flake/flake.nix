@@ -86,6 +86,7 @@
           fstests = ./modules/testSuites/fstests.nix;
           gitr = ./modules/testSuites/gitr.nix;
           kunit = ./modules/testSuites/kunit.nix;
+          kvcache = ./modules/testSuites/kvcache.nix;
           ltp = ./modules/testSuites/ltp.nix;
           mmtests = ./modules/testSuites/mmtests.nix;
           pynfs = ./modules/testSuites/pynfs.nix;

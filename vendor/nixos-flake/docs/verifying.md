@@ -32,7 +32,9 @@ shape a consumer deploys.
 What: evaluates every flake output and builds
 `checks.<system>.{imageless,libvirt,controller,imageless-<suite>}`
 — the three base closures and one closure per test-suite module. The
-first run builds them all; later runs are cached. Add `--all-systems`
+first run builds them all; later runs are cached. imageless-kvcache
+carries nixos-unstable's torch and vLLM for the CPU, the longest of
+them on a cold store. Add `--all-systems`
 to also cover `aarch64-linux` (needs an aarch64 builder).
 
 ## 3. Build the templates
