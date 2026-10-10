@@ -39,6 +39,7 @@ SUITES = [
     ("selftests", "f/selftests/run.flow", "per_item", "item"),
     ("runtime_tests", "f/runtime_tests/run.flow", "per_item", "module"),
     ("usertests", "f/usertests/run.flow", "per_item", "item"),
+    ("kvcache", "f/kvcache/run.flow", "per_preset", "preset"),
 ]
 
 # The judge pass-through sentinel: on a green run judge must return the report

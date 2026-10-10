@@ -1,0 +1,29 @@
+summary: Stop a run's replays and the server on a guest
+description: |-
+  Stop each preset's `kvcache@<preset>.service` and the guest's
+  `vllm-serve.service`, so a cancelled or failed run frees the GPU. The run
+  flow's failure handler: idempotent, and never fails itself.
+lock: '!inline f/kvcache/stop.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - presets
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    presets:
+      type: array
+      description: Replay presets whose units to stop.
+      default: []
+      items:
+        type: string
+      title: Presets
+  required:
+    - vm_name
+tag: vm

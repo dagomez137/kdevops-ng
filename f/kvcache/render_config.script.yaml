@@ -1,0 +1,188 @@
+summary: Write the server and replay config onto the share
+description: |-
+  Write the four files the guest's kvcache units read onto the host side of
+  the `kvcache` share: `vllm-serve.yaml` (`vllm serve --config`),
+  `vllm-serve.env`, `lmcache.yaml` (the offload backend) and `kvcache.env`
+  (the replay), each atomically and echoed to the job log, after every one
+  of them rendered and validated. Changing a model, backend or replay needs
+  no closure rebuild. `serve_args` and `lmcache_args`, the advanced override,
+  each replace the form's settings in `vllm-serve.yaml` and `lmcache.yaml`
+  when set. A curated model and the dataset are read at pinned revisions.
+
+  An offload backend needs a GPU: LMCache has no connector for a CPU engine
+  and would recompute every prefix, so `cpu` and `disk` are refused on a
+  `cpu` device; `none` measures vLLM's own prefix cache on either. Returns
+  the presets the run iterates.
+lock: '!inline f/kvcache/render_config.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - presets
+    - device
+    - numa
+    - model
+    - max_model_len
+    - dtype
+    - gpu_memory_utilization
+    - enable_prefix_caching
+    - backend
+    - cpu_size_gb
+    - disk_size_gb
+    - dataset
+    - dataset_revision
+    - sessions
+    - workers
+    - max_tokens
+    - serve_args
+    - lmcache_args
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM whose `kvcache` share receives the config.
+      format: dynselect-list_vms
+      title: VM Name
+    presets:
+      type: object
+      description: |-
+        Replay presets to run, each a `kvcache@<preset>.service`: which
+        sessions (by source) and whether their recorded gaps are kept.
+      default:
+        - gaia-burst
+      format: dynmultiselect-list_presets
+      title: Presets
+    device:
+      type: string
+      description: |-
+        The device the server runs on, as discover reports it.
+      default: cpu
+      enum:
+        - cpu
+        - cuda
+      title: Device
+    numa:
+      type: boolean
+      description: |-
+        The guest's kernel exposes a NUMA node and its allowed memory nodes
+        (CONFIG_NUMA and CONFIG_CPUSETS), as discover reports it; vLLM's CPU
+        backend needs both.
+      default: true
+      title: NUMA
+    model:
+      type: object
+      description: |-
+        Hugging Face model the server loads, with its size and context
+        window; a replay turn longer than the window fails as `context`.
+      default: Qwen/Qwen2.5-0.5B-Instruct
+      format: dynselect-list_models
+      title: Model
+    max_model_len:
+      type: integer
+      description: |-
+        vLLM `--max-model-len`; 0 keeps the model's own context window.
+      default: 0
+      title: Max Model Len
+    dtype:
+      type: string
+      description: vLLM `--dtype` for the weights and activations.
+      default: auto
+      enum:
+        - auto
+        - bfloat16
+        - float16
+      title: Dtype
+    gpu_memory_utilization:
+      type: number
+      description: |-
+        vLLM `--gpu-memory-utilization`: the share of GPU memory the server
+        takes, or of the guest's memory on a CPU engine.
+      default: 0.5
+      title: GPU Memory Utilization
+    enable_prefix_caching:
+      type: boolean
+      description: |-
+        vLLM `--enable-prefix-caching`, its own prefix cache in the engine's
+        KV cache memory.
+      default: true
+      title: Prefix Caching
+    backend:
+      type: string
+      description: |-
+        Where LMCache offloads the KV cache: `none`, vLLM's own prefix cache
+        alone as the baseline; `cpu` memory; or `disk` (CPU memory, then a
+        directory on the `kvcache` share, which is the host's disk). `cpu` and
+        `disk` need a GPU.
+      default: none
+      enum:
+        - cpu
+        - disk
+        - none
+      title: Offload Backend
+    cpu_size_gb:
+      type: number
+      description: |-
+        LMCache `max_local_cpu_size`, the CPU memory it offloads to, in GB.
+      default: 20
+      title: CPU Size (GB)
+    disk_size_gb:
+      type: number
+      description: |-
+        LMCache `max_local_disk_size`, in GB, for the `disk` backend; it
+        writes under /var/lib/kvcache/lmcache-disk on the share, which is
+        the host's disk.
+      default: 50
+      title: Disk Size (GB)
+    dataset:
+      type: string
+      description: Hugging Face dataset of recorded agent sessions to replay.
+      default: sammshen/lmcache-agentic-traces
+      title: Dataset
+    dataset_revision:
+      type: string
+      description: |-
+        Hugging Face revision of the dataset the replay reads, so runs replay
+        the same sessions; empty reads the latest.
+      default: 6e043b9e89865df3aec19fd5679286b683bfd70e
+      title: Dataset Revision
+    sessions:
+      type: integer
+      description: |-
+        Sessions to replay per preset; 0 replays every matching session (the
+        dataset holds 24880 turns).
+      default: 1
+      title: Sessions
+    workers:
+      type: integer
+      description: Sessions replayed concurrently.
+      default: 4
+      title: Workers
+    max_tokens:
+      type: integer
+      description: |-
+        Cap on each turn's recorded output length; 0 keeps the recorded
+        length.
+      default: 8
+      title: Max Tokens
+    serve_args:
+      type: object
+      description: |-
+        Advanced: `vllm serve` arguments by long option name, such as
+        `{"tensor-parallel-size": 2}`, replacing the form's settings in
+        `vllm-serve.yaml` when set. The address, the model and its served
+        name and pinned revision, and the LMCache wiring are not overridable.
+      default: {}
+      title: Serve Arguments
+    lmcache_args:
+      type: object
+      description: |-
+        Advanced: LMCache keys, such as `{"chunk_size": 512}`, replacing the
+        form's settings in `lmcache.yaml` when set; needs an offload backend.
+        The `disk` backend's `local_disk` is not overridable.
+      default: {}
+      title: LMCache Keys
+  required:
+    - vm_name
+    - presets
+tag: vm

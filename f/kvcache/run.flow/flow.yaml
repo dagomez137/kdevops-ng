@@ -1,0 +1,574 @@
+summary: Run a KV cache benchmark
+description: |-
+  Replay recorded multi-turn agent sessions against a vLLM server on an
+  already-booted, kvcache-ready guest, and measure what its KV cache, offloaded
+  through LMCache or not, does to time to first token. The guest is produced
+  separately by `f/qsu/bringup` with the `kvcache` test suite in the closure
+  and a writable `kvcache` virtiofs share mounted at `/var/lib/kvcache`; for an
+  offload backend, also with the `gpu` profile, a kernel built with the NVIDIA
+  modules, and the GPU passed through.
+
+  `discover` gates the guest and reports its device, and `render_config`
+  writes the server, LMCache and replay configuration onto the share. Each
+  selected preset then runs sequentially through start, wait and collect;
+  `start` stops the server first, so every preset measures from a freshly
+  started server with this run's configuration and no cache warmed by an
+  earlier preset. `teardown` then stops the server, which `stop` also does if
+  the run fails or is cancelled. The lifecycle and control steps run on the
+  `vm` worker tag; the long-lived `wait` poll runs on `vm-run`. Returns the
+  `report` tables.
+value:
+  modules:
+    - id: discover
+      summary: Gate the guest + read its presets and device (f/kvcache/discover)
+      value:
+        type: script
+        input_transforms:
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kvcache/discover
+        tag_override: vm
+    - id: render_config
+      summary: Write the server, LMCache and replay config on the share (f/kvcache/render_config)
+      value:
+        type: script
+        input_transforms:
+          backend:
+            type: javascript
+            expr: flow_input.cache?.backend
+          cpu_size_gb:
+            type: javascript
+            expr: flow_input.cache?.cpu_size_gb
+          dataset:
+            type: javascript
+            expr: flow_input.replay?.dataset
+          dataset_revision:
+            type: javascript
+            expr: flow_input.replay?.dataset_revision
+          device:
+            type: javascript
+            expr: results.discover.device
+          numa:
+            type: javascript
+            expr: results.discover.numa
+          disk_size_gb:
+            type: javascript
+            expr: flow_input.cache?.disk_size_gb
+          dtype:
+            type: javascript
+            expr: flow_input.engine?.dtype
+          enable_prefix_caching:
+            type: javascript
+            expr: flow_input.engine?.enable_prefix_caching
+          gpu_memory_utilization:
+            type: javascript
+            expr: flow_input.engine?.gpu_memory_utilization
+          lmcache_args:
+            type: javascript
+            expr: 'flow_input.advanced?.enabled ? flow_input.advanced?.lmcache_args :
+              {}'
+          max_model_len:
+            type: javascript
+            expr: flow_input.engine?.max_model_len
+          max_tokens:
+            type: javascript
+            expr: flow_input.replay?.max_tokens
+          model:
+            type: javascript
+            expr: 'flow_input.engine?.custom_model ? flow_input.engine?.model_id :
+              flow_input.engine?.model'
+          presets:
+            type: javascript
+            expr: flow_input.presets
+          serve_args:
+            type: javascript
+            expr: 'flow_input.advanced?.enabled ? flow_input.advanced?.serve_args :
+              {}'
+          sessions:
+            type: javascript
+            expr: flow_input.replay?.sessions
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+          workers:
+            type: javascript
+            expr: flow_input.replay?.workers
+        path: f/kvcache/render_config
+        tag_override: vm
+    - id: presets
+      summary: Run each preset sequentially (start → wait → collect)
+      value:
+        type: forloopflow
+        modules:
+          - id: start
+            summary: Stop the server, start kvcache@<preset> detached (f/kvcache/start)
+            value:
+              type: script
+              input_transforms:
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                preset:
+                  type: javascript
+                  expr: flow_input.iter.value
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/kvcache/start
+              tag_override: vm
+          - id: wait
+            summary: Poll the replay to terminal + crash-check (f/kvcache/wait)
+            value:
+              type: script
+              input_transforms:
+                inactive_exit:
+                  type: javascript
+                  expr: results.start.inactive_exit
+                poll_interval:
+                  type: javascript
+                  expr: flow_input.service?.poll_interval
+                preset:
+                  type: javascript
+                  expr: flow_input.iter.value
+                stream_logs:
+                  type: javascript
+                  expr: flow_input.service?.stream_logs
+                timeout:
+                  type: javascript
+                  expr: flow_input.service?.timeout
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/kvcache/wait
+              tag_override: vm-run
+          - id: collect
+            summary: Read the replay's summary (f/kvcache/collect)
+            value:
+              type: script
+              input_transforms:
+                crashed:
+                  type: javascript
+                  expr: results.wait.crashed
+                ended_realtime_ms:
+                  type: javascript
+                  expr: results.wait.ended_realtime_ms
+                kernel_version:
+                  type: javascript
+                  expr: results.discover.kernel_version
+                max_failure_rate:
+                  type: javascript
+                  expr: flow_input.replay?.max_failure_rate
+                preset:
+                  type: javascript
+                  expr: flow_input.iter.value
+                reason:
+                  type: javascript
+                  expr: results.wait.reason
+                started_realtime_ms:
+                  type: javascript
+                  expr: results.wait.started_realtime_ms
+                timed_out:
+                  type: javascript
+                  expr: results.wait.timed_out
+                unit_ok:
+                  type: javascript
+                  expr: results.wait.result === 'success' && !results.wait.never_ran
+                vm_name:
+                  type: javascript
+                  expr: flow_input.vm_name
+              path: f/kvcache/collect
+              tag_override: vm
+        iterator:
+          type: javascript
+          expr: results.render_config.presets
+        parallel: false
+        skip_failures: true
+    - id: teardown
+      summary: Stop the replays and the server (f/kvcache/stop)
+      value:
+        type: script
+        input_transforms:
+          presets:
+            type: javascript
+            expr: results.render_config.presets
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kvcache/stop
+        tag_override: vm
+    - id: report
+      summary: Aggregate per-preset numbers (f/kvcache/report)
+      value:
+        type: script
+        input_transforms:
+          per_preset:
+            type: javascript
+            expr: results.presets
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/kvcache/report
+        tag_override: vm
+    - id: annotate
+      summary: Post the run window to Grafana (f/monitoring/annotate)
+      value:
+        type: script
+        input_transforms:
+          kernel:
+            type: javascript
+            expr: results.discover.kernel_version ?? ""
+          per_item:
+            type: javascript
+            expr: results.presets
+          suite:
+            type: static
+            value: kvcache
+          vm_name:
+            type: javascript
+            expr: flow_input.vm_name
+        path: f/monitoring/annotate
+        tag_override: vm
+    - id: judge
+      summary: Fail the job unless every preset passed (f/kvcache/judge)
+      value:
+        type: script
+        input_transforms:
+          per_preset:
+            type: javascript
+            expr: results.presets
+          report:
+            type: javascript
+            expr: results.report
+        path: f/kvcache/judge
+        tag_override: vm
+  failure_module:
+    id: stop
+    summary: Stop the replays and the server on failure or cancel (f/kvcache/stop)
+    value:
+      type: script
+      input_transforms:
+        presets:
+          type: javascript
+          expr: results?.render_config?.presets ?? []
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+      path: f/kvcache/stop
+      tag_override: vm
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - presets
+    - engine
+    - cache
+    - replay
+    - service
+    - advanced
+  properties:
+    vm_name:
+      type: object
+      description: |-
+        Booted guest (from f/qsu/bringup) carrying the `kvcache` test suite.
+      format: dynselect-list_vms
+      title: VM Name
+    presets:
+      type: object
+      description: |-
+        Replay presets to run, one after another: which sessions (by the
+        source a session comes from) and whether their recorded gaps are kept.
+        Read from the guest's kvcache-bench after the first run on it.
+      default:
+        - gaia-burst
+      format: dynmultiselect-list_presets
+      title: Presets
+    engine:
+      type: object
+      description: The vLLM server.
+      default: {}
+      order:
+        - model
+        - custom_model
+        - model_id
+        - max_model_len
+        - dtype
+        - gpu_memory_utilization
+        - enable_prefix_caching
+      properties:
+        model:
+          type: object
+          description: |-
+            Model the server loads, with its size and context window. A replay
+            turn longer than the window fails as `context`.
+          default: Qwen/Qwen2.5-0.5B-Instruct
+          format: dynselect-list_models
+          showExpr: fields.custom_model !== true
+          title: Model
+        custom_model:
+          type: boolean
+          description: |-
+            Name any Hugging Face model by hand instead of picking from the
+            list (a gated one also needs a token the guest does not have).
+          default: false
+          title: Custom Model
+        model_id:
+          type: string
+          description: |-
+            Hugging Face model id, such as `Qwen/Qwen2.5-14B-Instruct`.
+          default: ''
+          showExpr: fields.custom_model === true
+          title: Model ID
+        max_model_len:
+          type: integer
+          description: |-
+            vLLM `--max-model-len`; 0 keeps the model's own context window.
+          default: 0
+          title: Max Model Len
+        dtype:
+          type: string
+          description: vLLM `--dtype` for the weights and activations.
+          default: auto
+          enum:
+            - auto
+            - bfloat16
+            - float16
+          title: Dtype
+        gpu_memory_utilization:
+          type: number
+          description: |-
+            vLLM `--gpu-memory-utilization`: the share of GPU memory the
+            server takes, or of the guest's memory on a CPU engine.
+          default: 0.5
+          title: GPU Memory Utilization
+        enable_prefix_caching:
+          type: boolean
+          description: |-
+            vLLM `--enable-prefix-caching`, its own prefix cache in the
+            engine's KV cache memory.
+          default: true
+          title: Prefix Caching
+      title: Engine
+    cache:
+      type: object
+      description: Where LMCache offloads the KV cache, if anywhere.
+      default: {}
+      order:
+        - backend
+        - cpu_size_gb
+        - disk_size_gb
+      properties:
+        backend:
+          type: string
+          description: |-
+            `none`, vLLM's own prefix cache alone as the baseline and the one
+            backend a CPU guest serves; `cpu` memory; or `disk` (CPU memory,
+            then a directory on the `kvcache` share, which is the host's disk).
+            `cpu` and `disk` need a GPU passed through: LMCache has no
+            connector for a CPU engine.
+          default: none
+          enum:
+            - cpu
+            - disk
+            - none
+          title: Offload Backend
+        cpu_size_gb:
+          type: number
+          description: |-
+            LMCache `max_local_cpu_size`, the CPU memory it offloads to, in GB.
+          default: 20
+          showExpr: fields.backend !== 'none'
+          title: CPU Size (GB)
+        disk_size_gb:
+          type: number
+          description: |-
+            LMCache `max_local_disk_size`, in GB; it writes under
+            /var/lib/kvcache/lmcache-disk on the share, which is the host's
+            disk.
+          default: 50
+          showExpr: fields.backend === 'disk'
+          title: Disk Size (GB)
+      title: Cache
+    replay:
+      type: object
+      description: The recorded sessions kvcache-bench replays.
+      default: {}
+      order:
+        - sessions
+        - workers
+        - max_tokens
+        - max_failure_rate
+        - dataset
+        - dataset_revision
+      properties:
+        sessions:
+          type: integer
+          description: |-
+            Sessions to replay per preset; 0 replays every matching session.
+            A capped replay streams only the rows it needs from the dataset.
+          default: 1
+          title: Sessions
+        workers:
+          type: integer
+          description: Sessions replayed concurrently.
+          default: 4
+          title: Workers
+        max_tokens:
+          type: integer
+          description: |-
+            Cap on each turn's recorded output length; 0 keeps the recorded
+            length.
+          default: 8
+          title: Max Tokens
+        max_failure_rate:
+          type: number
+          description: |-
+            Largest share of failed sessions a passing preset may have, from 0
+            to 1, not counting sessions that outgrew the model's context
+            window; the numbers' size never fails a run.
+          default: 0.05
+          title: Max Failure Rate
+        dataset:
+          type: string
+          description: Hugging Face dataset of recorded agent sessions.
+          default: sammshen/lmcache-agentic-traces
+          title: Dataset
+        dataset_revision:
+          type: string
+          description: |-
+            Hugging Face revision of the dataset, pinned so runs replay the
+            same sessions; empty reads the latest.
+          default: 6e043b9e89865df3aec19fd5679286b683bfd70e
+          title: Dataset Revision
+      title: Replay
+    service:
+      type: object
+      description: Timeouts and log streaming for the run's `wait` polls.
+      default: {}
+      order:
+        - timeout
+        - poll_interval
+        - stream_logs
+      properties:
+        timeout:
+          type: integer
+          description: |-
+            Seconds one preset may run, model download and load included,
+            before it is stopped as timed out.
+          default: 86400
+          title: Timeout
+        poll_interval:
+          type: integer
+          description: |-
+            Seconds between `wait`'s unit-status polls and log drains.
+          default: 15
+          title: Poll Interval
+        stream_logs:
+          type: boolean
+          description: |-
+            Each poll, print the guest's new unit + kernel journal into the job
+            log. Off = only a bounded tail at the end.
+          default: true
+          title: Stream Logs
+      title: Service
+    advanced:
+      type: object
+      description: |-
+        Raw settings that replace what the form renders. Off by default.
+      default: {}
+      order:
+        - enabled
+        - serve_args
+        - lmcache_args
+      properties:
+        enabled:
+          type: boolean
+          description: |-
+            Replace the configuration the form renders with each object below
+            that is set.
+          default: false
+          title: Override Configuration
+        serve_args:
+          type: object
+          description: |-
+            `vllm serve` arguments by long option name, such as
+            `{"tensor-parallel-size": 2}`, replacing the Engine group's
+            settings in `vllm-serve.yaml` when set. The address, the model
+            (with its served name and pinned revision) and the LMCache wiring
+            are not overridable.
+          default: {}
+          showExpr: fields.enabled === true
+          title: Serve Arguments
+        lmcache_args:
+          type: object
+          description: |-
+            LMCache keys, such as `{"chunk_size": 512}`, replacing the Cache
+            group's settings in `lmcache.yaml` when set; needs an offload
+            backend. The `disk` backend's `local_disk` is not overridable.
+          default: {}
+          showExpr: fields.enabled === true
+          title: LMCache Keys
+      title: Advanced
+  required:
+    - vm_name
+  x-windmill-dyn-select-code: |
+    def list_vms(filterText: str = "", **_: object) -> list:
+        # All guests, from their render sidecars (the one source f/common/remote owns).
+        try:
+            from f.common.remote import list_vms as _list_vms
+            return _list_vms(filterText)
+        except Exception:
+            return []
+
+
+    _PRESETS = {
+        "mixed-realistic": "every source, recorded gaps",
+        "swebench-realistic": "code-repair sessions, recorded gaps",
+        "swebench-burst": "code-repair sessions, no gaps",
+        "gaia-realistic": "research sessions, recorded gaps",
+        "gaia-burst": "research sessions, no gaps",
+        "wildclaw-heavy": "long-context tool sessions, recorded gaps",
+        "max-pressure": "every source, no gaps",
+    }
+
+
+    _MODELS = [
+        ("Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-0.5B-Instruct (0.5B, 32K context)"),
+        ("Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen2.5-7B-Instruct (7.6B, 32K context)"),
+        ("mistralai/Mistral-7B-Instruct-v0.3", "mistralai/Mistral-7B-Instruct-v0.3 (7.2B, 32K context)"),
+        ("Qwen/Qwen3-8B", "Qwen/Qwen3-8B (8.2B, 40K context)"),
+        ("Qwen/Qwen3-32B", "Qwen/Qwen3-32B (32.8B, 40K context)"),
+    ]
+
+
+    def list_presets(vm_name: str = "", filterText: str = "", **_: object) -> list:
+        # The guest's presets from the per-VM cache f/kvcache/discover writes,
+        # else the catalog; degrades to the static catalog when the shared
+        # module cannot be imported. Never raises.
+        try:
+            from f.kvcache.common import list_presets as _list_presets
+            return _list_presets(vm_name, filterText)
+        except Exception:
+            needle = (filterText or "").lower()
+            return [
+                {"value": n, "label": f"{n}: {d}"}
+                for n, d in _PRESETS.items()
+                if needle in f"{n}: {d}".lower()
+            ]
+
+
+    def list_models(filterText: str = "", **_: object) -> list:
+        # The curated models, with size and context window; degrades to the
+        # static list when the shared module cannot be imported. Never raises.
+        try:
+            from f.kvcache.common import list_models as _list_models
+            return _list_models(filterText)
+        except Exception:
+            needle = (filterText or "").lower()
+            return [
+                {"value": v, "label": label}
+                for v, label in _MODELS
+                if needle in label.lower()
+            ]
+  x-windmill-dyn-select-lang: python3

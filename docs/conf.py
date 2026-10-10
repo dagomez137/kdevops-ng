@@ -91,6 +91,7 @@ cmd_links = {
     "modprobe": f"{_MAN8}/modprobe.8.html",
     "minijinja-cli": "https://github.com/mitsuhiko/minijinja/tree/main/minijinja-cli",
     "qemu-system-x86_64": "https://www.qemu.org/docs/master/system/invocation.html",
+    "nvidia-smi": "https://docs.nvidia.com/deploy/nvidia-smi/index.html",
     "journalctl": f"{_SYSTEMD}/journalctl.html",
     "coredumpctl": f"{_SYSTEMD}/coredumpctl.html",
     "timedatectl": f"{_SYSTEMD}/timedatectl.html",

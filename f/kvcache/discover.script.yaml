@@ -1,0 +1,25 @@
+summary: Discover a guest's kvcache readiness over SSH
+description: |-
+  Check the guest is booted, carries the kvcache suite and has the `kvcache`
+  share mounted at /var/lib/kvcache, read its replay presets from
+  kvcache-bench into the per-VM picker cache, and report the device the server
+  runs on: `cuda` only when `nvidia-smi` succeeded, else `cpu`, and whether
+  its kernel exposes a NUMA node and the allowed memory nodes, which vLLM's
+  CPU backend needs. Mutates nothing on the guest. Returns `{vm,
+  kernel_version, device, gpu, numa, presets}`.
+lock: '!inline f/kvcache/discover.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+  required:
+    - vm_name
+tag: vm

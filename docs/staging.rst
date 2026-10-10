@@ -54,6 +54,7 @@ Flows
 - :doc:`/flows/selftests` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/runtime-tests` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/usertests` (add to ``docs/flows/index.rst``)
+- :doc:`/flows/kvcache` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/sysrq` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/bisect` (add to ``docs/flows/index.rst``)
 - :doc:`/flows/boot` (add to ``docs/flows/index.rst``)

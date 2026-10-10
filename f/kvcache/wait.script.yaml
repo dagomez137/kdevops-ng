@@ -1,0 +1,58 @@
+summary: Wait for a replay to finish
+description: |-
+  Poll `kvcache@<preset>.service` on the guest over vsock-SSH until it
+  settles or the timeout elapses, streaming the guest's merged unit + kernel
+  journal into the job log as it goes. Each poll also checks the host
+  `qemu-system@<vm>.service`, so a guest that dies ends the wait instead of
+  burning the timeout on a dead transport; a replay past the timeout is
+  stopped. A replay whose start job was dropped because the server did not
+  come up is reported as never run, with the server's state as the reason.
+
+  Returns `{vm, preset, result, exec_status, active_state, crashed,
+  timed_out, never_ran, reason, started_realtime_ms, ended_realtime_ms}`.
+lock: '!inline f/kvcache/wait.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - preset
+    - timeout
+    - poll_interval
+    - stream_logs
+    - inactive_exit
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      description: Replay preset whose `kvcache@<preset>.service` to poll.
+    timeout:
+      type: integer
+      description: Seconds to wait before stopping the replay as timed out.
+      default: 86400
+    poll_interval:
+      type: integer
+      description: Seconds between polls (and host crash checks).
+      default: 15
+    stream_logs:
+      type: boolean
+      description: |-
+        Each poll, print the guest's new unit + kernel journal into the job
+        log. Off = only a bounded tail at the end.
+      default: true
+      title: Stream Logs
+    inactive_exit:
+      type: string
+      description: |-
+        The unit's `InactiveExitTimestampMonotonic` before the start (from
+        start); an unchanged one means the replay never ran.
+      default: ''
+  required:
+    - vm_name
+    - preset
+tag: vm-run

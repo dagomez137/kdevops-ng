@@ -1,0 +1,31 @@
+summary: Aggregate replay numbers into a report
+description: |-
+  Fold the per-preset collect results into one rollup, `passed` only when
+  every preset passed, and render it as three tables: run info, per-preset
+  numbers (time to first token and latency percentiles, prefix cache hit
+  rate), and every KV cache counter delta. With a `vm_name`, also write the
+  rollup to `<share>/<kver>/report.json`.
+lock: '!inline f/kvcache/report.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - per_preset
+    - vm_name
+  properties:
+    per_preset:
+      type: array
+      description: The `f/kvcache/collect` results, one per preset.
+      default: []
+      items:
+        type: object
+      title: Per Preset
+    vm_name:
+      type: string
+      description: |-
+        Guest whose share receives `report.json`; empty skips the write.
+      default: ''
+      title: VM Name
+  required: []
+tag: vm

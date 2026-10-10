@@ -1,0 +1,69 @@
+summary: Collect a replay's numbers from the share
+description: |-
+  Read the preset's `summary.json` from the host side of the share and
+  judge it against the run's outcome: a crash, a timeout or an unclean unit
+  is `failed`, no summary or no completed turn is `notrun`, and a session
+  failure rate above `max_failure_rate` is `failed`. The rate leaves out
+  sessions that outgrew the model's context window. Read-only.
+lock: '!inline f/kvcache/collect.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - preset
+    - kernel_version
+    - unit_ok
+    - crashed
+    - timed_out
+    - max_failure_rate
+    - started_realtime_ms
+    - ended_realtime_ms
+    - reason
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      description: Replay preset whose results to read.
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (from discover), keying the results.
+    unit_ok:
+      type: boolean
+      description: The unit finished with Result=success (from wait).
+      default: false
+    crashed:
+      type: boolean
+      description: The guest died during the replay (from wait).
+      default: false
+    timed_out:
+      type: boolean
+      description: The replay overran the wait's timeout (from wait).
+      default: false
+    max_failure_rate:
+      type: number
+      description: |-
+        Largest share of failed sessions a passing replay may have, within
+        [0, 1], not counting those that outgrew the model's context window.
+      default: 0.05
+    started_realtime_ms:
+      type: integer
+      description: The replay window's start, from wait, for the annotation.
+    ended_realtime_ms:
+      type: integer
+      description: The replay window's end, from wait, for the annotation.
+    reason:
+      type: string
+      description: Why the replay did not run, from wait; carried to the result.
+      default: ''
+  required:
+    - vm_name
+    - preset
+    - kernel_version
+tag: vm

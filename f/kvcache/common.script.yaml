@@ -1,0 +1,15 @@
+summary: Share layout, presets, models and verdict rules
+description: |-
+  Library module imported by the f/kvcache steps (`from f.kvcache.common
+  import ...`), not a runnable step. Holds the contract with the guest's
+  `kvcache` share, the curated presets, models and offload backends, the
+  server and LMCache configuration builders, and the one verdict rule report
+  and judge share.
+lock: '!inline f/kvcache/common.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

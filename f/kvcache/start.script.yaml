@@ -1,0 +1,34 @@
+summary: Start one replay on a guest
+description: |-
+  Remove the preset's previous results for this kernel from the share, stop
+  `vllm-serve.service` so the preset measures from a freshly started server,
+  then start `kvcache@<preset>.service` detached; systemd starts the server
+  with the configuration on the share and holds the replay until it answers.
+  Fails when the unit did not start.
+lock: '!inline f/kvcache/start.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - vm_name
+    - preset
+    - kernel_version
+  properties:
+    vm_name:
+      type: object
+      description: Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
+      format: dynselect-list_vms
+      title: VM Name
+    preset:
+      type: string
+      description: Replay preset, the `kvcache@<preset>.service` instance.
+    kernel_version:
+      type: string
+      description: |-
+        The guest's kernel release (from discover), keying the results.
+  required:
+    - vm_name
+    - preset
+    - kernel_version
+tag: vm

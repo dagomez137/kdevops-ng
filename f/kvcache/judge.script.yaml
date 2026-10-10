@@ -1,0 +1,31 @@
+summary: Fail the job unless the run passed
+description: |-
+  Raise unless every preset passed, so a red run is a red Windmill job. On a
+  pass, return the report rollup unchanged.
+lock: '!inline f/kvcache/judge.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - per_preset
+    - report
+  properties:
+    per_preset:
+      type: array
+      description: |-
+        The `f/kvcache/collect` results, one per preset; their statuses decide
+        the verdict.
+      default: []
+      items:
+        type: object
+      title: Per Preset
+    report:
+      type: object
+      description: |-
+        The `f/kvcache/report` rollup, passed through unchanged on a pass so
+        its tables stay the flow result.
+      default: {}
+      title: Report
+  required: []
+tag: vm
