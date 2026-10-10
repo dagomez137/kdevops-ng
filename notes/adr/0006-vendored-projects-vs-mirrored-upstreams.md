@@ -18,8 +18,8 @@ only by a deliberate, reviewed `git subrepo pull`, never by a timer
 
 The decision this records: **the System workbench provisions Mirrors and Bares;
 it does not provision vendored projects.** Vendored source is already present on
-checkout at `$VENDOR_DIR/<project>` (a sibling of `WORKERS_DIR`, bind-mounted
-read-only into each worker); there is nothing to fetch. The only
+checkout at `$VENDOR_DIR/<project>` (a sibling of `WORKERS_DIR`, which a worker
+reads and never writes); there is nothing to fetch. The only
 "init" action a vendored project needs is a re-pin of its consumers
 (`nix flake update --flake path:$config_dir nixos-flake`, already done by
 `f/nix/lock_config.py`), and the only "update" action is a `git subrepo pull` a
@@ -75,9 +75,11 @@ accepted
 - The vendored source moved out of the runtime tree to the top-level `vendor/`,
   so the class boundary is now self-evident: `vendor/` is tracked product source,
   everything under `workers/` is host-local runtime. Workers reach `vendor/`
-  through `VENDOR_DIR`, a sibling of `WORKERS_DIR`, bind-mounted **read-only** at
-  the same absolute path (asserting the pinned-not-mutated invariant), with a
-  `WORKERS_DIR`-sibling fallback for local `wmill script preview` runs.
+  through `VENDOR_DIR`, a sibling of `WORKERS_DIR`, with a `WORKERS_DIR`-sibling
+  fallback for local `wmill script preview` runs. (Under the podman deployment
+  it was bind-mounted read-only, enforcing the pinned-not-mutated invariant;
+  the nix workers run as the user with no mount, so the invariant is now kept
+  by convention: no step writes under `VENDOR_DIR`.)
 - Each vendored project carries its provenance record as a `.gitrepo` file
   (upstream remote, branch, pinned commit, pull method) maintained by
   `git-subrepo`, the same role the kernel's hand-written `lib/zstd` import note

@@ -106,9 +106,9 @@ The warm-tree layout keeps the source at
 ``WORKERS_DIR/<WORKER_INDEX>/main/linux`` with ``build/`` and ``destdir/`` as
 children of it. Re-syncing to ``git_ref`` on every build keeps rebuilds
 incremental, and because each worker has its own warm tree, builds on different
-workers run in parallel. Everything lives under ``WORKERS_DIR``, bind-mounted at
-identical host paths, so a host-forked process (the guest's QEMU) reads the
-artifacts directly. For the durable-Bare provisioning model shared with the
+workers run in parallel. Everything lives under ``WORKERS_DIR``, a host path,
+so a host-forked process (the guest's QEMU) reads the artifacts directly. For
+the durable-Bare provisioning model shared with the
 QEMU build, see :src:`f/workbench/fetch` and :doc:`/concepts/build-store`.
 
 Schema inputs

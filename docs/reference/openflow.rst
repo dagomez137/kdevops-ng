@@ -229,15 +229,15 @@ shared directory: the worker keeps the job dir and bind-mounts
 ``<job_dir>/shared`` at ``/tmp/shared`` (reachable as ``./shared`` from the
 step).
 
-This matters because each worker's sandbox (``$WORKERS_DIR/<index>``) is
-mounted only into that worker's container, so artifacts a build writes on one
-worker are invisible to another. A multi-step pipeline that builds a kernel and
-then boots it in QEMU must do one of two things:
+This matters because each worker's sandbox (``$WORKERS_DIR/<index>``) belongs
+to that worker alone: another worker must not read from it, and its warm tree
+moves under that worker's next build. A multi-step pipeline that builds a
+kernel and then boots it in QEMU must do one of two things:
 
 - set ``same_worker: true`` so build and boot land on the same worker (then the
   manifest's ``bzImage`` path is reachable, or use ``./shared``); or
-- write artifacts to ``$WORKERS_DIR/shared/...`` (mounted read-write in every
-  worker) and pass the path through the result manifest.
+- write artifacts to ``$WORKERS_DIR/shared/...`` (shared by every worker) and
+  pass the path through the result manifest.
 
 ``same_worker`` is the clean default for a build-then-boot pipeline. For
 dedicated VM-lifecycle workers later, give those steps a ``tag`` and run a

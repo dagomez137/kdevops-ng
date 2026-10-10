@@ -8,8 +8,8 @@ Bare, through `f.common.worktree.prepare_developer`. A developer uses this to le
 Windmill stand up a whole topic group at once (e.g. `largeio` with `linux` at one ref,
 `qemu` at another, `xfsprogs-dev` at a third). `system` and `workers` are reserved
 group names. Per project it is idempotent: an existing worktree is reused unless
-`recreate_worktree` is set. The worker bind-mounts the whole Workbench, so the group
-lands host-visibly where the developer edits it.
+`recreate_worktree` is set. The worker and the developer share the Workbench, so the
+group lands where the developer edits it.
 
 Syncing a project is best-effort and never discards work. A tree the step cannot move
 onto the ref without reverting a modified file, dropping a staged one, or moving a

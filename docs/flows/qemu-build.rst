@@ -77,9 +77,9 @@ worktree at ``WORKERS_DIR/<WORKER_INDEX>/qemu`` to the requested ref with
 ``git worktree add --force --detach``. Re-syncing to the ref on every build
 keeps rebuilds incremental, and because each worker has its own warm tree,
 builds on different workers run in parallel. ``build/`` and ``destdir/`` are
-children of that source checkout. Everything lives under ``WORKERS_DIR``, which
-is bind-mounted at identical host paths, so a host-forked process (the guest's
-QEMU) reads the artifacts directly. For the durable-Bare rationale see
+children of that source checkout. Everything lives under ``WORKERS_DIR``, a
+host path, so a host-forked process (the guest's QEMU) reads the artifacts
+directly. For the durable-Bare rationale see
 :doc:`/concepts/build-store`.
 
 The flow
@@ -432,9 +432,9 @@ kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit
 both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the
 unit's ``ExecStart=`` emulator, while the ``bzImage`` and modules from
 ``f/kernel/build`` become ``-kernel`` and the virtiofs ``/lib/modules`` share.
-Because both manifests' paths live under ``WORKERS_DIR``, bind-mounted at the
-same absolute path on host and container, the host-forked unit resolves them
-directly; the host distro QEMU is never referenced. For inspecting a running
+Because both manifests' paths live under ``WORKERS_DIR``, a host path, the
+host-forked unit resolves them directly; the host distro QEMU is never
+referenced. For inspecting a running
 guest see :doc:`/flows/guests`.
 
 Future variant: QEMU as a Nix derivation

@@ -36,7 +36,7 @@ The containment of the on-host pieces is:
    │   ├── <id>/          a worker sandbox
    │   │   └── main/      the worker's fixed group
    │   │       └── linux/ the worker worktree (build site)
-   │   └── shared/        cross-worker: vm/ (deployed-VM registry), ccache/, ...
+   │   └── shared/        cross-worker: vm/ (deployed-VM registry), suite shares
    ├── vanilla/           the default developer's worktree-group
    │   ├── linux/         a project worktree
    │   │   ├── build/     child of the source
