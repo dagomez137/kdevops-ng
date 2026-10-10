@@ -341,6 +341,7 @@ schema:
               - core/cgroup-extras.config
               - arch/x86_64.config
               - mem/damon.config
+              - mem/numa.config
               - security/security.config
               - security/crypto-core.config
               - security/ebpf.config
