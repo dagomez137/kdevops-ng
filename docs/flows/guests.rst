@@ -46,8 +46,10 @@ over the same ``ssh`` transport. Most systemd client tools (:cmd:`systemctl`,
    $ loginctl --host <vm> list-sessions       # sessions and seats
    $ systemd-analyze --host <vm> blame        # boot timing
 
-This is the form to prefer for anything bus-based: it is the same mechanism the
-step code uses, and it keeps you in systemd's own vocabulary.
+This is the form to prefer for anything bus-based: it keeps you in systemd's
+own vocabulary. The step code reaches the same manager by running
+``systemctl`` on the guest over the SSH transport (``ssh <vm> systemctl ...``);
+the two forms answer alike.
 
 :cmd:`journalctl` is the exception. Its ``--host`` transport speaks to
 :cmd:`systemd-journal-gatewayd` over HTTP, which the guests do not run, so

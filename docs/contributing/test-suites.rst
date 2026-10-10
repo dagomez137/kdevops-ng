@@ -98,10 +98,12 @@ commander; the unit is the executor. Requirements:
   (``kunit@`` versus ``kunit-results@``). A ``-`` prefix that swallows the
   trigger failure converts stale data into a false pass.
 - When individual tests inside a run must be independently observable and
-  killable, each runs in a **transient scope** via :cmd:`systemd-run`
-  ``--scope``. The scope buys three things: the unit name names the
-  in-flight test, so ``systemctl list-units --type=scope`` is live
-  progress; a hung test dies surgically (``systemctl kill`` of its scope
+  killable, each runs in a **transient scope**, started with
+  :cmd:`systemd-run` ``--scope`` (xfstests) or, where the test body is a
+  shell function the runner must enrol itself, over the bus with
+  ``StartTransientUnit`` (blktests). The scope buys three things: the unit
+  name names the in-flight test, so ``systemctl list-units --type=scope`` is
+  live progress; a hung test dies surgically (``systemctl kill`` of its scope
   takes the test's whole process tree, the runner records the failure and
   the section continues); and a ``RuntimeMaxSec`` property on the scope
   automates that kill as a watchdog, driven by a form knob (fstests'
