@@ -267,9 +267,19 @@ in
 
   deploy-kdevops = mkApp {
     name = "kdevops-deploy-kdevops";
-    description = "Push the workspace to kdevops";
-    runtimeInputs = [ wmill ];
-    text = ''wmill sync push --workspace kdevops "$@"'';
+    description = "Push the workspace to kdevops, then smoke the deployed suite steps";
+    runtimeInputs = [
+      toolsets.pyEnv
+      wmill
+    ];
+    text = ''
+      workspace=kdevops
+      wmill sync push --workspace "$workspace" "$@"
+      case " $* " in
+      *" --dry-run "* | *" --help "* | *" -h "*) ;;
+      *) python3 scripts/preview-smoke.py --remote --workspace "$workspace" ;;
+      esac
+    '';
   };
 
   docs = mkApp {

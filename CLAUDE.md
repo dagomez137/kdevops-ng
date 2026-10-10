@@ -16,7 +16,8 @@ deployment methods. `nix/` is the current default; `podman/` is retired and
 `deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
 and resources, no secrets; one workspace, `kdevops`, on branch `main`). `f/`
 holds the workspace content and is machine-managed by `wmill`. Deploy through
-the `deploy-kdevops` nix app, which pushes the whole tree. The root `flake.nix`
+the `deploy-kdevops` nix app, which pushes the whole tree and then runs the
+preview smoke suite against the deployed steps. The root `flake.nix`
 and `scripts/` provide the checks, run with `nix flake check` (see
 `docs/contributing/development.rst`).
 

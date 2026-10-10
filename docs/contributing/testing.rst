@@ -9,10 +9,10 @@ Testing flows and steps
 A change to the workspace content is verified in two layers, ordered by
 when they run: the hermetic fixture tests inside the source gate, before
 every commit; and the preview smoke suite against the running instance,
-before and after a deploy. The first is part of :doc:`development`'s gate,
-the second is one command. Together they make a contract regression visible
-at the earliest point it can be seen, and they are the checks to run before
-submitting a change.
+before a deploy and, run by the deploy app, after it. The first is part of
+:doc:`development`'s gate, the second is one command. Together they make a
+contract regression visible at the earliest point it can be seen, and they
+are the checks to run before submitting a change.
 
 The fixture tests
 =================
@@ -65,16 +65,19 @@ of the build and bringup flows: a fake identity must read absent from the
 store index, an empty pick set must resolve to an empty manifest, and a
 reuse mode without a pick must refuse.
 
-Two caveats frame how to read a result. A preview runs the local step body,
-but its ``from f...`` imports resolve against the deployed workspace copy,
+Two caveats frame how to read a result. A preview runs the local step body
+(the deployed one with ``--remote``), but its ``from f...`` imports always
+resolve against the deployed workspace copy,
 so a shared-module change reaches previews only after the next
 ``wmill sync push``; a red case can therefore mean the deployed copy lags a
 local fix, which is the harness catching real skew, not a false alarm. And
 previews execute on the real workers, so any case added here must stay
 read-only or carry arguments that cannot touch live state.
 
-Run the smoke suite before a deploy that touches flow steps, and again
-after the push: the second run also proves the deployed copies match.
+Run the smoke suite before a deploy that touches flow steps. The deploy app
+(``nix run .#deploy-kdevops``) runs it again with ``--remote`` after every
+push that is not a ``--dry-run``, so the second run executes the step
+scripts the instance now holds.
 
 Ad-hoc step previews
 ====================
@@ -113,5 +116,5 @@ The order that catches problems earliest:
    $ nix run .#preview-smoke                      # when flow steps changed
 
 The first three are commit rule 6 and gate every commit. The smoke suite
-is the extra step when a change touches flow steps; a rerun after the
-deploy confirms the deployed and local copies agree.
+is the extra step when a change touches flow steps; the deploy app reruns
+it against the deployed steps after the push.

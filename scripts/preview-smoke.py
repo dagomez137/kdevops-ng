@@ -3,13 +3,14 @@
 """Smoke the suite flows' isolated steps as Windmill preview jobs.
 
 Each case runs one flow module in isolation with `wmill flow preview --step`:
-the local, undeployed step body executes on a real worker with degrade-inducing
-or fixture arguments chosen so no guest and no share is touched (report cases
-omit `vm_name`, which skips the rollup write; collect cases carry their
-evidence inline or name a VM that cannot exist). The asserted contracts are the
-ones the flows lean on: a crashed run can never read as a pass, an empty run is
-failed, `report` renders `render_all` as the sole key, and `judge` turns a red
-run into a red job while passing a green report through unchanged.
+the local step body (or, with `--remote`, the deployed one) executes on a real
+worker with degrade-inducing or fixture arguments chosen so no guest and no
+share is touched (report cases omit `vm_name`, which skips the rollup write;
+collect cases carry their evidence inline or name a VM that cannot exist). The
+asserted contracts are the ones the flows lean on: a crashed run can never read
+as a pass, an empty run is failed, `report` renders `render_all` as the sole
+key, and `judge` turns a red run into a red job while passing a green report
+through unchanged.
 
 A preview resolves `from f...` imports against the DEPLOYED workspace modules,
 so a shared-module fix shows up here only after `wmill sync push`; a red case
@@ -17,7 +18,8 @@ against an undeployed fix is the harness catching exactly that skew.
 
 Equivalent command, per case:
 
-    wmill flow preview f/<suite>/<flow>.flow --step <id> --data '<json>' --silent
+    wmill flow preview f/<suite>/<flow>.flow --step <id> --data '<json>' --silent \
+        [--remote --workspace <workspace>]
 """
 
 from __future__ import annotations
@@ -177,7 +179,7 @@ def cases() -> list[Case]:
     return out
 
 
-def run_case(case: Case) -> str | None:
+def run_case(case: Case, extra: list[str]) -> str | None:
     argv = [
         "wmill",
         "flow",
@@ -188,6 +190,7 @@ def run_case(case: Case) -> str | None:
         "--data",
         json.dumps(case.args),
         "--silent",
+        *extra,
     ]
     print("+ " + " ".join(argv), flush=True)
     proc = subprocess.run(argv, capture_output=True, text=True)
@@ -209,14 +212,26 @@ def main() -> int:
         default="",
         help="Run only the cases whose name contains this substring.",
     )
+    parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="Run the deployed step scripts instead of the local ones.",
+    )
+    parser.add_argument(
+        "--workspace",
+        help="Workspace to preview in; --remote needs it, as it skips wmill.yaml.",
+    )
     opts = parser.parse_args()
+    extra = ["--remote"] if opts.remote else []
+    if opts.workspace:
+        extra += ["--workspace", opts.workspace]
     selected = [c for c in cases() if opts.only in c.name]
     if not selected:
         print(f"no case matches {opts.only!r}", file=sys.stderr)
         return 2
     failures = []
     for case in selected:
-        why = run_case(case)
+        why = run_case(case, extra)
         verdict = "PASS" if why is None else f"FAIL: {why}"
         print(f"{case.name}: {verdict}", flush=True)
         if why is not None:

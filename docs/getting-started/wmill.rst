@@ -61,6 +61,9 @@ app:
 
    $ nix run .#deploy-kdevops
 
+Once the push succeeds it runs the preview smoke suite against the steps
+just deployed (:doc:`/contributing/testing`); a ``--dry-run`` skips it.
+
 Two workflows
 =============
 
