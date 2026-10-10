@@ -9,5 +9,6 @@ How kdevops-ng is modeled: the vocabulary and the building blocks.
 .. toctree::
    :maxdepth: 1
 
+   principles
    terms
    flows
