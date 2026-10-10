@@ -4,8 +4,10 @@
 # modifies one nixpkgs package. Custom packages not in nixpkgs are
 # defined in pkgs/ using callPackage and merged here.
 #
-# Usage in a NixOS module:
-#   { nixpkgs.overlays = [ (import ./overlays) ]; }
+# The packages in pkgs/ that come from nixos-unstable need the flake's
+# pkgsUnstable, so use the flake's overlays.default rather than importing
+# this file:
+#   { nixpkgs.overlays = [ nixos-flake.overlays.default ]; }
 #
 # Reference: https://nixos.org/manual/nixpkgs/stable/#chap-overlays
 final: prev:

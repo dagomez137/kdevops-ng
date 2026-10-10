@@ -77,6 +77,9 @@ nix build $(nix eval --raw .#packages.x86_64-linux --apply \
   'ps: builtins.concatStringsSep " " (map (n: ".#" + n) (builtins.attrNames ps))')
 ```
 
+LMCache builds nixos-unstable's torch, which takes a while on a cold
+store.
+
 ## 5. Review the commit message
 
 Why: the project enforces strict commit conventions (see CLAUDE.md).

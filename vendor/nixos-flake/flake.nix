@@ -110,7 +110,7 @@
         };
         fio = import ./overlays/fio.nix;
         xfstests = import ./overlays/xfstests.nix;
-        custom-pkgs = final: _: import ./pkgs final;
+        custom-pkgs = nixpkgs.lib.composeExtensions self.overlays.unstable (final: _: import ./pkgs final);
       };
 
       templates = {
