@@ -4,7 +4,7 @@
 Principles
 ==========
 
-Three rules hold everywhere in kdevops-ng: in the flows and steps, the
+Five rules hold everywhere in kdevops-ng: in the flows and steps, the
 deployment, the scripts, and any change proposed to them. Each one is a
 reason something is built the way it is, and a change that breaks one is
 reworked rather than merged.
@@ -83,9 +83,52 @@ says so and points you back to that page.
 Keeping root out of the steady state means a flow can never change the host
 behind your back, and what a run did is what your user could do.
 
+Everything runs in a sandbox
+============================
+
+Every step works inside a place it owns. Your :term:`worktree-groups
+<Worktree-group>` hold your work and kdevops-ng never builds in them: a
+:term:`Worker` builds in its own :term:`Worker sandbox`, where it may reset,
+clean and re-sync freely because nothing there was written by a person. What
+every worker shares (the :term:`Mirrors <Mirror>`, the :term:`Bares <Bare>`,
+the compiler cache, the :term:`Store`) lives in the :term:`System workbench`,
+and all of it sits in one relocatable :term:`Workbench`. Work reaches a worker
+only as a ref you publish to the Bare, and comes back as Store artifacts.
+
+Tests run one level further out, in disposable guests: a NixOS closure on a
+`tmpfs`_ root that, by default, exchanges results with the host only through
+its own per-VM share (the home and controller shares widen that on request).
+Wrecking a guest costs a reboot.
+
+Outside the Workbench, steps write only what systemd first and the guests
+need, your user units under ``~/.config/systemd`` and VM state under
+``~/.local/state/qemu-system``, and scratch under ``$TMPDIR``, which the
+worker leaves unset, so ``/tmp``. Today the boundaries are kept by the layout
+and by path checks in the code rather than by the kernel, so a change that
+writes outside its sandbox breaks this rule even where nothing stops it.
+
+Commands a developer can run
+============================
+
+Whatever kdevops-ng does, you can do by hand. Every step prints the exact
+command it runs, in a form you can copy and paste, and documents its
+equivalent command line; a file a step writes is announced with its path.
+Nothing hides behind a module that does something you cannot see, the way
+`Ansible`_ modules do: if a step starts a unit, the job log shows the
+``systemctl`` line, and running that line yourself does the same thing.
+
+The goal is that a failed run never needs kdevops-ng to reproduce: the job log
+is the recipe. Where a step still falls short (an environment it sets without
+printing, a file it renders in Python, a shell string it hands to ``sh -c``),
+that is a bug to fix, and the plan for generating every step's commands from
+one place is in
+``notes/plans/command-plans.md``.
+
 .. _Nix: https://nixos.org
 .. _systemd: https://systemd.io
 .. _Windmill: https://www.windmill.dev/
 .. _NixOS: https://nixos.org/
 .. _nixpkgs: https://github.com/NixOS/nixpkgs
 .. _qemu-system-units: https://github.com/linux-kdevops/qemu-system-units
+.. _tmpfs: https://docs.kernel.org/filesystems/tmpfs.html
+.. _Ansible: https://docs.ansible.com/

@@ -12,9 +12,11 @@ repository and the running instance. The instance binds ``127.0.0.1:8000``;
 open it in a browser on the host, or forward the port over SSH if the host is
 remote.
 
-Everything follows three :doc:`/concepts/principles`: every tool comes from
+Everything follows five :doc:`/concepts/principles`: every tool comes from
 Nix, pinned; anything that runs is a systemd unit, so systemd does the
-supervising; and it all runs as you, with the few root steps done once by hand.
+supervising; it all runs as you, with the few root steps done once by hand;
+every step works inside its own sandbox; and every command it runs is one you
+can run yourself.
 
 .. _project-status:
 
