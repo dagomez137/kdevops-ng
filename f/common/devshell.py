@@ -448,18 +448,13 @@ class Systemd:
     each prepend `--user` and delegate to `DevShell.run`/`.capture`, reusing the
     identical `nix develop <flake>#systemd --command ...` dispatch and copy-pasteable
     `_log`. `capture=True` returns stdout; otherwise streams and returns the exit code.
-
-    They run with `XDG_RUNTIME_DIR` unset, so `systemctl`/`machinectl` reach the
-    manager over the session bus (`DBUS_SESSION_BUS_ADDRESS`) rather than its private
-    control socket (`$XDG_RUNTIME_DIR/systemd/private`). The units' own `%t` paths are
-    resolved by the manager, so unsetting it client-side does not affect them.
     """
 
     def __init__(self, workers: Path) -> None:
         self._shell = DevShell(workers, shell="systemd")
 
     def _tool(self, tool: str, *args: str, capture: bool, check: bool):
-        argv = ("env", "--unset=XDG_RUNTIME_DIR", tool, "--user", *args)
+        argv = (tool, "--user", *args)
         if capture:
             return self._shell.capture(*argv, check=check)
         return self._shell.run(*argv, check=check)
