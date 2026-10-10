@@ -57,7 +57,7 @@ of thing.
 - A **Store** entry is keyed by **Build identity**; image and modules share one identity (`uname -r` resolves modules), so multiple VMs may boot an already-built identity without recompiling, and a fetched artifact is provably the one that was asked for.
 - The **Store** is content-addressed: co-located hosts share one Store (NFS); a remote host fetches a missing identity from a named source over the same `ssh://` reachability that gates the **Bare** remote; a discovery index for many remote peers is deferred.
 - The **System workbench** provides the **Mirror** and **Bare** that every **Worktree-group** on that host reuses (shared object store). It is relocatable on its own; moving it tears down the prior location's services and relaunches them at the new one.
-- The **System workbench** runs **user-level by default** (`systemd --user` + lingering; sudo-less steady state); **system-level** (mirrors shared across all users) is an opt-in. All privileged provisioning (kvm group, vfio udev rules, and any system units) is folded into a one-time root setup; steady state is sudo-less in both modes.
+- The **System workbench** runs **user-level** (`systemd --user` + lingering; sudo-less steady state); there is no system-level mode. All privileged provisioning (kvm group, vfio udev rules, and any system units) is folded into a one-time root setup; steady state is sudo-less.
 
 ## Decisions
 
