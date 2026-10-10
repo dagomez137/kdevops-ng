@@ -22,8 +22,7 @@ overrides the auto-derived build-identity name.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin):
 
-    git config --global --add safe.directory '*'          # once per container
-    git -C "$BARE" fetch --tags --force mirror
+    git -C "$BARE" fetch --tags --force --prune mirror
     git -C "$BARE" worktree prune
     git -C "$WT" checkout --detach --force "$git_ref"
     git -C "$BARE" worktree add --force --detach "$WT" "$git_ref"

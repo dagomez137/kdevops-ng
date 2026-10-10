@@ -36,7 +36,6 @@ a developer's tree is dirty is worse than not syncing.
 
 Equivalent host bash for the worker (PATH includes /nix/var/nix/profiles/default/bin):
 
-    git config --global --add safe.directory '*'          # once per container
     # refresh upstream refs into the Bare's refs/remotes/mirror/* (developer
     # branches already live in the Bare's refs/heads/* on the same host):
     git -C "$BARE" fetch --tags --force --prune mirror
@@ -130,7 +129,6 @@ def prepare(
     validate_group(worktree_group)
 
     git = Git()
-    _allow_safe_directory(git)
 
     workers = Path(os.environ["WORKERS_DIR"])
     bare = _bare(project)
@@ -243,7 +241,6 @@ def prepare_developer(
     validate_group(worktree_group)
 
     git = Git()
-    _allow_safe_directory(git)
 
     workers = Path(os.environ["WORKERS_DIR"])
     bare = _bare(project)
@@ -456,15 +453,6 @@ def _short(sha: str | None) -> str:
 def _bare(project: str) -> Path:
     """The project's durable Bare in the System workbench."""
     return system_dir() / "bare" / f"{project}.git"
-
-
-def _allow_safe_directory(git: Git) -> None:
-    """Let git work the build area's trees whatever uid the worker runs as."""
-    existing = git.capture(
-        "config", "--global", "--get-all", "safe.directory", check=False
-    )
-    if "*" not in existing.split("\n"):
-        git.run("config", "--global", "--add", "safe.directory", "*")
 
 
 def _require_build_area(bare: Path, workers: Path) -> None:

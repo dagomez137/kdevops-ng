@@ -28,7 +28,6 @@ List peer hosts, not self.
 
 Equivalent host bash (PATH includes /nix/var/nix/profiles/default/bin), per mirror:
 
-    git config --global --add safe.directory '*'        # once per container
     mkdir --parents "$(dirname "$bare")"
     git init --bare "$bare"
     # borrow the ONE merged mirror's objects (every tree shares it) instead of
@@ -412,12 +411,6 @@ def main(
     peer_hosts = [p["host"] for p in peers]
 
     git = Git()
-    existing = git.capture(
-        "config", "--global", "--get-all", "safe.directory", check=False
-    )
-    if "*" not in existing.split("\n"):
-        git.run("config", "--global", "--add", "safe.directory", "*")
-
     results = []
     for entry in mirrors:
         name, mirror, project = _validate(entry)

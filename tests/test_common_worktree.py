@@ -162,7 +162,6 @@ def test_worker_reuse_issues_the_unchanged_argv(build_area, bare, monkeypatch):
     )
     worktree.prepare(project="linux", ref="v6.9")
     assert git.argv == [
-        ("config", "--global", "--get-all", "safe.directory"),
         ("-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"),
         (
             "-C",
@@ -192,7 +191,6 @@ def test_worker_fresh_issues_the_unchanged_argv(build_area, bare, monkeypatch):
     )
     worktree.prepare(project="linux", ref="v6.9")
     assert git.argv == [
-        ("config", "--global", "--get-all", "safe.directory"),
         ("-C", str(bare), "fetch", "--tags", "--force", "--prune", "mirror"),
         (
             "-C",
@@ -531,7 +529,6 @@ def test_behind_the_target_detached_fast_forwards(bare, developer, monkeypatch):
             (("--git-common-dir",), str(bare)),
             (("--git-dir",), str(gitdir)),
             (("--symbolic-full-name",), "HEAD\n"),
-            (("--get-all",), "*\n"),
         ]
     )
     monkeypatch.setattr(worktree, "Git", git)
