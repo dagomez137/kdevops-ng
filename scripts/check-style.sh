@@ -119,6 +119,22 @@ if [ -n "$msg" ]; then
 		check_trailers HEAD "$msg" "$(git log --max-count=1 --format='%cn <%ce>')"
 fi
 
+# 3b. Privilege boundary (CLAUDE.md): code runs as the user, so no sudo,
+#     pkexec, doas, run0 or su invocation in steps, scripts, nix apps, deploy
+#     code or tests. Root setup is a manual step documented in docs/, which
+#     this does not scan; a step that finds one undone points at that page
+#     and never spells its commands, so no line of code needs an exemption;
+#     a printed prompt (`$ sudo`) or a YAML `- sudo` line counts as spelling
+#     one. Beyond a regex: `systemctl` without `--user`, `busctl --system`,
+#     `systemd-run --uid=0`, `machinectl shell`, `nsenter`, `ssh <host> sudo`
+#     split over lines, and a command name assembled at run time.
+if git grep --line-number --extended-regexp \
+		"([\"']|/)(sudo|pkexec|doas|run0)([\"' ]|$)|(^|[;&|(\`{]|\\b(then|do|else|exec|env|command|xargs))[[:space:]]*(sudo|pkexec|doas|run0)([[:space:]]|\\\\|$)|[$#][[:space:]]+(sudo|pkexec|doas|run0)\\b|(^[[:space:]]*-|:)[[:space:]]+(sudo|pkexec|doas|run0)\\b|\\bssh[[:space:]][^|;&]*[[:space:]](sudo|pkexec|doas|run0)[[:space:]]|\\bsu[[:space:]]+(-|root|[[:alnum:]_-]+[[:space:]]+-c)|[\"']su[\"'][ ,]+([\"'][^\"']*[\"'][ ,]+)?[\"']-c" \
+		-- 'f/*.py' 'f/*.yaml' 'f/*.ts' 'scripts/*' 'nix/*' 'deploy/*' 'tests/*' 'flake.nix' \
+		':!scripts/check-style.sh' ':!scripts/get_maintainer.pl'; then
+		echo "error: sudo in code; root setup is a manual step documented in docs/ (CLAUDE.md, Privilege boundary)"
+		status=1
+fi
 
 # 4. reStructuredText line length under docs/: prose wraps at 80 columns.
 #    URLs cannot be broken, so a line that contains one is exempt.

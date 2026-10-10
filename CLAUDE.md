@@ -8,6 +8,18 @@ workspace content between the instance and this repository; git is the source
 of truth. The repository name predates a fuller description that will be added
 later.
 
+## Privilege boundary: user mode only (never bypass)
+
+Everything runs as the unprivileged user: no `sudo`, no write outside the
+user's own paths, no system manager or system bus (`systemctl` without
+`--user`, `busctl --system`). Whatever needs root is a one-time manual step
+listed with its commands in `docs/getting-started/requirements.rst`; code
+never runs, wraps, renders or prints those commands. A step may check a
+root-owned precondition with user-readable reads and fail with a pointer to
+that page; an agent asked to automate a root step stops and asks.
+`scripts/check-style.sh` (3b) refuses an escalation in code. Why, and the
+design it comes from: `docs/concepts/principles.rst`.
+
 ## Layout
 
 `docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
