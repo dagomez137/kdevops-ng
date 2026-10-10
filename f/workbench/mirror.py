@@ -175,6 +175,7 @@ def main(
     bcc: dict | None = None,
     ebpf_syscall: dict | None = None,
     systing: dict | None = None,
+    lmcache: dict | None = None,
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     mdir = mirrors_dir()
@@ -189,6 +190,7 @@ def main(
         "bcc": bcc or {},
         "ebpf-syscall": ebpf_syscall or {},
         "systing": systing or {},
+        "lmcache": lmcache or {},
     }
     mirrors = build_mirrors(projects, configs, mdir)
     git = Git()

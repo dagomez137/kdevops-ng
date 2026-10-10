@@ -176,6 +176,7 @@ EBPF_SYSCALL_SOURCES = {
     "github": {"https": "https://github.com/SamsungDS/ebpf-syscall.git"}
 }
 SYSTING_SOURCES = {"github": {"https": "https://github.com/josefbacik/systing.git"}}
+LMCACHE_SOURCES = {"github": {"https": "https://github.com/LMCache/LMCache.git"}}
 
 # The curated projects a workbench can mirror, each its own bare mirror. The form
 # offers these as a checklist; selecting one reveals its deploy options (linux: the
@@ -195,8 +196,10 @@ MIRROR_PROJECTS = [
     "bcc",
     "ebpf-syscall",
     "systing",
+    "lmcache",
 ]
-DEFAULT_MIRROR_PROJECTS = list(MIRROR_PROJECTS)
+# LMCache matters only to the kvcache suite, so it is picked, not mirrored by default.
+DEFAULT_MIRROR_PROJECTS = [p for p in MIRROR_PROJECTS if p != "lmcache"]
 
 # Human labels for the projects picker, keyed by the stable slug value, so the form
 # reads "xfstests (filesystem tests)" over the value "xfstests-dev" (hiding the repo's
@@ -212,6 +215,7 @@ MIRROR_PROJECT_LABELS = {
     "bcc": "bcc (BPF tracing tools)",
     "ebpf-syscall": "ebpf-syscall (storage tracers)",
     "systing": "systing (application tracer)",
+    "lmcache": "LMCache (LLM KV cache offload)",
 }
 
 
@@ -366,6 +370,9 @@ def build_mirrors(
         "systing": lambda cfg: _single_repo_mirror(
             "systing", SYSTING_SOURCES, cfg, mirror_dir
         ),
+        "lmcache": lambda cfg: _single_repo_mirror(
+            "lmcache", LMCACHE_SOURCES, cfg, mirror_dir
+        ),
     }
     entries = []
     for project in projects:
@@ -388,6 +395,7 @@ def main(
     bcc: dict | None = None,
     ebpf_syscall: dict | None = None,
     systing: dict | None = None,
+    lmcache: dict | None = None,
     peers: list[dict] | None = None,
     refresh: bool = True,
 ) -> dict:
@@ -404,6 +412,7 @@ def main(
             "bcc": bcc,
             "ebpf-syscall": ebpf_syscall,
             "systing": systing,
+            "lmcache": lmcache,
         },
         mirrors_dir(),
     )

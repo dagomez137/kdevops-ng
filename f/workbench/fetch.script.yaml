@@ -30,6 +30,7 @@ schema:
     - bcc
     - ebpf_syscall
     - systing
+    - lmcache
     - peers
     - refresh
   properties:
@@ -352,6 +353,34 @@ schema:
           title: Transport
       showExpr: fields.projects.includes('systing')
       title: systing
+    lmcache:
+      type: object
+      description: How to deploy the LMCache mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical LMCache repo and only public
+            source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+      showExpr: fields.projects.includes('lmcache')
+      title: LMCache
     peers:
       type: array
       description: |-

@@ -390,3 +390,11 @@ def test_kernel_trees_off_kernel_org_pin_a_transport_and_url():
         # tags stay out of the merged mirror's one shared refs/tags/*.
         assert name not in fetch.TAG_TREES
         assert name not in fetch.DEFAULT_KERNEL_TREES
+
+
+def test_lmcache_is_offered_but_not_mirrored_by_default():
+    assert "lmcache" in fetch.MIRROR_PROJECTS
+    assert "lmcache" not in fetch.DEFAULT_MIRROR_PROJECTS
+    assert set(fetch.DEFAULT_MIRROR_PROJECTS) == set(fetch.MIRROR_PROJECTS) - {
+        "lmcache"
+    }

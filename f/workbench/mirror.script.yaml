@@ -30,6 +30,7 @@ schema:
     - bcc
     - ebpf_syscall
     - systing
+    - lmcache
   properties:
     projects:
       type: object
@@ -494,5 +495,49 @@ schema:
           title: On Inactive
       showExpr: fields.projects.includes('systing')
       title: systing
+    lmcache:
+      type: object
+      description: How to deploy and refresh the LMCache mirror.
+      default: {}
+      order:
+        - source
+        - protocol
+        - on_boot
+        - on_inactive
+      properties:
+        source:
+          type: string
+          description: |-
+            Upstream host: GitHub (the canonical LMCache repo and only public
+            source).
+          default: github
+          enum:
+            - github
+          title: Source
+        protocol:
+          type: string
+          description: |-
+            Transport to GitHub: https (GitHub dropped the git:// transport).
+          default: https
+          enum:
+            - https
+          showExpr: fields.source !== 'github'
+          title: Transport
+        on_boot:
+          type: string
+          description: |-
+            First refresh this long after boot (systemd `OnBootSec`, e.g. `10m`,
+            `1h`).
+          default: 10m
+          title: On Boot
+        on_inactive:
+          type: string
+          description: |-
+            Next refresh this long after the previous one finishes (systemd
+            `OnUnitInactiveSec`).
+          default: 10m
+          title: On Inactive
+      showExpr: fields.projects.includes('lmcache')
+      title: LMCache
   required: []
 tag: vm
