@@ -22,8 +22,9 @@ stays off by default so a boot-oriented build never drags the devel layer.
 
 Equivalent bash, run inside the nixos-flake transfer devShell, for each registered peer:
 
-    sp=$(ssh "$host" readlink "$index"/qemu-"$(basename "$prefix")")
-    nix copy --from ssh://"$host" "$sp" --no-check-sigs
+    opts="-F $SYSTEM_DIR/ssh/config -o ConnectTimeout=3 -o BatchMode=yes"
+    sp=$(ssh $opts "$host" readlink "$index"/qemu-"$(basename "$prefix")")
+    NIX_SSHOPTS="$opts" nix copy --from ssh://"$host" "$sp" --no-check-sigs
     nix build "$sp" --out-link "$STORE_INDEX_DIR"/qemu-"$(basename "$prefix")"
 """
 

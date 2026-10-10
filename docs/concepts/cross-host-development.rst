@@ -60,9 +60,9 @@ SSH prerequisite
 ----------------
 
 Your ``git push`` resolves the alias through :cmd:`~/.ssh/config`, like any
-``ssh`` you type. The workers' VM discovery sweep never reads that file: it
-reaches a peer through the managed ``SYSTEM_DIR/ssh/config``, which ``nix run
-.#windmill-peers`` fills from the same aliases (:doc:`/deployment/nix`).
+``ssh`` you type. The workers never read that file: they reach a peer through
+the managed ``SYSTEM_DIR/ssh/config``, which ``nix run .#windmill-peers`` fills
+from the same aliases (:doc:`/deployment/nix`).
 
 Provisioning
 ============

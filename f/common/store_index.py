@@ -18,9 +18,11 @@ actions:
 - `prune` removes every local entry whose store path is already gone (dangling),
   needing no confirmation.
 
-Equivalent command:
+Equivalent command (the peer half inside the nixos-flake transfer devShell):
 
-    ls -l "$STORE_INDEX_DIR/"
+    ls --format=long "$STORE_INDEX_DIR/"
+    opts="-F $SYSTEM_DIR/ssh/config -o ConnectTimeout=3 -o BatchMode=yes"
+    ssh $opts "$remote" ls --format=single-column "$remote_index"
     nix path-info --closure-size --human-readable \\
         "$(readlink "$STORE_INDEX_DIR/<name>")"
     rm "$STORE_INDEX_DIR/<name>" && nix store gc
@@ -32,7 +34,7 @@ import os
 from pathlib import Path
 
 from f.common import store
-from f.common.devshell import DevShell, Nix
+from f.common.devshell import DevShell, Nix, system_dir
 
 _MIB = 1024 * 1024
 
@@ -93,7 +95,20 @@ def _list(workers: Path, remote: str, remote_index: str) -> dict:
     if remote and remote_index:
         names = (
             DevShell(workers, "transfer")
-            .capture("ssh", remote, "ls", "-1", remote_index, check=False)
+            .capture(
+                "ssh",
+                "-F",
+                str(system_dir() / "ssh/config"),
+                "-o",
+                "ConnectTimeout=3",
+                "-o",
+                "BatchMode=yes",
+                remote,
+                "ls",
+                "--format=single-column",
+                remote_index,
+                check=False,
+            )
             .split()
         )
         print(f"peer {remote}: {len(names)} entries", flush=True)

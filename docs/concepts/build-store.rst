@@ -212,8 +212,12 @@ the Reuse group and the peers registry at ``SYSTEM_DIR/peers`` (one
 ``<host> [<store-index>]`` per line, written by :src:`f/workbench/fetch`). With
 ``use_peers`` on, ``fetch_identity`` sweeps the registered peers and, for the
 first that already published this identity, learns the peer's store path from
-``ssh <host> readlink <index>/<name>`` and pulls it with
-``nix copy --from ssh://<host>``. Because the two hosts share one toolchain
+``ssh -F SYSTEM_DIR/ssh/config <host> readlink <index>/<name>`` and pulls it
+with ``nix copy --from ssh://<host>`` under the same config (``NIX_SSHOPTS``).
+The peer's alias, key and known hosts are the managed ones, a ``Host <host>``
+block under ``SYSTEM_DIR/ssh/config.d/`` that ``nix run .#windmill-peers``
+writes (:doc:`/deployment/nix`), as the VM discovery sweep already needs, never
+those in ``~/.ssh``. Because the two hosts share one toolchain
 closure, a transported QEMU binary runs with no missing dependencies.
 
 The explicit ``remote``/``remote_index`` knobs are the manual path, used by the
@@ -225,11 +229,6 @@ nothing uses ``rsync``.
 
 This moves build outputs across hosts. Build inputs, such as a developer's
 branch, cross the other way by git; see :doc:`/concepts/cross-host-development`.
-
-.. note::
-
-   The ``transfer`` devShell's OpenSSH rejects a group-writable
-   ``~/.ssh/config`` with "Bad owner or permissions"; keep it ``0600``.
 
 Inspecting and pruning
 ======================

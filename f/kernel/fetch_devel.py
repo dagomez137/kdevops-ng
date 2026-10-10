@@ -54,8 +54,9 @@ defaults to the worktree's own `build` child and must stay under it.
 
 Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host half:
 
-    sp=$(ssh "$remote" readlink "$remote_index"/kernel-devel-"$uts_release")
-    nix copy --from ssh://"$remote" "$sp" --no-check-sigs
+    opts="-F $SYSTEM_DIR/ssh/config -o ConnectTimeout=3 -o BatchMode=yes"
+    sp=$(ssh $opts "$remote" readlink "$remote_index"/kernel-devel-"$uts_release")
+    NIX_SSHOPTS="$opts" nix copy --from ssh://"$remote" "$sp" --no-check-sigs
     nix build "$sp" --out-link "$index"/kernel-devel-"$uts_release"
     cp --recursive --force "$sp"/. "$worktree/build"/
     chmod --recursive u+w "$worktree/build"

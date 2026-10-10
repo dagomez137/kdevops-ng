@@ -20,7 +20,10 @@ so no compiled output reaches the store. The allowlist itself is the caller's: o
 the build system knows which of its outputs a source index needs.
 
 Store paths are absolute and identical on every host, so the path read from a peer
-is the path to copy, with no rewriting.
+is the path to copy, with no rewriting. ssh resolves `<remote>` through the managed
+config, `SYSTEM_DIR/ssh/config` (its `config.d/` carries a `Host` block per peer with
+the peer key), as the VM discovery sweep does, never through `~/.ssh/config`; `nix
+copy` gets the same config through `NIX_SSHOPTS`.
 
 Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host half:
 
@@ -29,8 +32,9 @@ Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host
     nix build "$sp" --out-link "$index/$name"
 
     # fetcher
-    sp=$(ssh "$remote" readlink "$remote_index/$name")
-    nix copy --from ssh://"$remote" "$sp" --no-check-sigs
+    opts="-F $SYSTEM_DIR/ssh/config -o ConnectTimeout=3 -o BatchMode=yes"
+    sp=$(ssh $opts "$remote" readlink "$remote_index/$name")
+    NIX_SSHOPTS="$opts" nix copy --from ssh://"$remote" "$sp" --no-check-sigs
     nix build "$sp" --out-link "$index/$name"
 """
 
@@ -269,7 +273,17 @@ def peer_path(workers: Path, remote: str, remote_index: str, name: str) -> str |
     out = (
         DevShell(workers, "transfer")
         .capture(
-            "ssh", remote, "readlink", f"{remote_index.rstrip('/')}/{name}", check=False
+            "ssh",
+            "-F",
+            str(system_dir() / "ssh/config"),
+            "-o",
+            "ConnectTimeout=3",
+            "-o",
+            "BatchMode=yes",
+            remote,
+            "readlink",
+            f"{remote_index.rstrip('/')}/{name}",
+            check=False,
         )
         .strip()
     )
@@ -279,6 +293,8 @@ def peer_path(workers: Path, remote: str, remote_index: str, name: str) -> str |
 def fetch(workers: Path, remote: str, sp: str) -> None:
     """Copy a store path from the peer into the local store over ssh."""
     DevShell(workers, "transfer").run(
+        "env",
+        f"NIX_SSHOPTS=-F {system_dir() / 'ssh/config'} -o ConnectTimeout=3 -o BatchMode=yes",
         "nix",
         "--extra-experimental-features",
         "nix-command",

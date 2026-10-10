@@ -370,9 +370,10 @@ moving them.
 Peer hosts
 ----------
 
-The VM discovery sweep reaches another workbench host, to list its guests,
-with ``ssh -F SYSTEM_DIR/ssh/config``, never through ``~/.ssh``, so a peer
-needs a ``Host`` block in the managed config. ``nix run .#windmill-peers``
+A worker reaches another workbench host, to list its guests or to fetch a
+build it published (:doc:`/concepts/build-store`), with
+``ssh -F SYSTEM_DIR/ssh/config``, never through ``~/.ssh``, so a peer needs a
+``Host`` block in the managed config. ``nix run .#windmill-peers``
 writes one per alias, resolving each alias through your own ssh config
 (``ssh -G``) and pointing it at the workbench's peer key,
 ``SYSTEM_DIR/ssh/peer_ed25519``, generated on the first run. Only the host
@@ -387,7 +388,7 @@ directly, not one that jumps through another host:
 Authorize the key's public half on each peer yourself
 (``ssh-copy-id -i SYSTEM_DIR/ssh/peer_ed25519.pub hetzie``), then register the
 peers through the :src:`f/workbench` init flow's ``peers`` input, which writes
-the ``SYSTEM_DIR/peers`` registry the sweep reads. The app rewrites the whole
+the ``SYSTEM_DIR/peers`` registry the sweeps read. The app rewrites the whole
 block file, so name every peer on each run; with ``SYSTEM_DIR`` relocated,
 run it with that variable set the same way.
 

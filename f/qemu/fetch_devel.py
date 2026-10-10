@@ -39,8 +39,9 @@ so it dangles on every host but that one until it is re-pointed.
 
 Equivalent bash, run inside the nixos-flake transfer devShell for the cross-host half:
 
-    sp=$(ssh "$remote" readlink "$remote_index"/qemu-devel-"$(basename "$prefix")")
-    nix copy --from ssh://"$remote" "$sp" --no-check-sigs
+    opts="-F $SYSTEM_DIR/ssh/config -o ConnectTimeout=3 -o BatchMode=yes"
+    sp=$(ssh $opts "$remote" readlink "$remote_index"/qemu-devel-"$(basename "$prefix")")
+    NIX_SSHOPTS="$opts" nix copy --from ssh://"$remote" "$sp" --no-check-sigs
     nix build "$sp" --out-link "$index"/qemu-devel-"$(basename "$prefix")"
     cp --recursive --force "$sp"/. "$worktree/build"/
     chmod --recursive u+w "$worktree/build"
