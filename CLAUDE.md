@@ -33,6 +33,22 @@ fetched at run time. `scripts/check-style.sh` (3c) refuses the rest in code;
 a derivation running `npm` in its own build (`deploy/nix/wmill/package.nix`)
 is the one sanctioned shape. Why: `docs/concepts/principles.rst`.
 
+## systemd first: let the service manager do it (never bypass)
+
+Anything that runs for a while, needs supervising or must stop cleanly is a
+systemd unit, and the project uses what systemd already does: timers instead
+of cron, the journal as the log and results channel, transient units or scopes
+(`systemd-run`, or `StartTransientUnit` over the bus) for work that must be
+watched or killed, `systemctl` run on a guest over the SSH transport to reach
+its manager, settings through systemd's own mechanisms (`EnvironmentFile=`,
+specifiers, drop-ins, `StandardInputText=`) rather than a shell string, and an
+upstream template (`modprobe@`) before a new one, and an upstream unit
+(`kmod-static-nodes`) as the model when one is needed. No
+daemons, wrapper scripts, PID files, `nohup`/`setsid`/backgrounded processes,
+or polling loops standing in for `Requires=`/`After=`. Host units are user
+units. `scripts/check-style.sh` (3d) refuses detached processes and cron in
+code. Why: `docs/concepts/principles.rst`.
+
 ## Layout
 
 `docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
@@ -296,8 +312,8 @@ All commits must follow these six rules.
 
 6. Before committing, run `nix flake check` (ruff lint and format,
    generated-file drift, fixture tests, tree formatting) and
-   `nix develop .#checks --command bash scripts/check-style.sh` (trailing
-   whitespace, missing end-of-file newlines, and commit-message trailer
-   formatting). See `docs/contributing/development.rst`. The trailer check
+   `nix develop .#checks --command bash scripts/check-style.sh` (whitespace,
+   end-of-file newlines, commit trailers, the three rule checks 3b to 3d,
+   rst width and SPDX). See `docs/contributing/development.rst`. The trailer check
    reads HEAD; linked as the repository's commit-msg hook, `scripts/commit-msg`
    runs it on the message before the commit lands.

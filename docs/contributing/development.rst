@@ -66,8 +66,9 @@ The ``tests`` check is the hermetic layer of the flow-testing story;
 :doc:`testing` covers both layers (the fixture tests and the
 ``preview-smoke`` app) and when to run each before submitting.
 
-The whitespace, end-of-file, and commit-trailer checks need the git repository,
-so they cannot be a sandboxed flake check; run them from the checks shell:
+The whitespace, end-of-file, commit-trailer, rule (3b to 3d), rst-width and
+SPDX checks need the git repository, so they cannot be a sandboxed flake check;
+run them from the checks shell:
 
 .. code-block:: console
    :class: cmd-host

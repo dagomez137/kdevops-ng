@@ -153,6 +153,19 @@ if git grep --line-number --extended-regexp "$nix_first|$nix_first_npm" \
 		status=1
 fi
 
+# 3d. systemd first (CLAUDE.md): supervision is systemd's, so no detached,
+#     forked, backgrounded or self-daemonizing process and no cron or at in
+#     steps, scripts, nix apps, deploy code or tests; use a unit, a timer or
+#     systemd-run. A thread flagged daemon=True is not a process and passes.
+#     Beyond a regex: a subprocess.Popen handle never waited on.
+if git grep --line-number --extended-regexp \
+		"([\"']|\\b)(nohup|setsid|disown|crontab|fcrontab|anacron|start-stop-daemon|daemonize)[\"']?([ ,]|$)|\\bos\\.(fork|setsid|setpgrp|daemon)\\(|\\bDaemonContext\\b|\\bpreexec_fn\\b|start_new_session[[:space:]]*=|\\b(screen|tmux)[[:space:]]+(-d|new)|\\bat[[:space:]]+(now\\b|-f[[:space:]]|[0-9]{1,2}:[0-9]{2}\\b|(midnight|noon|teatime)\\b)|[^&>|[:space:]][[:space:]]+&[[:space:]]*([;)}][[:space:]]*)?$" \
+		-- 'f/*.py' 'f/*.yaml' 'f/*.ts' 'scripts/*' 'nix/*' 'deploy/*' 'tests/*' 'flake.nix' \
+		':!scripts/check-style.sh' ':!scripts/get_maintainer.pl'; then
+		echo "error: process supervision outside systemd; use a unit, a timer or systemd-run (CLAUDE.md, systemd first)"
+		status=1
+fi
+
 # 4. reStructuredText line length under docs/: prose wraps at 80 columns.
 #    URLs cannot be broken, so a line that contains one is exempt.
 while IFS= read -r f; do
