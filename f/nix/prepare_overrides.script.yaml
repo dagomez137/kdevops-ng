@@ -30,6 +30,7 @@ schema:
         - blktests
         - ebpf-syscall
         - systing
+        - lmcache
       properties:
         xfstests:
           type: object
@@ -143,5 +144,21 @@ schema:
               type: string
               default: ''
               title: systing b4 Series
+        lmcache:
+          type: object
+          default: {}
+          title: LMCache
+          order:
+            - ref
+            - b4_series
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: LMCache Ref
+            b4_series:
+              type: string
+              default: ''
+              title: LMCache b4 Series
       title: Package source overrides
   required: []

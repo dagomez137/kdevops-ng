@@ -54,7 +54,9 @@ _TEST_SUITES = [
 # next to its recipe regenerated), and systing (custom pkg, src from
 # josefbacik/systing; its recipe vendors the crates from the lockfile of the
 # source being built, so a ref only has to keep the same set of git
-# dependencies). Packages for other suites (spdk, xnvme, nfstest, pynfs, ...)
+# dependencies), and lmcache (custom pkg, src from LMCache/LMCache; its recipe
+# strips the build pins by pattern, so a ref that moves them still builds).
+# Packages for other suites (spdk, xnvme, nfstest, pynfs, ...)
 # join as verified.
 # The advanced `extra_overrides` takes any other nixpkgs package.
 _OVERRIDABLE_PKGS = [
@@ -65,6 +67,7 @@ _OVERRIDABLE_PKGS = [
     "blktests",
     "ebpf-syscall",
     "systing",
+    "lmcache",
 ]
 
 # The mirror project whose Bare carries each overridable package's source
@@ -77,6 +80,7 @@ _PKG_PROJECTS = {
     "blktests": "blktests",
     "ebpf-syscall": "ebpf-syscall",
     "systing": "systing",
+    "lmcache": "lmcache",
 }
 
 # nixpkgs builds these from a release tarball that ships a prepared `./configure`; a

@@ -70,17 +70,18 @@ the GPU to fetch from this host's store.
 Package source overrides
 ========================
 
-Seven packages of the closure can be rebuilt from source instead of their
-pinned versions: ``fio``, ``xfstests``, ``xfsprogs``, ``libbpf-tools``,
-``blktests``, ``ebpf-syscall`` and ``systing``, each a tree a kernel
-developer patches while testing. An override follows the worktree model
-(ADR-0014): the source comes from the package's project Bare, the same
-durable repository the kernel and QEMU builds check out from, so a worker
-never reads a developer checkout and a developer hands work to the build by
-publishing a ref to the Bare. The map is fixed: ``xfstests`` builds from the
-``xfstests-dev`` Bare, ``xfsprogs`` from ``xfsprogs-dev``, ``libbpf-tools``
-from ``bcc``, and ``fio``, ``blktests``, ``ebpf-syscall`` and ``systing``
-each from their own.
+Eight packages of the closure can be rebuilt from source instead of their pinned
+versions: ``fio``, ``xfstests``, ``xfsprogs``, ``libbpf-tools``, ``blktests``,
+``ebpf-syscall``, ``systing`` and ``lmcache``, each a tree a kernel developer
+patches while testing. An override follows the worktree model (ADR-0014): the
+source comes from the package's project Bare, the same durable repository the
+kernel and QEMU builds check out from, so a worker never reads a developer
+checkout and a developer hands work to the build by publishing a ref to the
+Bare. The map is fixed: ``xfstests`` builds from the ``xfstests-dev`` Bare,
+``xfsprogs`` from ``xfsprogs-dev``, ``libbpf-tools`` from ``bcc``, and ``fio``,
+``blktests``, ``ebpf-syscall``, ``systing`` and ``lmcache`` each from their own;
+``lmcache`` needs its Bare picked in the workbench first, since it is not
+mirrored by default.
 
 ``override``
    The per-package master switch. Off, the default, the package builds its

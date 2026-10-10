@@ -137,6 +137,10 @@ def list_ebpf_syscall_refs(filterText: str = "", **_: object) -> list:
 
 def list_systing_refs(filterText: str = "", **_: object) -> list:
     return _project_refs("systing", filterText)
+
+
+def list_lmcache_refs(filterText: str = "", **_: object) -> list:
+    return _project_refs("lmcache", filterText)
 """
 
 

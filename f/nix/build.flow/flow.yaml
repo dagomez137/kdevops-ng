@@ -220,6 +220,7 @@ schema:
             - blktests
             - ebpf-syscall
             - systing
+            - lmcache
             - deploy_developer_worktree
             - custom_group
             - worktree_group
@@ -620,6 +621,56 @@ schema:
                   default: ''
                   showExpr: fields.override === true
                   title: b4 Series
+            lmcache:
+              type: object
+              default: {}
+              title: LMCache
+              order:
+                - override
+                - custom_ref
+                - ref
+                - git_ref
+                - b4_series
+              properties:
+                override:
+                  type: boolean
+                  description: |-
+                    Rebuild this package from a ref in its project's Bare
+                    instead of its pinned version.
+                  default: false
+                ref:
+                  type: object
+                  description: |-
+                    Branch or tag in the LMCache Bare to build from
+                    (developer branches, mirror and fetched remote branches,
+                    then tags newest first). Blank keeps the pinned version.
+                  format: dynselect-list_lmcache_refs
+                  showExpr: fields.override === true && fields.custom_ref !== true
+                  title: Git Ref
+                custom_ref:
+                  type: boolean
+                  description: |-
+                    Type the ref by hand (a branch, tag or full commit id)
+                    instead of picking from the Bare's ref list.
+                  default: false
+                  showExpr: fields.override === true
+                  title: Custom Ref
+                git_ref:
+                  type: string
+                  description: |-
+                    Branch, tag or full commit id in the LMCache Bare.
+                    Blank keeps the pinned version.
+                  default: ''
+                  showExpr: fields.override === true && fields.custom_ref === true
+                b4_series:
+                  type: string
+                  description: |-
+                    Optional lore series (message-id/URL) to apply on
+                    top of the Git Ref via `b4 am`, published to the
+                    Bare as `b4/<slug>`.
+                  default: ''
+                  showExpr: fields.override === true
+                  title: b4 Series
         profiles:
           type: array
           description: |-
@@ -861,4 +912,7 @@ schema:
 
     def list_systing_refs(filterText: str = "", **_: object) -> list:
         return _project_refs("systing", filterText)
+
+    def list_lmcache_refs(filterText: str = "", **_: object) -> list:
+        return _project_refs("lmcache", filterText)
   x-windmill-dyn-select-lang: python3

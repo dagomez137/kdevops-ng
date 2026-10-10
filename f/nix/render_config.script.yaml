@@ -79,6 +79,7 @@ schema:
         - blktests
         - ebpf-syscall
         - systing
+        - lmcache
       properties:
         xfstests:
           type: object
@@ -157,6 +158,17 @@ schema:
               type: string
               default: ''
               title: systing Ref
+        lmcache:
+          type: object
+          default: {}
+          title: LMCache
+          order:
+            - ref
+          properties:
+            ref:
+              type: string
+              default: ''
+              title: LMCache Ref
       title: Package source overrides
     profiles:
       type: array
