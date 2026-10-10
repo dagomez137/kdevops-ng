@@ -235,7 +235,8 @@ so a long job never starves a quick one: the ``vm`` tag is the quick lifecycle
 and control ops (boot, stop, destroy, status), the ``vm-run`` tag is only the
 long-lived fstests wait poll. The ``vm-run`` instance count is the
 concurrent-test-run cap. The vm group needs the :term:`System workbench`
-provisioned and the host ``vhost_vsock`` module loaded.
+provisioned and the host ``vhost_vsock`` module loaded
+(:doc:`/getting-started/requirements`).
 
 Scale a role by enabling more instances: add ``default`` instances to widen
 build concurrency, or ``vm-run`` instances to raise the test-run cap. Drop a

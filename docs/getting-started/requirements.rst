@@ -57,6 +57,17 @@ and ``systemd-journal`` to read service logs without sudo:
 
 Log out and back in for the group change to take effect.
 
+Load the ``vhost_vsock`` module, which the guest transport (SSH over vsock, see
+:doc:`/flows/guests`) and the per-VM ``qemu-system@`` units need, and have it
+loaded at boot. The ``kvm`` group already owns ``/dev/vhost-vsock`` through
+systemd's stock udev rules:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ echo vhost_vsock | sudo tee /etc/modules-load.d/vhost_vsock.conf
+   $ sudo modprobe vhost_vsock
+
 PCI passthrough (VFIO)
 ======================
 
@@ -120,6 +131,26 @@ Reload udev so the rule takes effect:
 
    $ sudo udevadm control --reload-rules
    $ sudo udevadm trigger --subsystem-match=pci
+
+A passthrough guest locks its RAM for DMA, so its ``qemu-system@`` unit asks
+for ``LimitMEMLOCK=<ram+256>M``. A user unit cannot exceed the hard limit of
+your user's service manager, which inherits the system default of 8 MiB, so
+raise it once for ``user@.service`` with a drop-in (``infinity``, or a size
+that covers your largest passthrough guest plus 256M):
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ sudo mkdir --parents /etc/systemd/system/user@.service.d
+   $ printf '[Service]\nLimitMEMLOCK=infinity\n' \
+       | sudo tee /etc/systemd/system/user@.service.d/memlock.conf
+   $ sudo systemctl daemon-reload
+
+The limit reaches your service manager when it next starts, which stops every
+unit it runs, the Windmill stack and the guests included: restart it with
+``sudo systemctl restart "user@$(id --user).service"`` from a session you can
+afford to lose, or reboot. ``systemctl show --property=LimitMEMLOCK
+"user@$(id --user).service"`` shows what it got.
 
 .. _systemd: https://systemd.io
 .. _Nix: https://nixos.org
