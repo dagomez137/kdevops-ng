@@ -21,6 +21,8 @@ schema:
     - vm_name
     - profiles
     - test_suites
+    - cuda_capabilities
+    - build_without_host_gpu
     - telemetry_metrics_url
     - telemetry_logs_url
     - telemetry_collectors
@@ -162,7 +164,9 @@ schema:
         nixos-flake profile modules to import (fully featured by default; pare
         back for a lighter closure). controller is a host role and off by
         default. telemetry is off by default; it pushes metrics and the journal
-        to the monitoring stack.
+        to the monitoring stack. gpu is off by default; it ships the NVIDIA
+        driver and builds the closure with CUDA, for a guest with an NVIDIA GPU
+        passed through.
       default:
         - devel
         - build-tools
@@ -173,8 +177,46 @@ schema:
           - build-tools
           - controller
           - devel
+          - gpu
           - monitoring
           - telemetry
+    cuda_capabilities:
+      type: array
+      description: |-
+        GPU generations the gpu profile compiles CUDA for, by compute
+        capability. Fewer is a shorter build; empty builds them all.
+      default:
+        - '9.0'
+      items:
+        type: string
+        enum:
+          - '8.0'
+          - '8.6'
+          - '8.9'
+          - '9.0'
+          - '10.0'
+          - '12.0'
+        multiselect:
+          - value: '8.0'
+            label: 8.0  A100
+          - value: '8.6'
+            label: 8.6  A10, A40, RTX 30
+          - value: '8.9'
+            label: 8.9  L4, L40S, RTX 40
+          - value: '9.0'
+            label: 9.0  H100, H200
+          - value: '10.0'
+            label: 10.0  B200
+          - value: '12.0'
+            label: 12.0  RTX 50
+      title: CUDA Capabilities
+    build_without_host_gpu:
+      type: boolean
+      description: |-
+        Build the gpu profile on a host with no NVIDIA GPU, for a host that
+        has one to fetch. Off, the build refuses such a host.
+      default: false
+      title: Build Without a Host GPU
     shares:
       type: object
       description: |-
@@ -252,8 +294,9 @@ schema:
     test_suites:
       type: array
       description: |-
-        nixos-flake testSuite modules to import (all by default; pare back for a
-        lighter closure).
+        nixos-flake testSuite modules to import (all but kvcache by default;
+        pare back for a lighter closure). kvcache is several GB of inference
+        stack most guests never run.
       default:
         - blktests
         - fstests
@@ -272,6 +315,7 @@ schema:
           - fstests
           - gitr
           - kunit
+          - kvcache
           - ltp
           - mmtests
           - pynfs

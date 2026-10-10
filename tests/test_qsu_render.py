@@ -15,7 +15,7 @@ qemu_system = importlib.import_module("f.qsu.qemu-system.render")
 
 # A flag that stops anywhere along the chain below gives a guest that mounts a
 # tag nobody serves, and it drops to emergency mode on `tag not found`.
-SUITE_SHARE_FLAGS = ("fstests", "selftests", "usertests", "blktests")
+SUITE_SHARE_FLAGS = ("fstests", "selftests", "usertests", "blktests", "kvcache")
 
 
 def test_cloud_init_render_is_a_deferred_scaffold():

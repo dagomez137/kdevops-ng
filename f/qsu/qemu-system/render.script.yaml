@@ -49,6 +49,7 @@ schema:
     - selftests
     - usertests
     - blktests
+    - kvcache
     - home_share
     - home_share_readwrite
     - controller_share
@@ -833,8 +834,8 @@ schema:
       description: |-
         Explicit virtiofs shares (`{tag,dir,mount,options}`); overrides the
         composed
-        store/modules/fstests/selftests/usertests/blktests/home/controller
-        set.
+        store/modules/fstests/selftests/usertests/blktests/kvcache/home/
+        controller set.
       default: []
       items:
         type: object
@@ -866,6 +867,15 @@ schema:
         test suites include `blktests`; no manual knob.
       default: false
       title: blktests
+    kvcache:
+      type: boolean
+      description: |-
+        Predefined `kvcache` share (auto): serve
+        `$WORKERS_DIR/shared/kvcache/<vm>` at `/var/lib/kvcache` (rw), tag
+        `kvcache`. Set automatically by `f/qsu/bringup` when the closure's test
+        suites include `kvcache`; no manual knob.
+      default: false
+      title: kvcache
     virtiofsd_binary:
       type: string
       description: |-

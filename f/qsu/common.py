@@ -37,6 +37,7 @@ CANONICAL_SHARE_TAGS = [
     "selftests",
     "usertests",
     "blktests",
+    "kvcache",
     "home",
     "controller-share",
 ]
@@ -262,6 +263,17 @@ def _shares(fi: dict, modules_dir: str | None) -> list[dict]:
         shares.append(
             {"tag": "blktests", "dir": str(bdir), "mount": "/var/lib/blktests"}
         )
+    # Predefined `kvcache` share, the blktests analog: the writable per-VM dir the
+    # kvcache suite reads the server and replay config from and writes results and
+    # downloaded models to. Added when the guest runs the kvcache suite.
+    # Host dir: $WORKERS_DIR/shared/kvcache/<vm>.
+    if fi.get("kvcache"):
+        vm = fi.get("vm_name") or ""
+        root = _workers() / "shared/kvcache"
+        kdir = (root / vm).resolve()
+        if not vm or root.resolve() not in kdir.parents:
+            raise ValueError(f"kvcache share needs a valid vm_name, got {vm!r}")
+        shares.append({"tag": "kvcache", "dir": str(kdir), "mount": "/var/lib/kvcache"})
     # Predefined `home` share: the operator's host home shared into the guest at the
     # SAME absolute path (so host/guest paths match). Toggled by `fi["home_share"]`;
     # read-only unless `home_share_readwrite`. Independent of the free-form

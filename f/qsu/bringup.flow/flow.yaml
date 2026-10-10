@@ -130,7 +130,7 @@ value:
           expr: '({...flow_input.boot_qemu, qemu_source: (flow_input.qemu?.mode === "build" || flow_input.qemu?.mode === "reuse") ? "qemu-build" : "nixpkgs", qemu_binary: flow_input.qemu?.mode === "build" ? results.build_qemu?.qemu_binary : (flow_input.qemu?.mode === "reuse" ? results.resolve?.qemu_binary : null)})'
         sharing:
           type: javascript
-          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), usertests: (flow_input.closure?.closure?.test_suites || []).includes("usertests"), blktests: (flow_input.closure?.closure?.test_suites || []).includes("blktests"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
+          expr: '(flow_input.closure?.mode === "reuse" && results.resolve?.sharing && Object.keys(results.resolve.sharing).length > 0 ? ({ ...results.resolve.sharing, ...flow_input.boot_sharing }) : ({ ...flow_input.boot_sharing, fstests: (flow_input.closure?.closure?.test_suites || []).includes("fstests"), selftests: (flow_input.closure?.closure?.test_suites || []).includes("selftests"), usertests: (flow_input.closure?.closure?.test_suites || []).includes("usertests"), blktests: (flow_input.closure?.closure?.test_suites || []).includes("blktests"), kvcache: (flow_input.closure?.closure?.test_suites || []).includes("kvcache"), home_share: (flow_input.closure?.guest?.home === true), home_share_readwrite: (flow_input.closure?.guest?.home === true) }))'
         kernel_boot:
           type: javascript
           expr: '({kernel: flow_input.kernel?.mode === "build" ? results.build_kernel : results.resolve?.kernel, closure: flow_input.closure?.mode === "build" ? results.build_nix : results.resolve?.closure, kernel_parameters: flow_input.boot_kernel?.kernel_parameters, extra_kernel_parameters: flow_input.boot_kernel?.extra_kernel_parameters})'
@@ -1070,6 +1070,8 @@ schema:
           default: {}
           order:
           - profiles
+          - cuda_capabilities
+          - build_without_host_gpu
           - test_suites
           - source_overrides
           - telemetry_metrics_url
@@ -1473,7 +1475,11 @@ schema:
 
                 by default. telemetry is off by default; it pushes metrics and the
 
-                journal to the monitoring stack.'
+                journal to the monitoring stack. gpu is off by default; it ships the
+
+                NVIDIA driver and builds the closure with CUDA, for a guest with an
+
+                NVIDIA GPU passed through.'
               default:
               - devel
               - build-tools
@@ -1484,8 +1490,48 @@ schema:
                 - build-tools
                 - controller
                 - devel
+                - gpu
                 - monitoring
                 - telemetry
+            cuda_capabilities:
+              type: array
+              description: 'GPU generations the gpu profile compiles CUDA for, by compute
+
+                capability. Fewer is a shorter build; empty builds them all.'
+              default:
+              - '9.0'
+              items:
+                type: string
+                enum:
+                - '8.0'
+                - '8.6'
+                - '8.9'
+                - '9.0'
+                - '10.0'
+                - '12.0'
+                multiselect:
+                - value: '8.0'
+                  label: 8.0  A100
+                - value: '8.6'
+                  label: 8.6  A10, A40, RTX 30
+                - value: '8.9'
+                  label: 8.9  L4, L40S, RTX 40
+                - value: '9.0'
+                  label: 9.0  H100, H200
+                - value: '10.0'
+                  label: 10.0  B200
+                - value: '12.0'
+                  label: 12.0  RTX 50
+              showExpr: fields.profiles?.includes("gpu")
+              title: CUDA Capabilities
+            build_without_host_gpu:
+              type: boolean
+              description: 'Build the gpu profile on a host with no NVIDIA GPU, for a host that
+
+                has one to fetch. Off, the build refuses such a host.'
+              default: false
+              showExpr: fields.profiles?.includes("gpu")
+              title: Build Without a Host GPU
             telemetry_collectors:
               type: array
               description: 'node_exporter collectors the telemetry profile enables on top of its
@@ -1559,9 +1605,11 @@ schema:
               title: Metrics push URL
             test_suites:
               type: array
-              description: 'nixos-flake testSuite modules to import (all by default; pare back
+              description: 'nixos-flake testSuite modules to import (all but kvcache by
 
-                for a lighter closure).'
+                default; pare back for a lighter closure). kvcache is several GB of
+
+                inference stack most guests never run.'
               default:
               - blktests
               - fstests
@@ -1580,6 +1628,7 @@ schema:
                 - fstests
                 - gitr
                 - kunit
+                - kvcache
                 - ltp
                 - mmtests
                 - pynfs

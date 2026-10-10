@@ -4,6 +4,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from f.nix import render_config
 from f.nix.render_config import (
@@ -59,13 +60,17 @@ def test_the_curated_registries_hold_their_shape():
     assert suites == sorted(suites)
     assert len(suites) == len(set(suites))
     assert {"blktests", "fstests", "selftests", "usertests"} <= set(suites)
-    assert render_config._FEATURED_TEST_SUITES == suites
-    assert render_config._FEATURED_TEST_SUITES is not suites
+    # kvcache is several GB of inference stack, so the default closure leaves it out.
+    assert render_config._FEATURED_TEST_SUITES == [s for s in suites if s != "kvcache"]
     profiles = render_config._PROFILES
     assert set(render_config._FEATURED_PROFILES) == profiles - {
         "controller",
+        "gpu",
         "telemetry",
     }
+    assert set(render_config._FEATURED_CUDA_CAPABILITIES) <= set(
+        render_config._CUDA_CAPABILITIES
+    )
     assert set(render_config._PROFILE_ENABLE) == {
         "monitoring",
         "controller",
@@ -93,8 +98,6 @@ def test_every_overridable_package_has_a_step_form_field(sidecar):
     """Each step that takes the override map carries its own curated package
     list; run one on its own and that form is the whole interface, so a package
     missing from it has no field at all."""
-    import yaml
-
     schema = yaml.safe_load((REPO / sidecar).read_text())["schema"]
     overrides = schema["properties"]["source_overrides"]
     assert set(overrides["properties"]) == set(render_config._OVERRIDABLE_PKGS)
@@ -238,8 +241,10 @@ def test_main_renders_the_featured_defaults(env):
     assert f"path:{env / 'vendor/nixos-flake'}" in flake
     for prof in ("devel", "build-tools", "monitoring"):
         assert f"nixos-flake.nixosModules.profiles.{prof}" in default
-    for suite in render_config._TEST_SUITES:
+    for suite in render_config._FEATURED_TEST_SUITES:
         assert f"nixos-flake.nixosModules.testSuites.{suite}" in default
+    assert "kvcache" not in default
+    assert "gpu" not in default
     assert "nixos-flake.nixosModules.mounts.shares" in default
     assert "  nixos-flake.monitoring.enable = true;" in default
     assert "telemetry" not in default
@@ -587,3 +592,72 @@ def test_missing_imageless_template_raises(env):
     (env / "vendor/nixos-flake/templates/imageless/flake.nix").unlink()
     with pytest.raises(FileNotFoundError, match="imageless template"):
         render_config.main(vm_name="tvm", profiles=[], test_suites=[])
+
+
+def test_kvcache_mounts_its_share(env):
+    out = render_config.main(test_suites=["kvcache"])
+    default = Path(out["default"]).read_text()
+    assert "nixos-flake.nixosModules.testSuites.kvcache" in default
+    assert 'nixos-flake.shares."/var/lib/kvcache" = { tag = "kvcache"; };' in default
+
+
+def test_gpu_compiles_cuda_for_the_picked_capabilities(env, monkeypatch):
+    monkeypatch.setattr(render_config, "_host_nvidia_gpu", lambda: True)
+    out = render_config.main(profiles=["gpu"], cuda_capabilities=["8.0", "9.0"])
+    default = Path(out["default"]).read_text()
+    assert "nixos-flake.nixosModules.profiles.gpu" in default
+    assert '  nixos-flake.gpu.cudaCapabilities = [ "8.0" "9.0" ];' in default
+
+
+def test_gpu_defaults_to_the_featured_capability(env, monkeypatch):
+    monkeypatch.setattr(render_config, "_host_nvidia_gpu", lambda: True)
+    default = Path(render_config.main(profiles=["gpu"])["default"]).read_text()
+    assert '  nixos-flake.gpu.cudaCapabilities = [ "9.0" ];' in default
+
+
+def test_gpu_with_no_capability_keeps_nixpkgs_default(env, monkeypatch):
+    monkeypatch.setattr(render_config, "_host_nvidia_gpu", lambda: True)
+    out = render_config.main(profiles=["gpu"], cuda_capabilities=[])
+    assert "cudaCapabilities" not in Path(out["default"]).read_text()
+
+
+def test_gpu_refuses_a_host_without_one(env, monkeypatch):
+    monkeypatch.setattr(render_config, "_host_nvidia_gpu", lambda: False)
+    with pytest.raises(ValueError, match="build_without_host_gpu"):
+        render_config.main(profiles=["gpu"])
+
+
+def test_gpu_builds_without_one_when_asked(env, monkeypatch):
+    monkeypatch.setattr(render_config, "_host_nvidia_gpu", lambda: False)
+    out = render_config.main(profiles=["gpu"], build_without_host_gpu=True)
+    assert "profiles.gpu" in Path(out["default"]).read_text()
+
+
+def test_an_unknown_cuda_capability_is_refused(env, monkeypatch):
+    monkeypatch.setattr(render_config, "_host_nvidia_gpu", lambda: True)
+    with pytest.raises(ValueError, match="unknown CUDA capability"):
+        render_config.main(profiles=["gpu"], cuda_capabilities=["7.5"])
+
+
+def test_capabilities_are_ignored_without_the_gpu_profile(env):
+    out = render_config.main(profiles=["devel"], cuda_capabilities=["8.0"])
+    assert "cudaCapabilities" not in Path(out["default"]).read_text()
+
+
+@pytest.mark.parametrize(
+    ("path", "keys"),
+    [
+        ("f/nix/render_config.script.yaml", ["schema"]),
+        ("f/nix/build.flow/flow.yaml", ["schema", "properties", "closure"]),
+    ],
+)
+def test_the_cuda_picker_matches_the_capability_registry(path, keys):
+    node = yaml.safe_load((REPO / path).read_text())
+    for key in keys:
+        node = node[key]
+    items = node["properties"]["cuda_capabilities"]["items"]
+    caps = render_config._CUDA_CAPABILITIES
+    assert items["enum"] == list(caps)
+    assert items["multiselect"] == [
+        {"value": k, "label": f"{k}  {v}"} for k, v in caps.items()
+    ]

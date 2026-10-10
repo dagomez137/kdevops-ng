@@ -28,14 +28,16 @@ from pathlib import Path
 
 from f.common.devshell import system_dir, vendor_dir
 from f.common.gitrefs import qualify_ref
+from f.qsu import pci
 
 # Composable nixos-flake module attributes (see vendor/nixos-flake/flake.nix).
-_PROFILES = {"build-tools", "controller", "devel", "monitoring", "telemetry"}
+_PROFILES = {"build-tools", "controller", "devel", "gpu", "monitoring", "telemetry"}
 _TEST_SUITES = [
     "blktests",
     "fstests",
     "gitr",
     "kunit",
+    "kvcache",
     "ltp",
     "mmtests",
     "pynfs",
@@ -147,10 +149,24 @@ _TELEMETRY_COLLECTORS = [
     "interrupts",
 ]
 
+# CUDA compute capabilities the gpu profile compiles for, with the GPUs each one
+# is; nixpkgs builds every generation when none is picked, which is the slowest.
+_CUDA_CAPABILITIES = {
+    "8.0": "A100",
+    "8.6": "A10, A40, RTX 30",
+    "8.9": "L4, L40S, RTX 40",
+    "9.0": "H100, H200",
+    "10.0": "B200",
+    "12.0": "RTX 50",
+}
+_FEATURED_CUDA_CAPABILITIES = ["9.0"]
+
 # A fully-featured guest by default: every guest profile plus all test suites. Pare
-# these back per run for a lighter closure.
+# these back per run for a lighter closure. The gpu profile is unfree, rebuilds the
+# closure with CUDA and is of use only with a GPU passed through; kvcache brings an
+# inference stack several GB large that most guests never run. Neither is a default.
 _FEATURED_PROFILES = ["devel", "build-tools", "monitoring"]
-_FEATURED_TEST_SUITES = list(_TEST_SUITES)
+_FEATURED_TEST_SUITES = [t for t in _TEST_SUITES if t != "kvcache"]
 
 _VM_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 _PKG_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
@@ -180,6 +196,8 @@ def main(
     user_name: str = "kdevops",
     home: bool = False,
     home_dir: str = "",
+    cuda_capabilities: list[str] | None = None,
+    build_without_host_gpu: bool = False,
 ) -> dict:
     # A None/empty vm_name (e.g. an unset group passed through f/qsu/bringup, where flow
     # defaults are not materialized) falls back to the schema default instead of crashing.
@@ -227,6 +245,9 @@ def main(
     #  - blktests: auto whenever the closure runs the blktests suite.
     if "blktests" in test_suites:
         shares.setdefault("/var/lib/blktests", {"tag": "blktests"})
+    #  - kvcache: auto whenever the closure runs the kvcache suite.
+    if "kvcache" in test_suites:
+        shares.setdefault("/var/lib/kvcache", {"tag": "kvcache"})
     #  - home: the operator's host home (tag `home`, served once by qsu) mounted at
     #    /home/<operator> AND set as root's home (below), so `ssh <vm>` lands you straight
     #    in your home (writable via the root->operator virtiofsd uid-map, with no extra
@@ -244,6 +265,24 @@ def main(
             f"invalid vm_name {vm_name!r}: must match {_VM_NAME_RE.pattern}"
         )
     _reject_unknown("profile", profiles, _PROFILES)
+    cuda_capabilities = [
+        c
+        for c in (
+            cuda_capabilities
+            if cuda_capabilities is not None
+            else _FEATURED_CUDA_CAPABILITIES
+        )
+        if c
+    ]
+    _reject_unknown("CUDA capability", cuda_capabilities, set(_CUDA_CAPABILITIES))
+    # A CUDA closure takes hours to build and only runs on a GPU; refuse it on a
+    # host without one unless it is built here for a host that has one.
+    if "gpu" in profiles and not build_without_host_gpu and not _host_nvidia_gpu():
+        raise ValueError(
+            "the gpu profile needs an NVIDIA GPU on this host to pass through, and "
+            "none is in /sys/bus/pci; set build_without_host_gpu to build the "
+            "closure here anyway, for a host that has one to fetch"
+        )
     _reject_unknown("test_suite", test_suites, _TEST_SUITES)
     _reject_unknown(
         "telemetry collector", telemetry_collectors, set(_TELEMETRY_COLLECTORS)
@@ -321,6 +360,7 @@ def main(
         overrides,
         ssh_keys,
         home_dir if home else "",
+        cuda_capabilities if "gpu" in profiles else [],
     )
 
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -340,6 +380,13 @@ def _managed_pubkey() -> str | None:
     """The kdevops-managed VM public key, baked into every guest's authorizedKeys."""
     pub = system_dir() / "ssh/id_ed25519.pub"
     return pub.read_text().strip() if pub.is_file() else None
+
+
+def _host_nvidia_gpu() -> bool:
+    """Whether this host has an NVIDIA display controller or accelerator."""
+    return any(
+        d["vendor"] == 0x10DE and d["class"] >> 8 in (0x03, 0x12) for d in pci.devices()
+    )
 
 
 def _reject_unknown(kind: str, values: list[str], allowed: set[str]) -> None:
@@ -446,6 +493,7 @@ def _render_default(
     overrides: list[dict],
     ssh_keys: list[str],
     root_home: str = "",
+    cuda_capabilities: list[str] | None = None,
 ) -> str:
     imports = [f"nixos-flake.nixosModules.profiles.{p}" for p in profiles]
     imports += [f"nixos-flake.nixosModules.testSuites.{t}" for t in test_suites]
@@ -507,6 +555,9 @@ def _render_default(
                 out.append("  nixos-flake.telemetry.ebpf.enable = true;")
                 cfgs = " ".join(_nix_str(c) for c in telemetry_ebpf_configs)
                 out.append(f"  nixos-flake.telemetry.ebpf.configs = [ {cfgs} ];")
+        if prof == "gpu" and cuda_capabilities:
+            caps = " ".join(_nix_str(c) for c in cuda_capabilities)
+            out.append(f"  nixos-flake.gpu.cudaCapabilities = [ {caps} ];")
 
     if ssh_keys:
         keys = " ".join(_nix_str(k) for k in ssh_keys)
