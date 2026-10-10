@@ -50,6 +50,11 @@ After=windmill-db.service
 
 [Service]
 StateDirectory=windmill
+# The default weight, set so the cpu controller is on and concurrent builds
+# share the CPUs per worker rather than per thread. It comes on for the whole
+# user manager, so the guests' machine.slice and the login sessions get an
+# equal share beside all the workers together.
+CPUWeight=100
 Environment=MODE=worker
 Environment=NUM_WORKERS=1
 Environment=WORKER_GROUP=default
