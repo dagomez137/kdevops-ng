@@ -60,7 +60,6 @@ locks:
   f/qsu/qemu-system/render: 6c3f1e4c149fcb2d69c4270e1d806fc95fa4f7e43c797dd8f4afe1a814e8652c
   f/qsu/status: 29d9335c20aa77024e3f8d767a5310a035bfba9cf212f0d3c79fe4078b2cb592
   f/qsu/stop: b7fbbd8584efba39cd64cd224bb07a4c9b8d214ba6cc8e9fb4276948354aa45b
-  f/qsu/vfio/render: 0986612b34a3240df258ea0f25a4a22d02cca5a5d570eff66877ebd8f2bf7a49
   f/qsu/virtiofsd/render: eae9ef10d8b082298db0d12e67aeab52a2cc757deb7e1df26f684409b953a779
   f/workbench/fetch: 49619dbd37002dc7e549c6f7cf415011c1a470ac984e6c126e42b785709555e7
   f/workbench/init.flow+__flow_hash: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a

@@ -12,7 +12,6 @@ from f.qsu import common
 
 cloud_init = importlib.import_module("f.qsu.cloud-init.render")
 qemu_system = importlib.import_module("f.qsu.qemu-system.render")
-vfio = importlib.import_module("f.qsu.vfio.render")
 
 # A flag that stops anywhere along the chain below gives a guest that mounts a
 # tag nobody serves, and it drops to emergency mode on `tag not found`.
@@ -21,10 +20,6 @@ SUITE_SHARE_FLAGS = ("fstests", "selftests", "usertests", "blktests")
 
 def test_cloud_init_render_is_a_deferred_scaffold():
     assert cloud_init.main("demo") == {"deferred": True}
-
-
-def test_vfio_render_is_a_deferred_scaffold():
-    assert vfio.main("demo") == {"deferred": True}
 
 
 def test_list_iommu_falls_back_on_an_unresolvable_qemu():
