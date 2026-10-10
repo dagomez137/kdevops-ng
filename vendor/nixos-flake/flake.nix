@@ -71,6 +71,7 @@
           build-tools = ./modules/profiles/build-tools.nix;
           controller = ./modules/profiles/controller.nix;
           devel = ./modules/profiles/devel.nix;
+          gpu = ./modules/profiles/gpu.nix;
           monitoring = ./modules/profiles/monitoring.nix;
           telemetry = ./modules/profiles/telemetry.nix;
         };
@@ -134,7 +135,11 @@
       # evaluated) and takes the matching values from the overlaid pkgs.
       packages = forAllSystems (
         pkgs:
-        builtins.intersectAttrs (import ./pkgs { }) pkgs
+        # Unfree packages (the NVIDIA driver) stay out: they evaluate only
+        # under allowUnfree, which a system enables, not the flake.
+        nixpkgs.lib.filterAttrs (_: p: !(p.meta.unfree or false)) (
+          builtins.intersectAttrs (import ./pkgs { }) pkgs
+        )
         // {
           inherit (pkgs)
             qemu
@@ -376,6 +381,18 @@
         in
         {
           imageless = buildBackend self.nixosModules.backends.imageless;
+          # The gpu profile switches nixpkgs to its CUDA build, too large to
+          # build in a check; evaluating it still catches a wrong option or
+          # a failed assertion.
+          gpu = nixpkgs.legacyPackages.${system}.writeText "gpu-eval" (
+            builtins.unsafeDiscardStringContext
+              (buildBackend {
+                imports = [
+                  self.nixosModules.backends.imageless
+                  self.nixosModules.profiles.gpu
+                ];
+              }).drvPath
+          );
           libvirt = buildBackend self.nixosModules.backends.libvirt;
           # The controller profile composes on top of a disk-booted
           # backend; build it against libvirt so the check exercises
