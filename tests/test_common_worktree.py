@@ -4,6 +4,7 @@
 
 import ast
 import inspect
+import shutil
 import subprocess
 from pathlib import Path
 from typing import cast
@@ -37,6 +38,7 @@ class _GitLog:
 
     def __init__(self, answers=(), refuse=()):
         self.argv: list[tuple[str, ...]] = []
+        self.via: list[str] = []
         self._answers = tuple(answers)
         self._refuse = tuple(refuse)
 
@@ -45,15 +47,20 @@ class _GitLog:
 
     def run(self, *args, check=True):
         self.argv.append(args)
+        self.via.append("run")
         # Mirror `Git.run`, which defaults to check=True and so raises: a refused
         # argv issued through `run` must fail a test the way it would fail a flow.
-        if check and any(marker in args for marker in self._refuse):
+        refused = any(marker in args for marker in self._refuse)
+        if refused and check:
             raise subprocess.CalledProcessError(1, args)
+        if refused:
+            return 1
         self._lay(args)
         return 0
 
     def ok(self, *args):
         self.argv.append(args)
+        self.via.append("ok")
         allowed = not any(marker in args for marker in self._refuse)
         if allowed:
             self._lay(args)
@@ -61,20 +68,30 @@ class _GitLog:
 
     def capture(self, *args, check=True):
         self.argv.append(args)
+        self.via.append("capture")
+        if check and any(marker in args for marker in self._refuse):
+            raise subprocess.CalledProcessError(1, args)
         for markers, value in self._answers:
             if all(marker in args for marker in markers):
                 return value
         return ""
 
-    def issued(self, *markers):
-        """Every recorded argv carrying all of `markers`."""
-        return [a for a in self.argv if all(m in a for m in markers)]
+    def issued(self, *markers, via=None):
+        """Every recorded argv carrying all of `markers`, through `via` when given."""
+        return [
+            a
+            for a, v in zip(self.argv, self.via, strict=True)
+            if all(m in a for m in markers) and (via is None or v == via)
+        ]
 
     @staticmethod
     def _lay(args):
-        """`worktree add` makes the checkout dir, which the step then stats."""
+        """`worktree add` makes the checkout dir and `worktree remove` drops it,
+        which the step then stats."""
         if "worktree" in args and "add" in args:
             Path(args[-2]).mkdir(parents=True, exist_ok=True)
+        if "worktree" in args and "remove" in args:
+            shutil.rmtree(args[-1])
 
 
 def _resolves(ref, sha=TARGET, *, as_tag=True):
@@ -90,7 +107,7 @@ def _resolves(ref, sha=TARGET, *, as_tag=True):
 
 def _git(monkeypatch, *answers, refuse=()):
     """Install a recording git programmed with `answers` and hand it back."""
-    log = _GitLog([*answers, (("--get-all",), "*\n")], refuse)
+    log = _GitLog(list(answers), refuse)
     monkeypatch.setattr(worktree, "Git", log)
     return log
 
@@ -298,6 +315,7 @@ def test_a_foreign_path_is_declined_and_never_removed(
         ("CHERRY_PICK_HEAD", "cherry-pick"),
         ("REVERT_HEAD", "revert"),
         ("MERGE_HEAD", "merge"),
+        ("BISECT_LOG", "bisect"),
     ],
 )
 def test_an_in_progress_operation_is_declined_by_name(
@@ -520,6 +538,7 @@ def test_behind_the_target_detached_fast_forwards(bare, developer, monkeypatch):
         def capture(self, *args, check=True):
             if args[-1] == "HEAD" and "--symbolic-full-name" not in args:
                 self.argv.append(args)
+                self.via.append("capture")
                 return next(heads)
             return super().capture(*args, check=check)
 
@@ -616,6 +635,108 @@ def test_recreate_removes_only_a_worktree_of_this_bare(bare, developer, monkeypa
     assert git.issued("worktree", "add") == [
         ("-C", str(bare), "worktree", "add", "--detach", str(developer), TARGET)
     ]
+
+
+def test_recreate_refuses_a_tree_git_will_not_remove(bare, developer, monkeypatch):
+    _occupy(developer, bare / "worktrees/linux")
+    git = _git(
+        monkeypatch,
+        *_resolves("v6.9"),
+        (("--git-common-dir",), str(bare)),
+        (("rev-parse", "HEAD"), OTHER),
+        refuse=("remove",),
+    )
+    result = worktree.prepare_developer(
+        project="linux", ref="v6.9", recreate_worktree=True
+    )
+    assert (developer / ".keep").exists()
+    assert (
+        result["reason"] == f"git refused to remove {developer}; its message is above"
+    )
+    # Through `run`, whose stderr streams to the job log, not the silent `ok`.
+    assert git.issued("worktree", "remove", via="run") == [
+        ("-C", str(bare), "worktree", "remove", str(developer))
+    ]
+    assert git.issued("worktree", "add") == []
+    assert not git.issued("--force")
+
+
+def test_recreate_refuses_commits_no_ref_reaches(bare, developer, monkeypatch):
+    _occupy(developer, bare / "worktrees/linux")
+    git = _git(
+        monkeypatch,
+        *_resolves("v6.9"),
+        (("--git-common-dir",), str(bare)),
+        (("rev-parse", "HEAD"), OTHER),
+        (("rev-list", "--not"), OTHER),
+    )
+    result = worktree.prepare_developer(
+        project="linux", ref="v6.9", recreate_worktree=True
+    )
+    assert (developer / ".keep").exists()
+    assert "no branch, tag or remote reaches" in result["reason"]
+    assert git.issued("rev-list") == [
+        ("-C", str(bare), "rev-list", "--max-count=1", OTHER)
+        + ("--not", "--branches", "--tags", "--remotes")
+    ]
+    assert git.issued("worktree", "remove") == []
+
+
+def test_recreate_declines_an_operation_in_flight_first(bare, developer, monkeypatch):
+    gitdir = bare / "worktrees/linux"
+    _occupy(developer, gitdir)
+    (gitdir / "rebase-merge").mkdir()
+    git = _git(
+        monkeypatch,
+        *_resolves("v6.9"),
+        (("--git-common-dir",), str(bare)),
+        (("--git-dir",), str(gitdir)),
+        (("rev-parse", "HEAD"), TARGET),
+    )
+    result = worktree.prepare_developer(
+        project="linux", ref="v6.9", recreate_worktree=True
+    )
+    assert result["reason"] == f"an in-progress rebase holds {developer}"
+    assert (developer / ".keep").exists()
+    assert git.issued("rev-list") == []
+    assert git.issued("worktree", "remove") == []
+
+
+def test_recreate_declines_when_the_orphan_probe_fails(bare, developer, monkeypatch):
+    _occupy(developer, bare / "worktrees/linux")
+    git = _git(
+        monkeypatch,
+        *_resolves("v6.9"),
+        (("--git-common-dir",), str(bare)),
+        (("rev-parse", "HEAD"), OTHER),
+        refuse=("rev-list",),
+    )
+    result = worktree.prepare_developer(
+        project="linux", ref="v6.9", recreate_worktree=True
+    )
+    assert result["reason"].startswith("could not tell whether ")
+    assert (developer / ".keep").exists()
+    assert git.issued("worktree", "remove") == []
+
+
+def test_recreate_skips_the_orphan_probe_on_an_unborn_head(
+    bare, developer, monkeypatch
+):
+    _occupy(developer, bare / "worktrees/linux")
+    git = _git(
+        monkeypatch,
+        *_resolves("v6.9"),
+        (("--git-common-dir",), str(bare)),
+        (("rev-parse", "HEAD"), ""),
+    )
+    worktree.prepare_developer(project="linux", ref="v6.9", recreate_worktree=True)
+    # A bare `rev-parse HEAD` would echo the literal HEAD on an unborn branch.
+    assert git.issued("rev-parse", "--verify", "--quiet", "HEAD")
+    assert git.issued("rev-list") == []
+    assert git.issued("worktree", "remove") == [
+        ("-C", str(bare), "worktree", "remove", str(developer))
+    ]
+    assert not (developer / ".keep").exists()
 
 
 def test_recreate_leaves_a_foreign_path_alone(build_area, developer, monkeypatch):
@@ -761,10 +882,31 @@ def test_the_developer_path_cannot_override_gits_own_guards(verb):
     assert verb not in _literals(_reachable("prepare_developer"))
 
 
+def test_the_developer_path_never_calls_rmtree():
+    """An attribute, not a literal, so the literal scans above would miss it."""
+    bodies = _module_functions()
+    attrs = {
+        node.attr
+        for name in _reachable("prepare_developer")
+        for node in ast.walk(bodies[name])
+        if isinstance(node, ast.Attribute)
+    }
+    assert "rmtree" not in attrs
+
+
 def test_the_developer_paths_vocabulary_is_what_it_claims():
     """The positive half, so the scans above cannot pass by reaching nothing."""
     literals = _literals(_reachable("prepare_developer"))
-    assert {"worktree", "add", "checkout", "merge", "--ff-only", "am"} <= literals
+    assert {
+        "worktree",
+        "add",
+        "checkout",
+        "merge",
+        "--ff-only",
+        "am",
+        "remove",
+        "rev-list",
+    } <= literals
 
 
 def test_the_worker_path_keeps_its_forcing_verbs():

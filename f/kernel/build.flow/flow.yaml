@@ -1810,9 +1810,12 @@ schema:
         recreate_developer_worktree:
           type: boolean
           description: |-
-            Re-cut the developer group worktree (rm the existing checkout first)
-            instead of reusing it. This hits only the developer worktree and
-            never the worker build site.
+            Re-cut the developer group worktree instead of reusing it, through
+            `git worktree remove`, which refuses a tree holding a modified,
+            staged or untracked file; commits no branch, tag or remote reaches
+            refuse it too, and ignored files such as `.config` and build output
+            go with the tree. This hits only the developer worktree and never
+            the worker build site.
           default: false
           showExpr: fields.deploy_developer_worktree === true
           title: Recreate Developer Worktree

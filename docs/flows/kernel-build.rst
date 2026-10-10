@@ -173,8 +173,9 @@ Worktree
    :doc:`qemu-build`.
 
    The tail never discards work and never fails the build. Its whole vocabulary
-   is ``git worktree add``, a plain ``git checkout`` of a branch, and
-   ``git merge --ff-only``: no forcing verb, so every command git itself refuses
+   is :cmd:`git worktree` ``add``, a plain ``git checkout`` of a branch,
+   ``git merge --ff-only`` and, behind the recreate knob, ``git worktree
+   remove``: no forcing verb, so every command git itself refuses
    rather than clobbers. It decides by what it finds:
 
    .. list-table::
@@ -192,7 +193,8 @@ Worktree
         - fast-forwarded, which can neither rewind nor orphan a commit
       * - on a branch, not at the built commit
         - left alone. A developer's branch ref is never moved, not even forward
-      * - mid-rebase, mid-``am``, or not a worktree of this Bare
+      * - mid-rebase, mid-``am``, mid-bisect, or not a worktree of this
+          Bare
         - left alone
 
    Where it leaves the tree alone it prints the one specific reason and reports
@@ -204,8 +206,13 @@ Worktree
 
 ``recreate_developer_worktree``
    Re-cut the developer group worktree instead of reusing it. It removes only a
-   worktree of this Bare: a path that is something else is reported and never
-   removed, whatever this is set to.
+   worktree of this Bare, and only through ``git worktree remove`` without
+   ``--force``, so git refuses a tree holding a modified, staged or untracked
+   file and its message lands in the job log; a detached tree with commits no
+   branch, tag or remote reaches is refused before that, and a rebase, merge or
+   bisect in flight declines first. Ignored files, such as ``.config`` and
+   build output, go with the tree. Any refusal is reported and the tree is left
+   as it was, as is a path that is not a worktree of this Bare.
 
 Configuration
 -------------

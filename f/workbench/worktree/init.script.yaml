@@ -43,8 +43,8 @@ schema:
           b4_series:
             type: string
             description: |-
-              Optional lore series (message-id/URL) to apply on top via `b4
-              shazam`.
+              Optional lore series (message-id/URL) to apply on top with `b4
+              am` and `git am`.
             default: ''
           git_ref:
             type: string
@@ -61,8 +61,12 @@ schema:
     recreate_worktree:
       type: boolean
       description: |-
-        Lay a fresh detached checkout per project (rm the existing worktree
-        first) instead of reusing it. Default off keeps existing trees.
+        Lay a fresh checkout per project (on the branch that fits, else
+        detached) instead of reusing it,
+        through `git worktree remove`, which refuses a tree holding a
+        modified, staged or untracked file or commits no branch, tag or
+        remote reaches; ignored files go with the tree. Default off keeps
+        existing trees.
       default: false
       title: Recreate Worktree
     worktree_group:

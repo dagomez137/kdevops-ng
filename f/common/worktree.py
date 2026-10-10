@@ -26,8 +26,9 @@ lives in the Store, not `destdir`.
 Workbench; default group `vanilla`; `system` and `workers` are reserved). That is the
 tree a developer edits in, so it never discards work. Its whole command vocabulary is
 `worktree add` (no `--force`), `checkout <branch>` (no `--force`, no `-B`, no
-`--ignore-other-worktrees`), `merge --ff-only`, and the b4 `git am`; it issues no
-`--force`, `reset`, `clean`, `stash`, `--discard-changes` or `*-abort` anywhere, so
+`--ignore-other-worktrees`), `merge --ff-only`, the b4 `git am`, and for a
+recreate `worktree remove` (no `--force`, once no commit would be orphaned); it
+issues no `--force`, `reset`, `clean`, `stash`, `--discard-changes` or `*-abort`, so
 nothing it can run reverts a tracked edit or drops a staged one. When it cannot reach
 the target without destroying something it prints the one specific reason, leaves the
 tree exactly as it found it, and returns `synced: False` rather than raising: it runs as
@@ -51,9 +52,13 @@ Equivalent host bash for the worker (PATH includes /nix/var/nix/profiles/default
 and for the developer, whose every command declines rather than clobbers:
 
     git -C "$BARE" fetch --tags --prune mirror
+    git -C "$BARE" worktree prune
     # B is refs/heads/<ref> when its tip is TARGET and no other worktree holds it
     git -C "$BARE" for-each-ref \\
         --format='%(refname)|%(objectname)|%(worktreepath)' "refs/heads/$ref"
+    # recreate: refuse a HEAD no ref reaches, then let git refuse a dirty tree
+    git -C "$BARE" rev-list --max-count=1 "$HEAD" --not --branches --tags --remotes
+    git -C "$BARE" worktree remove "$WT"
     git -C "$BARE" worktree add "$WT" "$B"          # absent, with a branch to attach
     git -C "$BARE" worktree add --detach "$WT" "$TARGET"    # absent, without one
     git -C "$WT" checkout "$B"                      # at TARGET but detached: re-attach
@@ -64,7 +69,7 @@ and, for either, the optional series, in the devShell with cwd=$WT:
     b4 -c b4.midmask=https://lore.kernel.org/all/%s am --outdir "$tmp" "$b4_series"
     # the committer identity is passed per-invocation: a `git config` in a linked
     # worktree writes the Bare's shared config, which every worktree of it inherits
-    git -c user.name=kdevops -c user.email=kdevops@kdevops -C "$WT" am "$tmp"/*.mbx
+    git -c user.name=kdevops -c user.email=kdevops@kdevops -C "$WT" am "$tmp"/*.mbx  # b4 am writes one
     git -C "$WT" update-ref "refs/heads/b4/$slug" HEAD     # publish the series to the Bare
     git -C "$WT" rev-parse HEAD
 """
@@ -74,6 +79,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -316,10 +322,13 @@ def _sync(
     if _occupied(worktree):
         if not _is_worktree_of(git, worktree, bare):
             return f"{worktree} is not a worktree of {bare}", _head(git, worktree)
+        operation = _in_progress(_gitdir(git, worktree))
+        if operation:
+            return f"an in-progress {operation} holds {worktree}", _head(git, worktree)
         if recreate_worktree:
-            print(f"removing {worktree}: recreate_worktree", flush=True)
-            shutil.rmtree(worktree, ignore_errors=True)
-            git.ok("-C", str(bare), "worktree", "prune")
+            reason = _remove_worktree(git, bare, worktree)
+            if reason:
+                return reason, _head(git, worktree)
 
     if not _occupied(worktree):
         branch = _attachable_branch(git, bare, ref, target)
@@ -329,10 +338,6 @@ def _sync(
         if not git.ok("-C", str(bare), "worktree", "add", *argv):
             return f"could not add {worktree} at {branch or _short(target)}", None
         return None, _head(git, worktree)
-
-    operation = _in_progress(_gitdir(git, worktree))
-    if operation:
-        return f"an in-progress {operation} holds {worktree}", _head(git, worktree)
 
     head = _head(git, worktree)
     attached = _attached_branch(git, worktree)
@@ -371,6 +376,40 @@ def _sync(
     if not git.ok("-C", str(worktree), "checkout", branch):
         print(f"{worktree}: left detached, could not attach {branch}", flush=True)
     return None, head
+
+
+def _remove_worktree(git: Git, bare: Path, worktree: Path) -> str | None:
+    """Remove a developer worktree through git, or say why it was left alone.
+
+    A HEAD no branch, tag or remote reaches is refused first, since `worktree remove`
+    would orphan those commits without a word. Then git decides, without `--force`:
+    a modified, staged or untracked file refuses it and git's own message lands in
+    the log; ignored files go with the tree.
+    """
+    head = _head(git, worktree)
+    if head:
+        try:
+            orphaned = git.capture(
+                "-C",
+                str(bare),
+                "rev-list",
+                "--max-count=1",
+                head,
+                "--not",
+                "--branches",
+                "--tags",
+                "--remotes",
+            ).strip()
+        except subprocess.CalledProcessError:
+            return f"could not tell whether {worktree} holds commits no ref reaches"
+        if orphaned:
+            return (
+                f"{worktree} holds commits no branch, tag or remote reaches; "
+                "recreating it would lose them"
+            )
+    if git.run("-C", str(bare), "worktree", "remove", str(worktree), check=False) != 0:
+        return f"git refused to remove {worktree}; its message is above"
+    return None
 
 
 def _occupied(worktree: Path) -> bool:
@@ -440,7 +479,9 @@ def _attached_branch(git: Git, worktree: Path) -> str:
 def _head(git: Git, worktree: Path) -> str | None:
     """The worktree's own HEAD commit, or None when nothing readable sits there."""
     return (
-        git.capture("-C", str(worktree), "rev-parse", "HEAD", check=False).strip()
+        git.capture(
+            "-C", str(worktree), "rev-parse", "--verify", "--quiet", "HEAD", check=False
+        ).strip()
         or None
     )
 
@@ -497,6 +538,7 @@ def _in_progress(gitdir: Path | None) -> str | None:
         ("CHERRY_PICK_HEAD", "cherry-pick"),
         ("REVERT_HEAD", "revert"),
         ("MERGE_HEAD", "merge"),
+        ("BISECT_LOG", "bisect"),
     ):
         if (gitdir / marker).exists():
             return name

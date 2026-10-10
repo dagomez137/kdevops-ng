@@ -346,8 +346,11 @@ props["worktree"] = {
         "recreate_developer_worktree": {
             "type": "boolean",
             "description": (
-                "Re-cut the developer group worktrees (rm the existing "
-                "checkout first) instead of reusing them. This hits only "
+                "Re-cut the developer group worktrees instead of reusing them, "
+                "through `git worktree remove`, which refuses a tree holding a "
+                "modified, staged or untracked file; commits no branch, tag or "
+                "remote reaches refuse it too, and ignored files such as "
+                "`.config` and build output go with the tree. This hits only "
                 "the developer worktrees and never the workers."
             ),
             "default": False,
