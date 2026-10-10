@@ -47,6 +47,8 @@
           ./scripts/check-prose.py
           # The render_config drift guard reads the vendored closure templates.
           ./vendor/nixos-flake/templates
+          # The kvcache tests read the vendored replayer.
+          ./vendor/nixos-flake/pkgs/kvcache-bench
         ];
       };
       nixSrc = lib.fileset.toSource {
