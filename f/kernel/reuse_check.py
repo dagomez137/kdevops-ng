@@ -21,6 +21,13 @@ indexing worktrees forever with no Rust half; every kernel build writes a `.conf
 whether or not `CONFIG_RUST` is set, so the probe cannot misfire on a kernel built
 without Rust.
 
+With `nvidia`, the run layer counts as present only when it holds the NVIDIA open
+GPU modules at the release the closure's driver is (see f/kernel/nvidia): an identity
+built without them, or with another release, is rebuilt rather than booted with a
+driver its modules refuse. Given `build_dir`, an identity about to be rebuilt for them
+is first checked against `make_flags` and the configured `.config`, so a kernel that
+cannot carry the modules is refused here and not after the compile.
+
 Returns `present` plus the resolved `bzImage`/`boot`/`modules` (under the destdir for a
 local install, else under the store path) so the manifest can fall back to them when the
 build steps are skipped. `destdir` is always the original install root.
@@ -28,12 +35,20 @@ build steps are skipped. `destdir` is always the original install root.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from f.common import run_layer, store
+from f.kernel import nvidia as nvidia_modules
 
 
-def main(destdir: str, uts_release: str) -> dict:
+def main(
+    destdir: str,
+    uts_release: str,
+    nvidia: bool = False,
+    build_dir: str = "",
+    make_flags: str = "",
+) -> dict:
     root = destdir
     image, has_modules = run_layer.kernel_run_layer(destdir, uts_release)
     if not (image and has_modules):
@@ -43,6 +58,20 @@ def main(destdir: str, uts_release: str) -> dict:
             if sp_image and sp_modules:
                 root, image, has_modules = sp, sp_image, sp_modules
     present = bool(image and has_modules)
+    nvidia_version = None
+    if nvidia and present:
+        workers = Path(os.environ["WORKERS_DIR"])
+        _, want = nvidia_modules.source(workers)
+        nvidia_version = nvidia_modules.installed_version(root, uts_release, workers)
+        if nvidia_version != want:
+            print(
+                f"identity {uts_release} holds NVIDIA {nvidia_version}, "
+                f"needs {want}: rebuilding",
+                flush=True,
+            )
+            present = False
+    if nvidia and not present and build_dir:
+        nvidia_modules.refuse_unsupported(build_dir, make_flags)
     devel = store.local_path(f"kernel-devel-{uts_release}")
     devel_present = devel is not None and Path(devel, ".config").is_file()
     boot = Path(root) / "boot"
@@ -52,7 +81,7 @@ def main(destdir: str, uts_release: str) -> dict:
         f"modules={Path(root) / 'lib/modules' / uts_release if has_modules else None}",
         flush=True,
     )
-    return {
+    out = {
         "present": present,
         "devel_present": devel_present,
         "uts_release": uts_release,
@@ -61,3 +90,6 @@ def main(destdir: str, uts_release: str) -> dict:
         "modules": str(Path(root) / "lib/modules") if has_modules else None,
         "destdir": destdir,
     }
+    if nvidia:
+        out["nvidia_version"] = nvidia_version
+    return out

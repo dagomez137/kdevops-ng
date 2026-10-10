@@ -1,0 +1,14 @@
+summary: NVIDIA open GPU module source and install probe
+description: |-
+  Library module imported by `build_nvidia` and `reuse_check` (`from
+  f.kernel import nvidia`), not a runnable step. Resolves the module source
+  from the vendored nixos-flake, at the driver release its `gpu` profile
+  ships, and reports which release a run layer holds.
+lock: '!inline f/kernel/nvidia.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

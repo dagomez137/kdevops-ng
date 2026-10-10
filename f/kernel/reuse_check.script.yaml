@@ -9,6 +9,11 @@ description: |-
   resolved `bzImage`/`boot`/`modules` and `destdir`, which the manifest falls
   back to when the build steps are skipped. Wipe the destdir, or set `reuse`
   off, to force a rebuild.
+
+  With `nvidia`, an identity counts as present only when it already holds
+  the NVIDIA open GPU modules at the closure's driver release, and one about
+  to be rebuilt for them is refused here, before the compile, when
+  `make_flags` or the `.config` in `build_dir` cannot carry them.
 lock: '!inline f/kernel/reuse_check.script.lock'
 kind: script
 schema:
@@ -17,13 +22,34 @@ schema:
   order:
     - destdir
     - uts_release
+    - nvidia
+    - build_dir
+    - make_flags
   properties:
+    build_dir:
+      type: string
+      description: |-
+        Out-of-tree kernel build directory holding the configured `.config`
+        (from prepare_worktree); checked only with `nvidia`.
+      default: ''
     destdir:
       type: string
       description: Install root to probe (the slot `destdir`).
+    make_flags:
+      type: string
+      description: |-
+        The kernel build's make flags (from build_flags); checked only with
+        `nvidia`, for a GCC toolchain.
+      default: ''
     uts_release:
       type: string
       description: The build identity (baked kernelrelease) to look for.
+    nvidia:
+      type: boolean
+      description: |-
+        Require the NVIDIA open GPU modules at the closure's driver release.
+      default: false
+      title: NVIDIA
   required:
     - destdir
     - uts_release

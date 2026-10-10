@@ -1,0 +1,46 @@
+summary: Build the NVIDIA open GPU kernel modules
+description: |-
+  Build NVIDIA's open GPU kernel modules against this kernel's source and build
+  trees, with the kernel's own compiler, and `make modules_install` them into
+  the destdir under `lib/modules/<release>/kernel/drivers/video`, so the
+  published run layer carries them. The source is the release the closure's
+  `gpu` profile ships the driver userspace of; nvidia.ko accepts no other.
+
+  Needs `CONFIG_MODULES` and `CONFIG_DMA_SHARED_BUFFER` in the kernel's
+  `.config`. The flow skips it on reuse. Returns the `version` and the installed
+  `modules`.
+lock: '!inline f/kernel/build_nvidia.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - worktree
+    - build_dir
+    - destdir
+    - uts_release
+    - make_flags
+  properties:
+    build_dir:
+      type: string
+      description: Out-of-tree kernel build directory (from prepare_worktree).
+    destdir:
+      type: string
+      description: Install root; the modules land in `lib/modules/<release>`.
+    make_flags:
+      type: string
+      description: |-
+        The kernel build's make flags (from build_flags); only its toolchain
+        variables are passed on.
+      default: ''
+    uts_release:
+      type: string
+      description: The build identity (baked kernelrelease).
+    worktree:
+      type: string
+      description: Kernel source worktree (from prepare_worktree).
+  required:
+    - worktree
+    - build_dir
+    - destdir
+    - uts_release

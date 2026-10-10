@@ -14,8 +14,9 @@ description: |-
   **Reuse**: `fetch_identity` (peer) and `reuse_check` (local) skip compile,
   install and publish when this identity already exists.
 
-  **Build**: `compile`, the optional `devtools`, then `install` and
-  `install_modules`.
+  **Build**: `compile`, the optional `devtools`, then `install`,
+  `install_modules` and the optional `build_nvidia`, which adds NVIDIA's open
+  GPU modules to the installed modules.
 
   **Publish**: `publish` and `publish_devel` push the run and devel layers to
   the Nix store; `deploy_worktree` and `fetch_devel` lay a developer worktree on
@@ -233,9 +234,18 @@ value:
       value:
         type: script
         input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
           destdir:
             type: javascript
             expr: results.prepare_worktree.destdir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          nvidia:
+            type: javascript
+            expr: flow_input.installation?.nvidia_modules === true
           uts_release:
             type: javascript
             expr: results.configure.kernelrelease
@@ -360,6 +370,35 @@ value:
       timeout:
         type: static
         value: 1800
+    - id: build_nvidia
+      summary: build the NVIDIA open GPU modules (optional)
+      value:
+        type: script
+        input_transforms:
+          build_dir:
+            type: javascript
+            expr: results.prepare_worktree.build_dir
+          destdir:
+            type: javascript
+            expr: results.prepare_worktree.destdir
+          make_flags:
+            type: javascript
+            expr: results.build_flags.make_flags
+          uts_release:
+            type: javascript
+            expr: results.configure.kernelrelease
+          worktree:
+            type: javascript
+            expr: results.prepare_worktree.worktree
+        path: f/kernel/build_nvidia
+      skip_if:
+        expr: flow_input.installation?.nvidia_modules !== true ||
+          flow_input.installation?.modules_install === false ||
+          (results.reuse_check?.present === true &&
+          flow_input.reuse?.reuse !== false)
+      timeout:
+        type: static
+        value: 3600
     - id: build_selftests
       summary: make kselftest-install (optional)
       value:
@@ -1532,6 +1571,7 @@ schema:
         - install
         - modules_install
         - source_symlink
+        - nvidia_modules
       properties:
         install:
           type: boolean
@@ -1551,6 +1591,14 @@ schema:
             Add the canonical /lib/modules/<release>/source symlink after
             modules_install.
           default: true
+        nvidia_modules:
+          type: boolean
+          description: |-
+            Build NVIDIA's open GPU kernel modules against this kernel and
+            install them with its modules, at the driver release the closure's
+            `gpu` profile ships, for a guest with an NVIDIA GPU passed through.
+          default: false
+          title: NVIDIA GPU modules
       title: Install
     reuse:
       type: object

@@ -692,6 +692,7 @@ schema:
           - install
           - modules_install
           - source_symlink
+          - nvidia_modules
           properties:
             install:
               type: boolean
@@ -711,6 +712,15 @@ schema:
 
                 modules_install.'
               default: true
+            nvidia_modules:
+              type: boolean
+              description: 'Build NVIDIA''s open GPU kernel modules against this kernel and
+
+                install them with its modules, at the driver release the closure''s
+
+                `gpu` profile ships, for a guest with an NVIDIA GPU passed through.'
+              default: false
+              title: NVIDIA GPU modules
           title: Install
           showExpr: fields.mode === "build"
         selftests:

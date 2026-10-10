@@ -25,7 +25,7 @@ and sees the previous step's files:
 
    prepare_worktree -> build_flags -> configure -> fetch_identity ->
    reuse_check -> compile -> devtools -> install -> install_modules ->
-   publish -> publish_devel -> deploy_worktree -> fetch_devel ->
+   build_nvidia -> publish -> publish_devel -> deploy_worktree -> fetch_devel ->
    [checks] -> collect
 
 .. list-table::
@@ -70,6 +70,11 @@ and sees the previous step's files:
    * - ``install_modules``
      - ``make modules_install`` into ``destdir/`` plus the canonical
        ``source`` symlink; only when ``modules_install`` is set, skipped on
+       reuse.
+     - ``.#build``
+   * - ``build_nvidia``
+     - Build NVIDIA's open GPU kernel modules against this kernel and install
+       them with its modules; only when ``nvidia_modules`` is set, skipped on
        reuse.
      - ``.#build``
    * - ``publish``
@@ -307,6 +312,18 @@ Installation
 ``source_symlink``
    Add the canonical ``/lib/modules/<release>/source`` symlink after
    ``modules_install``.
+
+``nvidia_modules``
+   Build NVIDIA's `open GPU kernel modules`_ against this kernel and install
+   them under ``/lib/modules/<release>/kernel/drivers/video``, so a guest with
+   an NVIDIA GPU passed through loads the driver from the same modules share
+   (off by default). The release matches the driver userspace the closure's
+   ``gpu`` profile ships, since ``nvidia.ko`` refuses any other; a reused
+   identity without the modules, or with another release, is rebuilt. Only a
+   kernel built with GCC is supported, and its ``.config`` must set
+   ``CONFIG_MODULES`` and ``CONFIG_DMA_SHARED_BUFFER``; the
+   ``imageless_defconfig`` preset and the ``virt/gpu-passthrough`` fragment
+   both do. ``reuse_check`` refuses any other kernel before the compile.
 
 Checks
 ------
@@ -661,3 +678,4 @@ up with the running kernel. For inspecting a running guest see
 .. _Sphinx: https://www.sphinx-doc.org/
 .. _Clippy: https://doc.rust-lang.org/clippy/
 .. _OCaml: https://ocaml.org/
+.. _open GPU kernel modules: https://github.com/NVIDIA/open-gpu-kernel-modules
