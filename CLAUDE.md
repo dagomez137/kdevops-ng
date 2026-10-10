@@ -221,8 +221,8 @@ All commits must follow these six rules.
    `git config user.name` and `git config user.email`, then add a
    `Signed-off-by` trailer.
 
-4. Mark AI-assisted work with an `Assisted-by: LLM` trailer placed immediately
-   before `Signed-off-by`, with no blank line between them:
+4. Mark AI-assisted work with an `Assisted-by: LLM` trailer ahead of the
+   `Signed-off-by` that closes the message, as the kernel places it:
 
    ```
    subsystem: summarise the change in the imperative mood
@@ -233,15 +233,32 @@ All commits must follow these six rules.
    Signed-off-by: User Name <user.name@domain.org>
    ```
 
+   Credit other contributors as the kernel's
+   Documentation/process/submitting-patches.rst does ("When to use Acked-by:,
+   Cc:, and Co-developed-by:"). The commit author is the primary author. A
+   co-author gets a `Co-developed-by` immediately followed by their own
+   `Signed-off-by`, which only they can give; the sign-offs run in the order
+   the change passed through hands, so the last is always the committer's.
+   Someone who wrote none of it but approves it gets an `Acked-by` or
+   `Reviewed-by`, again only with their permission:
+
+   ```
+   Co-developed-by: Co Author <co.author@domain.org>
+   Signed-off-by: Co Author <co.author@domain.org>
+   Assisted-by: LLM
+   Signed-off-by: User Name <user.name@domain.org>
+   ```
+
    This is the kernel's own tag, adopted here for the same reason rule 2
    takes the kernel's subject limit: a contributor moving between this
    repository and the kernel should not have to keep two conventions in
    mind. The tag arrived in v7.0-rc1 with commit 78d979db6cef ("docs: add
    AI Coding Assistants documentation"), which added
-   Documentation/process/coding-assistants.rst and defines the format as
-   `Assisted-by: LLM [TOOL1] [TOOL2]`; 6252e5c1c20e ("docs: add an
-   Assisted-by mention to submitting-patches.rst") then made the
-   acknowledgment a submission requirement. The optional tool names are for
+   Documentation/process/coding-assistants.rst; 6252e5c1c20e ("docs: add an
+   Assisted-by mention to submitting-patches.rst", v7.1-rc1) made the
+   acknowledgment a submission requirement, and 816d9992d9ed
+   ("coding-assistants: simplify attribution", v7.3-rc1) set the format to
+   `Assisted-by: LLM [TOOL1] [TOOL2]`. The optional tool names are for
    specialized analysis tools actually run (coccinelle, sparse, smatch,
    clang-tidy); basic tools such as git, gcc, make and editors are never
    listed, so the bare `Assisted-by: LLM` is the usual form. Earlier
@@ -257,4 +274,6 @@ All commits must follow these six rules.
    generated-file drift, fixture tests, tree formatting) and
    `nix develop .#checks --command bash scripts/check-style.sh` (trailing
    whitespace, missing end-of-file newlines, and commit-message trailer
-   formatting). See `docs/contributing/development.rst`.
+   formatting). See `docs/contributing/development.rst`. The trailer check
+   reads HEAD; linked as the repository's commit-msg hook, `scripts/commit-msg`
+   runs it on the message before the commit lands.

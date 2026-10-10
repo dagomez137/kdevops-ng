@@ -77,6 +77,24 @@ so they cannot be a sandboxed flake check; run them from the checks shell:
 Before committing (commit rule 6), run both: ``nix flake check`` and the
 ``check-style.sh`` pass above.
 
+The trailer check reads ``HEAD``, so run afterwards it can only report a
+commit already made. Linked as the repository's commit-msg hook,
+``scripts/commit-msg`` runs the same check on the message before the commit
+lands. A hook is a file of yours, so link it once by hand, from anywhere in
+the checkout:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ ln --symbolic --relative \
+       "$(git rev-parse --show-toplevel)/scripts/commit-msg" \
+       "$(git rev-parse --git-path hooks)/commit-msg"
+
+Under a global ``core.hooksPath`` that directory serves every repository, so
+link per repository only. A merge's default message and a ``--fixup`` commit
+carry no sign-off; pass ``--signoff``, or ``--no-verify`` for a commit the
+rebase will fold away.
+
 Formatting
 ==========
 

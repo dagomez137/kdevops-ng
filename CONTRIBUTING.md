@@ -26,7 +26,7 @@ emailed patches to the mailing list, reviewed in the open, and carried with
    75 characters, the body wrapped at 75, one logical change per commit, and the
    `Signed-off-by` trailer your `-s` adds (this is your DCO certification, see
    `DCO`). AI-assisted work also carries the kernel's `Assisted-by: LLM`
-   immediately above the `Signed-off-by`.
+   ahead of the closing `Signed-off-by`.
 4. Find who to Cc:
 
    ```
