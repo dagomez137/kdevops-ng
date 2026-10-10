@@ -134,6 +134,7 @@ schema:
           - builtin/storage/srp-target.config
           - builtin/storage/ublk.config
           - builtin/test/kunit.config
+          - builtin/virt/gpu-passthrough.config
           - builtin/virt/kvm.config
           - builtin/virt/virtio-fs.config
           - builtin/virt/virtio-net.config
@@ -228,6 +229,7 @@ schema:
           - test/xarray-benchmark-rust.config
           - test/xarray.config
           - test/xarray-no-multi.config
+          - virt/gpu-passthrough.config
           - virt/kvm.config
           - virt/virtio-extras.config
           - virt/virtio-fs.config
