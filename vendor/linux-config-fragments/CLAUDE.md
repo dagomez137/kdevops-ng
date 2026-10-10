@@ -55,11 +55,15 @@ All commits must follow these rules.
 3. Wrap the commit body at 75 columns.
 4. Sign off with the git-configured identity (`git commit -s`, a
    `Signed-off-by` trailer). This certifies the [DCO](DCO).
-5. Mark AI-assisted work with an `Assisted-by: LLM` trailer placed immediately
-   before `Signed-off-by`, with no blank line between them. This is the
+5. Mark AI-assisted work with an `Assisted-by: LLM` trailer ahead of the
+   `Signed-off-by` that closes the message. A co-author gets a
+   `Co-developed-by` immediately followed by their own `Signed-off-by`, as
+   the kernel's `Documentation/process/submitting-patches.rst` requires, and
+   the last `Signed-off-by` is always the committer's. `Assisted-by` is the
    kernel's own tag, from `Documentation/process/coding-assistants.rst`
-   (added by 78d979db6cef, v7.0-rc1, and required by 6252e5c1c20e). Its full
-   form is `Assisted-by: LLM [TOOL1] [TOOL2]`, where the optional names are
+   (added by 78d979db6cef, v7.0-rc1, required by 6252e5c1c20e, v7.1-rc1, and
+   given its form by 816d9992d9ed, v7.3-rc1). Its full form is
+   `Assisted-by: LLM [TOOL1] [TOOL2]`, where the optional names are
    specialized analysis tools actually run (coccinelle, sparse, smatch,
    clang-tidy) and never basic ones such as git, gcc, make or an editor, so
    the bare tag is the usual form. Commits predating this carry
