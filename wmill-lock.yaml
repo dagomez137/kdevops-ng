@@ -55,7 +55,6 @@ locks:
   f/qsu/cloud-init/render: 91de19042024095a4e0b64dbf95bdd35d66a464729b33bbad151b57264d1d61b
   f/qsu/common: 37daafa1831784fa4fec19c51446db946253c1496f73f86cf468bd1affbb8537
   f/qsu/destroy: c646acedf93f496ac1e6de1aa14b3075a7c9cb790756f25135a1616a6de6cd78
-  f/qsu/discover: 6ad17f333eee4beb1aa55680471570751ea5ff5d81f484dfb120b0eb46be5369
   f/qsu/nvme/create: b19b53fdfc47fde4947f3b2e7eef3ce4efd145fd883d33a30381adb377d9105a
   f/qsu/qemu-system/render: 6c3f1e4c149fcb2d69c4270e1d806fc95fa4f7e43c797dd8f4afe1a814e8652c
   f/qsu/status: 29d9335c20aa77024e3f8d767a5310a035bfba9cf212f0d3c79fe4078b2cb592
