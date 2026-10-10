@@ -112,19 +112,23 @@ The subject line stays at or below 50 characters.
 
 ### Use Signed-off-by and Assisted-by tags
 
-Assisted-by MUST be immediately followed by Signed-off-by with NO
-empty lines between them. No Co-Authored-By trailer.
+Assisted-by goes ahead of the Signed-off-by that closes the message.
+A co-author gets a Co-developed-by immediately followed by their own
+Signed-off-by, as the kernel's Documentation/process/submitting-patches.rst
+requires, and the last Signed-off-by is always the committer's. No
+Co-Authored-By trailer.
 
 Assisted-by is the Linux kernel's tag for AI-assisted work, defined in
 Documentation/process/coding-assistants.rst by commit 78d979db6cef
-("docs: add AI Coding Assistants documentation", v7.0-rc1) and made a
+("docs: add AI Coding Assistants documentation", v7.0-rc1), made a
 submission requirement by 6252e5c1c20e ("docs: add an Assisted-by
-mention to submitting-patches.rst"). The full form is
+mention to submitting-patches.rst", v7.1-rc1) and given its form by
+816d9992d9ed ("coding-assistants: simplify attribution", v7.3-rc1):
 `Assisted-by: LLM [TOOL1] [TOOL2]`, where the optional names are
 specialized analysis tools actually run (coccinelle, sparse, smatch,
-clang-tidy) and never basic ones such as git, gcc, make or an editor,
-so the bare tag is the usual form. Commits predating this carry
-Generated-by: Claude AI; leave them alone.
+clang-tidy) and never basic ones such as git, gcc, make or an editor, so
+the bare tag is the usual form. Commits predating this carry Generated-
+by: Claude AI; leave them alone.
 
 ### No shopping cart lists
 
