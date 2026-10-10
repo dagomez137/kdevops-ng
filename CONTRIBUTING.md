@@ -11,8 +11,9 @@ emailed patches to the mailing list, reviewed in the open, and carried with
 
 ## One-time setup
 
-- Install `b4` (`pipx install b4`, your distro's package, or run it from a
-  checkout of <https://git.kernel.org/pub/scm/utils/b4/b4.git>).
+- Run `b4` from the pinned `build-kernel` devShell of `vendor/nixos-flake`,
+  which carries it (`nix develop ./vendor/nixos-flake#build-kernel --command
+  b4 ...`); nothing is installed on the host.
 - Configure `git send-email` with an identity that can send to the list. The
   per-project `.b4-config` already points `b4` at the kdevops list and lore.
 
