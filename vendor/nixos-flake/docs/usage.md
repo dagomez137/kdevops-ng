@@ -315,6 +315,29 @@ The `xfstests-src` input is a local source checkout declared as
 a flake input with `flake = false` (see the template for
 commented-out examples).
 
+### Overriding a package from nixos-unstable
+
+Packages whose usable version has not reached the release channel come
+from `pkgsUnstable`, a second package set imported from the
+`nixpkgs-unstable` input under the same nixpkgs config. An overlay on
+the main set does not reach into it, so a configuration overrides one
+of its packages by extending that set instead:
+
+```nix
+nixpkgs.overlays = [
+  nixos-flake.overlays.default
+  (final: prev: {
+    pkgsUnstable = prev.pkgsUnstable.extend (ufinal: uprev: {
+      pythonPackagesExtensions = uprev.pythonPackagesExtensions ++ [
+        (pyfinal: pyprev: {
+          vllm = pyprev.vllm.overridePythonAttrs { src = inputs.vllm-src; };
+        })
+      ];
+    });
+  })
+];
+```
+
 ### Pinning a specific upstream commit
 
 To pin a package to a specific commit without a local checkout,

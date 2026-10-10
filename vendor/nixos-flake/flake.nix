@@ -13,9 +13,16 @@
   description = "NixOS modules, overlays, and templates for provisioning NixOS systems";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  # Only for packages whose usable version has not reached the release
+  # channel; see overlays.unstable.
+  inputs.nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs =
-    { self, nixpkgs }:
+    {
+      self,
+      nixpkgs,
+      nixpkgs-unstable,
+    }:
     let
       systems = [
         "x86_64-linux"
@@ -90,7 +97,17 @@
       };
 
       overlays = {
-        default = import ./overlays;
+        default = nixpkgs.lib.composeExtensions self.overlays.unstable (import ./overlays);
+        # pkgsUnstable: nixos-unstable under the same nixpkgs config as the
+        # system it extends, so allowUnfree and cudaSupport carry over. It is
+        # imported only when a package refers to it, so a system that uses
+        # none of those packages evaluates and builds exactly as before.
+        unstable = final: _: {
+          pkgsUnstable = import nixpkgs-unstable {
+            inherit (final.stdenv.hostPlatform) system;
+            inherit (final) config;
+          };
+        };
         fio = import ./overlays/fio.nix;
         xfstests = import ./overlays/xfstests.nix;
         custom-pkgs = final: _: import ./pkgs final;
