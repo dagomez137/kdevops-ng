@@ -425,15 +425,16 @@ it explicitly, only when nothing else needs it, with the ``disable-linger`` app
 Uninstall
 ---------
 
-``nix run .#windmill-uninstall`` removes the installed units, any worker
-drop-ins, and the Caddyfile, then reloads the manager:
+``nix run .#windmill-uninstall`` removes the installed units, every windmill
+unit's drop-ins, the Caddyfile and the vendor tree, then reloads the manager:
 
 .. code-block:: console
    :class: cmd-host
 
    $ rm --force ~/.config/systemd/user/windmill*.service
-   $ rm --recursive --force ~/.config/systemd/user/windmill-worker@.service.d
+   $ rm --recursive --force ~/.config/systemd/user/windmill*.service.d
    $ rm --force ~/.config/windmill/Caddyfile
+   $ rm --recursive --force ~/.local/state/windmill/vendor
    $ systemctl --user daemon-reload
 
 Wipe
