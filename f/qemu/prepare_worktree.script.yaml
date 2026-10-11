@@ -9,7 +9,8 @@ description: |-
   Returns `worktree`, `build_dir`, `destdir`, `commit`, `version`, `project`,
   `qemu_ref`, `label` (the readable build-identity label, or the override) and
   `b4_branch` (the `b4/<slug>` branch published to the Bare when `b4_series` is
-  set, else null).
+  set, or null when that branch already sat at another commit; the job log
+  names both, and the run's commit is kept under `refs/kdevops/b4/<slug>`).
 lock: '!inline f/qemu/prepare_worktree.script.lock'
 kind: script
 schema:

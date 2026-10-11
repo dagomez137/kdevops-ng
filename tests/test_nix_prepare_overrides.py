@@ -18,6 +18,9 @@ def env(monkeypatch, tmp_path):
     return tmp_path
 
 
+SHA = "c" * 40
+
+
 @pytest.fixture
 def prepared(monkeypatch):
     """Replace `prepare` with a recorder publishing a b4 branch."""
@@ -25,7 +28,7 @@ def prepared(monkeypatch):
 
     def fake(*, project, ref, b4_series):
         calls.append({"project": project, "ref": ref, "b4_series": b4_series})
-        return {"b4_branch": "b4/fix-foo", "label": "fix-foo-v2"}
+        return {"b4_branch": "b4/fix-foo", "label": "fix-foo-v2", "commit": SHA}
 
     monkeypatch.setattr(prepare_overrides, "prepare", fake)
     return calls
@@ -118,19 +121,20 @@ def test_a_series_needs_a_ref(env, prepared):
     assert prepared == []
 
 
-def test_an_unpublished_b4_branch_fails_the_step(env, monkeypatch):
+def test_a_branch_left_in_place_builds_from_the_applied_commit(env, monkeypatch):
     _seed_bare(env / "system", "xfstests-dev", "refs/remotes/mirror/for-next")
     monkeypatch.setattr(
         prepare_overrides,
         "prepare",
-        lambda **_: {"b4_branch": None, "label": "x"},
+        lambda **_: {"b4_branch": None, "label": "x", "commit": SHA},
     )
-    with pytest.raises(RuntimeError, match="not published"):
-        prepare_overrides.main(
-            source_overrides={
-                "xfstests": {"ref": "mirror/for-next", "b4_series": "<msgid>"},
-            },
-        )
+    out = prepare_overrides.main(
+        source_overrides={
+            "xfstests": {"ref": "mirror/for-next", "b4_series": "<msgid>"},
+        },
+    )
+    assert out["source_overrides"] == {"xfstests": {"ref": SHA}}
+    assert out["worktree_group"] == "x"
 
 
 def test_an_unknown_ref_is_rejected(env):

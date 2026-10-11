@@ -276,7 +276,7 @@ value:
           projects:
             type: javascript
             expr: '[{ project: "qemu", git_ref: results.prepare_worktree.b4_branch
-              || results.prepare_worktree.qemu_ref, b4_series: "" }]'
+              || results.prepare_worktree.commit, b4_series: "" }]'
           recreate_worktree:
             type: javascript
             expr: flow_input.worktree?.recreate_developer_worktree

@@ -4,8 +4,9 @@
 An override with a `b4_series` gets the kernel-build treatment through
 `f.common.worktree.prepare`: the project's worker worktree is laid at the
 ref, the mailed series is applied with `b4 am`, and the result is published
-to the Bare as `b4/<slug>`; the override's effective ref becomes that
-published branch, so the flake input clones exactly what was reviewed. The
+to the Bare as `b4/<slug>`, created once and never moved; the override's
+effective ref becomes that branch, or the applied commit when the branch
+already sits elsewhere, so the flake input clones exactly what was applied. The
 one developer group a deploy tail uses is derived here too: a series names
 it after its cover subject, an upstream tag keeps `vanilla`, a full commit
 id its short sha, and any other ref its own slug; differing derivations
@@ -13,9 +14,12 @@ warn and the first wins.
 
 Equivalent bash, per seriesed override:
 
-    git -C "$WORKERS_DIR/$WORKER_INDEX/main/<project>" checkout --detach <ref>
-    b4 am --outdir <tmp> <series> && git am <tmp>/*.mbx
-    git update-ref refs/heads/b4/<slug> HEAD
+    git -C "$WORKERS_DIR/$WORKER_INDEX/main/<project>" checkout --detach --force <ref>
+    b4 -c b4.midmask=https://lore.kernel.org/all/%s am --outdir <tmp> <series>
+    git -c user.name=kdevops -c user.email=kdevops@kdevops am \\
+        --committer-date-is-author-date <tmp>/*.mbx
+    git update-ref refs/heads/b4/<slug> HEAD ""   # create only
+    git update-ref refs/kdevops/b4/<slug> HEAD     # else: anchor this run's sha
 """
 
 from __future__ import annotations
@@ -53,11 +57,7 @@ def main(source_overrides: dict | None = None) -> dict:
         project = _PKG_PROJECTS[pkg]
         if series:
             prepared = prepare(project=project, ref=ref, b4_series=series)
-            if not prepared.get("b4_branch"):
-                raise RuntimeError(
-                    f"override {pkg!r}: the b4 branch was not published to the Bare"
-                )
-            ref = prepared["b4_branch"]
+            ref = prepared.get("b4_branch") or prepared["commit"]
             group = prepared["label"]
         else:
             group = _auto_group(project, ref)

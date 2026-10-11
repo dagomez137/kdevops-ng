@@ -57,7 +57,8 @@ and for the developer, whose every command declines rather than clobbers:
     git -C "$BARE" for-each-ref \\
         --format='%(refname)|%(objectname)|%(worktreepath)' "refs/heads/$ref"
     # recreate: refuse a HEAD no ref reaches, then let git refuse a dirty tree
-    git -C "$BARE" rev-list --max-count=1 "$HEAD" --not --branches --tags --remotes
+    git -C "$BARE" rev-list --max-count=1 "$HEAD" --not --branches --tags --remotes \\
+        --glob='refs/kdevops/*'
     git -C "$BARE" worktree remove "$WT"
     git -C "$BARE" worktree add "$WT" "$B"          # absent, with a branch to attach
     git -C "$BARE" worktree add --detach "$WT" "$TARGET"    # absent, without one
@@ -69,8 +70,10 @@ and, for either, the optional series, in the devShell with cwd=$WT:
     b4 -c b4.midmask=https://lore.kernel.org/all/%s am --outdir "$tmp" "$b4_series"
     # the committer identity is passed per-invocation: a `git config` in a linked
     # worktree writes the Bare's shared config, which every worktree of it inherits
-    git -c user.name=kdevops -c user.email=kdevops@kdevops -C "$WT" am "$tmp"/*.mbx  # b4 am writes one
-    git -C "$WT" update-ref "refs/heads/b4/$slug" HEAD     # publish the series to the Bare
+    git -c user.name=kdevops -c user.email=kdevops@kdevops -C "$WT" am \\
+        --committer-date-is-author-date "$tmp"/*.mbx   # b4 am writes one
+    git -C "$WT" update-ref "refs/heads/b4/$slug" HEAD ""  # publish once, never moved
+    git -C "$WT" update-ref "refs/kdevops/b4/$slug" HEAD   # else: anchor this run's sha
     git -C "$WT" rev-parse HEAD
 """
 
@@ -402,6 +405,7 @@ def _remove_worktree(git: Git, bare: Path, worktree: Path) -> str | None:
                 "--branches",
                 "--tags",
                 "--remotes",
+                "--glob=refs/kdevops/*",
             ).strip()
         except subprocess.CalledProcessError:
             return f"could not tell whether {worktree} holds commits no ref reaches"
@@ -701,6 +705,7 @@ def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) ->
             "-C",
             str(worktree),
             "am",
+            "--committer-date-is-author-date",
             str(mbox),
         )
     return label
@@ -709,13 +714,38 @@ def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) ->
 def _publish_b4_branch(git: Git, worktree: Path, b4_series: str) -> str | None:
     """Publish the applied series to the Bare as `b4/<slug>`, or None when it failed.
 
+    `git am` stamps the committer date, so the application keeps the author date as
+    the committer date and an unchanged series on the same base lands on the same
+    sha. One that still differs is anchored under `refs/kdevops/b4/<slug>`, which no
+    one checks out, so what a closure or manifest names stays reachable.
+
     A developer can then check it out and iterate (the same host shares the Bare; the
     branch also keeps the commits alive once the build worktree advances to the next
-    ref). update-ref, not `branch --force`, which refuses a branch another worktree
-    has checked out; a failure is non-fatal, the build already succeeded.
+    ref). It only ever creates the branch: once `b4/<slug>` exists it may carry a
+    developer's commits, so a later run leaves it where it is rather than move it
+    (update-ref with an empty old value refuses an existing ref). A failure is
+    non-fatal, the build already succeeded.
     """
     branch = f"b4/{_b4_slug(b4_series)}"
-    if git.ok("-C", str(worktree), "update-ref", f"refs/heads/{branch}", "HEAD"):
+    ref = f"refs/heads/{branch}"
+    head = _head(git, worktree)
+    existing = git.capture(
+        "-C", str(worktree), "rev-parse", "--verify", "--quiet", ref, check=False
+    ).strip()
+    if existing == head:
+        print(f"{branch} already at {_short(head)}", flush=True)
+        return branch
+    if existing:
+        anchor = f"refs/kdevops/{branch}"
+        git.ok("-C", str(worktree), "update-ref", anchor, "HEAD")
+        print(
+            f"note: {branch} already exists at {_short(existing)} and is left as it "
+            f"is; this run's {_short(head)} is kept under {anchor}, delete the "
+            "branch to publish it there",
+            flush=True,
+        )
+        return None
+    if git.ok("-C", str(worktree), "update-ref", ref, "HEAD", ""):
         return branch
     print(f"note: could not publish {branch} to the Bare", flush=True)
     return None

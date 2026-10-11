@@ -142,7 +142,12 @@ Worktree
    An optional `b4`_ message-id or lore URL. When set, ``prepare_worktree``
    downloads the mailed series with ``b4 am`` and applies it on top of
    ``git_ref`` with ``git am``, publishing it to the Bare as
-   ``refs/heads/b4/<slug>`` for a developer to review.
+   ``refs/heads/b4/<slug>`` for a developer to review. The branch is only ever
+   created: once it exists it may carry your commits, so a later run of the
+   same series leaves it where it is and says so; delete it to republish. An
+   unchanged series on the same base lands on the same commit (the committer
+   date is the author date), and a run that differs is anchored under
+   ``refs/kdevops/b4/<slug>`` so the build it produced stays reachable.
 
 ``custom_label`` and ``label``
    The build identity's name is inferred from the ref and any series (see

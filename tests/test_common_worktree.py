@@ -677,7 +677,7 @@ def test_recreate_refuses_commits_no_ref_reaches(bare, developer, monkeypatch):
     assert "no branch, tag or remote reaches" in result["reason"]
     assert git.issued("rev-list") == [
         ("-C", str(bare), "rev-list", "--max-count=1", OTHER)
-        + ("--not", "--branches", "--tags", "--remotes")
+        + ("--not", "--branches", "--tags", "--remotes", "--glob=refs/kdevops/*")
     ]
     assert git.issued("worktree", "remove") == []
 
@@ -820,7 +820,8 @@ def test_b4_passes_the_committer_identity_per_invocation(tmp_path, monkeypatch):
         str(wt),
         "am",
     )
-    assert applied[7].endswith(".mbx")
+    assert applied[7] == "--committer-date-is-author-date"
+    assert applied[8].endswith(".mbx")
     assert not git.issued("config")
 
 
@@ -933,3 +934,36 @@ def test_validate_group_rejects_path_and_flag_shapes(group):
 def test_validate_group_rejects_reserved_siblings(group):
     with pytest.raises(ValueError, match="reserved"):
         worktree.validate_group(group)
+
+
+def test_b4_branch_is_created_when_absent(bare, monkeypatch, tmp_path):
+    git = _git(monkeypatch, (("rev-parse", "HEAD"), TARGET))
+    assert worktree._publish_b4_branch(git, tmp_path, "msgid@x") == "b4/msgid"
+    assert git.issued("update-ref") == [
+        ("-C", str(tmp_path), "update-ref", "refs/heads/b4/msgid", "HEAD", "")
+    ]
+
+
+def test_b4_branch_at_the_same_commit_is_kept_without_a_write(
+    bare, monkeypatch, tmp_path
+):
+    git = _git(
+        monkeypatch,
+        (("rev-parse", "HEAD"), TARGET),
+        (("refs/heads/b4/msgid",), TARGET),
+    )
+    assert worktree._publish_b4_branch(git, tmp_path, "msgid@x") == "b4/msgid"
+    assert git.issued("update-ref") == []
+
+
+def test_b4_branch_a_developer_may_own_is_never_moved(bare, monkeypatch, tmp_path):
+    git = _git(
+        monkeypatch,
+        (("rev-parse", "HEAD"), TARGET),
+        (("refs/heads/b4/msgid",), OTHER),
+    )
+    assert worktree._publish_b4_branch(git, tmp_path, "msgid@x") is None
+    # The branch is untouched; this run's sha is anchored where no one checks out.
+    assert git.issued("update-ref") == [
+        ("-C", str(tmp_path), "update-ref", "refs/kdevops/b4/msgid", "HEAD")
+    ]

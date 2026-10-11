@@ -87,8 +87,10 @@ each from their own.
    An optional `b4`_ message-id or lore URL per package. When set,
    ``prepare_overrides`` lays the project's worker worktree at the Git Ref,
    applies the mailed series with ``b4 am``, and publishes it to the Bare
-   as ``refs/heads/b4/<slug>``; the override then builds from that
-   published branch, the re-lock keeps tracking it, and the automatic
+   as ``refs/heads/b4/<slug>``, created once and never moved; the override
+   then builds from that branch, or from the applied commit when the branch
+   already sits elsewhere (kept reachable under ``refs/kdevops/b4/<slug>``),
+   the re-lock keeps tracking it, and the automatic
    developer group takes the series' cover-subject name.
 
 An active override renders one ``<pkg>-src`` flake input cloning the Bare
