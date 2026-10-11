@@ -58,6 +58,11 @@ Environment=MODE=worker
 Environment=NUM_WORKERS=1
 Environment=WORKER_GROUP=default
 Environment=WORKER_INDEX=%i
+# git reads the Bare's config and the argv only: a user's ~/.gitconfig or
+# ~/.config/git (commit.gpgsign, core.hooksPath, url.*.insteadOf) would change
+# what a worker does from host to host.
+Environment=GIT_CONFIG_GLOBAL=/dev/null
+Environment=GIT_CONFIG_NOSYSTEM=1
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
 Environment=WORKBENCH_DIR=%S/windmill/workbench
 Environment=SYSTEM_DIR=%S/windmill/workbench/system
@@ -75,7 +80,7 @@ Environment=LIVE_LOGS_URL=http://127.0.0.1:8002
 # cache) and SYSTEM_DIR/store-index (the Store's GC-root index), so each tracks
 # its parent on a move. All are whitelisted so a drop-in can relocate the groups,
 # the bulky mirror, the cache, or the index on their own.
-Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,XDG_CACHE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,MIRRORS_DIR,CCACHE_DIR,STORE_INDEX_DIR,WORKERS_DIR,VENDOR_DIR
+Environment=WHITELIST_ENVS=DBUS_SESSION_BUS_ADDRESS,XDG_RUNTIME_DIR,HOME,XDG_CONFIG_HOME,XDG_STATE_HOME,XDG_CACHE_HOME,WORKER_INDEX,WORKBENCH_DIR,WORKTREES_DIR,SYSTEM_DIR,MIRRORS_DIR,CCACHE_DIR,STORE_INDEX_DIR,WORKERS_DIR,VENDOR_DIR,GIT_CONFIG_GLOBAL,GIT_CONFIG_NOSYSTEM
 EnvironmentFile=%S/windmill/env/database.env
 EnvironmentFile=-%E/windmill/windmill-worker.env
 ExecStart=%S/windmill/pkgs/windmill/bin/windmill

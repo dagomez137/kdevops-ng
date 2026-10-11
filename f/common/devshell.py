@@ -368,8 +368,10 @@ class Git:
     """Run the nixos-flake's `git` by argv (no shell).
 
     The binary is resolved from the flake's `#git` output (see `_resolve_git`), so
-    the worker's `NIX_BIN` only needs `nix`. `run` streams output; `ok` returns
-    whether the command succeeded; `capture` returns stdout.
+    the worker's `NIX_BIN` only needs `nix`. The worker unit points git at an empty
+    global config, so what runs depends on the Bare's config and the argv alone.
+    `run` streams output; `ok` returns whether the command succeeded; `capture`
+    returns stdout.
     """
 
     def __init__(self, workers: Path | str | None = None) -> None:

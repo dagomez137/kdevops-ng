@@ -202,6 +202,10 @@ default, so the stack runs untouched; override any by editing that unit's
   reachable ``bin`` on a NixOS host, whose default profile lives under the
   store. It is unset in the unit and read by the step code, so to use it add it
   to ``WHITELIST_ENVS`` (below) as well.
+* ``GIT_CONFIG_GLOBAL`` (``/dev/null``) and ``GIT_CONFIG_NOSYSTEM`` (``1``): git
+  in a job reads the Bare's config and its own command line, never your
+  ``~/.gitconfig``, ``~/.config/git`` or ``/etc/gitconfig``, so a setting there
+  cannot change what a worker does on one host and not another.
 * ``LIVE_LOGS_URL`` (``http://127.0.0.1:8002``): the server a job's output is
   streamed to as it is written, for :cmd:`wmill flow run` to show live (see
   :ref:`running-a-flow`). Unset, the worker streams nothing and its jobs'

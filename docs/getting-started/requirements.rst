@@ -173,9 +173,10 @@ key. Use the absolute path, since ssh resolves a relative ``Include`` against
 
 The workbench init flow prints the exact line for your ``SYSTEM_DIR``.
 
-Git. kdevops-ng needs no setting in ``~/.gitconfig``: the workers run as you and
-own every tree they touch, and the committer identity ``git am`` needs is
-passed on its own command line. Earlier versions added
+Git. kdevops-ng needs no setting in ``~/.gitconfig`` and reads none: the
+workers run as you and own every tree they touch, the committer identity
+``git am`` needs is passed on its own command line, and the worker unit points
+git at an empty global config. Earlier versions added
 ``safe.directory = *``, which switches git's ownership check off for all your
 repositories; if ``git config --global --get-all safe.directory`` lists
 ``*``, remove it:
