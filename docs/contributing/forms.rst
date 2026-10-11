@@ -37,3 +37,10 @@ The closure form's package sources, in :src:`f/nix/build`: one labelled Git
 Ref picker per overridable package, each fed by its project's Bare. Any other
 package goes through ``extra_overrides`` on
 :src:`render_config <f/nix/render_config>`, the labelled raw escape.
+
+What the test checks
+====================
+
+``tests/test_curated_forms.py`` refuses an unmarked raw box in any flow form;
+its docstring says what marks one. Whether a list is the one developers use is
+left to review.
