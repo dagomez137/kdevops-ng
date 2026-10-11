@@ -81,6 +81,80 @@ let
     ${hostOnlyDropIns "windmill*.service"}
   '';
 
+  # The VM discovery sweep reaches a peer workbench host with
+  # `ssh -F SYSTEM_DIR/ssh/config` (f/qsu/common), never through ~/.ssh, so
+  # each alias is resolved from the operator's own config here, once, into a
+  # Host block that uses the managed peer key. The registry the sweep reads,
+  # SYSTEM_DIR/peers, stays f/workbench/fetch's to write.
+  windmillPeers = ''
+    state="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill"
+    system="''${SYSTEM_DIR:-$state/workbench/system}"
+    ssh_dir="$system/ssh"
+    key="$ssh_dir/peer_ed25519"
+    conf="$ssh_dir/config.d/peers.conf"
+    if [ $# -eq 0 ]; then
+      echo "usage: nix run .#windmill-peers -- <alias>..." >&2
+      exit 2
+    fi
+    mkdir --parents "$ssh_dir/config.d"
+    [ -f "$key" ] || ssh-keygen -t ed25519 -N "" -C kdevops-workbench-peer -f "$key"
+    # The init flow's ssh_key step writes the config with this Include; seed it
+    # so a peer resolves before the first init.
+    grep --quiet --no-messages 'config.d/\*.conf' "$ssh_dir/config" \
+      || printf 'Include %s/config.d/*.conf\n' "$ssh_dir" > "$ssh_dir/config"
+    # Built beside the file and moved over it, so a refused alias leaves the
+    # previous blocks in place.
+    trap 'rm --force "$conf.tmp"' EXIT
+    : > "$conf.tmp"
+    seen=" "
+    for peer in "$@"; do
+      case "$peer" in
+      "" | -* | *[[:space:]]*) echo "kdevops: not an ssh alias: '$peer'" >&2; exit 1 ;;
+      esac
+      case "$seen" in *" $peer "*) continue ;; esac
+      seen="$seen$peer "
+      resolved="$(ssh -G -- "$peer")" || { echo "kdevops: ssh cannot resolve $peer" >&2; exit 1; }
+      host="" port="" user="" proxy=""
+      while read -r option value; do
+        case "$option" in
+        hostname) host="$value" ;;
+        port) port="$value" ;;
+        user) user="$value" ;;
+        proxyjump | proxycommand) [ "$value" = none ] || proxy="$option $value" ;;
+        esac
+      done <<< "$resolved"
+      if [ -z "$host" ] || [ -z "$port" ] || [ -z "$user" ]; then
+        echo "kdevops: ssh -G $peer gave no hostname, port or user" >&2
+        exit 1
+      fi
+      # Only HostName, Port and User carry over.
+      if [ -n "$proxy" ]; then
+        echo "kdevops: $peer needs '$proxy', which the block cannot carry; use an alias the workers reach directly" >&2
+        exit 1
+      fi
+      cat >> "$conf.tmp" <<EOF
+    Host $peer
+        HostName $host
+        Port $port
+        User $user
+        IdentityFile $key
+        IdentitiesOnly yes
+        StrictHostKeyChecking accept-new
+        UserKnownHostsFile $ssh_dir/known_hosts
+    EOF
+      if [ "$port" = 22 ]; then name="$host"; else name="[$host]:$port"; fi
+      ssh-keygen -F "$name" -f "$ssh_dir/known_hosts" > /dev/null 2>&1 \
+        || ssh-keyscan -p "$port" "$host" 2> /dev/null >> "$ssh_dir/known_hosts" \
+        || echo "kdevops: no host key from $host:$port; the first ssh accepts it" >&2
+      echo "peer $peer -> $user@$host:$port"
+    done
+    # OpenSSH refuses a group-writable config, included files too.
+    chmod go-w "$ssh_dir/config" "$conf.tmp"
+    mv "$conf.tmp" "$conf"
+    echo "wrote $conf; authorize $key.pub on each peer, then register the peers"
+    echo "through the f/workbench init flow (its peers input)"
+  '';
+
   windmillActivate = ''
     systemctl --user daemon-reload
     loginctl enable-linger "$USER"
@@ -320,6 +394,17 @@ in
     description = "Install the Windmill systemd --user units and Caddyfile";
     runtimeInputs = [ pkgs.coreutils ];
     text = windmillInstall;
+  };
+
+  windmill-peers = mkApp {
+    name = "kdevops-windmill-peers";
+    description = "Write the workers' ssh config for the peer workbench hosts (args: aliases)";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.openssh
+    ];
+    text = windmillPeers;
   };
 
   windmill-activate = mkApp {

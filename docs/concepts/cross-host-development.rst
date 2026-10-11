@@ -59,9 +59,10 @@ the *other* hosts as peers, never the host itself.
 SSH prerequisite
 ----------------
 
-A peer alias resolves through :cmd:`~/.ssh/config`, and the transfer uses the
-same passwordless SSH the Store uses (the ``transfer`` devShell's OpenSSH). Keep
-``~/.ssh/config`` at mode ``0600``.
+Your ``git push`` resolves the alias through :cmd:`~/.ssh/config`, like any
+``ssh`` you type. The workers' VM discovery sweep never reads that file: it
+reaches a peer through the managed ``SYSTEM_DIR/ssh/config``, which ``nix run
+.#windmill-peers`` fills from the same aliases (:doc:`/deployment/nix`).
 
 Provisioning
 ============
