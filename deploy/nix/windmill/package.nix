@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
 # Custom Windmill server built from the dagomez137 fork (branch
 # integration/fixes), carrying downstream frontend patches not yet upstream.
 # Modeled on the nixpkgs `windmill` derivation: the frontend is a separate

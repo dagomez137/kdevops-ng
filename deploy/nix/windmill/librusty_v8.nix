@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copied from nixpkgs (MIT), as package.nix says; not edited here.
 # Pinned to the v8 crate version in the fork's backend/Cargo.lock (137.3.0).
 # Bump this whenever the deno_core / v8 crate moves; the shas are the prebuilt
 # static archives denoland publishes per rusty_v8 release. The two zeroed shas

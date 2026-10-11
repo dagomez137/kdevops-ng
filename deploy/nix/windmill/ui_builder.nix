@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copied from nixpkgs (MIT), as package.nix says; not edited here.
 # auto-generated file -- DO NOT EDIT!
 { fetchzip }:
 

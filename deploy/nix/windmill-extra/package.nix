@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
 # The windmill-extra LSP gateway, built from nix. Mirrors the fork's lsp/ image
 # (ghcr.io/windmill-labs/windmill-extra): a Tornado websocket server that spawns
 # a language server per editor session (pyright, ruff, deno, gopls, and the

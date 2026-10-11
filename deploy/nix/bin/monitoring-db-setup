@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: copyleft-next-0.3.1
 # Provision Grafana's database in the Windmill postgres cluster. Idempotent.
 # Run as monitoring-grafana.service's ExecStartPre, after windmill-db.service
 # is up: over the cluster's local socket (trust auth) it creates a grafana

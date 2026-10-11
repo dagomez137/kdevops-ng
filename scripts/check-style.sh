@@ -95,10 +95,10 @@ if [ "${1-}" = "--commit-msg" ]; then
 fi
 
 
-# 1. Trailing whitespace.
-if git grep --line-number --perl-regexp ' +$' "${scope[@]}" >/dev/null 2>&1; then
-		echo "error: trailing whitespace:"
-		git grep --line-number --perl-regexp ' +$' "${scope[@]}"
+# 1. Trailing whitespace (spaces or tabs) and carriage returns.
+if git grep --line-number --perl-regexp '[ \t]+$|\r' "${scope[@]}" >/dev/null 2>&1; then
+		echo "error: trailing whitespace or a carriage return:"
+		git grep --line-number --perl-regexp '[ \t]+$|\r' "${scope[@]}"
 		status=1
 fi
 
@@ -184,7 +184,10 @@ sys.exit(1 if bad else 0)
 PY
 done < <(git ls-files docs | grep --extended-regexp '\.rst$' || true)
 
-# 5. reStructuredText under docs/ must declare an SPDX license on line one.
+# 5. Every source file in scope declares an SPDX license near the top: .rst on
+#    line one as a comment, the rest (.py, .sh, .nix, .awk, .service, and the
+#    extensionless scripts under deploy/nix/bin and scripts/) within the first
+#    two lines, so a shebang may come first.
 while IFS= read -r f; do
 	case "$(head --lines=1 "$f")" in
 	".. SPDX-License-Identifier: "*) ;;
@@ -194,6 +197,12 @@ while IFS= read -r f; do
 		;;
 	esac
 done < <(git ls-files docs | grep --extended-regexp '\.rst$' || true)
+while IFS= read -r f; do
+	if ! head --lines=2 "$f" | grep --quiet 'SPDX-License-Identifier: '; then
+		echo "error: $f: missing 'SPDX-License-Identifier:' in the first two lines"
+		status=1
+	fi
+done < <(git ls-files "${scope[@]}" | grep --extended-regexp '\.(py|sh|nix|awk|service)$|^deploy/nix/bin/|^scripts/[^.]*$' || true)
 
 [ "$status" -eq 0 ] && echo "style: OK"
 exit "$status"

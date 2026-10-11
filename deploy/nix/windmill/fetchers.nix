@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copied from nixpkgs (MIT), as package.nix says; not edited here.
 # not a stable interface, do not reference outside the windmill package but make a copy if you need
 {
   lib,

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
 BEGIN { inserted_store = 0 }
 
 # Add the /nix/store bind mount once, just before the first mount block, so the
