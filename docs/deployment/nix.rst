@@ -347,15 +347,9 @@ Run the ``f/workbench`` init flow from Windmill to provision the System
 workbench (the bare mirrors and the ssh key); the workers fill their sandboxes
 as jobs run.
 
-The System workbench's ssh key and host config live under ``SYSTEM_DIR/ssh``.
-Add that config to the top of ``~/.ssh/config`` once, so ``ssh <vm>`` reaches a
-guest over vsock with the managed key; the flow prints the exact (absolute)
-line, since ssh resolves a relative ``Include`` against ``~/.ssh``, not the
-including file's directory:
-
-.. code-block:: text
-
-   Include ~/.local/state/windmill/workbench/system/ssh/config
+The System workbench's ssh key and host config live under ``SYSTEM_DIR/ssh``;
+include that config from your ``~/.ssh/config`` once, as
+:ref:`user-configuration` describes.
 
 To reuse work you already have (from an earlier workbench, or when relocating
 ``WORKBENCH_DIR``), move ``system/mirror`` (the expensive clones) and

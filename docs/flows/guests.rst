@@ -29,7 +29,7 @@ Flows reach a guest over vsock-SSH, using the kdevops-managed SSH config that
 :src:`f/workbench/init` generates: a ``Host <vm>`` block per booted VM, dialing
 its ``vsock/<cid>`` through :cmd:`systemd-ssh-proxy`. Add the one-line
 ``Include`` of that config to your :cmd:`~/.ssh/config` (see
-:doc:`../deployment/nix`) and the VM name becomes an ordinary :cmd:`ssh` alias,
+:ref:`user-configuration`) and the VM name becomes an ordinary :cmd:`ssh` alias,
 so ``ssh <vm> …`` works.
 
 With that alias in place, systemd's own remote flag reaches the guest's systemd

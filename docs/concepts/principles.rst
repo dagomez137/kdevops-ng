@@ -103,9 +103,13 @@ Wrecking a guest costs a reboot.
 Outside the Workbench, steps write only what systemd first and the guests
 need, your user units under ``~/.config/systemd`` and VM state under
 ``~/.local/state/qemu-system``, and scratch under ``$TMPDIR``, which the
-worker leaves unset, so ``/tmp``. Today the boundaries are kept by the layout
-and by path checks in the code rather than by the kernel, so a change that
-writes outside its sandbox breaks this rule even where nothing stops it.
+worker leaves unset, so ``/tmp``. Your own
+configuration files (``~/.ssh/config``, ``~/.gitconfig``) are yours: where a
+tool needs a line in one, you add it once by hand, as
+:ref:`user-configuration` lists, the same way you run the root steps. Today
+the boundaries are kept by the layout and by path checks in the code rather
+than by the kernel, so a change that writes outside its sandbox breaks this
+rule even where nothing stops it.
 
 Commands a developer can run
 ============================

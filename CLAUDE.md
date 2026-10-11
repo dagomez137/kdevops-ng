@@ -42,8 +42,7 @@ of cron, the journal as the log and results channel, transient units or scopes
 watched or killed, `systemctl` run on a guest over the SSH transport to reach
 its manager, settings through systemd's own mechanisms (`EnvironmentFile=`,
 specifiers, drop-ins, `StandardInputText=`) rather than a shell string, and an
-upstream template (`modprobe@`) before a new one, and an upstream unit
-(`kmod-static-nodes`) as the model when one is needed. No
+upstream template (`modprobe@`, `kmod-static-nodes`) before a new one. No
 daemons, wrapper scripts, PID files, `nohup`/`setsid`/backgrounded processes,
 or polling loops standing in for `Requires=`/`After=`. Host units are user
 units. `scripts/check-style.sh` (3d) refuses detached processes and cron in
@@ -64,8 +63,10 @@ exchanges data only through its per-VM share, whose path a step checks stays
 under its root. Outside the Workbench a step writes only user units under
 `~/.config/systemd`, VM state under `~/.local/state/qemu-system` and scratch
 under `$TMPDIR` (unset in a job, so `/tmp`), never a user file
-(`~/.gitconfig`, `~/.ssh/config`). Nothing
-enforces this at runtime, so every change keeps it by construction. Why:
+(`~/.gitconfig`, `~/.ssh/config`): a line
+a host tool needs there is a manual step, listed in `requirements.rst` ("Your
+own configuration"). Nothing enforces this at runtime, so every change keeps
+it by construction. Why:
 `docs/concepts/principles.rst`; sources: `CONTEXT.md`, `notes/adr/0008`,
 `notes/adr/0010`, `f/common/worktree.py`.
 
@@ -89,9 +90,8 @@ and these sections in step.
 ## Layout
 
 `docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
-`deploy/nix/` deploys the instance (see `deploy/README.md`). `wmill.yaml` is the
-workspace-as-code configuration (code and resources, no secrets; one
-workspace, `kdevops`, on branch `main`). `f/`
+`deploy/nix/` deploys the instance (see `deploy/README.md`). `wmill.yaml` is the workspace-as-code configuration (code
+and resources, no secrets; one workspace, `kdevops`, on branch `main`). `f/`
 holds the workspace content and is machine-managed by `wmill`. Deploy through
 the `deploy-kdevops` nix app, which pushes the whole tree and then runs the
 preview smoke suite against the deployed steps. The root `flake.nix`
@@ -331,11 +331,10 @@ All commits must follow these six rules.
    repository and the kernel should not have to keep two conventions in
    mind. The tag arrived in v7.0-rc1 with commit 78d979db6cef ("docs: add
    AI Coding Assistants documentation"), which added
-   Documentation/process/coding-assistants.rst; 6252e5c1c20e ("docs: add an
-   Assisted-by mention to submitting-patches.rst", v7.1-rc1) made the
-   acknowledgment a submission requirement, and 816d9992d9ed
-   ("coding-assistants: simplify attribution", v7.3-rc1) set the format to
-   `Assisted-by: LLM [TOOL1] [TOOL2]`. The optional tool names are for
+   Documentation/process/coding-assistants.rst and defines the format as
+   `Assisted-by: LLM [TOOL1] [TOOL2]`; 6252e5c1c20e ("docs: add an
+   Assisted-by mention to submitting-patches.rst") then made the
+   acknowledgment a submission requirement. The optional tool names are for
    specialized analysis tools actually run (coccinelle, sparse, smatch,
    clang-tidy); basic tools such as git, gcc, make and editors are never
    listed, so the bare `Assisted-by: LLM` is the usual form. Earlier
@@ -349,8 +348,8 @@ All commits must follow these six rules.
 
 6. Before committing, run `nix flake check` (ruff lint and format,
    generated-file drift, fixture tests, tree formatting) and
-   `nix develop .#checks --command bash scripts/check-style.sh` (whitespace,
-   end-of-file newlines, commit trailers, the three rule checks 3b to 3d,
-   rst width and SPDX). See `docs/contributing/development.rst`. The trailer check
+   `nix develop .#checks --command bash scripts/check-style.sh` (trailing
+   whitespace, missing end-of-file newlines, and commit-message trailer
+   formatting). See `docs/contributing/development.rst`. The trailer check
    reads HEAD; linked as the repository's commit-msg hook, `scripts/commit-msg`
    runs it on the message before the commit lands.

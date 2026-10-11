@@ -152,6 +152,39 @@ unit it runs, the Windmill stack and the guests included: restart it with
 afford to lose, or reboot. ``systemctl show --property=LimitMEMLOCK
 "user@$(id --user).service"`` shows what it got.
 
+.. _user-configuration:
+
+Your own configuration
+======================
+
+kdevops-ng never edits a configuration file of yours. Where a host tool needs
+to know about something kdevops-ng manages, you add one line yourself, once,
+like the root steps above.
+
+SSH. The System workbench keeps the guests' key and a ``Host <vm>`` block per
+booted guest in ``SYSTEM_DIR/ssh/config``. Add an ``Include`` of it at the top
+of ``~/.ssh/config`` so ``ssh <vm>`` reaches a guest over vsock with the managed
+key. Use the absolute path, since ssh resolves a relative ``Include`` against
+``~/.ssh``; with the default Workbench it is:
+
+.. code-block:: text
+
+   Include ~/.local/state/windmill/workbench/system/ssh/config
+
+The workbench init flow prints the exact line for your ``SYSTEM_DIR``.
+
+Git. kdevops-ng needs no setting in ``~/.gitconfig``: the workers run as you and
+own every tree they touch, and the committer identity ``git am`` needs is
+passed on its own command line. Earlier versions added
+``safe.directory = *``, which switches git's ownership check off for all your
+repositories; if ``git config --global --get-all safe.directory`` lists
+``*``, remove it:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ git config --global --unset-all safe.directory '^\*$'
+
 .. _systemd: https://systemd.io
 .. _Nix: https://nixos.org
 .. _Windmill: https://windmill.dev
