@@ -57,7 +57,7 @@ import os
 from pathlib import Path
 
 from f.common import store
-from f.common.devshell import run_logged
+from f.common.devshell import DevShell
 
 _INDEXES = ("compile_commands.json", "rust-project.json")
 
@@ -115,10 +115,9 @@ def main(
             "prefix": prefix,
         }
 
-    run_logged(
-        ["cp", "--recursive", "--force", f"{sp.rstrip('/')}/.", str(build) + "/"]
-    )
-    run_logged(["chmod", "--recursive", "u+w", str(build)])
+    shell = DevShell(workers)
+    shell.run("cp", "--recursive", "--force", f"{sp.rstrip('/')}/.", str(build) + "/")
+    shell.run("chmod", "--recursive", "u+w", str(build))
     print(f"materialized devel layer {sp} -> {build}", flush=True)
 
     moved = relocate(build, wt)

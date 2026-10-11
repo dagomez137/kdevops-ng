@@ -24,12 +24,13 @@ Equivalent bash, the staged tree then added to the store:
 
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 from pathlib import Path
 
 from f.common import store
-from f.common.devshell import run_logged
+from f.common.devshell import DevShell
 
 
 def main(destdir: str, uts_release: str) -> dict:
@@ -37,28 +38,25 @@ def main(destdir: str, uts_release: str) -> dict:
     src = Path(destdir)
     images = sorted(src.glob(f"boot/*-{uts_release}"))
 
+    shell = DevShell(Path(os.environ["WORKERS_DIR"]))
     stage = Path(tempfile.mkdtemp(prefix=f"{name}-"))
     try:
         (stage / "boot").mkdir(parents=True, exist_ok=True)
         (stage / "lib/modules").mkdir(parents=True, exist_ok=True)
         for image in images:
-            run_logged(
-                [
-                    "cp",
-                    "--recursive",
-                    "--force",
-                    str(image),
-                    str(stage / "boot" / image.name),
-                ]
-            )
-        run_logged(
-            [
+            shell.run(
                 "cp",
                 "--recursive",
                 "--force",
-                str(src / "lib/modules" / uts_release),
-                str(stage / "lib/modules" / uts_release),
-            ]
+                str(image),
+                str(stage / "boot" / image.name),
+            )
+        shell.run(
+            "cp",
+            "--recursive",
+            "--force",
+            str(src / "lib/modules" / uts_release),
+            str(stage / "lib/modules" / uts_release),
         )
         # The kbuild build/source symlinks are absolute paths into the builder's
         # worktree; they dangle on a peer fetch and under the read-only store mount.

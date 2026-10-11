@@ -23,10 +23,11 @@ Equivalent commands:
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
-from f.common.devshell import run_logged
+from f.common.devshell import DevShell
 from f.common.remote import list_vms as _list_vms
 from f.selftests.common import share_dir
 
@@ -66,8 +67,9 @@ def main(vm_name: str, kernel_version: str, store_path: str) -> dict:
         shutil.rmtree(dest)
         print(f"+ removed stale {dest}", flush=True)
     dest.mkdir(parents=True)
-    run_logged(["cp", "--archive", f"{src}/.", str(dest)])
+    shell = DevShell(Path(os.environ["WORKERS_DIR"]))
+    shell.run("cp", "--archive", f"{src}/.", str(dest))
     # Store modes are read-only; the tests write into their collection dirs.
-    run_logged(["chmod", "--recursive", "u+w", str(dest)])
+    shell.run("chmod", "--recursive", "u+w", str(dest))
     print(f"+ copied {src} -> {dest}", flush=True)
     return {"vm": vm_name, "tree": str(dest), "reused": False}
