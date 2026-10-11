@@ -99,6 +99,19 @@ preview smoke suite against the deployed steps. The root `flake.nix`
 and `scripts/` provide the checks, run with `nix flake check` (see
 `docs/contributing/development.rst`).
 
+## Vendored projects
+
+`vendor/nixos-flake`, `vendor/qemu-system-units` and
+`vendor/linux-config-fragments` are git-subrepo copies of their upstream
+repositories, not submodules: `vendor/<name>/.gitrepo` names the upstream, the
+branch and the pinned commit, `git subrepo pull` bumps one and `git subrepo
+push` sends local commits upstream, with the tool in the root flake's default
+devShell (`nix develop --command git subrepo status`). A change inside one is an
+ordinary commit here, a downstream patch until it lands upstream, written to
+that project's own `CLAUDE.md`, commit style included; `scripts/check-style.sh`
+skips `vendor/`. How and why: `vendor/README.md`, `notes/adr/0006`,
+`notes/adr/0007`.
+
 ## Conventions
 
 Always use long-form command flags everywhere (scripts, docs, examples): for

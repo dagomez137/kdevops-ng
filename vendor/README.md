@@ -24,8 +24,8 @@ itself.
 
 - **Read-only users**: install nothing. `git clone` gets every subrepo already in
   place.
-- **Collaborators** who pull or push a subrepo: get git-subrepo from the flake
-  with `nix shell path:vendor/nixos-flake#git-subrepo`. (Needs git >= 2.23.)
+- **Collaborators** who pull or push a subrepo: run git-subrepo from the root
+  flake's default devShell (`nix develop --command git subrepo ...`).
 
 ## Commands (collaborators)
 
@@ -35,6 +35,10 @@ git subrepo pull vendor/<name>      # bump from upstream (reconciles local patch
 git subrepo push vendor/<name>      # send local commits upstream
 git format-patch <pin>..HEAD -- vendor/<name>   # or mail patches the kernel way
 ```
+
+The trees were adopted with `git subrepo init`, which records the remote and
+branch only; `status` shows no pulled commit, and the first `pull` or `push`
+writes the pin. Until then the whole subdir is the patch set.
 
 After bumping `nixos-flake`, re-pin its consumer lock (Windmill does this via
 `f/nix/lock_config` with `update=true`):
