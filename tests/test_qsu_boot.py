@@ -3,6 +3,8 @@
 
 import os
 
+import pytest
+
 from f.qsu import boot
 
 
@@ -50,3 +52,11 @@ def test_write_ssh_alias_writes_the_vsock_host_block(monkeypatch, tmp_path):
     assert f"    IdentityFile {priv}" in lines
     assert "    User root" in lines
     assert conf.read_text().endswith("\n")
+
+
+def test_boot_refuses_without_the_root_granted_devices(tmp_path):
+    granted = tmp_path / "kvm"
+    granted.write_text("")
+    boot._check_host_access((str(granted),))
+    with pytest.raises(RuntimeError, match="requirements.rst"):
+        boot._check_host_access((str(granted), str(tmp_path / "vhost-vsock")))

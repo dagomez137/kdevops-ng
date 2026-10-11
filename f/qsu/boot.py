@@ -42,6 +42,18 @@ from pathlib import Path
 from f.common.devshell import Systemd, system_dir
 from f.qsu.common import state_dir
 
+# The two devices the root steps grant (docs/getting-started/requirements.rst,
+# "Host access for guests"): the kvm group for both, the vhost_vsock module for
+# the second. User-readable, so the step checks them before asking the manager.
+_HOST_ACCESS = ("/dev/kvm", "/dev/vhost-vsock")
+_REQUIREMENTS = "docs/getting-started/requirements.rst (Host access for guests)"
+
+
+def _check_host_access(devices: tuple[str, ...] = _HOST_ACCESS) -> None:
+    missing = [d for d in devices if not os.access(d, os.R_OK | os.W_OK)]
+    if missing:
+        raise RuntimeError(f"no access to {', '.join(missing)}: see {_REQUIREMENTS}")
+
 
 def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
     """Write via a hidden temp file + rename so a concurrent reader of the shared
@@ -105,6 +117,7 @@ def main(
     vsock_cid: int | None = None,
     wait_timeout: int = 300,
 ) -> dict:
+    _check_host_access()
     workers = Path(os.environ["WORKERS_DIR"])
     systemd = Systemd(workers)
     # daemon-reload picks up the re-rendered unit + drop-in; then one restart of the
