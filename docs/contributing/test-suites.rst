@@ -295,7 +295,8 @@ by hand and is documented, not primary.
   catalog. A picker that needs guest state reads the per-VM cache
   ``discover`` writes, with a curated fallback before first discovery, so
   it is never an empty box. Keep a raw config only as a gated advanced
-  override (fstests' Edit Local.config toggle).
+  override (fstests' Edit Local.config toggle). :doc:`forms` has the whole
+  convention.
 - **A bounding Service group**: timeout, poll interval, log streaming, with
   suite-appropriate defaults (kunit: 600 s, sub-second suites; fstests: a
   day, hours-long sections).

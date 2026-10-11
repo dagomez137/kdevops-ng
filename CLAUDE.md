@@ -198,8 +198,9 @@ When writing or extending Windmill flows and steps, also follow these rules:
   zero-config path is already useful. Keep the full raw config only as a gated
   advanced override that replaces the form when set, never as the primary input.
   Drive every consumer from one curated source. The mirror tree picker
-  (`f.workbench.fetch`'s `KERNEL_TREES` checklist plus the advanced `mirrors`
-  override, feeding both `fetch` and `mirror`) is the worked example.
+  (`f.workbench.fetch`'s `KERNEL_TREES` checklist, feeding both `fetch` and
+  `mirror`) is the worked example; `docs/contributing/forms.rst` is the human
+  home.
 
 The Python here is kept lint-clean and consistently formatted by Ruff, the
 single linter and formatter, configured in `pyproject.toml` at line length 88.

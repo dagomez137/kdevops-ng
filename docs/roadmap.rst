@@ -72,7 +72,7 @@ Usability
       bringup form is the first target: gate its kernel, QEMU and NixOS-closure
       knobs behind an Advanced mode with sane defaults, which then makes room to
       embed the test step so one flow builds, boots and tests a kernel. Extends
-      the "curated forms, not empty boxes" principle.
+      the "curated forms, not empty boxes" convention.
 
 Cloud and infrastructure
 ========================

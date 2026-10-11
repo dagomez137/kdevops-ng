@@ -10,4 +10,5 @@ How to work on kdevops-ng and its documentation.
    :maxdepth: 1
 
    development
+   forms
    doc-guide

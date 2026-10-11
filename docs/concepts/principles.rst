@@ -7,7 +7,8 @@ Principles
 Five rules hold everywhere in kdevops-ng: in the flows and steps, the
 deployment, the scripts, and any change proposed to them. Each one is a
 reason something is built the way it is, and a change that breaks one is
-reworked rather than merged.
+reworked rather than merged. How a flow's form presents its choices is a
+convention that allows escapes, kept separately in :doc:`/contributing/forms`.
 
 Nix first
 =========
