@@ -136,6 +136,23 @@ if git grep --line-number --extended-regexp \
 		status=1
 fi
 
+# 3c. Nix first (CLAUDE.md): every tool comes from Nix, so no container
+#     runtime, no distro or language package install and no piped installer
+#     in steps, scripts, nix apps, deploy code or tests (deploy/README.md's
+#     prose included). A Nix derivation that runs npm in its own sandbox is
+#     the sanctioned exception (npm, bun and their runners), so
+#     deploy/nix/*/package.nix is checked without that branch. Beyond a regex: an installer fetched in one
+#     step and run in the next, and a pipe through tee.
+nix_first="([\"']|\\b)(podman|docker|nerdctl|buildah|lxc|distrobox|toolbox)(-compose)?[\"']?[ ,]+[\"']?(run|build|bud|pull|push|exec|compose|image|images|volume|network|create|start|stop|rm|rmi|ps|load|save|login|system|logs|kill|up|down|launch|enter)\\b|\\bsystemd-nspawn\\b|\\b(apt|apt-get|dnf|yum|zypper|pacman|apk)[\"']?([ ,]+[\"']?-[-[:alnum:]:=]*[\"']?)*[ ,]+[\"']?(install|in|add|-S[[:alnum:]]*)([^-[:alnum:]]|$)|\\bpipx?3?[\"']?([ ,]+[\"']?-[-[:alnum:]]*[\"']?)*[ ,]+[\"']?install([^-[:alnum:]]|$)|\\b(python3?|py)[\"']?[ ,]+[\"']?-m[\"']?[ ,]+[\"']?pip\\b|\\buv[\"']?[ ,]+[\"']?(add|sync|pip|tool|run)([^-[:alnum:]]|$)|\\b(uvx|easy_install)\\b|\\b(cargo|poetry|gem|snap|flatpak|conda|mamba|go)[\"']?[ ,]+[\"']?(install|add|get)([^-[:alnum:]]|$)|\\brustup[\"']?[ ,]+[\"']?(toolchain[\"']?[ ,]+[\"']?)?install\\b|\\bbrew[\"']?[ ,]+[\"']?install([^-[:alnum:]]|$)|\\bnix-env[\"']?[ ,]+[\"']?-i|\\bnix[\"']?[ ,]+[\"']?profile[\"']?[ ,]+[\"']?install\\b|(curl|wget)[^|]*(\\|[^|]*)?\\|[[:space:]]*(sudo[[:space:]]+|env[[:space:]]+|/[^[:space:]]*/)?(ba|z|da)?sh\\b|(curl|wget)[^|]*\\|[[:space:]]*(sudo[[:space:]]+)?python3?\\b|\\b(ba|z|da)?sh[[:space:]]+(-c[[:space:]]+)?[\"']?[<$]\\(?[[:space:]]*(curl|wget)\\b"
+nix_first_npm="\\b(npm|pnpm|yarn|bun)[\"']?[ ,]+[\"']?(install|i|ci|add)([^-[:alnum:]]|$)|\\b(npx|bunx)\\b|\\byarn[\"']?$"
+if git grep --line-number --extended-regexp "$nix_first|$nix_first_npm" \
+		-- 'f/*.py' 'f/*.yaml' 'f/*.ts' 'scripts/*' 'nix/*' 'deploy/*' 'tests/*' 'flake.nix' \
+		':!scripts/check-style.sh' ':!scripts/get_maintainer.pl' ':!deploy/nix/*/package.nix' \
+	|| git grep --line-number --extended-regexp "$nix_first" -- 'deploy/nix/*/package.nix'; then
+		echo "error: non-Nix tooling in code; everything comes from Nix (CLAUDE.md, Nix first)"
+		status=1
+fi
+
 # 4. reStructuredText line length under docs/: prose wraps at 80 columns.
 #    URLs cannot be broken, so a line that contains one is exempt.
 while IFS= read -r f; do

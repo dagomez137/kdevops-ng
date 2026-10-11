@@ -20,6 +20,19 @@ that page; an agent asked to automate a root step stops and asks.
 `scripts/check-style.sh` (3b) refuses an escalation in code. Why, and the
 design it comes from: `docs/concepts/principles.rst`.
 
+## Nix first: everything reproducible (never bypass)
+
+Every tool, library, service and guest component comes from Nix, pinned: the
+root `flake.nix` for the repository tooling, `vendor/nixos-flake` for the
+devShells steps run in and what guests boot, `deploy/nix` for the Windmill
+stack. Never a distro package, a container runtime, a language package manager
+outside a Nix derivation, a piped installer, or a binary that happens to be on
+the host's `PATH`; steps run every command through the `f/common/devshell`
+runners, and a tool nixpkgs lacks is packaged in `vendor/nixos-flake`, never
+fetched at run time. `scripts/check-style.sh` (3c) refuses the rest in code;
+a derivation running `npm` in its own build (`deploy/nix/wmill/package.nix`)
+is the one sanctioned shape. Why: `docs/concepts/principles.rst`.
+
 ## Layout
 
 `docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
@@ -36,7 +49,7 @@ and `scripts/` provide the checks, run with `nix flake check` (see
 
 Always use long-form command flags everywhere (scripts, docs, examples): for
 example `mkdir --parents`, `rm --recursive --force`,
-`nix build --out-link`, `apt install --yes`, `npm install --global`,
+`nix build --out-link`, `git log --format`, `systemctl --user show --property`,
 `qemu-img create --format qcow2`. Use a short flag only when no long form
 exists, such as `ssh -L`.
 
