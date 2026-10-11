@@ -85,7 +85,8 @@ documented in `docs/deployment/nix-backend.rst`.
   `f/workbench` init flow) and the `vhost_vsock` module loaded.
 - **Oracle (14th language)**: `nix build .#windmill-oracle` is wired but unbuilt
   (unfree Oracle Instant Client, `allowUnfree` scoped in `flake.nix`).
-- `deploy/distro/` backend is still a TODO (see `deploy/README.md`).
+- `deploy/distro/` backend: dropped 2026-10-10 with the Nix-first rule in
+  `CLAUDE.md`; the nix deployment is the one method.
 
 ## Suggested skills
 

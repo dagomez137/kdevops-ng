@@ -59,7 +59,7 @@ Repository layout
 
    kdevops-ng/
    ├── f/          Windmill workspace content (flows, steps, apps)
-   ├── deploy/     brings the Windmill instance up (nix by default)
+   ├── deploy/     brings the Windmill instance up, from Nix
    ├── vendor/     pinned upstream projects (nixos-flake, ...)
    ├── docs/       this documentation site
    ├── notes/      research, design notes and the ADRs (not rendered)
@@ -71,8 +71,7 @@ The big pieces:
 
 - ``f/`` holds the workspace content, grouped into subsystems and named by a
   small convention; see :doc:`/concepts/flows` and :doc:`/reference/wmill-yaml`.
-- ``deploy/`` deploys the Windmill instance; the ``nix`` deployment is the
-  current default, with ``distro`` planned.
+- ``deploy/`` deploys the Windmill instance, from Nix.
 - ``vendor/`` carries pinned upstream projects the flows build against.
 - ``docs/`` is this Sphinx site.
 - ``notes/`` keeps working research and design notes that are not part of the

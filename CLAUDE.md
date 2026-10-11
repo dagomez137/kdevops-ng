@@ -23,10 +23,9 @@ design it comes from: `docs/concepts/principles.rst`.
 ## Layout
 
 `docs/getting-started/quickstart.rst` is the minimal end-to-end setup.
-`deploy/` holds the instance deployment methods. `nix/` is the current default;
-`distro/` is planned. See
-`deploy/README.md`. `wmill.yaml` is the workspace-as-code configuration (code
-and resources, no secrets; one workspace, `kdevops`, on branch `main`). `f/`
+`deploy/nix/` deploys the instance (see `deploy/README.md`). `wmill.yaml` is the
+workspace-as-code configuration (code and resources, no secrets; one
+workspace, `kdevops`, on branch `main`). `f/`
 holds the workspace content and is machine-managed by `wmill`. Deploy through
 the `deploy-kdevops` nix app, which pushes the whole tree and then runs the
 preview smoke suite against the deployed steps. The root `flake.nix`

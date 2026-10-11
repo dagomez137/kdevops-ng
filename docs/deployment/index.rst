@@ -5,7 +5,7 @@ Deployment
 ==========
 
 How to run the Windmill instance. A deployment method is one way to build and
-run the stack; Nix is the current one, and a distro deployment is planned.
+run the stack; the project is Nix first, so Nix is the one method.
 
 .. toctree::
    :maxdepth: 1
