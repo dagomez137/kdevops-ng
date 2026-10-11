@@ -753,10 +753,10 @@ schema:
         shares:
           type: object
           description: |-
-            virtiofs shares keyed by guest mount point, e.g. {"/mnt/home":
-            {"tag": "home", "options": ["ro"]}}. The `fstests` mount is
-            auto-added when Test Suites include `fstests`; `home` adds the
-            operator's home. Both coexist.
+            Advanced: virtiofs shares keyed by guest mount point, e.g.
+            {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests`
+            mount is auto-added when Test Suites include `fstests`; `home` adds
+            the operator's home. Both coexist.
           default: {}
         ssh_keys:
           type: array

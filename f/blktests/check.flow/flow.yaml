@@ -509,8 +509,8 @@ schema:
         test_timeouts:
           type: object
           description: |-
-            Per-test overrides, mapping a test to seconds, e.g. {"block/002":
-            30}. Empty = the global Per-test Timeout applies.
+            Advanced: per-test overrides, mapping a test to seconds, e.g.
+            {"block/002": 30}. Empty = the global Per-test Timeout applies.
           default: {}
           title: Per-test Timeout Overrides
         timeout:

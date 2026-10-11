@@ -1019,13 +1019,13 @@ schema:
               title: Home Dir
             shares:
               type: object
-              description: 'virtiofs shares keyed by guest mount point, e.g. {"/mnt/home":
+              description: 'Advanced: virtiofs shares keyed by guest mount point, e.g.
 
-                {"tag": "home", "options": ["ro"]}}. The `fstests` mount is
+                {"/mnt/home": {"tag": "home", "options": ["ro"]}}. The `fstests`
 
-                auto-added when Test Suites include `fstests`; `home` adds the
+                mount is auto-added when Test Suites include `fstests`; `home` adds
 
-                operator''s home. Both coexist.'
+                the operator''s home. Both coexist.'
               default: {}
             ssh_keys:
               type: array
