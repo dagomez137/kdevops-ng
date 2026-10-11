@@ -67,7 +67,7 @@ and for the developer, whose every command declines rather than clobbers:
 
 and, for either, the optional series, in the devShell with cwd=$WT:
 
-    b4 -c b4.midmask=https://lore.kernel.org/all/%s am --outdir "$tmp" "$b4_series"
+    b4 --config b4.midmask=https://lore.kernel.org/all/%s am --outdir "$tmp" "$b4_series"
     # the committer identity is passed per-invocation: a `git config` in a linked
     # worktree writes the Bare's shared config, which every worktree of it inherits
     git -c user.name=kdevops -c user.email=kdevops@kdevops -C "$WT" am \\
@@ -675,7 +675,7 @@ def _apply_b4_series(git: Git, workers: Path, worktree: Path, b4_series: str) ->
     with tempfile.TemporaryDirectory(dir=os.environ.get("TMPDIR")) as tmp:
         DevShell(workers).run(
             "b4",
-            "-c",
+            "--config",
             "b4.midmask=https://lore.kernel.org/all/%s",
             "am",
             "--outdir",
@@ -763,7 +763,7 @@ def _cover_subject(workers: Path, worktree: Path, b4_series: str) -> str:
         try:
             DevShell(workers).run(
                 "b4",
-                "-c",
+                "--config",
                 "b4.midmask=https://lore.kernel.org/all/%s",
                 "mbox",
                 "--single-message",

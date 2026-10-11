@@ -15,7 +15,7 @@ warn and the first wins.
 Equivalent bash, per seriesed override:
 
     git -C "$WORKERS_DIR/$WORKER_INDEX/main/<project>" checkout --detach --force <ref>
-    b4 -c b4.midmask=https://lore.kernel.org/all/%s am --outdir <tmp> <series>
+    b4 --config b4.midmask=https://lore.kernel.org/all/%s am --outdir <tmp> <series>
     git -c user.name=kdevops -c user.email=kdevops@kdevops am \\
         --committer-date-is-author-date <tmp>/*.mbx
     git update-ref refs/heads/b4/<slug> HEAD ""   # create only
