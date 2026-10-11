@@ -159,6 +159,7 @@ def prepare(
     git.run("-C", str(bare), "worktree", "prune")
     if recreate_worktree:
         shutil.rmtree(worktree, ignore_errors=True)
+        print(f"removed {worktree}", flush=True)
         git.run("-C", str(bare), "worktree", "prune")
     if git.ok("-C", str(worktree), "rev-parse", "--git-dir"):
         _sanitize_worktree(git, worktree)
@@ -166,6 +167,7 @@ def prepare(
         git.run("-C", str(worktree), "checkout", "--detach", "--force", target)
     else:
         shutil.rmtree(worktree, ignore_errors=True)
+        print(f"removed {worktree}", flush=True)
         git.run(
             "-C",
             str(bare),
@@ -190,6 +192,7 @@ def prepare(
         target_dir = worktree / d
         if d in wipe_dirs:
             shutil.rmtree(target_dir, ignore_errors=True)
+            print(f"removed {target_dir}", flush=True)
         target_dir.mkdir(parents=True, exist_ok=True)
     _exclude_dirs(bare, extra_dirs)
 
@@ -618,6 +621,7 @@ def _exclude_dirs(bare: Path, extra_dirs: tuple) -> None:
     info.mkdir(parents=True, exist_ok=True)
     with exclude.open("a") as handle:
         handle.write("".join(line + "\n" for line in missing))
+    print(f"wrote {exclude}", flush=True)
 
 
 def _b4_slug(b4_series: str) -> str:
