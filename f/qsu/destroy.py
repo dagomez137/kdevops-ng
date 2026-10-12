@@ -17,7 +17,7 @@ shared across VMs are torn down too, matching the qsu manual's
 "Remove everything": the virtiofsd listening sockets are stopped (they socket-activate
 new virtiofsd processes until stopped, since `qemu-system@<vm>.service` does not pin
 them), the host-wide template units (`qemu-system@.service`, `virtiofsd@.service`,
-`virtiofsd@.socket`, `vfio-bind@.service`) are removed, and the `qemu-system`/`virtiofsd`
+`virtiofsd@.socket`) are removed, and the `qemu-system`/`virtiofsd`
 config dirs (the static `qmp-powerdown` and any stragglers) are swept. `f/qsu/boot`
 re-renders all of these unconditionally on the next deploy, so the slate is clean now and
 self-heals on first boot. While other VMs remain the shared files stay in place.
@@ -35,7 +35,6 @@ and, only once no VM is left, additionally (qsu manual "Remove everything"):
       ~/.config/systemd/user/qemu-system@.service \\
       ~/.config/systemd/user/virtiofsd@.service \\
       ~/.config/systemd/user/virtiofsd@.socket \\
-      ~/.config/systemd/user/vfio-bind@.service \\
       ~/.config/systemd/qemu-system \\
       ~/.config/systemd/virtiofsd
     systemctl --user daemon-reload
@@ -75,7 +74,6 @@ def _teardown_shared(systemd: Systemd, cfg: Path) -> list[str]:
         user / "qemu-system@.service",
         user / "virtiofsd@.service",
         user / "virtiofsd@.socket",
-        user / "vfio-bind@.service",
         cfg / "qemu-system",
         cfg / "virtiofsd",
     ]

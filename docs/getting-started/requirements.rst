@@ -72,10 +72,10 @@ PCI passthrough (VFIO)
 ======================
 
 Letting a guest take a host PCI device (an NVMe drive, say) needs VFIO. This is
-a one-time sudo setup that grants the ``kvm`` group access to the devices you
-may want to hand to guests; after it, a flow binds and passes a device in user
-mode, with no sudo at VM time. Do it only for devices you intend to make
-available; skip the section otherwise.
+a one-time sudo setup that hands the devices you choose to the ``vfio-pci``
+driver and lets the ``kvm`` group open them; after it, a flow passes a device to
+a guest in user mode, with no sudo at VM time. Do it only for devices you intend
+to make available; skip the section otherwise.
 
 First list the host PCI devices and note the address of each candidate. The
 first column is the address, with the ``0000:`` domain shown by ``-D``:
@@ -114,8 +114,9 @@ Load the ``vfio-pci`` driver:
 
 Render the udev rule from your file and install it (``minijinja-cli`` comes from
 the development shell). It sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"``
-so the
-``kvm`` group can open ``/dev/vfio``, with a per-device block for each address:
+so the ``kvm`` group can open ``/dev/vfio``, and for each address sets the
+device's ``driver_override`` to ``vfio-pci`` when it appears, so the kernel
+binds it to ``vfio-pci`` instead of its host driver:
 
 .. code-block:: console
    :class: cmd-host
@@ -124,13 +125,19 @@ so the
        vendor/qemu-system-units/templates/vfio-udev.rules.j2 passthrough.yaml \
        | sudo tee /etc/udev/rules.d/10-vfio-kvm.rules
 
-Reload udev so the rule takes effect:
+Reload udev. The rule binds each device at the next boot; to move a device a
+host driver holds now, replay its add event, which sets the override, then
+unbind it so the kernel probes it again:
 
 .. code-block:: console
    :class: cmd-host
 
    $ sudo udevadm control --reload-rules
-   $ sudo udevadm trigger --subsystem-match=pci
+   $ sudo udevadm trigger --action=add /sys/bus/pci/devices/0000:2d:00.0
+   $ echo 0000:2d:00.0 \
+       | sudo tee /sys/bus/pci/devices/0000:2d:00.0/driver/unbind
+   $ echo 0000:2d:00.0 | sudo tee /sys/bus/pci/drivers_probe
+   $ readlink /sys/bus/pci/devices/0000:2d:00.0/driver   # ends in vfio-pci
 
 A passthrough guest locks its RAM for DMA, so its ``qemu-system@`` unit asks
 for ``LimitMEMLOCK=<ram+256>M``. A user unit cannot exceed the hard limit of
