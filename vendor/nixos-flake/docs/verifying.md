@@ -64,15 +64,17 @@ Why: `nix flake check` exercises the `checks` closures but does not build
 the standalone `packages` outputs; overlay and package changes only
 surface on an actual build.
 
-What: builds every custom package. The list comes from
-`pkgs/default.nix` rather than being repeated here, so a package added
-there is covered without editing this file (reading the attribute names
+What: builds every package the flake exports: the custom packages
+from `pkgs/default.nix` and the tools it re-exports. The names come
+from the flake rather than being repeated here, so a package added to
+`pkgs/default.nix` is covered without editing this file, and one the
+flake leaves out, such as an unfree package that evaluates only under a
+system's allowUnfree, is not asked for (reading the attribute names
 evaluates no package, so this stays fast):
 
 ```shell
-nix build $(nix eval --raw --impure --expr \
-  'builtins.concatStringsSep " " (map (n: ".#" + n)
-     (builtins.attrNames (import ./pkgs { })))')
+nix build $(nix eval --raw .#packages.x86_64-linux --apply \
+  'ps: builtins.concatStringsSep " " (map (n: ".#" + n) (builtins.attrNames ps))')
 ```
 
 ## 5. Review the commit message
