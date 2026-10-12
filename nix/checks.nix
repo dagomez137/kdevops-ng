@@ -10,7 +10,7 @@ let
   inherit (pkgs) runCommandLocal;
 in
 {
-  lint = runCommandLocal "kdevops-check-lint" { nativeBuildInputs = [ pkgs.ruff ]; } ''
+  lint = runCommandLocal "kdevops-ng-check-lint" { nativeBuildInputs = [ pkgs.ruff ]; } ''
     cp --recursive --no-preserve=mode ${lintSrc}/. .
     ruff check scripts f tests
     ruff format --check scripts f tests
@@ -20,7 +20,7 @@ in
   # The fixture tests over the f/ step modules (parsers, verdict rules, store
   # reads); pure Python, no instance and no network.
   tests =
-    runCommandLocal "kdevops-check-tests"
+    runCommandLocal "kdevops-ng-check-tests"
       {
         nativeBuildInputs = [ toolsets.pyEnv ];
       }
@@ -33,7 +33,7 @@ in
 
   # The generated flow and reflowed descriptions still match their generators.
   generated =
-    runCommandLocal "kdevops-check-generated"
+    runCommandLocal "kdevops-ng-check-generated"
       {
         nativeBuildInputs = [
           pkgs.bash

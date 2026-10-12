@@ -20,7 +20,7 @@ let
         runtimeInputs = [ pkgs.git ] ++ runtimeInputs;
         text = ''
           root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
-            echo "kdevops: run this inside the kdevops-ng checkout" >&2
+            echo "kdevops-ng: run this inside the kdevops-ng checkout" >&2
             exit 1
           }
           cd "$root"
@@ -109,11 +109,11 @@ let
     seen=" "
     for peer in "$@"; do
       case "$peer" in
-      "" | -* | *[[:space:]]*) echo "kdevops: not an ssh alias: '$peer'" >&2; exit 1 ;;
+      "" | -* | *[[:space:]]*) echo "kdevops-ng: not an ssh alias: '$peer'" >&2; exit 1 ;;
       esac
       case "$seen" in *" $peer "*) continue ;; esac
       seen="$seen$peer "
-      resolved="$(ssh -G -- "$peer")" || { echo "kdevops: ssh cannot resolve $peer" >&2; exit 1; }
+      resolved="$(ssh -G -- "$peer")" || { echo "kdevops-ng: ssh cannot resolve $peer" >&2; exit 1; }
       host="" port="" user="" proxy=""
       while read -r option value; do
         case "$option" in
@@ -124,12 +124,12 @@ let
         esac
       done <<< "$resolved"
       if [ -z "$host" ] || [ -z "$port" ] || [ -z "$user" ]; then
-        echo "kdevops: ssh -G $peer gave no hostname, port or user" >&2
+        echo "kdevops-ng: ssh -G $peer gave no hostname, port or user" >&2
         exit 1
       fi
       # Only HostName, Port and User carry over.
       if [ -n "$proxy" ]; then
-        echo "kdevops: $peer needs '$proxy', which the block cannot carry; use an alias the workers reach directly" >&2
+        echo "kdevops-ng: $peer needs '$proxy', which the block cannot carry; use an alias the workers reach directly" >&2
         exit 1
       fi
       cat >> "$conf.tmp" <<EOF
@@ -145,7 +145,7 @@ let
       if [ "$port" = 22 ]; then name="$host"; else name="[$host]:$port"; fi
       ssh-keygen -F "$name" -f "$ssh_dir/known_hosts" > /dev/null 2>&1 \
         || ssh-keyscan -p "$port" "$host" 2> /dev/null >> "$ssh_dir/known_hosts" \
-        || echo "kdevops: no host key from $host:$port; the first ssh accepts it" >&2
+        || echo "kdevops-ng: no host key from $host:$port; the first ssh accepts it" >&2
       echo "peer $peer -> $user@$host:$port"
     done
     # OpenSSH refuses a group-writable config, included files too.
@@ -241,8 +241,8 @@ let
   windmillTrust = ''
     root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
     if [ ! -f "$root" ]; then
-      echo "kdevops: no caddy root CA at $root" >&2
-      echo "kdevops: activate the stack first (nix run .#windmill-activate)" >&2
+      echo "kdevops-ng: no caddy root CA at $root" >&2
+      echo "kdevops-ng: activate the stack first (nix run .#windmill-activate)" >&2
       exit 1
     fi
     echo "caddy root CA: $root"
@@ -261,7 +261,7 @@ let
     root="''${XDG_DATA_HOME:-$HOME/.local/share}/caddy/pki/authorities/local/root.crt"
     caddy="''${XDG_STATE_HOME:-$HOME/.local/state}/windmill/pkgs/caddy/bin/caddy"
     if [ ! -x "$caddy" ]; then
-      echo "kdevops: caddy not built at $caddy (nix run .#windmill-build)" >&2
+      echo "kdevops-ng: caddy not built at $caddy (nix run .#windmill-build)" >&2
       exit 1
     fi
     "$caddy" untrust --cert "$root"
@@ -293,7 +293,7 @@ let
   help = {
     type = "app";
     program = lib.getExe (writeShellApplication {
-      name = "kdevops-help";
+      name = "kdevops-ng-help";
       text = ''
         cat <<'MENU'
         kdevops-ng development commands
@@ -313,7 +313,7 @@ in
   default = help;
   inherit help;
   format = mkApp {
-    name = "kdevops-format";
+    name = "kdevops-ng-format";
     description = "Apply ruff lint fixes and formatting to all Python";
     runtimeInputs = [ pkgs.ruff ];
     text = ''
@@ -323,14 +323,14 @@ in
   };
 
   reflow = mkApp {
-    name = "kdevops-reflow";
+    name = "kdevops-ng-reflow";
     description = "Rewrap wmill description fields into clean literal blocks";
     runtimeInputs = [ toolsets.pyEnv ];
     text = "python3 scripts/reflow-descriptions.py --write";
   };
 
   preview-smoke = mkApp {
-    name = "kdevops-preview-smoke";
+    name = "kdevops-ng-preview-smoke";
     description = "Smoke the suite flows' isolated steps as Windmill preview jobs";
     runtimeInputs = [
       toolsets.pyEnv
@@ -340,7 +340,7 @@ in
   };
 
   deploy-kdevops = mkApp {
-    name = "kdevops-deploy-kdevops";
+    name = "kdevops-ng-deploy-kdevops";
     description = "Push the workspace to kdevops, then smoke the deployed suite steps";
     runtimeInputs = [
       toolsets.pyEnv
@@ -357,7 +357,7 @@ in
   };
 
   docs = mkApp {
-    name = "kdevops-docs";
+    name = "kdevops-ng-docs";
     description = "Render the documentation to docs/_build/html with Sphinx";
     runtimeInputs = [ toolsets.docsPython ];
     text = ''
@@ -367,7 +367,7 @@ in
   };
 
   serve = mkApp {
-    name = "kdevops-serve";
+    name = "kdevops-ng-serve";
     description = "Live-render the docs on 127.0.0.1, rebuilding on save (arg: port)";
     runtimeInputs = [ toolsets.docsPython ];
     text = ''
@@ -377,27 +377,27 @@ in
   };
 
   maintainers = mkApp {
-    name = "kdevops-maintainers";
+    name = "kdevops-ng-maintainers";
     description = "Who to Cc for a change (args: one or more files)";
     runtimeInputs = [ pkgs.perl ];
     text = ''perl scripts/get_maintainer.pl --no-tree --no-git-fallback -f "$@"'';
   };
 
   windmill-build = mkApp {
-    name = "kdevops-windmill-build";
+    name = "kdevops-ng-windmill-build";
     description = "Build the Windmill deploy stack to its out-links";
     text = windmillBuild;
   };
 
   windmill-install = mkApp {
-    name = "kdevops-windmill-install";
+    name = "kdevops-ng-windmill-install";
     description = "Install the Windmill systemd --user units and Caddyfile";
     runtimeInputs = [ pkgs.coreutils ];
     text = windmillInstall;
   };
 
   windmill-peers = mkApp {
-    name = "kdevops-windmill-peers";
+    name = "kdevops-ng-windmill-peers";
     description = "Write the workers' ssh config for the peer workbench hosts (args: aliases)";
     runtimeInputs = [
       pkgs.coreutils
@@ -408,13 +408,13 @@ in
   };
 
   windmill-activate = mkApp {
-    name = "kdevops-windmill-activate";
+    name = "kdevops-ng-windmill-activate";
     description = "Enable and start the Windmill systemd --user services";
     text = windmillActivate;
   };
 
   windmill-deploy = mkApp {
-    name = "kdevops-windmill-deploy";
+    name = "kdevops-ng-windmill-deploy";
     description = "Build, install, and activate the whole Windmill stack";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
@@ -426,27 +426,27 @@ in
   };
 
   windmill-deactivate = mkApp {
-    name = "kdevops-windmill-deactivate";
+    name = "kdevops-ng-windmill-deactivate";
     description = "Stop and disable the Windmill systemd --user services";
     text = windmillDeactivate;
   };
 
   windmill-uninstall = mkApp {
-    name = "kdevops-windmill-uninstall";
+    name = "kdevops-ng-windmill-uninstall";
     description = "Remove the installed Windmill units and Caddyfile";
     runtimeInputs = [ pkgs.coreutils ];
     text = windmillUninstall;
   };
 
   windmill-wipe = mkApp {
-    name = "kdevops-windmill-wipe";
+    name = "kdevops-ng-windmill-wipe";
     description = "Delete the Windmill instance data (database, out-links, env)";
     runtimeInputs = [ pkgs.coreutils ];
     text = windmillWipe;
   };
 
   windmill-teardown = mkApp {
-    name = "kdevops-windmill-teardown";
+    name = "kdevops-ng-windmill-teardown";
     description = "Deactivate, uninstall, and wipe the whole Windmill stack";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
@@ -458,26 +458,26 @@ in
   };
 
   monitoring-build = mkApp {
-    name = "kdevops-monitoring-build";
+    name = "kdevops-ng-monitoring-build";
     description = "Build the monitoring stack (Grafana, Prometheus, Loki) to its out-links";
     text = monitoringBuild;
   };
 
   monitoring-install = mkApp {
-    name = "kdevops-monitoring-install";
+    name = "kdevops-ng-monitoring-install";
     description = "Install the monitoring systemd --user units and configs";
     runtimeInputs = [ pkgs.coreutils ];
     text = monitoringInstall;
   };
 
   monitoring-activate = mkApp {
-    name = "kdevops-monitoring-activate";
+    name = "kdevops-ng-monitoring-activate";
     description = "Enable and start the monitoring systemd --user services";
     text = monitoringActivate;
   };
 
   monitoring-deploy = mkApp {
-    name = "kdevops-monitoring-deploy";
+    name = "kdevops-ng-monitoring-deploy";
     description = "Build, install, and activate the whole monitoring stack";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
@@ -489,13 +489,13 @@ in
   };
 
   monitoring-deactivate = mkApp {
-    name = "kdevops-monitoring-deactivate";
+    name = "kdevops-ng-monitoring-deactivate";
     description = "Stop and disable the monitoring systemd --user services";
     text = monitoringDeactivate;
   };
 
   monitoring-collector-install = mkApp {
-    name = "kdevops-monitoring-collector-install";
+    name = "kdevops-ng-monitoring-collector-install";
     description = "Install the guest telemetry fan-in for a worker host";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
@@ -521,7 +521,7 @@ in
   windmill-trust = {
     type = "app";
     program = lib.getExe (writeShellApplication {
-      name = "kdevops-windmill-trust";
+      name = "kdevops-ng-windmill-trust";
       runtimeInputs = [ pkgs.coreutils ];
       text = windmillTrust;
     });
@@ -531,14 +531,14 @@ in
   windmill-untrust = {
     type = "app";
     program = lib.getExe (writeShellApplication {
-      name = "kdevops-windmill-untrust";
+      name = "kdevops-ng-windmill-untrust";
       text = windmillUntrust;
     });
     meta.description = "Untrust the caddy root CA from this host's trust store";
   };
 
   windmill-worker-install = mkApp {
-    name = "kdevops-windmill-worker-install";
+    name = "kdevops-ng-windmill-worker-install";
     description = "Build and install the Windmill worker unit for a remote server";
     runtimeInputs = [ pkgs.coreutils ];
     text = ''
@@ -561,7 +561,7 @@ in
   };
 
   windmill-worker-activate = mkApp {
-    name = "kdevops-windmill-worker-activate";
+    name = "kdevops-ng-windmill-worker-activate";
     description = "Enable and start N Windmill worker instances; re-run to scale";
     text = ''
       count="''${1:-1}"
@@ -586,7 +586,7 @@ in
   disable-linger = {
     type = "app";
     program = lib.getExe (writeShellApplication {
-      name = "kdevops-disable-linger";
+      name = "kdevops-ng-disable-linger";
       text = ''loginctl disable-linger "$USER"'';
     });
     meta.description = "Disable user linger (user-global: stops all lingering services)";
