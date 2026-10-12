@@ -32,3 +32,24 @@ scripts/verify_config.sh ../build/.config \
 `$C` is this project's `kernel/configs/` directory. Pass the first argument as
 the built `.config`, then the same fragments, in the same order, you gave to
 `merge_config.sh`. Run it after every fragment change before committing.
+
+A fragment or defconfig may name a symbol only an out-of-tree branch defines,
+such as the Rust XArray ones. On a tree without it, that symbol is absent for
+the second reason above, yet nothing is wrong. Give `-k` the kernel tree and
+the script reports such a symbol as `SKIP` instead of a mismatch; a symbol the
+tree's Kconfig does define and the `.config` dropped still fails.
+
+## Verifying a defconfig
+
+A defconfig under `defconfigs/` is checked the same way, with the defconfig as
+its own fragment: expand it, then compare.
+
+```sh
+cp defconfigs/imageless_defconfig ../build/.config
+make -C <linux> O=../build olddefconfig
+scripts/verify_config.sh -k <linux> ../build/.config \
+    defconfigs/imageless_defconfig
+```
+
+Run it after changing a defconfig, and after a fragment change the defconfig
+mirrors.

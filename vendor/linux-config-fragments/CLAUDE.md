@@ -37,7 +37,8 @@ QEMU/KVM guests, composed with the kernel's own
 ## Validation
 
 Run `scripts/verify_config.sh` on an affected merge after any fragment change,
-to confirm the values you requested survive into the final `.config`. See
+and on the expanded defconfig after a defconfig change, to confirm the values
+you requested survive into the final `.config`. See
 [docs/verification.md](docs/verification.md). The design rationale — why `=m`
 is the default, the `builtin/` override model and `merge_config.sh -y`, the
 Kconfig-forced symbols, and the deliberate omissions — is in
@@ -69,4 +70,5 @@ All commits must follow these rules.
    the bare tag is the usual form. Commits predating this carry
    `Generated-by: Claude AI`; leave them alone.
 6. Run `scripts/verify_config.sh` on an affected merge before committing a
-   fragment change.
+   fragment change, and on the expanded defconfig before committing a
+   defconfig change (docs/verification.md).

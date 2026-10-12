@@ -14,8 +14,12 @@
 # separating user-configurable symbols from infrastructure (ARCH_HAS_*,
 # HAVE_*, CC_*, AS_*, GENERIC_*, X86_*).
 #
+# With -k, a requested symbol that the kernel tree's Kconfig does not
+# define (an out-of-tree driver on a mainline tree) is reported as skipped
+# rather than as a mismatch.
+#
 # Usage:
-#   verify_config.sh <dotconfig> <fragment> [<fragment> ...]
+#   verify_config.sh [-k <srctree>] <dotconfig> <fragment> [<fragment> ...]
 #
 # Example:
 #   verify_config.sh ../build/.config \
@@ -30,11 +34,23 @@ CONFIG_PREFIX=${CONFIG_-CONFIG_}
 AWK="${AWK:-awk}"
 
 usage() {
-	printf 'Usage: %s <dotconfig> <fragment> [<fragment> ...]\n\n' "$0"
+	printf 'Usage: %s [-k <srctree>] <dotconfig> <fragment> [<fragment> ...]\n\n' "$0"
 	printf 'Verify that config values requested in fragments match the\n'
 	printf 'final .config. Exit code 0 if all match, 1 if any mismatch.\n'
+	printf 'With -k, skip symbols the Kconfig of <srctree> does not define.\n'
 	exit 1
 }
+
+SRCTREE=
+if [ "$1" = "-k" ]; then
+	[ "$#" -ge 2 ] || usage
+	SRCTREE="$2"
+	shift 2
+	if [ ! -d "$SRCTREE" ]; then
+		printf 'error: %s is not a directory\n' "$SRCTREE" >&2
+		exit 1
+	fi
+fi
 
 if [ "$#" -lt 2 ]; then
 	usage
@@ -63,7 +79,18 @@ TMP_LOOKUP=$(mktemp "$TMP_LOOKUP")
 TMP_REQUESTED="${TMPDIR:-/tmp}/verify_requested.XXXXXX"
 TMP_REQUESTED=$(mktemp "$TMP_REQUESTED")
 
-trap 'rm -f "$TMP_LOOKUP" "$TMP_REQUESTED"' EXIT
+# The symbols the kernel tree defines, for -k.
+TMP_DEFINED="${TMPDIR:-/tmp}/verify_defined.XXXXXX"
+TMP_DEFINED=$(mktemp "$TMP_DEFINED")
+
+trap 'rm -f "$TMP_LOOKUP" "$TMP_REQUESTED" "$TMP_DEFINED"' EXIT
+
+if [ -n "$SRCTREE" ]; then
+	# shellcheck disable=SC2016
+	find "$SRCTREE" -name 'Kconfig*' -type f -exec "$AWK" -v prefix="$CONFIG_PREFIX" '
+	$1 == "config" || $1 == "menuconfig" { print prefix $2 }
+	' {} + | sort -u > "$TMP_DEFINED"
+fi
 
 # shellcheck disable=SC2016
 "$AWK" -v prefix="$CONFIG_PREFIX" '
@@ -127,6 +154,7 @@ strip_quotes() {
 
 mismatches=0
 checked=0
+skipped=0
 
 while IFS="	" read -r entry src || [ -n "$entry" ]; do
 	sym="${entry%%=*}"
@@ -146,6 +174,12 @@ while IFS="	" read -r entry src || [ -n "$entry" ]; do
 	else
 		actual="(absent)"
 		if [ "$requested" = "n" ]; then
+			continue
+		fi
+		if [ -n "$SRCTREE" ] && ! grep -qx "$sym" "$TMP_DEFINED"; then
+			printf 'SKIP %s: %s=%s, not defined by %s\n' \
+				"$src_name" "$sym" "$requested" "$SRCTREE"
+			skipped=$((skipped + 1))
 			continue
 		fi
 	fi
@@ -197,6 +231,10 @@ if [ "$mismatches" -gt 0 ]; then
 	printf '\n%d mismatch(es) out of %d fragment configs checked\n' "$mismatches" "$checked"
 	exit 1
 else
-	printf '\nOK: %d fragment configs verified, all match\n' "$checked"
+	printf '\nOK: %d fragment configs verified, all match' "$checked"
+	if [ "$skipped" -gt 0 ]; then
+		printf ' (%d skipped, not in the tree)' "$skipped"
+	fi
+	printf '\n'
 	exit 0
 fi
