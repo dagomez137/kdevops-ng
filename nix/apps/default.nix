@@ -52,7 +52,8 @@ let
   hostOnlyDropIns = glob: ''
     machine_id="$(cat /etc/machine-id)"
     shopt -s nullglob
-    for unit in "$config"/systemd/user/${glob}; do
+    units=("$config"/systemd/user/${glob})
+    for unit in "''${units[@]}"; do
       mkdir --parents "$unit.d"
       printf '[Unit]\nConditionHost=%s\n' "$machine_id" > "$unit.d/host-only.conf"
     done
