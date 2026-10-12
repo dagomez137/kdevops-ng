@@ -66,13 +66,16 @@ Usability
 
       :bdg-primary:`planned`
 
-      Make flows and scripts zero-config on the common path and gate the rest
-      behind "Advanced options". A kernel build should take a ref and a series
-      and infer the rest (checkout, push refs, targets, configuration). The
-      bringup form is the first target: gate its kernel, QEMU and NixOS-closure
-      knobs behind an Advanced mode with sane defaults, which then makes room to
-      embed the test step so one flow builds, boots and tests a kernel. Extends
-      the "curated forms, not empty boxes" convention.
+      Apply the fast path of :doc:`/contributing/forms`: every field's default
+      works unchanged, and a form is shrunk (inferred, removed, merged,
+      reordered) before what is left goes behind a per-group Advanced toggle.
+      A kernel build should take a ref and a series and infer the rest
+      (checkout, push refs, targets, configuration). The kernel build form is
+      the pilot; bringup follows, inheriting it from its subflows through
+      ``scripts/gen-bringup.py``, which then makes room to embed the test step
+      so one flow builds, boots and tests a kernel. A fixture test checks each
+      form default against its step's default, and a smoke case runs each flow
+      with empty inputs.
 
 Cloud and infrastructure
 ========================

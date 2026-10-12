@@ -201,7 +201,10 @@ When writing or extending Windmill flows and steps, also follow these rules:
   (`f.workbench.fetch`'s `KERNEL_TREES` checklist, feeding both `fetch` and
   `mirror`) is the worked example; `docs/contributing/forms.rst` is the human
   home, and `tests/test_curated_forms.py` refuses an unmarked raw box in a
-  flow form.
+  flow form. Every field's default works unchanged and equals the step's
+  default (a hidden field is not sent); shrink a form by inferring, removing
+  or merging fields before hiding the rest behind a group's Advanced toggle
+  (forms.rst, "The fast path").
 
 The Python here is kept lint-clean and consistently formatted by Ruff, the
 single linter and formatter, configured in `pyproject.toml` at line length 88.

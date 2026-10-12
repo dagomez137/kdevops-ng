@@ -26,6 +26,30 @@ The convention
   override that says so in its title or description and replaces the curated
   input when set. It is never the primary input.
 
+The fast path
+=============
+
+Most runs change a few fields and keep the rest, so a form is read for the
+handful a developer came to change.
+
+- Make every default work unchanged, and equal to the step's own default: a
+  field the form hides is not sent, so the step's Python default is what runs.
+- Shrink the form before hiding anything: forty fields with working defaults are
+  still forty fields to read. In order, a field is inferred from the others (a
+  kernel build takes a ref and infers the rest), removed when nobody changes it
+  (a constant in the step, or left to the raw advanced override), merged with
+  its neighbours into one curated choice (a preset in place of the knobs it
+  sets), or moved below the fields developers do change. What is left goes
+  behind an **Advanced** toggle in its own group.
+
+The toggle sits in each group because a nested group's ``showExpr`` sees only
+that group's own fields, not the top-level inputs; one switch for the whole
+form would take a change to Windmill.
+
+The kernel build and bringup forms do not follow this yet (45 and 188 fields,
+25 and 87 shown); the "Opinionated defaults" card on the :doc:`/roadmap`
+tracks the work.
+
 Two worked examples
 ===================
 
