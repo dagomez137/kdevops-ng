@@ -44,6 +44,7 @@
         fileset = lib.fileset.unions [
           ./f
           ./tests
+          ./scripts/check-prose.py
           # The render_config drift guard reads the vendored closure templates.
           ./vendor/nixos-flake/templates
         ];

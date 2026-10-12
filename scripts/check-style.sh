@@ -81,8 +81,8 @@ check_trailers() {
 		fi
 }
 
-# `--commit-msg FILE` checks the trailers of the message in FILE and nothing
-# else: the commit-msg hook's shape (scripts/commit-msg), so a bad message is
+# `--commit-msg FILE` checks the trailers and the prose of the message in FILE
+# and nothing else: the commit-msg hook's shape (scripts/commit-msg), so a bad message is
 # refused before the commit exists rather than reported from HEAD afterwards.
 # A verbose commit template carries the diff below git's scissors line, which
 # stripspace keeps, so the file is cut there first, as git itself cuts it.
@@ -91,6 +91,7 @@ if [ "${1-}" = "--commit-msg" ]; then
 		committer="$(git var GIT_COMMITTER_IDENT | sed 's/ [0-9]* [-+][0-9]*$//')"
 		msg="$(sed '/^[#;] -* >8 -*$/,$d' "$2" | git stripspace --strip-comments)"
 		check_trailers "commit message" "$msg" "$committer"
+		printf '%s\n' "$msg" | python3 "$(dirname "${BASH_SOURCE[0]}")/check-prose.py" --message - || status=1
 		exit "$status"
 fi
 
@@ -117,6 +118,9 @@ done < <(git ls-files "${scope[@]}")
 msg="$(git log --max-count=1 --format=%B 2>/dev/null || true)"
 if [ -n "$msg" ]; then
 		check_trailers HEAD "$msg" "$(git log --max-count=1 --format='%cn <%ce>')"
+		# 3a. HEAD's prose: its message and the docs, comments and docstrings it
+		#     adds (scripts/check-prose.py, docs/contributing/writing.rst).
+		python3 "$(dirname "${BASH_SOURCE[0]}")/check-prose.py" --commit HEAD || status=1
 fi
 
 # 3b. Privilege boundary (CLAUDE.md): code runs as the user, so no sudo,
