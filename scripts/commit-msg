@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: copyleft-next-0.3.1
-# The commit-msg hook: refuse a commit whose trailers fail the check in
-# scripts/check-style.sh, before the commit exists. Link it once, by hand,
+# The commit-msg hook: refuse a commit whose trailers or prose fail the check
+# in scripts/check-style.sh, before the commit exists. The check runs in the
+# checks devShell, so its tools come from Nix. Link it once, by hand,
 # into this repository's hooks (under a global core.hooksPath the link would
 # serve every repository):
 #   ln --symbolic --relative "$(git rev-parse --show-toplevel)/scripts/commit-msg" \
 #       "$(git rev-parse --git-path hooks)/commit-msg"
-script="$(git rev-parse --show-toplevel)/scripts/check-style.sh"
+top="$(git rev-parse --show-toplevel)"
+script="$top/scripts/check-style.sh"
 if ! grep --quiet -- '--commit-msg' "$script"; then
 	echo "commit-msg: $script has no --commit-msg mode; commit with --no-verify" >&2
 	exit 1
 fi
-exec bash "$script" --commit-msg "$1"
+exec nix develop "$top#checks" --command bash "$script" --commit-msg "$1"
