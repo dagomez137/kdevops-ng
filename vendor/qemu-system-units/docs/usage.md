@@ -115,6 +115,18 @@ echo 0000:2d:00.0 | sudo tee /sys/bus/pci/drivers_probe
 readlink /sys/bus/pci/devices/0000:2d:00.0/driver   # ends in vfio-pci
 ```
 
+A passthrough guest locks its RAM, and a user unit's `LimitMEMLOCK=`
+cannot exceed its user manager's hard limit, 8M unless raised (vars.md,
+PCIe passthrough). Raise it once; it takes effect when the user manager
+restarts (reboot, or log out with lingering off):
+
+```shell
+sudo mkdir --parents /etc/systemd/system/user@.service.d
+printf '[Service]\nLimitMEMLOCK=infinity\n' \
+  | sudo tee /etc/systemd/system/user@.service.d/memlock.conf
+sudo systemctl daemon-reload
+```
+
 ## cloud-init
 
 user-data, meta-data, and network-config rendered into a seed ISO for

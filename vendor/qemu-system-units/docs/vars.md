@@ -307,9 +307,13 @@ See: https://cloudinit.readthedocs.io/en/latest/reference/modules.html
 VFIO. Maps to `-device vfio-pci,host=<addr>` and sets
 `LimitMEMLOCK=<ram+256>M` (see systemd.exec(5)).
 
-Requires one-time root setup: the `vfio-pci` module config, and the
-rendered udev rule that binds each device to `vfio-pci` (usage.md
-"vfio"). After setup, all operations run in user mode.
+Requires one-time root setup: the `vfio-pci` module config, the
+rendered udev rule that binds each device to `vfio-pci`, and a higher
+locked-memory limit for `user@.service`. A user unit's `LimitMEMLOCK=`
+cannot exceed the hard limit of the user manager that starts it, and
+that manager inherits `DefaultLimitMEMLOCK=` from the system manager,
+8M by default (see systemd-system.conf(5)). After setup, all operations
+run in user mode. See [usage.md](usage.md) "vfio" for the commands.
 
 Per-device properties:
 
