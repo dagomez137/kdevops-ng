@@ -61,8 +61,8 @@ In practice:
 - The journal is the log and the results channel, and a flow reaches a
   guest's systemd over SSH, running :cmd:`systemctl` there as you would
   with ``systemctl --host`` (:doc:`/flows/guests`).
-- A unit gets its settings from systemd's own mechanisms, environment
-  files, specifiers and drop-ins, and an upstream template is preferred to
+- A unit gets its settings from systemd's own mechanisms (environment
+  files, specifiers and drop-ins), and an upstream template is preferred to
   writing a new one.
 
 User mode only
@@ -72,13 +72,12 @@ Everything kdevops-ng runs, it runs as you, an unprivileged user, and it
 drives your user's service manager (``systemctl --user``), never the system
 one. Nothing in the project runs ``sudo`` on the host.
 
-A few things genuinely need root: the ``kvm`` and ``systemd-journal`` groups,
-the ``vhost_vsock`` module the guest transport needs, the ``vfio-pci`` module
-and its udev rules for PCI passthrough, and the locked-memory limit a
-passthrough guest needs. Each is a one-time step you run
-yourself, documented with the exact commands in
-:doc:`/getting-started/requirements`. No flow or script runs, wraps or
-prints those commands for you. When one is missing, the step that needs it
+A few things need root: the ``kvm`` and ``systemd-journal`` groups, the
+``vhost_vsock`` module the guest transport needs, the ``vfio-pci`` module and
+its udev rules for PCI passthrough, and the locked-memory limit a passthrough
+guest needs. Each is a one-time step you run yourself, documented with the exact
+commands in :doc:`/getting-started/requirements`. No flow or script runs, wraps
+or prints those commands for you. When one is missing, the step that needs it
 says so and points you back to that page.
 
 Keeping root out of the steady state means a flow can never change the host
@@ -101,16 +100,14 @@ Tests run one level further out, in disposable guests: a NixOS closure on a
 its own per-VM share (the home and controller shares widen that on request).
 Wrecking a guest costs a reboot.
 
-Outside the Workbench, steps write only what systemd first and the guests
-need, your user units under ``~/.config/systemd`` and VM state under
-``~/.local/state/qemu-system``, and scratch under ``$TMPDIR``, which the
-worker leaves unset, so ``/tmp``. Your own
+Outside the Workbench, steps write only three things: your user units under
+``~/.config/systemd``, VM state under ``~/.local/state/qemu-system``, and
+scratch under ``$TMPDIR`` (unset for a worker, so ``/tmp``). Your own
 configuration files (``~/.ssh/config``, ``~/.gitconfig``) are yours: where a
-tool needs a line in one, you add it once by hand, as
-:ref:`user-configuration` lists, the same way you run the root steps. Today
-the boundaries are kept by the layout and by path checks in the code rather
-than by the kernel, so a change that writes outside its sandbox breaks this
-rule even where nothing stops it.
+tool needs a line in one, you add it once by hand, as :ref:`user-configuration`
+lists, the same way you run the root steps. Today the boundaries are kept by the
+layout and by path checks in the code rather than by the kernel, so a change
+that writes outside its sandbox breaks this rule even where nothing stops it.
 
 Commands a developer can run
 ============================
@@ -126,8 +123,7 @@ The goal is that a failed run never needs kdevops-ng to reproduce: the job log
 is the recipe. Where a step still falls short (an environment it sets without
 printing, a file it renders in Python, a shell string it hands to ``sh -c``),
 that is a bug to fix, and the plan for generating every step's commands from
-one place is in
-``notes/plans/command-plans.md``.
+one place is in ``notes/plans/command-plans.md``.
 
 .. _Nix: https://nixos.org
 .. _systemd: https://systemd.io
