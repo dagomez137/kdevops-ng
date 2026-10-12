@@ -7,6 +7,7 @@
 let
   checks = import ./checks.nix { inherit pkgs toolsets; };
   docs = import ./docs.nix { inherit pkgs toolsets; };
+  vendor = import ./vendor.nix { inherit pkgs; };
   default = pkgs.mkShell {
     inputsFrom = [ checks ];
     packages = [
@@ -18,5 +19,10 @@ let
   };
 in
 {
-  inherit checks docs default;
+  inherit
+    checks
+    docs
+    vendor
+    default
+    ;
 }
