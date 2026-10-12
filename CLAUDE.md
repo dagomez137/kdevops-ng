@@ -109,7 +109,8 @@ push` sends local commits upstream, with the tool in the root flake's default
 devShell (`nix develop --command git subrepo status`). A change inside one is an
 ordinary commit here, a downstream patch until it lands upstream, written to
 that project's own `CLAUDE.md`, commit style included; `scripts/check-style.sh`
-skips `vendor/`. How and why: `vendor/README.md`, `notes/adr/0006`,
+skips `vendor/`, and `nix run .#check` runs a project's own checklist
+(`scripts/check-vendor.sh`) on a commit that touches it. How and why: `vendor/README.md`, `notes/adr/0006`,
 `notes/adr/0007`.
 
 ## Conventions
@@ -216,7 +217,8 @@ and the fixture tests under `tests/`, which exercise the pure logic of the
 `tests` check with no instance and no network.
 Type-checking uses Pyright (basic mode, with the `f/` rules relaxed for
 Windmill's schema-bearing `main()` signatures); it is advisory, surfaced by the
-editor and `nix develop .#checks --command pyright`, not by the gate.
+editor and `nix develop .#checks --command pyright`, not by the gate;
+`nix run .#check` lists the errors a commit adds.
 
 Formatting the `.py` under `f/` is safe because `wmill` stores and returns
 script bodies verbatim: a canonical `wmill sync pull` reserializes the `.yaml`
@@ -371,4 +373,5 @@ All commits must follow these six rules.
    whitespace, missing end-of-file newlines, and commit-message trailer
    formatting). See `docs/contributing/development.rst`. The trailer check
    reads HEAD; linked as the repository's commit-msg hook, `scripts/commit-msg`
-   runs it on the message before the commit lands.
+   runs it on the message before the commit lands. `nix run .#check` runs
+   both, plus the docs build, on every commit of a series.

@@ -37,8 +37,10 @@ The development shell
 ``wmill``, the workspace CLI, so the tools come from Nix rather than a host
 install. ``nix develop .#checks`` is the same toolchain without ``wmill``
 (``ruff``, ``pyright``, ``nixfmt``, ``statix``, ``deadnix``, ``shellcheck``,
-``python3``, ``git``), and ``nix develop .#docs`` is the Sphinx toolchain on its
-own. Use a shell for ad-hoc work, or run a single tool without entering it:
+``python3``, ``git``), ``nix develop .#docs`` is the Sphinx toolchain on its
+own, and ``nix develop .#vendor`` carries what the vendored projects' checks
+run (below). Use a shell for ad-hoc work, or run a single tool without entering
+it:
 
 .. code-block:: console
    :class: cmd-host
@@ -52,7 +54,10 @@ Verifying
 
 ``nix flake check`` is the gate. It runs every read-only check the flake
 defines: ``ruff`` lint and format verification, generated-file drift, the
-fixture tests, and tree formatting. CI runs the same single command.
+fixture tests, tree formatting, ``statix`` and ``deadnix`` over the root and
+``deploy/`` Nix files (with ``nixfmt`` for ``deploy/``, which treefmt leaves to
+the deploy flake), ``shellcheck`` over the shell scripts, and a build of every
+app, which runs ``writeShellApplication``'s own ``shellcheck`` on it.
 
 .. code-block:: console
    :class: cmd-host
@@ -61,6 +66,7 @@ fixture tests, and tree formatting. CI runs the same single command.
    $ nix build .#checks.x86_64-linux.lint         # just the ruff check
    $ nix build .#checks.x86_64-linux.generated    # just the drift check
    $ nix build .#checks.x86_64-linux.tests        # just the fixture tests
+   $ nix build .#checks.x86_64-linux.nix-lint     # just statix and deadnix
 
 The ``tests`` check is the hermetic layer of the flow-testing story;
 :doc:`testing` covers both layers (the fixture tests and the
@@ -96,6 +102,102 @@ link per repository only. A merge's default message and a ``--fixup`` commit
 carry no sign-off; pass ``--signoff``, or ``--no-verify`` for a commit the
 rebase will fold away.
 
+Checking a series
+=================
+
+``nix run .#check`` runs the checks on each commit of a range, each in its own
+detached worktree with that commit's flake, scripts and docs, so a series
+passes only when every commit in it does:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ nix run .#check                     # <base>..HEAD
+   $ nix run .#check -- HEAD~3..HEAD     # any range git understands
+   $ nix run .#check -- --tip            # only the last commit, while iterating
+
+Commits run in parallel, a quarter of the CPUs' worth at a time
+(``--jobs``), as do the checks of one commit, and report in series order.
+``--tip`` checks only the range's last commit, with every vendored project the
+range touches. Use it for a quick answer while working, and run the full range
+before sending.
+
+On each commit it runs, from the commit's tree:
+
+- ``nix flake check`` (above);
+- ``check-style.sh``, whose trailer check then reads that commit;
+- the Sphinx build with warnings as errors;
+- for a commit that touches a vendored project, that project's own checklist,
+  through ``scripts/check-vendor.sh`` in the ``vendor`` shell:
+  ``vendor/nixos-flake/docs/verifying.md`` (``nixfmt``, its flake check, the
+  two templates, every package), ``vendor/qemu-system-units/docs/verifying.md``
+  (render every template, ``systemd-analyze verify`` and ``security``,
+  ``bash -n``), and for ``vendor/linux-config-fragments`` the README's minimal
+  VM set merged with the touched fragments onto a pinned kernel source, then
+  ``scripts/verify_config.sh``.
+
+When the range touches Python, ``pyright`` runs once on the base and once on
+the tip, and each error the tip adds is listed under the commit that
+``git blame`` names for its line. It is advisory: the run never fails on
+them. Results are kept by tree id, so a rerun or b4's next patch reuses them.
+
+It prints every command before running it; a check whose script a commit does
+not have yet is reported as skipped. Worktrees and logs live under
+``.git/kdevops-ng-check/``; a passing run removes its own, a failing one keeps
+them for the logs. What it cannot judge stays with review: the commit message
+prose, and the ``systemd-analyze security`` table it prints.
+
+The base is ``upstream/main`` when a remote named ``upstream`` exists, else
+``origin/main``. It is the ref as you last fetched it, so fetch that remote
+before checking a series, or pass the range yourself.
+
+With b4
+-------
+
+``nix develop`` carries :cmd:`b4` from upstream master
+(``nix/overlays/b4.nix``), and the project's ``.b4-config`` sets
+``prep-perpatch-check-cmd`` to ``scripts/check.py --b4``. So ``b4 prep
+--check`` runs the same checks on each patch of a series. b4 checks only a
+branch it manages, so enroll the branch once; ``nix run .#check`` needs no
+enrolling:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ nix develop
+   $ git config b4.prep-cover-strategy branch-description   # once, optional
+   $ b4 prep --enroll upstream/main                         # or origin/main
+   $ b4 prep --check
+
+``--enroll`` makes the current branch a b4 series that starts at the base. b4
+pipes each patch to the check on standard input, without its commit, so
+``check.py`` finds the commit in ``<base>..HEAD`` by ``git patch-id``. It prints
+one ``ERROR:`` line per failed check, which b4 counts as a failure under that
+patch, and one line per new ``pyright`` error charged to that patch, which b4
+counts as a warning. b4 shows a patch only once its check ends, so while it
+waits, ``check.py`` writes each check's start and exit to the terminal. The
+cover-strategy setting keeps b4's cover letter in the branch description instead
+of an empty commit at the bottom of the series; b4 reads it only from your own
+git configuration, never from ``.b4-config``. Under b4's default, ``commit``,
+enrolling resets the branch to the base, adds the cover letter as an empty
+commit and picks your commits back on top; the commit-msg hook lets that commit
+through, and the check skips it.
+
+b4 refuses to check a tree with uncommitted changes to tracked files
+(untracked files do not count). It keeps each patch's result in
+``~/.cache/b4`` for 30 days, keyed by the check command and the commit, and
+shows a cached result without running the check again: a commit that kept its
+hash after a rebase is not rechecked, even when ``check.py`` changed or the
+cached failure came from something outside the commit. Rerun every patch with:
+
+.. code-block:: console
+   :class: cmd-host
+
+   $ b4 prep --check --no-cache
+
+``b4 send`` asks before sending a series whose ``--check`` never ran, but not
+whether it passed.
+
 Formatting
 ==========
 
@@ -116,7 +218,9 @@ Type-checking
 
 ``pyright`` runs from the checks shell. It is advisory: it is not part of the
 gate, because a Windmill step's ``main()`` annotations are the UI form schema
-rather than ordinary typing.
+rather than ordinary typing. ``nix run .#check`` lists the errors a commit adds
+over the base, each under the commit that added its line, without failing on
+them.
 
 .. code-block:: console
    :class: cmd-host

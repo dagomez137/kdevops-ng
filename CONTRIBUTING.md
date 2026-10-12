@@ -11,17 +11,17 @@ emailed patches to the mailing list, reviewed in the open, and carried with
 
 ## One-time setup
 
-- Run `b4` from the pinned `build-kernel` devShell of `vendor/nixos-flake`,
-  which carries it (`nix develop ./vendor/nixos-flake#build-kernel --command
-  b4 ...`); nothing is installed on the host.
+- Run `b4` from the repository's devShell (`nix develop`), which carries
+  upstream master; nothing is installed on the host.
 - Configure `git send-email` with an identity that can send to the list. The
   per-project `.b4-config` already points `b4` at the kdevops list and lore.
 
 ## Submitting a change
 
 1. Branch off the default branch and make your change.
-2. Run the style checks: `make style` (whitespace, EOF newlines, generated-file
-   drift, and the HEAD commit-message trailers).
+2. Check every commit of the series: `nix run .#check`, or `b4 prep --check`
+   once the branch is a b4 series (docs/contributing/development.rst,
+   "Checking a series").
 3. Commit with a sign-off: `git commit -s`. Follow the kernel-style commit rules
    in `CLAUDE.md` — a `subsystem: summary` subject in the imperative mood within
    75 characters, the body wrapped at 75, one logical change per commit, and the
@@ -42,6 +42,7 @@ emailed patches to the mailing list, reviewed in the open, and carried with
    b4 prep -n my-topic-branch       # start a tracked series off your commits
    b4 prep --auto-to-cc             # fill To:/Cc: from MAINTAINERS via get_maintainer.pl
    b4 prep --edit-cover             # write the cover letter (for a multi-patch series)
+   b4 prep --check                  # run every commit check on each patch
    b4 send                          # send to the list (use -d first for a dry run)
    ```
 
