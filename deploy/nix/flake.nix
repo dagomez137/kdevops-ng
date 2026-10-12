@@ -11,13 +11,13 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
   outputs =
-    { self, nixpkgs }:
+    { nixpkgs, ... }:
     let
       systems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+      forAllSystems = f: nixpkgs.lib.genAttrs systems f;
       # oracledb pulls the unfree Oracle Instant Client; scope allowUnfree to
       # exactly that package rather than opening the whole package set.
       unfreePkgs =
@@ -38,7 +38,7 @@
         };
     in
     {
-      overlays.default = final: prev: {
+      overlays.default = final: _prev: {
         windmill = final.callPackage ./windmill/package.nix { };
       };
 
@@ -72,15 +72,14 @@
 
           # The reverse proxy. The Caddyfile is pure HTTP reverse_proxy, so
           # plain caddy serves it.
-          caddy = pkgs.caddy;
+          inherit (pkgs) caddy;
 
           # The optional monitoring stack (docs/deployment/monitoring.rst):
           # Grafana with its state in a grafana database inside the Windmill
           # PostgreSQL cluster, Prometheus as a push target for the guests'
           # remote_write, Loki as their journal sink. Same nixpkgs pin as the
           # rest of the stack; the monitoring-* units exec these out-links.
-          grafana = pkgs.grafana;
-          prometheus = pkgs.prometheus;
+          inherit (pkgs) grafana prometheus;
           loki = pkgs.grafana-loki;
           # Host-side Alloy: the fan-in collector a worker host runs
           # instead of the full stack (monitoring-collector.service).

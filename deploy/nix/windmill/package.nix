@@ -281,7 +281,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     '';
   };
 
-  passthru.tests = lib.optionalAttrs (stdenv.hostPlatform.isLinux) nixosTests.windmill;
+  passthru.tests = lib.optionalAttrs stdenv.hostPlatform.isLinux nixosTests.windmill;
 
   meta = {
     description = "Open-source developer platform to turn scripts into workflows and UIs (dagomez137 fork)";

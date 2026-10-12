@@ -9,7 +9,6 @@
 # launcher's `pipenv run` wrapper is dropped: with pyEnv on PATH, pyright uses it
 # directly, no venv needed.
 {
-  lib,
   python312,
   fetchPypi,
   writeShellApplication,
