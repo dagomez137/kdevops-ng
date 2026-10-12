@@ -162,6 +162,12 @@ value:
           iommu:
             type: javascript
             expr: flow_input.qemu?.iommu
+          pci_passthrough:
+            type: javascript
+            expr: flow_input.passthrough?.pci_passthrough
+          pci_passthrough_opts:
+            type: javascript
+            expr: flow_input.passthrough?.pci_passthrough_opts
           kernel:
             type: javascript
             expr: flow_input.kernel_boot?.kernel
@@ -370,6 +376,7 @@ schema:
     - kernel_boot
     - sharing
     - nvme
+    - passthrough
     - orchestration
   properties:
     kernel_boot:
@@ -906,6 +913,32 @@ schema:
           showExpr: fields.customize_drives === true
           title: Write Cache (VWC)
       title: NVMe
+    passthrough:
+      type: object
+      description: |-
+        Host PCI devices handed to the guest with VFIO, such as a GPU. Needs the
+        one-time VFIO host setup in the requirements guide.
+      default: {}
+      order:
+        - pci_passthrough
+        - pci_passthrough_opts
+      properties:
+        pci_passthrough:
+          type: object
+          description: |-
+            Host PCI devices to pass through (`-device vfio-pci,host=<addr>`),
+            GPUs first. Pass every endpoint of an IOMMU group together.
+          default: []
+          format: dynmultiselect-list_pci_devices
+          title: PCI Passthrough
+        pci_passthrough_opts:
+          type: string
+          description: |-
+            Extra `-device vfio-pci` properties for every passed-through device,
+            for example `rombar=0`.
+          default: ''
+          title: vfio-pci Options
+      title: Passthrough
     orchestration:
       type: object
       description: Flow-level boot wait and debug snapshot.
@@ -1348,4 +1381,10 @@ schema:
         # binary; a missing/unbuilt qemu falls back to the full supported set.
         from f.qsu.binaries import iommu_options
         return iommu_options(qemu or {}, filterText)
+
+    def list_pci_devices(filterText: str = "", **_: object) -> list:
+        # The host's PCI devices from sysfs, GPUs first, labelled with IOMMU group
+        # and bound driver.
+        from f.qsu.pci import options
+        return options(filterText)
   x-windmill-dyn-select-lang: python3

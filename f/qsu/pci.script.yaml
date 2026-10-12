@@ -1,0 +1,16 @@
+summary: Host PCI devices for VFIO passthrough
+description: |-
+  Library module imported by the `f/qsu` steps (`from f.qsu import pci`),
+  not a runnable step. Lists the host's PCI devices from sysfs for the
+  passthrough picker, GPUs first, and turns the picked addresses into the
+  vendored `pci_passthrough` var after checking what QEMU would only fail on
+  at VM start: the device exists, sits in an IOMMU group, comes with every
+  endpoint of that group, and can be rebound by this user.
+lock: '!inline f/qsu/pci.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order: []
+  properties: {}
+  required: []

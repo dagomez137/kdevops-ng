@@ -49,6 +49,9 @@
           ./vendor/nixos-flake/templates
           # The kvcache tests read the vendored replayer.
           ./vendor/nixos-flake/pkgs/kvcache-bench
+          # The passthrough tests render the vendored unit templates.
+          ./vendor/qemu-system-units/templates
+          ./vendor/qemu-system-units/files
         ];
       };
       nixSrc = lib.fileset.toSource {

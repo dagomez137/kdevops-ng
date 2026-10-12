@@ -31,6 +31,8 @@ schema:
     - vsock_cid_base
     - vm_index
     - iommu
+    - pci_passthrough
+    - pci_passthrough_opts
     - qemu_source
     - qemu_binary
     - custom_virtiofsd
@@ -580,6 +582,23 @@ schema:
       default: ''
       format: dynselect-list_iommu
       title: IOMMU
+    pci_passthrough:
+      type: object
+      description: |-
+        Host PCI devices to pass through with VFIO (`-device
+        vfio-pci,host=<addr>`), GPUs first. Pass every endpoint of an IOMMU
+        group together. Needs the one-time VFIO host setup in the requirements
+        guide.
+      default: []
+      format: dynmultiselect-list_pci_devices
+      title: PCI Passthrough
+    pci_passthrough_opts:
+      type: string
+      description: |-
+        Extra `-device vfio-pci` properties for every passed-through device,
+        for example `rombar=0` (`qemu-system-x86_64 -device vfio-pci,help`).
+      default: ''
+      title: vfio-pci Options
     kernel:
       type: object
       description: |-

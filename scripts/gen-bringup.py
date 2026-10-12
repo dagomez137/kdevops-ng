@@ -79,6 +79,11 @@ def list_iommu(filterText: str = "", **_: object) -> list:
     return iommu_options({}, filterText)
 
 
+def list_pci_devices(filterText: str = "", **_: object) -> list:
+    from f.qsu.pci import options
+    return options(filterText)
+
+
 def list_kernel_refs(filterText: str = "", **_: object) -> list:
     # The Bare's branches + tags via f.common.gitrefs (the one ref source).
     try:
@@ -409,6 +414,7 @@ for newkey, src, title in [
     ("boot_networking", bsch["networking"], "Networking"),
     ("boot_sharing", boot_sharing, "File sharing"),
     ("boot_nvme", bsch["nvme"], "NVMe"),
+    ("boot_passthrough", bsch["passthrough"], "Passthrough"),
     ("boot_orchestration", bsch["orchestration"], "Orchestration"),
 ]:
     grp = copy.deepcopy(src)
@@ -459,6 +465,7 @@ boot_transforms = {
     ),
     "networking": jx("flow_input.boot_networking"),
     "nvme": jx("flow_input.boot_nvme"),
+    "passthrough": jx("flow_input.boot_passthrough"),
     "orchestration": jx("flow_input.boot_orchestration"),
     "qemu": jx(
         "({...flow_input.boot_qemu, "

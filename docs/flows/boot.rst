@@ -61,6 +61,10 @@ variable surface), grouped:
   ``discard`` and ``detect_zeroes`` govern how much host disk an image
   holds, and the testing-oriented knobs are covered by
   :doc:`nvme-testing`.
+- **Passthrough** hands host PCI devices, such as a GPU, to the guest
+  with VFIO (``-device vfio-pci``), picked from the host's devices with
+  their IOMMU groups; it needs the one-time setup in
+  :doc:`/getting-started/requirements`.
 - **Orchestration** bounds the flow-level boot wait and the debug
   snapshot.
 

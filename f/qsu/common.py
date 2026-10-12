@@ -19,6 +19,7 @@ import yaml
 
 from f.common import store
 from f.common.devshell import DevShell, Systemd, system_dir, vendor_dir
+from f.qsu import pci
 from f.qsu.binaries import _workers, resolve_qemu_binary, resolve_virtiofsd_binary
 
 # Superset of every virtiofsd share tag the steps render an env file for
@@ -628,6 +629,11 @@ def build_vars(
     # name only, so a None renders the word "None" onto the command line.
     if fi.get("extra_qemu_args"):
         v["extra_qemu_args"] = fi["extra_qemu_args"]
+    # Omitted when empty for the same reason: the templates test whether it is
+    # defined, so an empty list would still raise LimitMEMLOCK.
+    devs = pci.passthrough(fi.get("pci_passthrough"), fi.get("pci_passthrough_opts"))
+    if devs:
+        v["pci_passthrough"] = devs
     return v
 
 

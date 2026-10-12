@@ -8,8 +8,10 @@ per-VM `<vm>.env` from `vm.env.j2`, which imports the `nvme.env.j2` macros, plus
 `qemu-system@<vm>.service.d/override.conf` drop-in).
 
 Inputs are upstream QEMU flag names; the kernel/closure build manifests supply
-`-kernel`/`-initrd`/`-append` and the `/lib/modules` share. Returns the written
-paths, the composed `shares` (boot restarts their sockets) and `ssh_port`/`vsock_cid`.
+`-kernel`/`-initrd`/`-append` and the `/lib/modules` share. Host PCI devices picked
+for passthrough are checked against sysfs (f/qsu/pci) and become the vendored
+`pci_passthrough` var. Returns the written paths, the composed `shares` (boot restarts
+their sockets) and `ssh_port`/`vsock_cid`.
 
 Equivalent: write the rendered units into the host user-manager search path:
 
@@ -27,6 +29,7 @@ import os
 import shutil
 from pathlib import Path
 
+from f.qsu import pci
 from f.qsu.binaries import iommu_options
 from f.qsu.common import (
     build_vars,
@@ -55,6 +58,64 @@ def list_iommu(
     )
 
 
+def list_pci_devices(filterText: str = "", **_: object) -> list[dict]:
+    """`dynmultiselect-list_pci_devices` entrypoint for `pci_passthrough`."""
+    return pci.options(filterText)
+
+
+def manager_memlock(limits: str) -> int | None:
+    """The hard "Max locked memory" in a /proc/<pid>/limits page; None if unlimited."""
+    for line in limits.splitlines():
+        if line.startswith("Max locked memory"):
+            hard = line[len("Max locked memory") :].split()[1]
+            return None if hard == "unlimited" else int(hard)
+    raise ValueError("no Max locked memory line in the limits page")
+
+
+def _user_manager_limits(uid: int) -> str:
+    """The user manager's /proc/<pid>/limits, found through its own cgroup.
+
+    Reads only files this user can read: the manager is the `systemd` process in
+    `user@<uid>.service/init.scope` (beside its `(sd-pam)` helper).
+    """
+    scope = Path(f"/sys/fs/cgroup/user.slice/user-{uid}.slice/user@{uid}.service")
+    procs = scope / "init.scope/cgroup.procs"
+    try:
+        pids = procs.read_text().split()
+    except OSError as e:
+        raise ValueError(
+            f"cannot read {procs} ({e.strerror}): PCI passthrough needs the user "
+            "manager's locked-memory limit, found through the cgroup v2 "
+            f"hierarchy; see {pci.REQUIREMENTS}"
+        ) from e
+    for pid in pids:
+        if Path(f"/proc/{pid}/comm").read_text().strip() == "systemd":
+            return Path(f"/proc/{pid}/limits").read_text()
+    raise ValueError(
+        f"no systemd process in {scope}/init.scope to read the locked-memory "
+        f"limit from; see {pci.REQUIREMENTS}"
+    )
+
+
+def _check_memlock(ram: int) -> None:
+    """Fail the render, not the VM start, when VFIO could not lock the guest RAM.
+
+    A user unit's LimitMEMLOCK cannot exceed its user manager's own hard limit,
+    which the manager inherits from user@.service, 8 MiB unless raised there.
+    """
+    need = pci.memlock_needed(ram)
+    need_mb = need // 1024 // 1024
+    have = manager_memlock(_user_manager_limits(os.getuid()))
+    print(f"user manager locked-memory hard limit: {have or 'unlimited'}", flush=True)
+    if have is not None and have < need:
+        raise ValueError(
+            f"PCI passthrough needs {need_mb} MiB of locked memory ({ram} MiB of "
+            f"guest RAM plus {need_mb - int(ram)} MiB), but the user manager's hard "
+            f"LimitMEMLOCK is {have // 1024 // 1024} MiB; raise it in user@.service "
+            f"as {pci.REQUIREMENTS} describes"
+        )
+
+
 def main(
     vm_name: str,
     auto_vm_name: bool = True,
@@ -69,6 +130,8 @@ def main(
     vsock_cid_base: int = 100,
     vm_index: int = 0,
     iommu: str = "",
+    pci_passthrough: list | None = None,
+    pci_passthrough_opts: str = "",
     qemu_source: str = "nixpkgs",
     qemu_binary: str = "",
     custom_virtiofsd: bool = False,
@@ -154,6 +217,8 @@ def main(
         "ssh_port_base": ssh_port_base,
         "vsock_cid_base": vsock_cid_base,
         "iommu": iommu or None,
+        "pci_passthrough": pci_passthrough or [],
+        "pci_passthrough_opts": pci_passthrough_opts,
         "qemu_source": qemu_source,
         "qemu_binary": qemu_binary or None,
         "custom_virtiofsd": custom_virtiofsd,
@@ -228,6 +293,8 @@ def main(
             "sidecar or an explicit kernel_image; a `build` needs the build result. "
             "Refusing to render a kernelless VM."
         )
+    if v.get("pci_passthrough"):
+        _check_memlock(v["ram"])
 
     cfg = systemd_config()
     user = cfg / "user"
@@ -305,6 +372,7 @@ def main(
         "qmp_powerdown": str(powerdown),
         "shares": v.get("shares", []),
         "drives": v.get("nvme", {}).get("drives", []),
+        "pci_passthrough": v.get("pci_passthrough", []),
         "ssh_port": v["ssh_port"],
         "vsock_cid": v["vsock_cid"],
         "vars_sidecar": str(sidecar),

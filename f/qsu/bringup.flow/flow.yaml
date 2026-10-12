@@ -119,6 +119,9 @@ value:
         nvme:
           type: javascript
           expr: flow_input.boot_nvme
+        passthrough:
+          type: javascript
+          expr: flow_input.boot_passthrough
         orchestration:
           type: javascript
           expr: flow_input.boot_orchestration
@@ -134,7 +137,7 @@ value:
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText, remotes=True)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n\n\ndef list_ebpf_syscall_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"ebpf-syscall\", filterText)\n\n\ndef list_systing_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"systing\", filterText)\n"
+  x-windmill-dyn-select-code: "import os\nfrom pathlib import Path\n\n\ndef list_kernel_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"kernel\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_qemu_index(filterText: str = \"\", **_: object) -> list:\n    from f.common import store\n\n    return [\n        {\"label\": n, \"value\": n}\n        for n in store.list_run_layers(\"qemu\")\n        if filterText.lower() in n.lower()\n    ]\n\n\ndef list_deployed_vms(filterText: str = \"\", **_: object) -> list:\n    d = Path(os.environ[\"WORKERS_DIR\"]) / \"shared/vm\"\n    vms = sorted(p.name.removesuffix(\".vars.json\") for p in d.glob(\"*.vars.json\")) if d.is_dir() else []\n    return [{\"label\": v, \"value\": v} for v in vms if filterText.lower() in v.lower()]\n\n\ndef list_iommu(filterText: str = \"\", **_: object) -> list:\n    # Bringup boots a build/reuse/nixpkgs qemu, but only nixpkgs is guaranteed to\n    # exist at form-fill time (build runs later in the flow), so query it for the\n    # vIOMMU set. Device names are stable across qemu builds and the template\n    # constrains to the supported four regardless.\n    from f.qsu.binaries import iommu_options\n    return iommu_options({}, filterText)\n\n\ndef list_pci_devices(filterText: str = \"\", **_: object) -> list:\n    from f.qsu.pci import options\n    return options(filterText)\n\n\ndef list_kernel_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"linux\", filterText)\n    except Exception:\n        return []\n\n\ndef list_qemu_refs(filterText: str = \"\", **_: object) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(\"qemu\", filterText)\n    except Exception:\n        return []\n\n\ndef _project_refs(project: str, filterText: str) -> list:\n    # The Bare's branches + tags via f.common.gitrefs (the one ref source).\n    try:\n        from f.common.gitrefs import list_refs\n        return list_refs(project, filterText, remotes=True)\n    except Exception:\n        return []\n\n\ndef list_xfstests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfstests-dev\", filterText)\n\n\ndef list_xfsprogs_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"xfsprogs-dev\", filterText)\n\n\ndef list_fio_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"fio\", filterText)\n\n\ndef list_libbpf_tools_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"bcc\", filterText)\n\n\ndef list_blktests_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"blktests\", filterText)\n\n\ndef list_ebpf_syscall_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"ebpf-syscall\", filterText)\n\n\ndef list_systing_refs(filterText: str = \"\", **_: object) -> list:\n    return _project_refs(\"systing\", filterText)\n"
   x-windmill-dyn-select-lang: python3
   order:
   - kernel
@@ -146,6 +149,7 @@ schema:
   - boot_networking
   - boot_sharing
   - boot_nvme
+  - boot_passthrough
   - boot_orchestration
   - vm
   properties:
@@ -2928,6 +2932,32 @@ schema:
           showExpr: fields.customize_drives === true
           title: Write Cache (VWC)
       title: NVMe
+    boot_passthrough:
+      type: object
+      description: 'Host PCI devices handed to the guest with VFIO, such as a GPU. Needs the
+
+        one-time VFIO host setup in the requirements guide.'
+      default: {}
+      order:
+      - pci_passthrough
+      - pci_passthrough_opts
+      properties:
+        pci_passthrough:
+          type: object
+          description: 'Host PCI devices to pass through (`-device vfio-pci,host=<addr>`),
+
+            GPUs first. Pass every endpoint of an IOMMU group together.'
+          default: []
+          format: dynmultiselect-list_pci_devices
+          title: PCI Passthrough
+        pci_passthrough_opts:
+          type: string
+          description: 'Extra `-device vfio-pci` properties for every passed-through device,
+
+            for example `rombar=0`.'
+          default: ''
+          title: vfio-pci Options
+      title: Passthrough
     boot_orchestration:
       type: object
       description: Flow-level boot wait and debug snapshot.

@@ -127,6 +127,9 @@ value:
                 boot_orchestration:
                   type: javascript
                   expr: results.step.bringup.boot_orchestration
+                boot_passthrough:
+                  type: javascript
+                  expr: results.step.bringup.boot_passthrough
                 vm:
                   type: javascript
                   expr: results.step.bringup.vm

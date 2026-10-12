@@ -71,39 +71,39 @@ systemd's stock udev rules:
 PCI passthrough (VFIO)
 ======================
 
-Letting a guest take a host PCI device (an NVMe drive, say) needs VFIO. This is
-a one-time sudo setup that hands the devices you choose to the ``vfio-pci``
-driver and lets the ``kvm`` group open them; after it, a flow passes a device to
-a guest in user mode, with no sudo at VM time. Do it only for devices you intend
-to make available; skip the section otherwise.
+Letting a guest take a host PCI device (a GPU, an NVMe drive) needs VFIO. This
+is a one-time root setup, done by hand, that hands the devices you choose to the
+``vfio-pci`` driver, lets the ``kvm`` group open them, and lets your user
+manager lock a guest's RAM; after it, a flow passes a device to a guest in user
+mode, with no sudo at VM time. kdevops-ng never runs these commands for you. Do
+it only for devices you intend to make available; skip the section otherwise.
 
-First list the host PCI devices and note the address of each candidate. The
-first column is the address, with the ``0000:`` domain shown by ``-D``:
+VFIO needs the IOMMU. Enable it in the firmware (VT-d or AMD-Vi); an Intel host
+whose kernel does not turn it on by default (``CONFIG_INTEL_IOMMU_DEFAULT_ON``)
+also needs ``intel_iommu=on`` on its command line. Once it is on,
+``/sys/kernel/iommu_groups`` holds one directory per group.
+
+First list the host PCI devices with :cmd:`lspci` and note the address of each
+candidate. The first column is the address, with the ``0000:`` domain shown by
+``-D``; every endpoint that shares a device's IOMMU group goes with it (a GPU's
+audio function usually does):
 
 .. code-block:: console
    :class: cmd-host
 
    $ lspci -nn -D
-   0000:2d:00.0 Non-Volatile memory controller [0108]: Samsung ... [144d:a80a]
+   0000:81:00.0 3D controller [0302]: NVIDIA Corporation ... [10de:2330]
+   0000:81:00.1 Audio device [0403]: NVIDIA Corporation ... [10de:22a3]
 
 Record the addresses in a small YAML file, say ``passthrough.yaml``:
 
 .. code-block:: yaml
 
    pci_passthrough:
-     - addr: "0000:2d:00.0"
-     - addr: "0000:03:00.0"
-       opts: "rombar=0"
+     - addr: "0000:81:00.0"
+     - addr: "0000:81:00.1"
 
-``opts`` is an optional string of extra QEMU ``-device vfio-pci`` properties
-(``rombar=0`` drops the option-ROM BAR). List the available ones with
-``qemu-system-x86_64 -device vfio-pci,help``; see the QEMU `device emulation`_
-guide for the syntax and the kernel `VFIO`_ docs for the framework.
-
-.. _device emulation: https://www.qemu.org/docs/master/system/device-emulation.html
-.. _VFIO: https://docs.kernel.org/driver-api/vfio.html
-
-Load the ``vfio-pci`` driver:
+Load the ``vfio-pci`` driver with :cmd:`modprobe`, now and at every boot:
 
 .. code-block:: console
    :class: cmd-host
@@ -112,11 +112,11 @@ Load the ``vfio-pci`` driver:
        /etc/modules-load.d/vfio-pci.conf
    $ sudo modprobe vfio-pci
 
-Render the udev rule from your file and install it (``minijinja-cli`` comes from
-the development shell). It sets ``SUBSYSTEM=="vfio", GROUP="kvm", MODE="0660"``
-so the ``kvm`` group can open ``/dev/vfio``, and for each address sets the
-device's ``driver_override`` to ``vfio-pci`` when it appears, so the kernel
-binds it to ``vfio-pci`` instead of its host driver:
+Render the udev rule from your file and install it (:cmd:`minijinja-cli` comes
+from the development shell). It sets ``SUBSYSTEM=="vfio", GROUP="kvm",
+MODE="0660"`` so the ``kvm`` group can open ``/dev/vfio``, and for each address
+sets the device's ``driver_override`` to ``vfio-pci`` when it appears, so the
+kernel binds it to ``vfio-pci`` instead of its host driver:
 
 .. code-block:: console
    :class: cmd-host
@@ -126,23 +126,24 @@ binds it to ``vfio-pci`` instead of its host driver:
        | sudo tee /etc/udev/rules.d/10-vfio-kvm.rules
 
 Reload udev. The rule binds each device at the next boot; to move a device a
-host driver holds now, replay its add event, which sets the override, then
-unbind it so the kernel probes it again:
+host driver holds now, replay its add event with :cmd:`udevadm`, which sets the
+override, then unbind it so the kernel probes it again. Do it for every address
+in the file:
 
 .. code-block:: console
    :class: cmd-host
 
    $ sudo udevadm control --reload-rules
-   $ sudo udevadm trigger --action=add /sys/bus/pci/devices/0000:2d:00.0
-   $ echo 0000:2d:00.0 \
-       | sudo tee /sys/bus/pci/devices/0000:2d:00.0/driver/unbind
-   $ echo 0000:2d:00.0 | sudo tee /sys/bus/pci/drivers_probe
-   $ readlink /sys/bus/pci/devices/0000:2d:00.0/driver   # ends in vfio-pci
+   $ sudo udevadm trigger --action=add /sys/bus/pci/devices/0000:81:00.0
+   $ echo 0000:81:00.0 \
+       | sudo tee /sys/bus/pci/devices/0000:81:00.0/driver/unbind
+   $ echo 0000:81:00.0 | sudo tee /sys/bus/pci/drivers_probe
+   $ readlink /sys/bus/pci/devices/0000:81:00.0/driver   # ends in vfio-pci
 
 A passthrough guest locks its RAM for DMA, so its ``qemu-system@`` unit asks
 for ``LimitMEMLOCK=<ram+256>M``. A user unit cannot exceed the hard limit of
 your user's service manager, which inherits the system default of 8 MiB, so
-raise it once for ``user@.service`` with a drop-in (``infinity``, or a size
+raise it once for :cmd:`user@.service` with a drop-in (``infinity``, or a size
 that covers your largest passthrough guest plus 256M):
 
 .. code-block:: console
@@ -158,6 +159,20 @@ unit it runs, the Windmill stack and the guests included: restart it with
 ``sudo systemctl restart "user@$(id --user).service"`` from a session you can
 afford to lose, or reboot. ``systemctl show --property=LimitMEMLOCK
 "user@$(id --user).service"`` shows what it got.
+
+Pick the same devices in the Passthrough group of the boot or bringup form; the
+picker lists each host device with its IOMMU group and driver, GPUs first.
+Before the VM starts, the render refuses a partial group, a device the IOMMU
+left ungrouped, a host without the ``vfio-pci`` driver loaded, a device the udev
+rule has not bound to ``vfio-pci``, and a user manager whose locked-memory limit
+is below the guest's RAM plus 256M, each pointing back here. ``vfio-pci
+Options`` takes extra ``-device vfio-pci`` properties (``rombar=0`` drops the
+option-ROM BAR); list them with :cmd:`qemu-system-x86_64` ``-device
+vfio-pci,help``, and see the QEMU `device emulation`_ guide and the kernel
+`VFIO`_ docs.
+
+.. _device emulation: https://www.qemu.org/docs/master/system/device-emulation.html
+.. _VFIO: https://docs.kernel.org/driver-api/vfio.html
 
 .. _user-configuration:
 
