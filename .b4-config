@@ -12,3 +12,6 @@
 	# maintainers (--nol), Cc: lists + reviewers (--nom). Run from the repo top.
 	send-auto-to-cmd = scripts/get_maintainer.pl --no-tree --nogit --nogit-fallback --nogit-chief-penguins --norolestats --nol
 	send-auto-cc-cmd = scripts/get_maintainer.pl --no-tree --nogit --nogit-fallback --nogit-chief-penguins --norolestats --nom
+	# `b4 prep --check` runs every commit check on each patch (scripts/check.py,
+	# docs/contributing/development.rst); its python3 comes from `nix develop`.
+	prep-perpatch-check-cmd = scripts/check.py --b4

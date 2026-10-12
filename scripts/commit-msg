@@ -13,4 +13,9 @@ if ! grep --quiet -- '--commit-msg' "$script"; then
 	echo "commit-msg: $script has no --commit-msg mode; commit with --no-verify" >&2
 	exit 1
 fi
+# b4 prep keeps its cover letter in an empty commit marked by this line; it
+# is never sent as a patch.
+if grep --quiet --line-regexp -- '--- b4-submit-tracking ---' "$1"; then
+	exit 0
+fi
 exec nix develop "$top#checks" --command bash "$script" --commit-msg "$1"
