@@ -87,18 +87,13 @@ See: design-decisions.md "virtiofsd" section.
 
 ## vfio
 
-`Type=oneshot` service for device binding and udev rules for unprivileged
-access. One-time sudo required for module config, udev rules, and
-rule reload. After setup, all VFIO operations run in user mode.
+Passthrough needs root once and never at run time. The `vfio-pci`
+module loads at boot, and a udev rule sets each listed device's
+`driver_override` to `vfio-pci` when the device appears, so the kernel
+binds it to `vfio-pci` instead of its host driver. The same rule lets
+the `kvm` group open `/dev/vfio`, so `qemu-system@` runs as the user.
 
 ```shell
-# Bind service (deploy once)
-minijinja-cli --trim-blocks \
-  --output ~/.config/systemd/user/vfio-bind@.service \
-  templates/vfio-bind@.service.j2 \
-  vars/test.yaml
-
-# One-time root setup
 sudo cp files/vfio-pci.conf /etc/modules-load.d/vfio-pci.conf
 sudo modprobe vfio-pci
 
@@ -106,9 +101,18 @@ minijinja-cli --trim-blocks \
   templates/vfio-udev.rules.j2 \
   vars/test.yaml \
   | sudo tee /etc/udev/rules.d/10-vfio-kvm.rules
-
 sudo udevadm control --reload-rules
-sudo udevadm trigger --subsystem-match=pci
+```
+
+The rule takes effect at the next boot. To move a device that a host
+driver holds now, replay its add event, which sets the override, then
+unbind it so the kernel probes it again:
+
+```shell
+sudo udevadm trigger --action=add /sys/bus/pci/devices/0000:2d:00.0
+echo 0000:2d:00.0 | sudo tee /sys/bus/pci/devices/0000:2d:00.0/driver/unbind
+echo 0000:2d:00.0 | sudo tee /sys/bus/pci/drivers_probe
+readlink /sys/bus/pci/devices/0000:2d:00.0/driver   # ends in vfio-pci
 ```
 
 ## cloud-init
@@ -343,7 +347,6 @@ rm --recursive --force \
   ~/.config/systemd/user/virtiofsd@.socket \
   ~/.config/systemd/user/virtiofsd@.service \
   ~/.config/systemd/user/virtiofsd@*.service.d \
-  ~/.config/systemd/user/vfio-bind@.service \
   ~/.config/systemd/qemu-system \
   ~/.config/systemd/virtiofsd
 systemctl --user daemon-reload

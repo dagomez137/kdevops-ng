@@ -304,13 +304,12 @@ See: https://cloudinit.readthedocs.io/en/latest/reference/modules.html
 ## PCIe passthrough
 
 **`pci_passthrough`** — List of host PCI devices to pass through via
-VFIO. Maps to `-device vfio-pci,host=<addr>`. Also generates systemd
-`Requires=vfio-bind@<addr>.service` dependencies and
+VFIO. Maps to `-device vfio-pci,host=<addr>` and sets
 `LimitMEMLOCK=<ram+256>M` (see systemd.exec(5)).
 
-Requires one-time root setup: deploy rendered udev rules and
-`vfio-pci` module config. After setup, all operations run in user
-mode.
+Requires one-time root setup: the `vfio-pci` module config, and the
+rendered udev rule that binds each device to `vfio-pci` (usage.md
+"vfio"). After setup, all operations run in user mode.
 
 Per-device properties:
 

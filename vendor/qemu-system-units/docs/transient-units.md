@@ -60,8 +60,8 @@ service units."
 ### Using our infrastructure with systemd-run
 
 A transient unit can depend on persistent units via `--property=`.
-The deployed virtiofsd sockets, vfio-bind services, and
-`EnvironmentFile=` paths are all reusable.
+The deployed virtiofsd sockets and `EnvironmentFile=` paths are all
+reusable.
 
 Verified empirically. Transient unit referencing persistent socket:
 
@@ -228,8 +228,8 @@ Limitations:
 | Quick test, no env file | `systemd-run --user --pty /usr/bin/qemu-system-x86_64 -m 2048 ...` |
 
 Both patterns place VMs in `machine.slice`, both can register with
-machined, both reuse the deployed virtiofsd sockets and vfio-bind
-services. The infrastructure is shared.
+machined, both reuse the deployed virtiofsd sockets. The
+infrastructure is shared.
 
 ## Proxmox comparison
 

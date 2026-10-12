@@ -15,10 +15,6 @@ After=virtiofsd@%i-{{ share.tag }}.socket
 Requires=virtiofsd@%i-{{ share.tag }}.service
 {% endfor %}
 {% endif %}
-{% for dev in pci_passthrough | default([]) %}
-Requires=vfio-bind@{{ dev.addr }}.service
-After=vfio-bind@{{ dev.addr }}.service
-{% endfor %}
 
 [Service]
 {% if qemu_binary is defined %}
