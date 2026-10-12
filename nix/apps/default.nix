@@ -323,6 +323,13 @@ in
     '';
   };
 
+  check = mkApp {
+    name = "kdevops-ng-check";
+    description = "Run every commit check on each commit of a range (arg: range)";
+    runtimeInputs = [ toolsets.pyEnv ];
+    text = ''python3 scripts/check.py "$@"'';
+  };
+
   reflow = mkApp {
     name = "kdevops-ng-reflow";
     description = "Rewrap wmill description fields into clean literal blocks";
