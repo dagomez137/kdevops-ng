@@ -375,3 +375,10 @@ All commits must follow these six rules.
    reads HEAD; linked as the repository's commit-msg hook, `scripts/commit-msg`
    runs it on the message before the commit lands. `nix run .#check` runs
    both, plus the docs build, on every commit of a series.
+
+What a message, a doc or a comment says follows
+`docs/contributing/writing.rst`, taken from how the kernel's maintainers
+write: read two of its example commits before writing one, and hand anything
+longer than a few lines to a fresh-context editor with the brief there.
+`scripts/check-prose.py`, run by `check-style.sh` and the commit-msg hook,
+refuses the phrasing they almost never use.

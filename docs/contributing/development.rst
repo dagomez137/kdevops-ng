@@ -72,9 +72,9 @@ The ``tests`` check is the hermetic layer of the flow-testing story;
 :doc:`testing` covers both layers (the fixture tests and the
 ``preview-smoke`` app) and when to run each before submitting.
 
-The whitespace, end-of-file, commit-trailer, rule (3b to 3d), rst-width and
-SPDX checks need the git repository, so they cannot be a sandboxed flake check;
-run them from the checks shell:
+The whitespace, end-of-file, commit-trailer, prose (:doc:`writing`), rule (3b
+to 3d), rst-width and SPDX checks need the git repository, so they cannot be a
+sandboxed flake check; run them from the checks shell:
 
 .. code-block:: console
    :class: cmd-host
@@ -87,8 +87,8 @@ Before committing (commit rule 6), run both: ``nix flake check`` and the
 The trailer check reads ``HEAD``, so run afterwards it can only report a
 commit already made. Linked as the repository's commit-msg hook,
 ``scripts/commit-msg`` runs the same check on the message before the commit
-lands. A hook is a file of yours, so link it once by hand, from anywhere in
-the checkout:
+lands, in the checks devShell. A hook is a file of yours, so link it once by
+hand, from anywhere in the checkout:
 
 .. code-block:: console
    :class: cmd-host

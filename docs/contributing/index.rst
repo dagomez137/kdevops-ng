@@ -11,4 +11,5 @@ How to work on kdevops-ng and its documentation.
 
    development
    forms
+   writing
    doc-guide
