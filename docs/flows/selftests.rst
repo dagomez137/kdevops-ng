@@ -58,7 +58,7 @@ truncated mid-run can never read as a pass.
 Before starting the unit, ``start`` captures the guest journal's end-of-now
 cursor: everything after it belongs to this run, so a re-run can never
 report a previous run's results. The unit sets :cmd:`TimeoutStartSec` to
-``infinity``, exactly as the xfstests and KUnit executors do: the whole run
+``infinity``, as the xfstests and KUnit executors do: the whole run
 is bounded by the ``wait`` step's own deadline, while each *individual*
 test is bounded by kselftest's upstream watchdog (below).
 
@@ -147,17 +147,17 @@ Building and shipping the selftests
 
 kselftests are built from the kernel tree being tested, so the pipeline is:
 
-- **Build**: enable the **Selftests** group in :src:`f/kernel/build` (or in
+- Build: enable the **Selftests** group in :src:`f/kernel/build` (or in
   :src:`f/qsu/bringup`'s kernel component). ``targets`` curates which
   collections to build; the default is the portable syscall-level set
   (``seccomp``, ``cgroup``, ``futex``, ``timers``, ``sysctl``, ``lib`` and
   friends). The build runs the upstream ``kselftest-install`` make target
   with ``FORCE_TARGETS=1``, so a collection that fails to build fails the
   step instead of silently vanishing from the install.
-- **Publish**: the install tree lands in the Nix store as
+- Publish: the install tree lands in the Nix store as
   ``kselftests-<release>``, GC-rooted in the store index and fetchable by
   peers like any other build artifact (see :doc:`/concepts/build-store`).
-- **Ship**: this flow's ``prepare`` copies the tree onto the guest's
+- Ship: this flow's ``prepare`` copies the tree onto the guest's
   writable share. The binaries resolve their libraries through the guest's
   read-only ``/nix/store`` mount, so nothing else is installed.
 
@@ -185,9 +185,6 @@ A collection name can carry ``/`` (``net/forwarding``) or ``-``
 of the name (``net-forwarding``, ``cpu\x2dhotplug``); the unit's ``%I``
 specifier restores the literal name. The flow escapes for you; only the
 manual recipes below need it.
-
-How a flow surfaces its state in the Windmill job log, and why these
-recipes are the out-of-band view, is covered in :doc:`guests`.
 
 Starting a collection from the CLI
 ==================================
@@ -303,9 +300,9 @@ A test that oopses the guest takes the VM down; ``wait`` detects this by
 crash-checking the host ``qemu-system@<vm>.service`` on each poll, and
 ``collect`` folds the crash into a failed collection rather than a false
 pass. With **Stream Logs** on, whatever oops lines a poll drained before
-the VM died are in the job log. Note that several collections load test
-modules by design (``lib``, ``sysctl``), so the guest kernel carrying a
-``TAINT_TEST`` taint after a run is expected, not a symptom.
+the VM died are in the job log. Several collections load test modules by
+design (``lib``, ``sysctl``), so the guest kernel carrying a ``TAINT_TEST``
+taint after a run is expected.
 
 .. _kselftest: https://docs.kernel.org/dev-tools/kselftest.html
 .. _KTAP: https://docs.kernel.org/dev-tools/ktap.html

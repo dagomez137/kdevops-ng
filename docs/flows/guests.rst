@@ -4,8 +4,8 @@
 Inspecting guests
 =================
 
-This page covers what is common to every :doc:`flow <../concepts/flows>` that
-drives a guest, independent of the test suite or benchmark it runs.
+What follows is common to every :doc:`flow <../concepts/flows>` that drives a
+guest, whatever test suite or benchmark it runs.
 
 Windmill is the primary view
 ============================
@@ -61,9 +61,9 @@ remote command on the guest:
 
    $ ssh <vm> journalctl --unit=<unit> --follow
 
-Running a tool as a remote ``ssh`` command is the universal fallback in general:
-use it whenever ``-H`` cannot reach a target, or for a guest-side tool that has
-no ``-H`` flag at all.
+Running a tool as a remote ``ssh`` command is the general fallback: use it
+whenever ``-H`` cannot reach a target, or for a guest-side tool that has no
+``-H`` flag at all.
 
 Machine and VM status
 =====================
@@ -150,11 +150,11 @@ inspected and steered with the same two tools as anything else here:
 logs. Two kinds of object appear, and each flow page names the ones its own
 suite uses:
 
-- **One service instance per unit of work**, from a template the guest's
+- One service instance per unit of work, from a template the guest's
   closure installs. The instance name is whatever that suite runs one of: a
   blktests group, an xfstests section, a KUnit suite, a kselftest collection,
   a harness binary, a test module.
-- **A transient scope per test**, where the suite's runner brackets each test
+- A transient scope per test, where the suite's runner brackets each test
   in one. A scope lives outside the service's control group, so it survives a
   bare stop of the service.
 
@@ -274,15 +274,15 @@ complements the run-scoped eBPF monitors
 (``monitor-blkalgn@``/``monitor-biolatency@`` from the ``monitoring``
 profile, with blkalgn supplied by a bcc fork through the closure's
 package source overrides): those bracket one workload and write files,
-while the exporter streams histograms continuously, and the run
-annotations make both findable for a given run.
+while the exporter streams histograms continuously. The run annotations
+make both findable for a given run.
 
 Suite runs mark themselves on those dashboards: each suite flow's
 :src:`f/monitoring/annotate` step posts a Grafana region annotation spanning
 the run's wall-clock window (taken from the ``wait`` step's unit
 observations), tagged ``suite-run`` plus the suite, guest, kernel, and
-verdict. Clicking a region in the dashboard shows exactly what the guest's
-CPU, memory, I/O, and journal did during that run. The step is a logged
+verdict. Clicking a region in the dashboard shows what the guest's CPU,
+memory, I/O, and journal did during that run. The step is a logged
 no-op until the operator creates the one-time Grafana credential resource
 (see :doc:`../deployment/monitoring`), so suites run identically with or
 without the monitoring stack.

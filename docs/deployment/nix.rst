@@ -7,8 +7,8 @@ Nix
 The Nix deployment (``deploy/nix/``) builds a custom Windmill server from source
 with Nix and runs the whole stack under ``systemd --user``, with no container
 runtime. A Nix-built binary links against ``/nix/store`` and runs natively on
-the host. What disqualified Nix for a container image, its dependence on the
-store, is exactly what suits a host deployment.
+the host. The dependence on the store that ruled Nix out for a container image
+suits a host deployment.
 
 Build and deploy run from the repository root as two flake apps:
 ``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. There is no
@@ -66,7 +66,7 @@ Install
 
 ``nix run .#windmill-install`` places the units in the user unit directory, the
 Caddyfile where the proxy reads it, and the vendor tree where the workers find
-it through ``VENDOR_DIR``. The vendor copy is what lets the workers resolve the
+it through ``VENDOR_DIR``. The vendor copy lets the workers resolve the
 nixos-flake's ``git`` and build shells and the ``qemu-system@.service`` unit
 templates without the source checkout, so a worker-only host needs only the
 state directory:
@@ -152,8 +152,7 @@ every worker instance at once, the drop-in counterpart of the shared
 ``windmill-worker.env``.
 
 The knobs, grouped by the unit that carries each. Every one has a working
-default, so the stack runs untouched; override any by editing that unit's
-``.env`` file or with a drop-in, as above.
+default, so the stack runs untouched; override any as above.
 
 ``windmill.service`` (the server):
 
@@ -268,8 +267,8 @@ On a separate host
 
 A second machine can run workers for an existing server without the rest of the
 stack, in two steps with the database pointed at the server in between.
-``nix run .#windmill-worker-install`` builds just the windmill binary, the same
-one the worker runs in worker mode, not the database, proxy, and rest that
+``nix run .#windmill-worker-install`` builds only the windmill binary (a worker
+is the same binary in worker mode), not the database, proxy and the rest that
 ``windmill-build`` produces, so there is no separate worker build and no need to
 run ``windmill-build`` first. It installs only the ``windmill-worker@`` unit,
 with a drop-in that clears its local-database dependency and makes the
@@ -293,15 +292,15 @@ for every instance:
    Environment=DATABASE_URL=postgres://user:pw@server:5432/windmill
    Environment=LIVE_LOGS_URL=http://server:8002
 
-``windmill-worker-activate`` is idempotent, so scaling up is just re-running it
-with a larger count: ``nix run .#windmill-worker-activate -- 8``. Underneath,
+``windmill-worker-activate`` is idempotent, so scaling up is re-running it with
+a larger count: ``nix run .#windmill-worker-activate -- 8``. Underneath,
 ``windmill-worker@`` is a systemd template, so each instance points at the one
 unit file and a single one can also be added with ``systemctl --user enable
 --now windmill-worker@0004`` (no rebuild or reinstall either way). The server's
 PostgreSQL and API port must be reachable from this host: both bind
-``127.0.0.1`` by default, so expose them or tunnel. Build-pool workers also
-need the :term:`System workbench` provisioned here, the same
-:src:`f/workbench` init flow as on any worker host.
+``127.0.0.1`` by default, so expose them or tunnel. Build-pool workers also need
+the :term:`System workbench` provisioned here, the same :src:`f/workbench` init
+flow as on any worker host.
 
 TLS and the base URL
 --------------------
@@ -321,31 +320,34 @@ The workbench
 The worker build-area paths point at a :term:`Workbench`: a directory
 containing the :term:`Developer`'s :term:`Worktree-groups <Worktree-group>` and
 the kdevops-ng infrastructure that defaults under it. It is not a Windmill
-workspace. The infrastructure is the :term:`System workbench` (``system/``,
-``SYSTEM_DIR``), the host-local singleton holding the mirrors, bares, ssh key,
-store, compiler cache and Store index, and the
-:term:`Worker sandboxes <Worker sandbox>`
-(``workers/<id>/``,
-``WORKERS_DIR``), where each worker builds in its own worktree, never in a
-developer's worktree.
+workspace. The infrastructure has two parts: the :term:`System workbench`
+(``system/``, ``SYSTEM_DIR``), the host-local singleton holding the mirrors,
+bares, ssh key, store, compiler cache and Store index; and the
+:term:`Worker sandboxes <Worker sandbox>` (``workers/<id>/``, ``WORKERS_DIR``),
+where each worker builds in its own worktree, never in a developer's worktree.
 
 The units default ``WORKBENCH_DIR`` to ``%S/windmill/workbench``, under the
 systemd state directory (``%S`` is ``$XDG_STATE_HOME``), the recommended place
-for persistent service state. Each piece relocates on its own: ``WORKBENCH_DIR``
-moves the whole area, the worktree-groups included, so set it to put the groups
-where you want them, a directory in ``$HOME`` such as ``$HOME/src`` or one
-nested in the repository such as ``kdevops-ng/workbench``; ``WORKTREES_DIR``
-roots the worktree-groups alone (default ``WORKBENCH_DIR``), to move the groups
-apart from the rest of the area; ``SYSTEM_DIR`` and ``WORKERS_DIR`` default
-inside it but move out independently; ``MIRRORS_DIR`` roots the bulky git
-mirrors alone (default ``SYSTEM_DIR/mirror``), so you can park the expensive
-object store on a separate volume while the bares, ssh key and store stay put;
-``CCACHE_DIR`` roots the shared compiler cache alone (default
-``SYSTEM_DIR/ccache``), so you can keep a warm cache on a fast disk, or point it
-at an existing cache, independently of the rest; and ``STORE_INDEX_DIR`` roots
-the Store index alone (default ``SYSTEM_DIR/store-index``), which holds the GC
-roots that protect published artifacts from collection. Override any of them
-with a drop-in or the ``windmill-worker.env`` file.
+for persistent service state. Each piece relocates on its own, through a
+drop-in or the ``windmill-worker.env`` file:
+
+- ``WORKBENCH_DIR`` moves the whole area, the worktree-groups included, so set
+  it to put the groups where you want them: a directory in ``$HOME`` such as
+  ``$HOME/src``, or one nested in the repository such as
+  ``kdevops-ng/workbench``.
+- ``WORKTREES_DIR`` (default ``WORKBENCH_DIR``) roots the worktree-groups alone,
+  to move them apart from the rest of the area.
+- ``SYSTEM_DIR`` and ``WORKERS_DIR`` default inside ``WORKBENCH_DIR`` but move
+  out independently.
+- ``MIRRORS_DIR`` (default ``SYSTEM_DIR/mirror``) roots the bulky git mirrors
+  alone, so you can park the expensive object store on a separate volume while
+  the bares, ssh key and store stay put.
+- ``CCACHE_DIR`` (default ``SYSTEM_DIR/ccache``) roots the shared compiler cache
+  alone, so you can keep a warm cache on a fast disk, or point it at an existing
+  cache, independently of the rest.
+- ``STORE_INDEX_DIR`` (default ``SYSTEM_DIR/store-index``) roots the Store index
+  alone; it holds the GC roots that protect published artifacts from
+  collection.
 
 Run the ``f/workbench`` init flow from Windmill to provision the System
 workbench (the bare mirrors and the ssh key); the workers fill their sandboxes

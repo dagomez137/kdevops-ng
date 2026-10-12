@@ -8,10 +8,10 @@ Bisect a kernel regression
 
 The :src:`f/kernel/bisect` flow finds the first bad kernel commit for a
 failing KUnit suite (the default payload; the other payloads follow below)
-by driving :cmd:`git bisect` with real guest runs. Each
-iteration builds the candidate commit, boots a dedicated guest with it, runs
-the selected suites, and feeds the verdict back, until git names the first
-bad commit. It composes the flows you already know: :src:`f/qsu/bringup`
+by driving :cmd:`git bisect` with real guest runs. Each iteration builds the
+candidate commit, boots a dedicated guest with it, runs the selected suites,
+and feeds the verdict back, until git names the first bad commit. It composes
+two existing flows: :src:`f/qsu/bringup`
 does the build and boot (kernel artifacts are content-addressed, so a commit
 built before is reused from the Nix store, not rebuilt), and
 :src:`f/kunit/run` produces the verdict; the loop, the endpoints, and the
@@ -24,11 +24,11 @@ first: if the picked suites pass alone, the run concludes
 other suites to run first cannot be bisected on its own; that conclusion is
 itself the finding. The good ref runs next: if it fails, the run concludes
 ``good_endpoint_failed`` and the fix is to pick an older good. Only with a
-failing bad and a passing good does the flow start the actual bisect.
+failing bad and a passing good does the flow start the bisect.
 
 The verdict for a candidate is the KUnit run's own folded verdict: good only
 when every picked suite passed, bad otherwise, including a guest that dies
-mid-suite (for a panic regression the dying guest is exactly the signal; the
+mid-suite (for a panic regression the dying guest is the signal; the
 next iteration's bringup replaces the guest). A kernel that fails to build
 or boot is neither: the candidate is ``git bisect skip``\ ped. The flow
 therefore bisects suite verdicts, not boot failures.
@@ -52,10 +52,10 @@ picker offers: KUnit suites, kselftest collections, or usertests harnesses),
 the suites (pick the one failing suite alone for the sharpest signal), a
 dedicated guest name (default ``bisect``; the guest is replaced on every
 iteration, so keep it away from developer guests), an iteration cap, and the
-per-suite timeout. ``report`` renders the iteration
-table and, on completion, the first bad commit with its subject plus the
-full ``git bisect log``; ``judge`` fails the job unless the run reached a
-real conclusion, so an exhausted or untestable run is a red Windmill job.
+per-suite timeout. ``report`` renders the iteration table and, on completion,
+the first bad commit with its subject plus the full ``git bisect log``;
+``judge`` fails the job unless the run reached a real conclusion, so an
+exhausted or untestable run is a red Windmill job.
 
 A second payload, ``usertests_build``, bisects host-side build breaks in the
 kernel's userspace test harnesses (the :doc:`usertests <usertests>` family
@@ -67,26 +67,25 @@ build-boot-run cycle. Because such harnesses can carry several independent
 breaks at once, the ``error_re`` knob scopes the hunt to one failure
 signature: it asks when that signature appeared, not whether the build is
 healthy, so a candidate whose build fails without matching it counts as
-good. That is what lets each layer of a long-rotted harness be bisected in
-its own range, even when an older break wrecks the whole of it.
+good. This lets each layer of a long-rotted harness be bisected in its own
+range, even when an older break wrecks the whole of it.
 
 A third payload, ``selftests``, runs the same build-boot-run loop with
 kselftest collections instead of KUnit suites: each candidate's bringup
 also builds the selected collections from that candidate's own tree
 (``make kselftest-install``), the guest gets the selftests closure, and
 :doc:`the selftests run <selftests>` produces the verdict. Its
-``max_runtime`` knob is what makes it a performance tool: a candidate
-whose run passes but takes longer than the threshold counts as bad, so a
-runtime regression (a suite that used to finish in seconds and now takes
-minutes) bisects exactly like a failure. Pick a threshold between the
-fast and slow endpoints' measured runtimes; the per-item ``time(s)`` the
-selftests report records is the number being compared. The **Service**
-group's **Per-test Timeout** passes the runner's override through, which a
-collection like ``kmod`` needs (it ships no ``settings`` file and dies at
-the 45-second default; give it 600 or more). Because the test
-scripts travel with the tree, the first bad commit may land in the test
-itself rather than the kernel; either way it names what changed the
-runtime.
+``max_runtime`` knob makes it a performance tool: a candidate whose run passes
+but takes longer than the threshold counts as bad, so a runtime regression (a
+suite that used to finish in seconds and now takes minutes) bisects like a
+failure. Pick a threshold between the fast and slow endpoints' measured
+runtimes; the per-item ``time(s)`` the selftests report records is the number
+being compared. The **Service** group's **Per-test Timeout** passes the
+runner's override through, which a collection like ``kmod`` needs (it ships no
+``settings`` file and dies at the 45-second default; give it 600 or more).
+Because the test scripts travel with the tree, the first bad commit may land
+in the test itself rather than the kernel; either way it names what changed
+the runtime.
 
 An intermittent failure needs two more **Service** knobs. **Repeats** runs
 each collection that many times per candidate, and any failing run makes

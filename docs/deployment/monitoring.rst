@@ -14,11 +14,11 @@ run-annotation API make test runs explorable against the system state they
 ran under. The stack is optional in both directions: the Windmill units never
 reference it, and deactivating it leaves the instance untouched.
 
-The data flows in, not out. Every guest runs one `Grafana Alloy`_ agent that
-pushes metrics over Prometheus remote_write and its journal over the Loki
-push API to the host side of its user-mode network, so any number of
-short-lived guests report to the two loopback ports below with no per-guest
-registration on the host (see the architecture decision record
+Every guest runs one `Grafana Alloy`_ agent that pushes metrics over
+Prometheus remote_write and its journal over the Loki push API to the host
+side of its user-mode network, so any number of short-lived guests report to
+the two loopback ports below with no per-guest registration on the host (see
+the architecture decision record
 ``notes/adr/0011-guest-telemetry-push-over-slirp.md``). Prometheus therefore
 runs with its remote-write receiver enabled and an empty scrape list.
 
@@ -39,7 +39,7 @@ run on their own, mirroring the Windmill apps:
 Four units land: ``monitoring-grafana.service``,
 ``monitoring-prometheus.service``, ``monitoring-loki.service``, and the
 ``monitoring-db-setup.service`` oneshot Grafana pulls in. All bind loopback
-only. Reach the UI over an SSH forward, exactly like the Windmill UI:
+only. Reach the UI over an SSH forward, as for the Windmill UI:
 
 .. code-block:: console
    :class: cmd-host
@@ -108,11 +108,10 @@ window, tagged ``suite-run`` plus the suite, guest, kernel, and verdict, so
 the ``Guest overview`` dashboard shows what ran under the metrics. The
 endpoint lives in the Windmill resource ``f/monitoring/grafana``, which is
 in git and synced like the rest of the workspace; its ``token`` field is a
-``$var:f/monitoring/grafana_token`` reference, because variables are the
-one workspace kind the sync never touches (``skipVariables`` in
-``wmill.yaml``), so the credential survives every push. Until the operator
-creates that variable, runs simply skip the annotation with a note in the
-job log.
+``$var:f/monitoring/grafana_token`` reference, because variables are the one
+workspace kind the sync never touches (``skipVariables`` in ``wmill.yaml``),
+so the credential survives every push. Until the operator creates that
+variable, runs skip the annotation with a note in the job log.
 
 Mint the credential as a Grafana service account (role ``Editor``) with one
 token; both are one-time actions, over the SSH forward or on the host:

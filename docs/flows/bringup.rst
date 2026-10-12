@@ -44,7 +44,7 @@ flows keep their own (:doc:`kernel-build` documents the semantics).
 
 The flow chains ``resolve`` then the three build subflows then the boot
 subflow. ``resolve`` maps the reuse picks to a concrete boot manifest
-(the kernel image, modules, emulator binaries) and raises loudly on an
+(the kernel image, modules, emulator binaries) and raises on an
 unresolvable pick, so a stale dropdown choice fails before anything
 builds or boots. Each build subflow runs only when its component's mode
 is ``build``; the remaining groups (QEMU machine, Kernel boot,
@@ -62,7 +62,7 @@ Watching a run
 ==============
 
 The job log is the primary view (:doc:`guests`). Each enabled build
-subflow streams its own steps exactly as the standalone flow does (the
+subflow streams its own steps as the standalone flow does (the
 kernel build's compile log, the closure build, the QEMU build), and the
 boot tail ends with the guest's access manifest as the flow result.
 After the run the guest is host-native systemd state; :doc:`guests`

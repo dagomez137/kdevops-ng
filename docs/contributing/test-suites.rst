@@ -6,38 +6,37 @@
 Adding test suites
 ==================
 
-kdevops-ng carries five fully worked test-suite integrations, and every rule
-in this page is extracted from them: :doc:`/flows/fstests` (a userland suite
+kdevops-ng carries five worked test-suite integrations, and every rule in
+this page is extracted from them: :doc:`/flows/fstests` (a userland suite
 from a packaged project that needs a share, devices, and per-test
-observation), :doc:`/flows/kunit` (an in-kernel suite driven purely through
-debugfs, no userland at all), :doc:`/flows/selftests` (a userland suite
-built from the kernel tree under test, so its artifact is version-coupled
-to the booted kernel), :doc:`/flows/runtime-tests` (module-init suites
-driven through systemd's own upstream unit: no userland, no share, no
-vendored unit), and :doc:`/flows/usertests` (kernel-tree userspace
-harnesses whose binaries test the source tree they were built from, not
-the booted kernel). A new suite is one of those archetypes, or a mix; read
-the matching sources alongside this page. The requirements are not
-suggestions: each one exists because its absence was a real bug or a real
-usability failure in those integrations.
+observation), :doc:`/flows/kunit` (an in-kernel suite driven only through
+debugfs, with no userland), :doc:`/flows/selftests` (a userland suite built
+from the kernel tree under test, so its artifact is version-coupled to the
+booted kernel), :doc:`/flows/runtime-tests` (module-init suites driven
+through systemd's own upstream unit: no userland, no share, no vendored
+unit), and :doc:`/flows/usertests` (kernel-tree userspace harnesses whose
+binaries test the source tree they were built from, not the booted kernel).
+A new suite is one of those archetypes, or a mix; read the matching sources
+alongside this page. Each requirement exists because its absence was a bug
+or a usability failure in those integrations.
 
 A suite spans four layers, each owned by a different part of the tree:
 
-1. **Kernel configuration**: fragments in the vendored
+1. Kernel configuration: fragments in the vendored
    :src:`vendor/linux-config-fragments` project build what the suite tests.
-2. **Guest closure**: a NixOS module in the vendored
-   :src:`vendor/nixos-flake` project ships the suite's systemd units (and
-   its userland, when it has one).
-3. **The flow**: a subsystem directory ``f/<suite>/`` with a thin Windmill
-   flow composing verb-named Python steps.
-4. **Documentation**: a per-flow page under ``docs/flows/``, staged first.
+2. Guest closure: a NixOS module in the vendored :src:`vendor/nixos-flake`
+   project ships the suite's systemd units (and its userland, when it has
+   one).
+3. The flow: a subsystem directory ``f/<suite>/`` with a thin Windmill flow
+   composing verb-named Python steps.
+4. Documentation: a per-flow page under ``docs/flows/``, staged first.
 
-The four layers are a maximum, not a quota. Runtime tests ships no guest
-closure module at all (its executor, ``modprobe@.service``, is already on
-every systemd guest) and so registers nothing in the closure form, and
-usertests has no kernel-configuration surface (the harnesses need no
-``.config`` and no fragment, only a toolchain). Every suite carries the
-flow and documentation layers.
+Not every suite needs all four layers. Runtime tests ships no guest closure
+module at all (its executor, ``modprobe@.service``, is already on every
+systemd guest) and so registers nothing in the closure form, and usertests
+has no kernel-configuration surface (the harnesses need no ``.config`` and
+no fragment, only a toolchain). Every suite carries the flow and
+documentation layers.
 
 Guest execution model: first-class systemd units
 ================================================
@@ -72,26 +71,24 @@ commander; the unit is the executor. Requirements:
   the same way: ``usertests@`` reads one environment file per binary
   carrying its ``$ARGS``, so a re-run with different arguments is a file
   edit, not a unit change.
-- **Reach for upstream's own template before writing one.** The runtime
-  test modules run through systemd's stock ``modprobe@<module>.service``
-  and the suite ships zero vendored units. Riding an upstream unit means
-  designing around its contract instead of changing it: that template's
-  ``ExecStart`` carries the ``-`` prefix, and systemd journal-logs a
-  successful process exit only at debug level, so the module's exit
-  status is structurally unobservable; the verdict rides what is
-  observable instead, the kernel log's summary or sentinel lines plus
-  the module's post-run load state. Its
+- Reach for upstream's own template before writing one. The runtime test
+  modules run through systemd's stock ``modprobe@<module>.service`` and the
+  suite ships zero vendored units. Riding an upstream unit means designing
+  around its contract instead of changing it: that template's ``ExecStart``
+  carries the ``-`` prefix, and systemd journal-logs a successful process
+  exit only at debug level, so the module's exit status is structurally
+  unobservable; the verdict rides what is observable instead, the kernel
+  log's summary or sentinel lines plus the module's post-run load state. Its
   ``ConditionKernelModuleLoaded=!%i`` skips the start when the module is
   already loaded, which is a nothing-ran run, so the flow unloads first.
-- **Line-buffer a plain binary's output.** Under
-  ``StandardOutput=journal`` a harness's stdio is block-buffered, so a
-  crashing test's last lines die in its buffer; the ``usertests@`` unit
-  wraps every binary in line-buffered mode so the journal carries the
-  crash context.
-- **Pin sanitizer policy in the unit, never library defaults.** The
-  usertests binaries run with the policy fixed (AddressSanitizer aborts,
-  UBSan halts on error, LeakSanitizer gates), so a finding is always
-  fatal and machine-checkable rather than a log line that scrolls by.
+- Line-buffer a plain binary's output. Under ``StandardOutput=journal`` a
+  harness's stdio is block-buffered, so a crashing test's last lines die in
+  its buffer; the ``usertests@`` unit wraps every binary in line-buffered
+  mode so the journal carries the crash context.
+- Pin sanitizer policy in the unit, never library defaults. The usertests
+  binaries run with the policy fixed (AddressSanitizer aborts, UBSan halts
+  on error, LeakSanitizer gates), so a finding is always fatal and
+  machine-checkable rather than a log line that scrolls by.
 - When a trigger can fail while a stale artifact still exists, **split the
   unit**: a strict template whose failed trigger fails the unit, and a
   separate read-back template for work that can only be read, never re-run
@@ -119,15 +116,15 @@ commander; the unit is the executor. Requirements:
   (``kunit-test-modules.service`` writes ``/run/modules-load.d/kunit.conf``
   for :cmd:`systemd-modules-load`). No static list where the content is a
   property of the booted kernel.
-- Do not add timers, sockets, or path units without a genuine activation
-  story; the audits that rejected them for kunit
+- Do not add timers, sockets, or path units unless something needs that
+  activation; the audits that rejected them for kunit
   (`notes/kunit/full-support-audit.md` in the tree) show the reasoning to
   repeat.
-- The unit's exit codes are plumbing, not verdicts. The verdict lives in
-  the results the unit emits (KTAP, a xunit report); the flow parses it.
-  Know the systemd caveat: a **successful** process exit is journal-logged
-  only at debug level, so never require a visible exit-status record to
-  call a run clean; the ``Finished`` job record is the proof.
+- The verdict lives in the results the unit emits (KTAP, a xunit report),
+  not in its exit codes; the flow parses it. Know the systemd caveat: a
+  **successful** process exit is journal-logged only at debug level, so
+  never require a visible exit-status record to call a run clean; the
+  ``Finished`` job record is the proof.
 - A runner that reopens its own stdout breaks under
   ``StandardOutput=journal``: the journal stream is a socket, and
   ``open(2)`` on a socket fails with ``ENXIO``, so an append redirection
@@ -151,7 +148,7 @@ The nix layer
 own conventions; read its ``CLAUDE.md`` first):
 
 - One module per suite under ``modules/testSuites/``, import-as-gate and
-  optionless unless a knob is genuinely needed (then follow the
+  optionless unless a knob is needed (then follow the
   ``monitoring.nix`` option pattern). Register it in the vendored
   ``flake.nix`` under ``nixosModules.testSuites`` and in its per-suite eval
   checks, so ``nix flake check`` builds a closure with the module composed.
@@ -199,10 +196,10 @@ step chain, shared by both suites:
 
 1. ``discover``: gate the guest (``is-system-running``, the unit template
    present, the suite's interface reachable) and enumerate the units of
-   work. **Refuse an empty enumeration**: a guest exposing nothing to run
-   must fail here, never pass a vacuous run. Write the enumeration to a
-   per-VM cache on the shared dir for the form's picker (a form dynselect
-   cannot reach the guest); see ``f/kunit/discover.py``.
+   work. Refuse an empty enumeration: a guest exposing nothing to run must
+   fail here, never pass a vacuous run. Write the enumeration to a per-VM
+   cache on the shared dir for the form's picker (a form dynselect cannot
+   reach the guest); see ``f/kunit/discover.py``.
 2. Optional config/prepare steps when the suite needs them:
    ``render_config`` (write the suite's config to the share, its section
    names driving the loop), ``prepare``, ``wipe``, ``reboot``: all fstests
@@ -226,53 +223,49 @@ step chain, shared by both suites:
 
 Correctness invariants, each one a former bug:
 
-- **A run must have an identity.** Results read back must provably belong
-  to this run, never a previous one. kunit anchors on a guest journal
-  cursor captured before ``start`` (unit state is useless: a sub-second
-  oneshot instance is garbage-collected before the first poll); fstests
-  removes the previous ``result.xml`` from the share before starting, so
-  anything present afterwards is this run's.
-- **Validate completeness.** Parse the results' own plan/stats and refuse a
+- A run must have an identity. Results read back must provably belong to
+  this run, never a previous one. kunit anchors on a guest journal cursor
+  captured before ``start`` (unit state is useless: a sub-second oneshot
+  instance is garbage-collected before the first poll); fstests removes the
+  previous ``result.xml`` from the share before starting, so anything
+  present afterwards is this run's.
+- Validate completeness. Parse the results' own plan/stats and refuse a
   truncated document (``parse_ktap`` checks the ``1..N`` plan and the
   kernel's suite-level stats line); a report that only exists at run end is
   complete by construction once staleness is handled.
-- **Gate the verdict on the run outcome.** ``crashed`` and ``timed_out``
-  from ``wait`` must reach ``collect`` and force a failure even when a
-  plausible report exists.
-- **Nothing-ran is not a pass.** Zero items, an empty body, or an all-skip
-  run is ``notrun``/failed, never silent success.
-- **Host liveness, not guest polling, detects death.** Each ``wait`` poll
-  checks the host ``qemu-system@<vm>.service``; any not-alive state (a
-  crash or a clean outside stop) ends the wait as ``crashed``. Transient
-  SSH failures only retry: the host unit is the authority. The one
-  bounded exception: a guest can die with its QEMU still alive (an OOM
-  storm that takes the sshd sessions), so exhausting a budget of
-  consecutive failed polls also ends the wait as ``crashed`` (the
-  blktests ``wait`` counts twenty, five minutes at its default
-  interval); a shorter blip keeps retrying.
-- **Split the worker tags**: quick lifecycle steps on ``vm``, the long
-  ``wait`` poll on ``vm-run``, so a hung run never starves control
-  operations.
-- **Exit conventions are per item; encode them in a source-verified
-  catalog.** The runtime test modules split into classes (exit-honest,
+- Gate the verdict on the run outcome. ``crashed`` and ``timed_out`` from
+  ``wait`` must reach ``collect`` and force a failure even when a plausible
+  report exists.
+- Nothing-ran is not a pass. Zero items, an empty body, or an all-skip run
+  is ``notrun``/failed, never silent success.
+- Host liveness, not guest polling, detects death. Each ``wait`` poll checks
+  the host ``qemu-system@<vm>.service``; any not-alive state (a crash or a
+  clean outside stop) ends the wait as ``crashed``. Transient SSH failures
+  only retry: the host unit is the authority. The one bounded exception: a
+  guest can die with its QEMU still alive (an OOM storm that takes the sshd
+  sessions), so exhausting a budget of consecutive failed polls also ends
+  the wait as ``crashed`` (the blktests ``wait`` counts twenty, five minutes
+  at its default interval); a shorter blip keeps retrying.
+- Split the worker tags: quick lifecycle steps on ``vm``, the long ``wait``
+  poll on ``vm-run``, so a hung run never starves control operations.
+- Exit conventions are per item; encode them in a source-verified catalog.
+  The runtime test modules split into classes (exit-honest,
   always-``-EAGAIN`` auto-unload, ``test_ida``'s inverted convention, a
-  BUG-on-failure case, a benchmark), and each usertests binary has its
-  own failure convention; assuming one convention across a family
-  converts designed behavior into false verdicts in both directions.
-- **Whitelist expected noise explicitly.** ``radix-tree/idr-test``
-  prints a deliberate assertion block bracketed by "Ignore" markers, and
-  a passing ``test_ida`` fires deliberate warnings; the scanners
-  whitelist exactly those, and nothing more, rather than turning
-  themselves off.
-- **A version-coupled artifact resolves by the booted kernel.**
-  ``kselftests-<release>`` and ``usertests-<release>`` are resolved from
-  the guest's ``uname -r``, and a mismatch refuses to run, so a verdict
-  always names the source it covers.
-- **An honest red beats a green lie.** usertests keeps a real UBSan
-  finding red rather than expunging it, and its unbuildable harnesses
-  are excluded from the default set with each exclusion bisect-pinned to
-  its first bad commit and recorded as an upstream fix candidate, never
-  silently dropped.
+  BUG-on-failure case, a benchmark), and each usertests binary has its own
+  failure convention; assuming one convention across a family converts
+  designed behavior into false verdicts in both directions.
+- Whitelist expected noise explicitly. ``radix-tree/idr-test`` prints a
+  deliberate assertion block bracketed by "Ignore" markers, and a passing
+  ``test_ida`` fires deliberate warnings; the scanners whitelist exactly
+  those, and nothing more, rather than turning themselves off.
+- A version-coupled artifact resolves by the booted kernel.
+  ``kselftests-<release>`` and ``usertests-<release>`` are resolved from the
+  guest's ``uname -r``, and a mismatch refuses to run, so a verdict always
+  names the source it covers.
+- Keep a real failure red. usertests keeps a real UBSan finding red rather
+  than expunging it, and its unbuildable harnesses are excluded from the
+  default set with each exclusion bisect-pinned to its first bad commit and
+  recorded as an upstream fix candidate, never silently dropped.
 
 Mechanics: all guest access goes through the shared vsock-SSH transport
 (:src:`f/common/remote`), all host execution through the
@@ -280,24 +273,24 @@ Mechanics: all guest access goes through the shared vsock-SSH transport
 string; the runner logs the exact command once, so never hand-print a
 mirrored copy; print filesystem mutations (``wrote <path>``). ``wait``
 streams the guest's merged unit + kernel journal into the job log each
-poll (``stream_logs``), which makes the job log the primary live view.
+poll (``stream_logs``), so the job log is the primary live view.
 
 The UI layer
 ============
 
-The UI is the first-class interface; the CLI is the same machinery driven
-by hand and is documented, not primary.
+The UI is the primary interface; the CLI drives the same machinery by hand
+and is documented as the secondary one.
 
-- **Curated pickers, never raw JSON.** Every choice a kernel developer
-  carries in their head becomes a named option: the VM picker
+- Curated pickers, never raw JSON. Every choice a kernel developer carries
+  in their head becomes a named option: the VM picker
   (``dynselect-list_vms``), the work-item picker
   (``dynmultiselect-list_suites``, a multi-select dropdown), the sections
   catalog. A picker that needs guest state reads the per-VM cache
-  ``discover`` writes, with a curated fallback before first discovery, so
-  it is never an empty box. Keep a raw config only as a gated advanced
-  override (fstests' Edit Local.config toggle). :doc:`forms` has the whole
+  ``discover`` writes, with a curated fallback before first discovery, so it
+  is never an empty box. Keep a raw config only as a gated advanced override
+  (fstests' Edit Local.config toggle). :doc:`forms` has the whole
   convention.
-- **A bounding Service group**: timeout, poll interval, log streaming, with
+- A bounding Service group: timeout, poll interval, log streaming, with
   suite-appropriate defaults (kunit: 600 s, sub-second suites; fstests: a
   day, hours-long sections).
 - Knob names are the upstream tool's own keywords; schema ``title:``
@@ -331,7 +324,6 @@ layer of :doc:`testing` covers the new suite too: give its parsers and
 verdict rules fixture tests under ``tests/`` and add it to the
 ``preview-smoke`` case table. The commit rules in ``CLAUDE.md`` apply per
 tree: atomic commits, subsystem prefixes, and each vendored project's own
-message conventions. Validate the
-integration live before trusting it: the kunit end-to-end run (build with
-the fragment, boot, run, inspect the tables and the streamed journal) is
-the model for what "done" means.
+message conventions. Validate the integration live before trusting it: the
+kunit end-to-end run (build with the fragment, boot, run, inspect the tables
+and the streamed journal) is the model for what "done" means.

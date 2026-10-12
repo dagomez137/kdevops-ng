@@ -18,10 +18,10 @@ were built from, not the booted kernel**; the guest only hosts the run.
 The artifact stays keyed by the build's kernel release, so the verdict
 always names the source it covers.
 
-Uniquely, this suite has **no kernel-configuration surface at all**: the
-harnesses need no ``.config``, no ``make headers``, and no fragment; the
-build needs only a toolchain and liburcu (the shim maps kernel RCU onto
-userspace RCU). The build side lives in :src:`f/kernel/build`'s
+This suite alone has **no kernel-configuration surface**: the harnesses
+need no ``.config``, no ``make headers``, and no fragment; the build needs
+only a toolchain and liburcu (the shim maps kernel RCU onto userspace
+RCU). The build side lives in :src:`f/kernel/build`'s
 **Usertests** group, which builds the selected harness directories
 (default ``radix-tree``, ``vma``, ``memblock``; ``scatterlist`` is
 selectable but off the default, see below) in the ``build-usertests``
@@ -53,16 +53,16 @@ The harnesses were built with AddressSanitizer and UBSan hardwired, and
 their failure conventions differ, so the curated catalog encodes each
 one (all source-verified):
 
-- **Exit codes are real** for the whole family: failures abort
+- Exit codes are real for the whole family: failures abort
   (``assert``/SIGABRT), and the unit has no ``-`` prefix, so a failed
   start job with a populated exit status is an honest test failure.
   ``vma/vma`` additionally returns pass/fail properly and prints
   ``N tests run, N passed, 0 failed.``
-- **Summary counts** guard truncation where they exist:
+- Summary counts guard truncation where they exist:
   ``XArray: N of N tests passed``, ``maple_tree: ...``, ``IDA: ...``;
   ``radix-tree/main`` ends with the ``tests completed`` sentinel and
   logs ``random seed N`` for reproduction.
-- **The rbtree pair never fails by exit code**: ``rbtree_test`` and
+- The rbtree pair never fails by exit code: ``rbtree_test`` and
   ``interval_tree_test`` report broken invariants only as
   ``assertion failed at <file>:<line>`` lines on stderr and keep going,
   so their verdict is a clean exit **and** zero such lines; their
@@ -135,7 +135,7 @@ An item is ``<dir>/<binary>``, so the unit instance is its
    $ ssh <vm> journalctl --unit='usertests@*' --output=cat --follow
 
 Re-runs need no cleanup: the binaries hold no persistent state on the
-guest (all state is heap), and repeated starts simply run them again.
+guest (all state is heap), and repeated starts run them again.
 To reproduce a randomized ``radix-tree/main`` run, put its logged seed
 in the env file the unit reads
 (``/var/lib/usertests/<kver>/env/radix-tree/main.env``,

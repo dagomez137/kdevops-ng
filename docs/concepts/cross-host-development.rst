@@ -7,17 +7,16 @@ Cross-host development
 ======================
 
 A developer on one host can hand a branch to a worker on another host to
-build: develop on the thin box, build on the beefy one. Build *outputs*
-already cross hosts through the :doc:`/concepts/build-store`; this page covers
-the *input* side, the per-host ref channel that lets a development branch
-travel from one host to another over SSH (see ADR 0001, bare is the working
-repo).
+build. Build *outputs* already cross hosts through the
+:doc:`/concepts/build-store`; build *inputs* cross through the per-host ref
+channel, which carries a development branch from one host to another over SSH
+(see ADR 0001, bare is the working repo).
 
 The model
 =========
 
 Same-host, a developer and a worker share one Bare, so publishing a branch is
-just a commit and the worker builds it. Cross-host, the developer pushes the
+a commit and the worker builds it. Cross-host, the developer pushes the
 branch to the peer's Bare over SSH, and the peer's worker builds it from its
 own ``refs/heads/*``. No build-flow change is needed, because the worker's
 ``prepare()`` already resolves a literal ref against the local Bare.
@@ -156,9 +155,9 @@ entry on the client. A laptop with a plain checkout is enough:
 
 Note the doubled slash after the host. An :cmd:`ssh` URL with one slash names a
 path relative to the login home, so an absolute path needs the second one. Both
-forms work; they simply address different places.
+forms work; they address different places.
 
-What the client sees is the Bare's ``refs/heads/*``, which is exactly the
+What the client sees is the Bare's ``refs/heads/*``, which is the
 durable development-branch namespace: the branch a worktree published by
 committing is fetchable from another machine the moment it exists, with no push
 and no extra copy. The client picks its own remote name and refspec, since the
@@ -175,7 +174,5 @@ The durable Bare
 
 These peer remotes live on the Bare, the durable working repo that holds
 development branches and worktrees (see :term:`Bare`). The Bare is the ref
-channel between a developer and a worker, and the peer remotes extend that
-channel across hosts: the same per-host durable repository that anchors
-same-host collaboration becomes the cross-host endpoint, reached over SSH at a
-predictable ``ssh://<peer>/<SYSTEM_DIR>/bare/<project>.git`` address.
+channel between a developer and a worker; the peer remotes extend that channel
+to other hosts.

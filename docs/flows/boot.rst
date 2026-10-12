@@ -91,10 +91,9 @@ which passes NVMe DSM deallocate and TRIM through to the image, so
 deletion punch the freed clusters back out of the qcow2. With ``off``
 QEMU accepts those commands and silently drops them, so every cluster a
 test ever touched stays allocated and each drive climbs to its virtual
-size and stays there, however little the guest still stores. That is
-worth knowing when a run leaves several idle VMs behind: a test rig with
-five 20 GiB drives per VM pins 100 GiB per guest once the images are
-full.
+size and stays there, however little the guest still stores. This
+matters when a run leaves several idle VMs behind: a test rig with five
+20 GiB drives per VM pins 100 GiB per guest once the images are full.
 
 The related ``detect_zeroes`` knob converts all-zero guest writes into
 deallocations rather than data, and is off by default. QEMU refuses to
@@ -124,7 +123,7 @@ thread never leaves the guest.
 
 QEMU leaves ``ioeventfd`` off and this form turns it on for every drive,
 because nothing measured here prefers the trap. A pair of boots that
-differ in the doorbell alone, same image, same ``aio`` and cache mode,
+differ in the doorbell alone (same image, same ``aio`` and cache mode)
 put the eventfd at roughly double the request rate at queue depth one,
 with the gain shrinking as the commands grow and gone by 1 MiB: the exit
 is a fixed cost per command, not per byte. The admin queue keeps the
@@ -188,6 +187,6 @@ units are rendered, against the host ``systemd --user`` manager:
 
 Booting is re-entrant: the ``boot`` step restarts a deployed VM with
 the current render, which is how a VM is reconfigured in place
-(:doc:`bringup`'s refresh target rides exactly this). :doc:`guests`
+(:doc:`bringup`'s refresh target uses this). :doc:`guests`
 covers reaching the booted guest (SSH, ``--host``, ``machinectl``)
 and stopping or killing it.

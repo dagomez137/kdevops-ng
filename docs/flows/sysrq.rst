@@ -9,10 +9,9 @@ Dumping a wedged guest with SysRq
 :doc:`Inspecting guests <guests>` assumes the guest is far enough along to
 answer over the SSH transport. A guest that wedges before that, in early boot
 or during activation, has no shell to reach: ``ssh <vm>`` hangs, and the job
-log stops advancing with no verdict. This page covers the out-of-band way to
-make such a guest tell you *where* it is stuck, by injecting a `SysRq`_ command
-into its emulated keyboard and reading the dumped task stacks back from the
-host journal.
+log stops advancing with no verdict. To make such a guest tell you *where* it
+is stuck, inject a `SysRq`_ command into its emulated keyboard out of band and
+read the dumped task stacks back from the host journal.
 
 What SysRq is
 =============
@@ -30,8 +29,7 @@ the "what is this guest doing" question:
 The value of ``SysRq-t`` and ``SysRq-w`` is that they fire on demand and see
 tasks in *any* state. That is the difference from the automatic ``hung_task``
 detector below, which only reports ``D``-state tasks and only after a timeout
-elapses. When a guest is wedged now and you want the stack now, SysRq is the
-tool.
+elapses.
 
 Why a console does not help
 ===========================
@@ -44,12 +42,12 @@ service manager, whose ``ttyS0`` serial console is wired to captured stdio in
 the journal with no terminal attached, and a persistent service cannot have a
 terminal attached to it after the fact.
 
-A kdevops guest does expose interactive consoles, just not ones that carry a
-SysRq into this case. A persistent VM offers the virtconsole socket
-(``hvc0``) covered in :doc:`guests`, but that is a virtio console rather than a
-serial line, so it has no ``BREAK`` to raise SysRq, and it only comes up once
-the guest kernel and a getty are running, which is exactly what an early or
-activation hang prevents. Launching the VM transiently with :cmd:`systemd-run`
+A kdevops guest does expose interactive consoles, but none that carries a
+SysRq into this case. A persistent VM offers the virtconsole socket (``hvc0``)
+covered in :doc:`guests`, but that is a virtio console rather than a serial
+line, so it has no ``BREAK`` to raise SysRq, and it only comes up once the
+guest kernel and a getty are running, which an early or activation hang
+prevents. Launching the VM transiently with :cmd:`systemd-run`
 ``--pty`` does forward an interactive ``ttyS0``, but that is a different way to
 start a VM, not something you can attach to the service already wedged in front
 of you.
@@ -64,8 +62,8 @@ Injecting it through QMP
 
 Each VM's QEMU exposes a `QMP`_ control socket at
 ``$XDG_RUNTIME_DIR/qemu-system/<vm>/qmp.sock``. The ``send-key`` command on that
-socket presses keys on the guest's *emulated* keyboard, which is exactly the
-path a physical SysRq chord would take. Connect with :cmd:`socat`, hand-shake
+socket presses keys on the guest's *emulated* keyboard, the same path a
+physical SysRq chord would take. Connect with :cmd:`socat`, hand-shake
 with ``qmp_capabilities``, then send the Alt + SysRq + ``t`` chord as one
 keypress:
 
@@ -123,22 +121,21 @@ for the SysRq markers:
        | grep --ignore-case --extended-regexp \
            'sysrq: show|task:.*state:|call trace'
 
-One caveat worth knowing: the markers above match SysRq's own headers, not the
-VM name. A debug guest is often named for the tree under test (here,
-``iomap-fixes``), so a naive grep for that subject string drowns in the VM name
-rather than the stack. Match SysRq's structural markers instead.
+The markers above match SysRq's own headers, not the VM name. A debug guest is
+often named for the tree under test (here, ``iomap-fixes``), so a naive grep for
+that subject string drowns in the VM name rather than the stack. Match SysRq's
+structural markers instead.
 
 Worked example: the iomap activation hang
 =========================================
 
-This page comes out of a real debugging session, which is what makes it a
-useful worked example. A kernel built from an iomap patch series (archived on
-`lore`_, message-id ``20260625120803.2462291-1-hch@lst.de``) booted far enough
-that the guest's `NixOS`_ stage-2 activation began and the service manager was
-alive, but the boot never completed and ``ssh <vm>`` timed out. ``hung_task``
-could not surface the cause quickly: the stuck task was in ``D`` state and the
-120 second timeout had not yet fired. Issuing ``SysRq-w`` produced the blocked
-task at once:
+This example comes from a real debugging session. A kernel built from an iomap
+patch series (archived on `lore`_, message-id
+``20260625120803.2462291-1-hch@lst.de``) booted far enough that the guest's
+`NixOS`_ stage-2 activation began and the service manager was alive, but the
+boot never completed and ``ssh <vm>`` timed out. ``hung_task`` could not surface
+the cause quickly: the stuck task was in ``D`` state and the 120 second timeout
+had not yet fired. Issuing ``SysRq-w`` produced the blocked task at once:
 
 .. code-block:: text
    :caption: guest
@@ -155,8 +152,7 @@ inside ``filemap_read``, waiting for the executable's pages to be read in. In
 the imageless model the binary lives on the ``/nix/store`` share, which is a
 `virtio-fs`_ mount, so the wedge is a virtiofs page-in that never completes:
 activation cannot run the program it needs, and the boot stalls there. The one
-captured stack named both the stuck operation and the filesystem responsible,
-which is the whole point of reaching for SysRq.
+captured stack named both the stuck operation and the filesystem responsible.
 
 The full Show State dump
 ========================
@@ -183,10 +179,7 @@ SysRq is the manual, any-state probe. Its automatic counterpart is the kernel's
 ``CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=120`` (in ``imageless_defconfig`` and the
 ``debug/hung-task.config`` fragment). It watches for tasks stuck in ``D`` state
 past the timeout and prints their stacks unprompted, which is what eventually
-catches a hang nobody is watching. The two are complementary: ``hung_task``
-notices a ``D``-state stall on its own after the timeout, while ``SysRq-t`` and
-``SysRq-w`` let you dump tasks in any state the moment you suspect a guest is
-stuck.
+catches a hang nobody is watching.
 
 .. _SysRq: https://docs.kernel.org/admin-guide/sysrq.html
 .. _QMP: https://www.qemu.org/docs/master/interop/qemu-qmp-ref.html

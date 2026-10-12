@@ -10,12 +10,10 @@ The :src:`f/kernel/build` flow builds a custom `Linux kernel`_ from source,
 reproducibly, to boot in a QEMU virtual machine run through systemd. It is the
 Windmill equivalent of a ``make`` of an upstream kernel at a pinned ref,
 optionally with a mailed patch series applied on top. The flow runs over a
-mirror-backed git
-worktree inside the ``nixos-flake`` ``.#build`` devShell, with
-``make --jobs=$(nproc)``, so one build uses every CPU and concurrent builds
-share them per build, through the worker units' equal CPU weight, and returns
-a manifest a downstream flow reads. :src:`f/qemu/build` deliberately mirrors
-it for QEMU.
+mirror-backed git worktree inside the ``nixos-flake`` ``.#build`` devShell and
+returns a manifest a downstream flow reads. It runs ``make --jobs=$(nproc)``,
+so one build uses every CPU; concurrent builds share the CPUs through the
+worker units' equal CPU weight. :src:`f/qemu/build` mirrors it for QEMU.
 
 The flow
 ========
@@ -114,7 +112,7 @@ QEMU build, see :src:`f/workbench/fetch` and :doc:`/concepts/build-store`.
 Schema inputs
 =============
 
-The form surfaces the choices a kernel developer actually makes, grouped by
+The form surfaces the choices a kernel developer makes, grouped by
 concern. The group labels (Worktree, Configuration, Build, Reuse, Installation)
 carry their own one-line summaries in the form; this section is the full
 reference.
@@ -180,8 +178,8 @@ Worktree
    The tail never discards work and never fails the build. Its whole vocabulary
    is :cmd:`git worktree` ``add``, a plain ``git checkout`` of a branch,
    ``git merge --ff-only`` and, behind the recreate knob, ``git worktree
-   remove``: no forcing verb, so every command git itself refuses
-   rather than clobbers. It decides by what it finds:
+   remove``. None of them forces, so git refuses any of them that would
+   clobber a file. It decides by what it finds:
 
    .. list-table::
       :header-rows: 1
@@ -190,7 +188,7 @@ Worktree
       * - The worktree is
         - What happens
       * - already on the branch, at the built commit
-        - nothing at all, not one git command
+        - nothing; no git command runs
       * - at the built commit but detached
         - checked out onto the branch, carrying modified and staged files
           across
@@ -337,8 +335,8 @@ Checks
    The patch subject prefix (``PATCH v2``), and ``--strict`` for
    :cmd:`checkpatch.pl`.
 
-The source URL is not a flow input: it is fixed by the mirror, exactly as the
-QEMU build takes a ref but not a URL.
+The source URL is not a flow input: it is fixed by the mirror, as the QEMU
+build takes a ref but not a URL.
 
 Configuration methods
 =====================
@@ -386,12 +384,12 @@ devShell's toolchain store path, the make flags (with the host-specific
 so a ``b4`` series re-applied with ``git am`` (which restamps each commit with
 the wall-clock time, a fresh ``HEAD`` SHA over identical content) still hashes
 the same: the identity stays put and reuse holds. The digest is the same on
-every host, so a peer's build is provably the one requested, and it is the
+every host, so a peer's build is provably the one requested. It is also the
 field that tells builds apart by content: two builds of one ref with different
 configs (KASAN on or off, GCC or clang), or two revisions of one series, differ
 in the digest, so they never collide in the Store key or in
-``/lib/modules/<release>`` inside the booted guest (the ADR-0002 identity scheme
-is intact).
+``/lib/modules/<release>`` inside the booted guest (the ADR-0002 identity
+scheme is intact).
 
 The **label** is the readable name baked in front of the digest. It is
 inferred, in this precedence: a ``custom_label`` override; else, for a ``b4``
@@ -405,13 +403,12 @@ For a ``b4`` series the cover letter is fetched on its own, with
 series title and revision that the patch mbox lacks (``b4 am`` does not save the
 cover); a failed fetch falls back to the first patch subject. The revision
 ``N`` is read from a ``[PATCH vN M/K]`` bracket, or from a standalone ``vN`` at
-the very end of the subject (the ``... v3`` convention), and appended as
-``-v<N>`` only when a version is actually present and is v2 or later. A series
-with no version token gets no suffix; no revision is invented. A matched
-``-v<N>`` is preserved across truncation, so it is never the part that is cut.
-So an iomap series whose cover reads ``don't build bios/contexts over multiple
-iomaps v3`` builds as
-``7.1.0-don-t-build-bios-contexts-over-multiple-v3-<digest>``, reading apart
+the end of the subject (the ``... v3`` convention), and appended as ``-v<N>``
+only when a version is present and is v2 or later. A series with no version
+token gets no suffix; no revision is invented. A matched ``-v<N>`` is preserved
+across truncation, so it is never the part that is cut. So an iomap series
+whose cover reads ``don't build bios/contexts over multiple iomaps v3`` builds
+as ``7.1.0-don-t-build-bios-contexts-over-multiple-v3-<digest>``, reading apart
 from its v2 at a glance, while the digest already tells them apart by content.
 
 The kernel's own ``setlocalversion`` describe suffix (``-<count>-g<sha>``) is
@@ -447,12 +444,11 @@ builder path, and both are named in the kernel's own ``.gitignore``, so neither
 dirties ``git status``. The Rust index appears only for a ``CONFIG_RUST=y``
 kernel; otherwise the step says so and leaves the C index alone.
 
-Proc macros need no editor configuration at all, and adding some is actively
-harmful. The devel layer carries no compiled output, so the three proc-macro
-dylibs (``libmacros.so``, ``libpin_init_internal.so``,
-``libzerocopy_derive.so``) are not in it; ``fetch_devel`` compiles them in the
-same devShell that regenerates the index, and reports how many the index
-resolved:
+Proc macros need no editor configuration, and adding some is harmful. The
+devel layer carries no compiled output, so the three proc-macro dylibs
+(``libmacros.so``, ``libpin_init_internal.so``, ``libzerocopy_derive.so``) are
+not in it; ``fetch_devel`` compiles them in the same devShell that regenerates
+the index, and reports how many the index resolved:
 
 .. code-block:: text
    :caption: host
@@ -460,7 +456,7 @@ resolved:
 
    wrote <worktree>/rust-project.json (46 crates, 3/3 proc-macro dylibs present)
 
-A proc-macro dylib loads only into a proc-macro server built by the very same
+A proc-macro dylib loads only into a proc-macro server built by the same
 ``rustc``, which is why they are compiled rather than shipped. Nothing has to
 be told where that server is. ``rust-analyzer`` reads the ``sysroot`` field of
 ``rust-project.json`` and starts that sysroot's own
@@ -645,12 +641,12 @@ build was compiled or reused.
 How the guest layer consumes this
 =================================
 
-kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit,
-an instance of the ``qemu-system@.service`` template unit, and that unit
-consumes both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the
-unit's ``ExecStart=`` emulator, while ``bzImage`` from this flow becomes
-``-kernel`` and the ``/lib/modules`` tree becomes a ``virtiofs`` share the guest
-mounts at ``/lib/modules/$(uname -r)``. Because the booted kernel's
+kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit
+(an instance of the ``qemu-system@.service`` template unit), which consumes
+both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the unit's
+``ExecStart=`` emulator, while ``bzImage`` from this flow becomes ``-kernel``
+and the ``/lib/modules`` tree becomes a ``virtiofs`` share the guest mounts at
+``/lib/modules/$(uname -r)``. Because the booted kernel's
 ``uts_release`` is the unique build identity, the modules share resolves to that
 exact release, so module autoload (virtio-vsock, virtiofs, and the rest) lines
 up with the running kernel. For inspecting a running guest see

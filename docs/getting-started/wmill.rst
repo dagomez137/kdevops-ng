@@ -10,10 +10,9 @@ truth. See the upstream `wmill CLI`_ documentation for the full command set.
 
 .. _wmill CLI: https://www.windmill.dev/docs/advanced/cli
 
-``wmill`` is provisioned from Nix, pinned to the server version, not a host
-install. Enter the development shell with ``nix develop`` to put it on
-``PATH``, or
-prefix a single command with ``nix develop --command``:
+``wmill`` is provisioned from Nix and pinned to the server version, instead of
+being installed on the host. Enter the development shell with ``nix develop`` to
+put it on ``PATH``, or prefix a single command with ``nix develop --command``:
 
 .. code-block:: console
    :caption: host
@@ -45,10 +44,10 @@ the workspace:
 The token is saved to ``~/.config/windmill/remotes.ndjson``, so later deploys
 need no re-auth; run them through the ``deploy-kdevops`` app (`Deploying`_). A
 fresh instance seeds only a ``starter`` workspace, so ``--create`` adds
-``kdevops``. Change that default password after
-the first login, and mint a durable token with ``wmill token create`` if you
-want one. ``wmill init`` writes AI-assistant context and a few editor files that
-are git-ignored; it is optional.
+``kdevops``. Change that default password after the first login, and mint a
+durable token with ``wmill token create`` if you want one. ``wmill init`` writes
+AI-assistant context and a few editor files that are git-ignored; it is
+optional.
 
 Deploying
 =========
@@ -84,7 +83,7 @@ files are kept in the canonical form described in
    $ nix run .#deploy-kdevops # files -> production
    $ git add <paths> && git commit --signoff
 
-This unlocks the full engine: UI editing, ``wmill dev``, and a real pull.
+This workflow allows UI editing, ``wmill dev`` and ``wmill sync pull``.
 
 Push-only
 ---------
@@ -141,10 +140,9 @@ line:
    │ + nix --extra-experimental-features 'nix-command flakes' develop 'path:/ho…
 
 ``w`` widens the output window to 10 lines (``+`` and ``-`` resize it), and
-pressing it again hides the window. ``l`` streams all output, and ``q``
-detaches while the flow keeps running. Pass
-``--follow`` to stream all output from the start, or ``--no-view`` for plain
-output.
+pressing it again hides the window. ``l`` streams all output, and ``q`` detaches
+while the flow keeps running. Pass ``--follow`` to stream all output from the
+start, or ``--no-view`` for plain output.
 
 When the run ends, every step is listed with its job ID, under the subflow
 that ran it. A step that ran also names its worker and host (left out below to

@@ -4,12 +4,12 @@
 Staging
 =======
 
-Staging holds prose that is new and not yet proven: written, but not yet
-reviewed. It is kept apart from the vetted documentation until it has been
-read, found correct, and blessed, then promoted.
+Staging holds pages that are written but **not yet reviewed**. Each stays apart
+from the vetted documentation until it has been read and found correct, then
+promoted.
 
-The pages listed below are promoted from working notes into reStructuredText
-but **not yet reviewed**. They live at the ``docs/`` paths they will keep, so
+The pages listed below were promoted from working notes into reStructuredText.
+They live at the ``docs/`` paths they will keep, so
 they render here and on Read the Docs and can be read in full, but they are
 flagged ``:orphan:`` and kept out of the section toctrees, so the rest of the
 site does not present them as vetted documentation.

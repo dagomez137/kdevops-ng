@@ -10,9 +10,7 @@ A change to the workspace content is verified in two layers, ordered by
 when they run: the hermetic fixture tests inside the source gate, before
 every commit; and the preview smoke suite against the running instance,
 before a deploy and, run by the deploy app, after it. The first is part of
-:doc:`development`'s gate, the second is one command. Together they make a
-contract regression visible at the earliest point it can be seen, and they
-are the checks to run before submitting a change.
+:doc:`development`'s gate, the second is one command.
 
 The fixture tests
 =================
@@ -67,12 +65,11 @@ reuse mode without a pick must refuse.
 
 Two caveats frame how to read a result. A preview runs the local step body
 (the deployed one with ``--remote``), but its ``from f...`` imports always
-resolve against the deployed workspace copy,
-so a shared-module change reaches previews only after the next
-``wmill sync push``; a red case can therefore mean the deployed copy lags a
-local fix, which is the harness catching real skew, not a false alarm. And
-previews execute on the real workers, so any case added here must stay
-read-only or carry arguments that cannot touch live state.
+resolve against the deployed workspace copy, so a shared-module change
+reaches previews only after the next ``wmill sync push``. A red case can
+therefore mean the deployed copy lags a local fix: real skew that the
+harness caught. And previews execute on the real workers, so any case added
+here must stay read-only or carry arguments that cannot touch live state.
 
 Run the smoke suite before a deploy that touches flow steps. The deploy app
 (``nix run .#deploy-kdevops``) runs it again with ``--remote`` after every

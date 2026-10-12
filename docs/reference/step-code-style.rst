@@ -9,28 +9,26 @@ code as the source of truth in git, so each language it uses needs a named,
 enforced style: the standard it follows, the tool that checks it, and the
 Windmill rules that make step code different from ordinary scripts.
 
-Python is the only language in the workspace today, so it is specified in
-full below. The structure is deliberately per-language: a new language gets
-its own section with the same four parts (baseline standard, tools and how to
-run them, formatting and line length, and any Windmill-specific contract).
-See `Other languages`_ for the set Windmill supports and how a new one is
-added here.
+Python is the only language in the workspace today, so it is specified in full
+below. The structure is per-language: a new language gets its own section with
+the same four parts (baseline standard, tools and how to run them, formatting
+and line length, and any Windmill-specific contract). See `Other languages`_ for
+the set Windmill supports and how a new one is added here.
 
 The Windmill ``main()`` contract
 ================================
 
 Across every language, a step's entry point is a function named ``main`` (a
-`Windmill script entrypoint`_). Its parameters are not just arguments: their
-type annotations are the workspace form schema. Windmill parses the ``main``
-signature statically (it does not run the module) and turns each annotated
-parameter into a property of a `JSON Schema`_ that Windmill `infers from the
-signature`_, which renders as a UI form field. A parameter with a default
-value, or an optional type, becomes a non-required field.
+`Windmill script entrypoint`_). The type annotations of its parameters are the
+workspace form schema. Windmill parses the ``main`` signature statically (it
+does not run the module) and turns each annotated parameter into a property of a
+`JSON Schema`_ that Windmill `infers from the signature`_, which renders as a UI
+form field. A parameter with a default value, or an optional type, becomes a
+non-required field.
 
-This is semantic typing. A linter or type checker must not "simplify" these
-annotations, and ``main`` may legitimately take domain-shaped values and
-return a ``dict``-shaped payload. The relaxations described under
-`Type checking`_ exist for exactly this reason.
+A linter or type checker must not "simplify" these annotations, and ``main``
+may take domain-shaped values and return a ``dict``-shaped payload. The
+relaxations described under `Type checking`_ exist for this reason.
 
 .. _Windmill script entrypoint: https://www.windmill.dev/docs/getting_started/scripts_quickstart/python#code
 .. _JSON Schema: https://json-schema.org/overview/what-is-jsonschema
@@ -55,9 +53,9 @@ Standards baseline
 ------------------
 
 The baseline is :pep:`8`, but only the parts the enabled Ruff rule families
-actually enforce are gated; the rest is convention upheld in review. The
-enabled families are ``E``, ``F``, ``I``, ``UP``, and ``B`` (resolve any prefix
-in the `Ruff rules index`_):
+enforce are gated; the rest is convention upheld in review. The enabled families
+are ``E``, ``F``, ``I``, ``UP``, and ``B`` (resolve any prefix in the `Ruff
+rules index`_):
 
 - ``E`` (pycodestyle): the mechanical layout rules (whitespace, blank lines,
   indentation). The one exception is ``E501`` (line length), which is
@@ -191,28 +189,26 @@ fields; ``worktree`` and ``build_dir`` are required.
 Type checking
 -------------
 
-Pyright is advisory, not a gate, and two kinds of relaxation apply. The first
-is scoped to ``f/`` through a Pyright execution environment: a step's ``main``
-annotations are a form schema, not ordinary typing, and it returns a
-``dict``-shaped payload whose keys are read dynamically, so
-``reportArgumentType`` and ``reportAttributeAccessIssue`` are turned off under
-``f``. The second is
-global: both trees import ``f`` siblings as namespace packages over the repo
-root (there is no ``__init__.py``; even ``scripts/gen-bringup.py`` does
-``from f.qsu.binaries import ...``), and the ``wmill`` client is injected at run
-time, so ``reportMissingImports`` and ``reportMissingModuleSource`` are set to
-``none`` at the top level to avoid false unresolved-import noise. Apart from
-those two import diagnostics, ``scripts/`` keeps the basic default.
+Two kinds of Pyright relaxation apply. The first is scoped to ``f/`` through a
+Pyright execution environment: a step's ``main`` annotations are a form schema,
+not ordinary typing, and it returns a ``dict``-shaped payload whose keys are
+read dynamically, so ``reportArgumentType`` and ``reportAttributeAccessIssue``
+are turned off under ``f``. The second is global: both trees import ``f``
+siblings as namespace packages over the repo root (there is no ``__init__.py``;
+even ``scripts/gen-bringup.py`` does ``from f.qsu.binaries import ...``), and
+the ``wmill`` client is injected at run time, so ``reportMissingImports`` and
+``reportMissingModuleSource`` are set to ``none`` at the top level to avoid
+false unresolved-import noise. Apart from those two import diagnostics,
+``scripts/`` keeps the basic default.
 
 Docstrings
 ----------
 
 A step opens with a module docstring in the :src:`f/kernel` and :src:`f/qemu`
-style:
-a short prose summary followed by an ``Equivalent command`` (or
+style: a short prose summary followed by an ``Equivalent command`` (or
 ``Equivalent bash``) block that shows the operation as a copy-pasteable shell
-command. There is no docstring rule in the gate, and none is wanted: requiring
-a docstring on every symbol would force boilerplate that restates the obvious.
+command. There is no docstring rule in the gate, and none is wanted: requiring a
+docstring on every symbol would force boilerplate that restates the obvious.
 
 Naming
 ------

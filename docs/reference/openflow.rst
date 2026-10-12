@@ -8,13 +8,11 @@ OpenFlow object model
 
 `OpenFlow`_ is the object model `Windmill`_ uses to describe a flow: the
 steps, how they are wired together, and the controls (loops, branches,
-approvals, retries) that surround them. This page is the authoritative
-reference for the model as this project uses it. It is distilled from the
-upstream OpenFlow schema and the Windmill worker source, not from the public
-documentation page, which is simplified and lists fewer module types and
-languages than the real model. The real model has nine module types and
-supports many languages; the durable details below come straight from the
-upstream source.
+approvals, retries) that surround them. This page is the reference for the model
+as this project uses it, taken from the upstream OpenFlow schema and the
+Windmill worker source. The public documentation page is simplified: it lists
+fewer than the model's nine module types and fewer languages than the model
+supports.
 
 A flow lives in a ``.flow/flow.yaml`` file under ``f/`` and is stored in the
 canonical workspace YAML form (see :doc:`/reference/wmill-yaml`).
@@ -286,30 +284,30 @@ Applying the model here
 
 A few conventions follow from the model:
 
-- **One step per concern, composed by thin flows.** Promote reusable logic to
-  a ``script`` (PathScript) and chain steps with subflows (``flow``) so build,
+- One step per concern, composed by thin flows. Promote reusable logic to a
+  ``script`` (PathScript) and chain steps with subflows (``flow``) so build,
   boot, and VM steps stay independently testable.
-- **N concurrent kernels.** A ``forloopflow`` with ``parallel: true`` and
+- N concurrent kernels. A ``forloopflow`` with ``parallel: true`` and
   ``parallelism: N`` over a list of refs and defconfigs runs one build per
   iteration; each build's ``make --jobs=$(nproc)`` shares the CPUs with the
   others per build, through the worker units' equal CPU weight.
-- **Build then boot.** On one worker group, ``same_worker: true``: step one
-  returns the manifest and step two reads ``results.build.bzImage``. Across
-  worker groups (for example a bringup that builds on ``default`` and boots on
-  a VM group), the manifest points at the published run layer in ``/nix/store``,
+- Build then boot. On one worker group, ``same_worker: true``: step one returns
+  the manifest and step two reads ``results.build.bzImage``. Across worker
+  groups (for example a bringup that builds on ``default`` and boots on a VM
+  group), the manifest points at the published run layer in ``/nix/store``,
   which every worker mounts, so no shared tree is needed.
-- **Worktree isolation.** Each worker builds in its own warm ``main`` worktree
+- Worktree isolation. Each worker builds in its own warm ``main`` worktree
   ``workers/<WORKER_INDEX>/main/<project>``, cut from the durable bare repo
   (``$SYSTEM_DIR/bare/<project>.git``) and synced to the requested ref every
   build: parallel across workers, incremental across runs. This is the subject
   of ADR 0001.
-- **Dedicated VM workers (future).** Tag VM steps and run a worker group with
-  that tag; until then everything runs on the ``default`` group.
-- **Build reuse and cross-host fetch.** An identical kernel or QEMU build is
-  reused or fetched from the Nix store instead of rebuilt, keyed by a
-  reproducible build identity. See :doc:`/concepts/build-store` for the model,
-  the ``prebuilt`` (``remote`` and ``remote_index``) knobs, and the
-  ``store_index`` catalog step.
+- Dedicated VM workers (future). Tag VM steps and run a worker group with that
+  tag; until then everything runs on the ``default`` group.
+- Build reuse and cross-host fetch. An identical kernel or QEMU build is reused
+  or fetched from the Nix store instead of rebuilt, keyed by a reproducible
+  build identity. See :doc:`/concepts/build-store` for the model, the
+  ``prebuilt`` (``remote`` and ``remote_index``) knobs, and the ``store_index``
+  catalog step.
 
 Operating loop
 --------------

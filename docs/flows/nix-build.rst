@@ -148,8 +148,8 @@ is an optional per-package source override input.
 The imageless kernel is external (``boot.kernel.enable = false``), so the kernel
 image and ``/lib/modules`` come from ``f/kernel/build``, not from the closure.
 That kernel must have ``CONFIG_VIRTIO_FS=y``, ``CONFIG_VIRTIO_PCI=y`` and
-``CONFIG_TMPFS=y`` built in, which is exactly what the ``imageless_defconfig``
-preset guarantees. The clean closure path is therefore: preset config, then
+``CONFIG_TMPFS=y`` built in, which the ``imageless_defconfig`` preset
+guarantees. The clean closure path is therefore: preset config, then
 kernel, then imageless boot.
 
 Footguns to honor
@@ -215,19 +215,19 @@ the phases. The ``nixosfi`` role takes Kconfig output to Ansible variables to
 Jinja2 ``{% if %}`` blocks, templated with Jinja2 and orchestrated as an Ansible
 role with tag-gated phases. This flow takes Windmill flow inputs (a JSON schema)
 to step code, templated by a plain Python string builder and orchestrated as a
-Windmill flow of step modules. The result is equivalent, reimplemented.
+Windmill flow of step modules.
 
 Wrapping the kdevops playbook directly (``ansible-playbook nixosfi.yml``) would
 be literally identical but would drag in the whole kdevops tree, Ansible,
 Kconfig and inventory, against the granular native-steps direction. Inventing a
 different closure shape would lose the "same closure as kdevops" guarantee for
-no benefit. So the flow reimplements the orchestration and keeps the contract.
+no benefit.
 
 Jinja2 to Python
 ----------------
 
-The one engine swap worth calling out is templating. The ``nixosfi`` role
-renders ``default.nix`` with Jinja2; this flow generates it with a plain Python
+The one engine swap is templating. The ``nixosfi`` role renders
+``default.nix`` with Jinja2; this flow generates it with a plain Python
 string builder from the typed step inputs, so the steps carry no Jinja2
 dependency. The mapping is direct: each selected profile and test suite becomes
 an entry in the ``imports`` list, ``shares`` adds the mounts module, and the
@@ -239,8 +239,8 @@ Why f/nix
 =========
 
 Nix is the umbrella and NixOS is one thing built with it; every operation in
-this flow goes through the ``nix`` CLI. A single :src:`f/nix` bucket cleanly
-holds both “run a package” (the existing ``f/nix/hello`` is ``nix run
+this flow goes through the ``nix`` CLI. A single :src:`f/nix` bucket holds
+both “run a package” (the existing ``f/nix/hello`` is ``nix run
 nixpkgs#hello``) and "build a NixOS system", because both are Nix operations.
 Booting the closure is not a Nix operation (it is host-systemd VM lifecycle), so
 it stays in a separate boot bucket under :src:`f/qsu`. This mirrors

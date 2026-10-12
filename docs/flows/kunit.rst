@@ -8,15 +8,15 @@ Run KUnit suites
 
 The :src:`f/kunit/run` flow runs `KUnit`_ test suites on an already-booted,
 KUnit-ready guest: the Windmill equivalent of re-running a suite from the
-kernel's debugfs interface, and the one commander of when suites execute.
-The guest is produced separately by :src:`f/qsu/bringup` from a kernel built
-with ``CONFIG_KUNIT=y`` and ``CONFIG_KUNIT_DEBUGFS=y`` (the imageless preset
-and the ``test/kunit.config`` fragment both enable these, build every test
-the enabled subsystems allow as a module via ``CONFIG_KUNIT_ALL_TESTS=m``,
-and leave boot-time autorun off, so nothing executes until this flow asks),
-booted with the ``kunit`` test suite so the closure ships the
-``kunit@.service`` executor (all of the guest-side units come from one
-vendored module, :src:`vendor/nixos-flake/modules/testSuites/kunit.nix`).
+kernel's debugfs interface, and the only thing that decides when suites
+execute. The guest is produced separately by :src:`f/qsu/bringup` from a
+kernel built with ``CONFIG_KUNIT=y`` and ``CONFIG_KUNIT_DEBUGFS=y``, booted
+with the ``kunit`` test suite so the closure ships the ``kunit@.service``
+executor. The imageless preset and the ``test/kunit.config`` fragment both
+enable these options, build every test the enabled subsystems allow as a
+module via ``CONFIG_KUNIT_ALL_TESTS=m``, and leave boot-time autorun off, so
+nothing executes until this flow asks. All of the guest-side units come from
+one vendored module, :src:`vendor/nixos-flake/modules/testSuites/kunit.nix`.
 KUnit tests live in the kernel and its modules, so the flow needs no
 userland and no guest share: results are read back over the SSH transport,
 and the folded verdict lands host-side as ``report.json`` (below).
@@ -51,14 +51,14 @@ outcome from that same stream (systemd's own "Finished"/"Failed to start"
 records), and ``collect`` parses only the run-scoped KTAP ``wait`` captured,
 so a re-run can never report a previous run's results.
 
-The unit sets :cmd:`TimeoutStartSec` to ``infinity``, exactly as the xfstests
+The unit sets :cmd:`TimeoutStartSec` to ``infinity``, as the xfstests
 executor does, so a hung suite is bounded not by systemd but by the ``wait``
 step, which stops the unit on its own configurable timeout. Suites run one at
 a time by design, and the kernel enforces the same: a ``run`` write blocks
 until any other debugfs-triggered suite has finished (`Run tests without
 kunit_tool`_). A KUnit-carrying kernel is a test kernel; the same page notes
-KUnit is not designed for production systems, which is exactly why the guest
-is a disposable VM.
+KUnit is not designed for production systems, which is why the guest is a
+disposable VM.
 
 The run form
 ============
@@ -109,14 +109,14 @@ Discovery and registration
 
 A suite is runnable when it is *registered*: it then owns a directory under
 ``/sys/kernel/debug/kunit``. Registration and execution are decoupled, and
-that split is what the whole flow rides on:
+the flow relies on that split:
 
 - A suite compiled into the kernel (``=y``, such as ``rust_rxarray``)
   registers during kernel init, so its debugfs directory exists as soon as
   the guest is up.
 - A suite built as a module (the ``CONFIG_KUNIT_ALL_TESTS=m`` catalog)
   registers only when its module loads. The closure autoloads them all at
-  boot: our ``kunit-test-modules.service`` (shipped by the same vendored
+  boot: its ``kunit-test-modules.service`` (shipped by the same vendored
   module above, modeled on systemd's :cmd:`kmod-static-nodes` service) scans
   the booted kernel's ``/lib/modules`` for modules carrying the
   ``.kunit_test_suites`` ELF section and declares every match in
@@ -126,8 +126,8 @@ that split is what the whole flow rides on:
   which modules exist is a property of the booted kernel, and the scan is
   exact for whatever kernel booted.
 - Autoloading is safe because registration does not execute anything: with
-  autorun off (the default), a loaded suite just sits in debugfs waiting for
-  its ``run`` node to be written. Booting costs the module loads, not the
+  autorun off (the default), a loaded suite sits in debugfs until its ``run``
+  node is written. Booting costs the module loads, not the
   test time.
 
 The UI queries this through the ``discover`` step: it lists the debugfs
@@ -243,8 +243,8 @@ The suite is the granularity: the ``run`` node re-runs every test in it, and
 the kernel accepts no per-test filter through debugfs (``kunit.filter_glob``
 exists only as a boot-time parameter). Pick suites, not tests, in the flow
 too. One re-run caveat from the kernel side: a test must clean up after
-itself to run correctly a second time, so a suite that only fails on re-run
-is telling you about its own hygiene, not necessarily a regression.
+itself to run correctly a second time, so a suite that fails only on re-run
+may lack its own cleanup rather than show a regression.
 
 Stopping a run
 ==============

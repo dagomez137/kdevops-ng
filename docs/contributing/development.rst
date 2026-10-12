@@ -24,11 +24,10 @@ verification is a flake *check*, programs that change, serve, or query the tree
 are *apps* run with ``nix run``, the Windmill components are *packages* built
 with ``nix build .#<name>``, and the formatter is ``nix fmt``.
 
-These apps are workspace-bound task runners, not portable programs: each one
-changes into the checkout and acts on it, so it is run as ``nix run .#<name>``
-from inside the repository, not as ``nix run github:owner/kdevops-ng#<name>``
-from anywhere. This is a deliberate choice of ``apps`` as the task interface in
-place of a Makefile.
+These apps are workspace-bound task runners: each one changes into the
+checkout and acts on it, so it is run as ``nix run .#<name>`` from inside the
+repository, not as ``nix run github:owner/kdevops-ng#<name>`` from anywhere. The
+``apps`` take the place of a Makefile as the task interface.
 
 The development shell
 =====================
@@ -68,9 +67,9 @@ app, which runs ``writeShellApplication``'s own ``shellcheck`` on it.
    $ nix build .#checks.x86_64-linux.tests        # just the fixture tests
    $ nix build .#checks.x86_64-linux.nix-lint     # just statix and deadnix
 
-The ``tests`` check is the hermetic layer of the flow-testing story;
-:doc:`testing` covers both layers (the fixture tests and the
-``preview-smoke`` app) and when to run each before submitting.
+The ``tests`` check is the hermetic layer of flow testing; :doc:`testing` covers
+both layers (the fixture tests and the ``preview-smoke`` app) and when to run
+each before submitting.
 
 The whitespace, end-of-file, commit-trailer, prose (:doc:`writing`), rule (3b
 to 3d), rst-width and SPDX checks need the git repository, so they cannot be a
@@ -244,8 +243,8 @@ Deploying the Windmill stack
 
 The self-hosted Windmill instance builds and deploys from this flake too, with
 ``nix run .#windmill-build`` and ``nix run .#windmill-deploy``. See
-:doc:`/deployment/nix` for the full procedure, what each service is,
-configuration, TLS, workers, and teardown.
+:doc:`/deployment/nix` for the full procedure: the services, configuration, TLS,
+workers and teardown.
 
 The Nix store
 =============

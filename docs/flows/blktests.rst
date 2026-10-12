@@ -45,9 +45,9 @@ name: real block devices (the guest's spare ``/dev/nvme*n1`` disks, as
 enumerated by ``discover``) that the device-driven tests then run against,
 once per device. Those tests are **destructive** to the named devices, which
 is why the field is empty by default and pairs with the **Wipe Devices** knob
-(:cmd:`wipefs` and :cmd:`blkdiscard` at the start of each group, exactly as
-the fstests flow wipes its disks). A test that needs a device while
-``TEST_DEVS`` is empty is simply not run, blktests' own behavior.
+(:cmd:`wipefs` and :cmd:`blkdiscard` at the start of each group, as the
+fstests flow wipes its disks). A test that needs a device while ``TEST_DEVS``
+is empty is not run, which is blktests' own behavior.
 **DEVICE_ONLY** inverts the focus and runs only the device tests.
 
 blktests owns device setup
@@ -68,9 +68,8 @@ that group with ``--config=/var/lib/blktests/config`` and
 systemd's start timeout. The packaged ``check`` carries a patch
 (:src:`vendor/nixos-flake/pkgs/blktests-runtime-max-sec.patch`) that runs
 each individual test inside its own transient scope,
-``blktests-<group>-<nnn>.scope``, which is what makes a single test
-independently observable and killable from outside the run; upstream blktests
-has no scope support of its own.
+``blktests-<group>-<nnn>.scope``, so a single test can be observed and killed
+from outside the run; upstream blktests has no scope support of its own.
 
 Service units to query
 ======================
@@ -138,8 +137,9 @@ Running a group by hand
 
 ``render_config`` writes the shared ``config`` once and a ``<group>.env`` per
 selected group, which the systemd unit reads via ``%i``. Any armed group is
-therefore a one-command run, no shared active-config to swap and no
-re-render. List the armed groups and start one, following its journal:
+therefore a one-command run: there is no shared active config to swap and
+nothing to re-render. List the armed groups and start one, following its
+journal:
 
 .. code-block:: console
    :caption: guest
@@ -170,9 +170,8 @@ re-reads the ``EnvironmentFile`` on each start, so edit, then restart:
 
    # systemctl restart blktests@loop.service
 
-The flow is the canonical path anyway: it regenerates the config and every
-env from the form, so by-hand edits are a scratch pad, overwritten on the
-next run.
+The flow stays the canonical path: it regenerates the config and every env
+from the form, so the next run overwrites by-hand edits.
 
 Restarting a hung test
 ======================

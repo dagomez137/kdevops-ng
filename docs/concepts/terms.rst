@@ -13,8 +13,8 @@ are organized and shared between people and the `Windmill`_ engine.
 
    A :term:`Workbench` is **not** a Windmill *workspace*. A workbench is a
    build sandbox on disk; the Windmill *workspace* (the ``kdevops``
-   workspace-as-code) holds flow and script content. They are different kinds
-   of thing and the two words are never used interchangeably.
+   workspace-as-code) holds flow and script content. The two words are never
+   used interchangeably.
 
 How the terms relate
 ====================
@@ -51,14 +51,14 @@ The containment of the on-host pieces is:
        └── xfstests/
    vendor/                pinned upstream projects
 
-The whole ``workbench/`` relocates as a unit; ``system/`` and ``workers/`` each
+The whole ``workbench/`` relocates as a unit. ``system/`` and ``workers/`` each
 relocate on their own, since they are infrastructure rather than developer
-content, and the worktree-groups likewise relocate as a set, defaulting as the
-Workbench's direct children but pointable elsewhere together. A workbench need
+content. The worktree-groups relocate as a set: they default to the
+Workbench's direct children but can point elsewhere together. A workbench need
 not sit inside this project: point it at any directory such as ``$HOME/src``,
 and that directory becomes the workbench, with worktree-groups directly under
-it (so ``$HOME/src/vanilla``). The names
-``system`` and ``workers`` are reserved, so a worktree-group may not take them.
+it (so ``$HOME/src/vanilla``). The names ``system`` and ``workers`` are
+reserved, so a worktree-group may not take them.
 ``vendor/`` holds the pinned upstream projects and stays a top-level sibling.
 
 A project gains several worktrees by appearing in several worktree-groups:
@@ -113,12 +113,12 @@ Places
       The host-local infrastructure singleton: the :term:`Mirrors <Mirror>`,
       :term:`Bares <Bare>`, SSH keys, :term:`Store`, the shared compiler cache,
       the Store index (the identity->store-path GC-root registry), and the peers
-      registry (the cross-host peer list). It
-      defaults to ``system/`` under the :term:`Workbench` but relocates on its
-      own, and its :term:`Mirrors <Mirror>` (the bulky shared object store,
-      default ``system/mirror``), compiler cache (default ``system/ccache``) and
-      Store index (default ``system/store-index``, relocatable via
-      ``STORE_INDEX_DIR``) relocate apart from it again. It is user-scoped and
+      registry (the cross-host peer list). It defaults to ``system/`` under the
+      :term:`Workbench` but relocates on its own, and its :term:`Mirrors
+      <Mirror>` (the bulky shared object store, default ``system/mirror``),
+      compiler cache (default ``system/ccache``) and Store index (default
+      ``system/store-index``, relocatable via ``STORE_INDEX_DIR``) relocate
+      apart from it again. It is user-scoped and
       sudo-less in steady state.
 
       Avoid: *service workbench*.
@@ -190,18 +190,18 @@ Source and artifacts
       A content hash of a :term:`Build`'s inputs: config, toolchain (the Nix
       devShell's store hash), build flags, and the source tree (so a series
       re-applied with ``git am`` keeps one identity). Same identity implies the
-      same bytes. Where it can, a project bakes the identity into
-      its artifact so the result self-reports it; the kernel, for example, puts
-      it in ``kernelrelease`` via ``LOCALVERSION``.
+      same bytes. Where it can, a project bakes the identity into its artifact
+      so the result self-reports it; the kernel, for example, puts it in
+      ``kernelrelease`` via ``LOCALVERSION``.
 
       Avoid: *build hash*, *release*.
 
    Store
       Maps a :term:`Build identity` to its built artifacts, so a host that
-      lacks an identity *fetches* it from a peer instead of rebuilding; fetch
-      beats build. The artifacts live in the Nix store (added with ``nix store
-      add-path``, fetched with ``nix copy``) and are indexed by identity,
-      because a ``make`` build is not a Nix derivation and Nix offers no
-      pre-build key to skip it.
+      lacks an identity *fetches* it from a peer instead of rebuilding. The
+      artifacts live in the Nix store (added with ``nix store add-path``,
+      fetched with ``nix copy``) and are indexed by identity, because a
+      ``make`` build is not a Nix derivation and Nix offers no pre-build key to
+      skip it.
 
       Avoid: *destdir*, *artefactory*, *registry*, *releases*.

@@ -9,11 +9,10 @@ Build QEMU
 The :src:`f/qemu/build` flow builds a custom `QEMU`_ from source, reproducibly,
 to provide the emulator each guest's ``qemu-system@<vm>.service`` unit runs.
 It is the Windmill equivalent of an out-of-tree ``configure`` plus ``make`` of
-upstream QEMU at a pinned ref. The flow
-deliberately mirrors :src:`f/kernel/build`: a mirror-backed git worktree built
-inside the ``nixos-flake`` ``.#build`` devShell, producing a ``result.json``
-manifest that a downstream flow reads. Most of this page is "do what the kernel
-build does, for QEMU"; the differences are called out where they matter.
+upstream QEMU at a pinned ref. The flow mirrors :src:`f/kernel/build`: a
+mirror-backed git worktree built inside the ``nixos-flake`` ``.#build``
+devShell, producing a ``result.json`` manifest that a downstream flow reads.
+Where QEMU differs from the kernel build, the page says so.
 
 Why build QEMU at all
 =====================
@@ -32,7 +31,7 @@ providers in increasing order of reproducibility:
    * - Host distro
      - ``/usr/bin/qemu-system-x86_64``
      - No
-     - Never; we skip whatever the host ships.
+     - Never; whatever the host ships is skipped.
    * - Custom build (this flow)
      - ``WORKERS_DIR/<slot>/qemu/destdir/bin/...``
      - Yes, given a pinned ref and the pinned Nix toolchain
@@ -42,7 +41,7 @@ providers in increasing order of reproducibility:
      - Fully hermetic
      - The reproducible default once wired.
 
-The whole point is to never depend on the host distro's QEMU. This flow is the
+The aim is never to depend on the host distro's QEMU. This flow is the
 custom-version path; the future variant described below builds QEMU as a Nix
 derivation into the store. Both emit the same manifest, so the guest layer does
 not care which one produced the binary.
@@ -51,7 +50,7 @@ Because the build runs inside ``nix develop .#build``, which already carries
 QEMU's full build toolchain (``inputsFrom = [ pkgs.qemu ]``: meson, ninja, GCC,
 ``pkg-config``, glib, pixman, and the rest), there is no distro-package install
 step and no toolchain-presence check. Those stages, which a distro-driven build
-needs, simply disappear here.
+needs, are absent here.
 
 Provisioning
 ============
@@ -68,9 +67,8 @@ The :src:`f/workbench/init` flow provisions a durable Bare at
 ``$SYSTEM_DIR/bare/qemu.git`` with ``git init --bare``, borrowing the mirror's
 objects through an alternate and fetching its heads into
 ``refs/remotes/mirror/*``. ``refs/heads/*`` stays reserved for developer
-branches. This step is
-idempotent, run over :src:`f/workbench/fetch` from a source list (kernel plus
-QEMU by default).
+branches. This step is idempotent, run over :src:`f/workbench/fetch` from a
+source list (kernel plus QEMU by default).
 
 Off that Bare, ``prepare_worktree`` re-syncs this worker's one warm ``main``
 worktree at ``WORKERS_DIR/<WORKER_INDEX>/qemu`` to the requested ref with
@@ -79,8 +77,7 @@ keeps rebuilds incremental, and because each worker has its own warm tree,
 builds on different workers run in parallel. ``build/`` and ``destdir/`` are
 children of that source checkout. Everything lives under ``WORKERS_DIR``, a
 host path, so a host-forked process (the guest's QEMU) reads the artifacts
-directly. For the durable-Bare rationale see
-:doc:`/concepts/build-store`.
+directly. For the durable-Bare rationale see :doc:`/concepts/build-store`.
 
 The flow
 ========
@@ -163,7 +160,7 @@ relative to that prefix, which is stable because the slot path is stable.
 Schema inputs
 =============
 
-The form surfaces the choices a maintainer actually makes:
+The form surfaces the choices a maintainer makes:
 
 ``ref``
    The branch or tag to build, picked from the Bare's live ref list
@@ -172,7 +169,7 @@ The form surfaces the choices a maintainer actually makes:
 
 ``custom_ref`` and ``qemu_ref``
    The advanced override: turn on ``custom_ref`` and ``qemu_ref`` replaces
-   the picked ref with any tag, branch, or SHA, resolved exactly like the
+   the picked ref with any tag, branch, or SHA, resolved the same way as the
    kernel flow's ``git_ref``.
 
 ``custom_label`` and ``label``
@@ -228,10 +225,9 @@ The form surfaces the choices a maintainer actually makes:
 ``deploy_developer_worktree`` and the group knobs
    Drive the optional developer-worktree tail, described next.
 
-The source URL is not a flow input: it is fixed by the mirror, exactly as the
-kernel build takes a ref but not a URL. Build parallelism is
-``make --jobs=$(nproc)``; concurrent builds share the CPUs per build, through
-the worker units' equal CPU weight.
+The source URL is not a flow input: it is fixed by the mirror, as the kernel
+build takes a ref but not a URL. Build parallelism is ``make --jobs=$(nproc)``;
+concurrent builds share the CPUs through the worker units' equal CPU weight.
 
 The developer-worktree tail
 ===========================
@@ -245,47 +241,46 @@ independent of where the build ran (:doc:`/concepts/terms`). Turning on
 
 ``deploy_worktree``
    Reuses :src:`f/workbench/worktree/init` to lay or refresh
-   ``WORKTREES_DIR/<group>/qemu`` at the ref this build actually built, or at
+   ``WORKTREES_DIR/<group>/qemu`` at the ref this build built, or at
    the ``b4/<slug>`` branch the worker published when a series was applied.
 
 ``fetch_devel``
    Materializes this build's devel layer into that worktree and relocates the
    index onto it, so ``clangd`` resolves the generated headers without the
-   developer ever building QEMU themselves.
+   developer building QEMU.
 
 The group is not asked for by default: it takes the build's own auto-derived
 name, the same one that labels the build identity. So a stock tag build deploys
 into ``vanilla``, a ``b4`` series deploys into a group named for the series
-title, and a developer branch into one named for the ref. That is deliberate.
-``vanilla`` asserts an unmodified baseline (ADR-0008), so a patched tree must
-not land there by default, and a real topic gets its own group without anyone
-having to name it.
+title, and a developer branch into one named for the ref. ``vanilla`` asserts
+an unmodified baseline (ADR-0008), so a patched tree must not land there by
+default, and a real topic gets its own group without anyone having to name it.
 
 Turn on ``custom_group`` to name the group yourself, and
-``recreate_developer_worktree`` to re-cut it rather than reuse it. Naming it is
-what ties projects together: because a worktree-group holds one worktree per
-project a topic involves, setting the same name here and in
-:doc:`kernel-build` is what makes that group carry both ``linux`` and ``qemu``,
-each indexed against the build that produced it. Left automatic, a patched
+``recreate_developer_worktree`` to re-cut it rather than reuse it. Naming it
+ties projects together: a worktree-group holds one worktree per project a topic
+involves, so setting the same name here and in :doc:`kernel-build` makes that
+group carry both ``linux`` and ``qemu``, each indexed against the build that
+produced it. Left automatic, a patched
 kernel and a stock QEMU land in different groups, which is correct for what
 each build is but is not one topic.
 
-The tail interacts with reuse in one way worth knowing: if this identity's run
-layer is already present but its devel layer was never published, the tail
-cannot be satisfied from the Store, so the run rebuilds rather than reusing.
-``install`` and ``publish`` still skip, since the run layer really is there;
-only ``configure``, ``compile`` and ``publish_devel`` run, and the next run of
-the same identity is fast again. Without the tail requested, a run-layer hit
-reuses exactly as before. See :doc:`/concepts/build-store`.
+The tail interacts with reuse in one way: if this identity's run layer is
+already present but its devel layer was never published, the tail cannot be
+satisfied from the Store, so the run rebuilds rather than reusing. ``install``
+and ``publish`` still skip, since the run layer is there; only ``configure``,
+``compile`` and ``publish_devel`` run, and the next run of the same identity is
+fast again. Without the tail requested, a run-layer hit reuses as before.
+See :doc:`/concepts/build-store`.
 
 The tail leaves the build untouched, and it is off by default. It never
 discards work: the sync's whole vocabulary is ``git worktree add``, a plain
-``git checkout`` of a branch, and ``git merge --ff-only``, none of them forcing,
-so when it cannot reach the built commit without overwriting something it says
-which one thing stopped it, leaves the tree exactly as it found it, and lets the
+``git checkout`` of a branch, and ``git merge --ff-only``, and none of them
+forces. When it cannot reach the built commit without overwriting something, it
+says which one thing stopped it, leaves the tree as it found it, and lets the
 build finish. See :doc:`kernel-build` for the state-by-state behaviour, which is
-shared. The one thing to know before turning it on is that the fetch copies over
-the worktree's ``build/``.
+shared. Before turning it on, note that the fetch copies over the worktree's
+``build/``.
 
 Toolchain notes
 ===============
@@ -400,8 +395,8 @@ Like the kernel build, every QEMU build is content-addressed by a 12-hex
 **build identity**: a hash over the target list, configure flags, compiler,
 toolchain store path, and source tree (the worktree's ``HEAD`` tree, so a ``b4``
 series re-applied with ``git am`` keeps one identity over identical content).
-QEMU has no ``kernelrelease`` to bake
-it into, so the identity keys the install prefix instead. The prefix leads with
+QEMU has no ``kernelrelease`` to bake it into, so the identity keys the install
+prefix instead. The prefix leads with
 the QEMU version (from the source's ``VERSION`` file, the analog of the kernel
 version) and a readable **label** follows:
 ``destdir/<version>-<label>-<identity>``, which :src:`f/qemu/publish` stores as
@@ -409,19 +404,18 @@ version) and a readable **label** follows:
 kernel build uses, with the same precedence and the same ``b4`` handling: a
 ``custom_label`` override; else, for a ``b4`` series, the series-root (cover)
 subject as a slug carrying the revision (read from a ``[PATCH vN]`` bracket or
-a trailing ``vN``, appended as ``-v<N>`` only when actually present and never
+a trailing ``vN``, appended as ``-v<N>`` only when present and never
 invented); else ``vanilla`` for an upstream tag checked out with no series;
 else a slug of the ``qemu_ref``. See :doc:`kernel-build` for the full label and
-revision rules. So
-a stock v11.0.0 tag build reads ``qemu-11.0.0-vanilla-<identity>`` and a v3
-series ``qemu-11.0.0-<cover-title>-v3-<identity>``. The QEMU difference is that
-the label prefixes the install prefix and store key rather than
-``kernelrelease``, and because there is no 64-character ``uname -r`` to fit, it
-takes a flat length cap with no release-budget math (a matched ``-v<N>`` still
-survives the cap). The 12-hex identity still disambiguates
-configs: two builds of one ref with different configure flags or compilers share
-the label and differ only in the identity, so they never collide in the prefix
-or the store key.
+revision rules. So a stock v11.0.0 tag build reads
+``qemu-11.0.0-vanilla-<identity>`` and a v3 series
+``qemu-11.0.0-<cover-title>-v3-<identity>``. The QEMU difference is that the
+label prefixes the install prefix and store key rather than ``kernelrelease``,
+and because there is no 64-character ``uname -r`` to fit, it takes a flat
+length cap with no release-budget math (a matched ``-v<N>`` still survives the
+cap). The 12-hex identity still disambiguates configs: two builds of one ref
+with different configure flags or compilers share the label and differ only in
+the identity, so they never collide in the prefix or the store key.
 
 How the guest layer consumes this
 =================================
@@ -429,13 +423,12 @@ How the guest layer consumes this
 kdevops runs each guest as a ``qemu-system@<vm>.service`` systemd service unit
 (an instance of the ``qemu-system@.service`` template unit) plus its
 ``virtiofsd@.service`` in the per-user service manager, and that unit consumes
-both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the
-unit's ``ExecStart=`` emulator, while the ``bzImage`` and modules from
+both build flows: ``qemu_binary`` from ``f/qemu/build`` becomes the unit's
+``ExecStart=`` emulator, while the ``bzImage`` and modules from
 ``f/kernel/build`` become ``-kernel`` and the virtiofs ``/lib/modules`` share.
 Because both manifests' paths live under ``WORKERS_DIR``, a host path, the
 host-forked unit resolves them directly; the host distro QEMU is never
-referenced. For inspecting a running
-guest see :doc:`/flows/guests`.
+referenced. For inspecting a running guest see :doc:`/flows/guests`.
 
 Future variant: QEMU as a Nix derivation
 ========================================

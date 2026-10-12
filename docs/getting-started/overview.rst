@@ -23,36 +23,35 @@ can run yourself.
 Project status
 ==============
 
-kdevops-ng is a proof of concept, not a separate product; "ng" is the working
-name for this proposal, not a second project. The intent is to merge it
-upstream into `kdevops`_ once the community has discussed the direction. The
-proposal and early maintainer feedback live in the `mailing-list thread`_; read
-it before assuming anything here is settled.
+kdevops-ng is a proof of concept, not a separate product: "ng" is the working
+name for this proposal. The intent is to merge it upstream into `kdevops`_ once
+the community has discussed the direction. The proposal and early maintainer
+feedback live in the `mailing-list thread`_; read it before assuming anything
+here is settled.
 
 .. _kdevops: https://github.com/linux-kdevops/kdevops
 .. _mailing-list thread: https://lore.kernel.org/all/9f64bee9-ecc3-4587-9645-2190223cbc4e@kernel.org/
 
 Merging upstream is deliberately staged: additive first, convergence later.
 
-**Additive first.** The new path uses Nix for the reproducible environment,
-Windmill for workflow orchestration, and systemd for execution; it arrives
-alongside the existing Kconfig + Make + Ansible path and never threatens it.
-Nix supplies that environment identically across the controller and every
+The first stage is additive. The new path uses Nix for the reproducible
+environment, Windmill for workflow orchestration, and systemd for execution; it
+arrives alongside the existing Kconfig + Make + Ansible path and never threatens
+it. Nix supplies that environment identically across the controller and every
 target, VM guest or baremetal. Within that path, QEMU guests already run as
 systemd user services (QSU, in kdevops today), and ng extends this to the test
 runs, so guests and suites alike are started, stopped, monitored and logged
 through the process manager. Nothing a current user relies on changes, so
 adoption is opt-in and requires no migration.
 
-The new path is fully independent of the old one. That independence is the
-point: it is what lets the two coexist without entanglement now, and what would
-make a later deprecation a clean removal rather than surgery.
+The new path is independent of the old one, so the two coexist without
+entanglement now, and a later deprecation would remove the old path cleanly.
 
-**Convergence later.** I believe the Nix + Windmill + systemd path is where
-kdevops should ultimately land, and this proposal does not pretend otherwise.
-But any deprecation of the old path is a later step the community signs off on,
-gated on a working migration already being in place. Trying the new path never
-requires accepting that endpoint.
+The later stage is convergence. I believe the Nix + Windmill + systemd path is
+where kdevops should ultimately land, and this proposal does not pretend
+otherwise. But any deprecation of the old path is a later step the community
+signs off on, gated on a working migration already being in place. Trying the
+new path never requires accepting that endpoint.
 
 Repository layout
 =================
@@ -80,5 +79,5 @@ The big pieces:
   rendered site, including the architecture decision records under
   ``notes/adr/``.
 
-The on-disk area where kernels and QEMU are actually built is the *workbench*,
-which is runtime and not tracked in git; see :doc:`/concepts/terms`.
+The on-disk area where kernels and QEMU are built is the *workbench*, which is
+runtime and not tracked in git; see :doc:`/concepts/terms`.

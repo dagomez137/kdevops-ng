@@ -12,8 +12,7 @@ patch, and a maintainer before applying one, and which step of
 ``Documentation/process/submit-checklist.rst`` and
 ``Documentation/process/submitting-patches.rst``, with the commands from
 ``Documentation/dev-tools/``, ``Documentation/doc-guide/`` and
-``Documentation/rust/``. Every row quotes or names those files; nothing is
-invented.
+``Documentation/rust/``. Every row quotes or names those files.
 
 C
 =

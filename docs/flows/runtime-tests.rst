@@ -51,12 +51,12 @@ Two properties of the upstream unit shape the plumbing. Its ``ExecStart``
 carries systemd's ``-`` prefix, so the start job finishes ``done``
 whatever the module returned, and because systemd logs an expected
 process exit only at debug level, the exit status never reaches the
-journal at all: the verdict instead rides what is observable, the run
+journal at all. The verdict instead rides two observable things: the run
 evidence in the kernel log (the summary counts or a per-module sentinel
-line) and the module's post-run **load state**, which each class
+line), and the module's post-run **load state**, which each class
 determines (a passing exit-honest module stays loaded, a completed
-auto-unload module is gone, and a still-loaded ``test_ida`` is precisely
-a failed one). And the unit's ``ConditionKernelModuleLoaded=!%i`` skips
+auto-unload module is gone, and a still-loaded ``test_ida`` is a failed
+one). And the unit's ``ConditionKernelModuleLoaded=!%i`` skips
 it entirely when the module is already loaded, which the flow treats as
 a failed run identity (nothing ran); ``start`` therefore unloads a
 stay-loaded module before starting, so every run is a fresh run.

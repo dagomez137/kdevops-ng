@@ -6,10 +6,10 @@
 Testing NVMe CMB and PMR
 =========================
 
-This is a how-to for exercising an emulated NVMe Controller Memory Buffer
-(CMB) and Persistent Memory Region (PMR) inside a guest VM. It covers two
-mutually exclusive paths: the `SPDK`_ userspace driver (the primary path) and
-the in-kernel ``nvme`` driver (the no-SPDK alternative).
+An emulated NVMe Controller Memory Buffer (CMB) and Persistent Memory Region
+(PMR) can be exercised inside a guest VM along two mutually exclusive paths:
+the `SPDK`_ userspace driver (the primary path) and the in-kernel ``nvme``
+driver (the no-SPDK alternative).
 
 The guests are produced by the boot flow (:src:`f/qsu/boot`); see
 :doc:`/flows/guests` for how to inspect a running guest. `QEMU`_ emits the CMB
@@ -87,7 +87,7 @@ vendored-flake edit reaches the closure.
    $ }'
 
 Then ``ssh vm-spdk``. To change the vIOMMU later, reconfigure in place (reuse
-the kernel and closure, just re-render): set ``kernel_source`` and
+the kernel and closure and only re-render): set ``kernel_source`` and
 ``closure_source`` to ``reuse``, ``reuse_from_vm`` to the guest, and flip
 ``boot_qemu.iommu``.
 

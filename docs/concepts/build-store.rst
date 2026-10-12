@@ -12,7 +12,7 @@ build is keyed by a reproducible build identity. That identity is published to
 the `Nix store`_ and indexed, so a later build with the same identity skips
 compilation, and a peer's build can be pulled over the network. Each build
 follows one decision rule: reuse a local build, else fetch a peer's, else build
-from source. Fetch beats build.
+from source.
 
 The Store moves build outputs through the Nix store rather than ``rsync``. ADR
 0005 first chose a custom identity-keyed destdir with an ``rsync`` fetch and
@@ -20,8 +20,7 @@ recorded the Nix-store transport (``nix store add-path`` plus ``nix copy``) as
 the expected evolution; that evolution is what runs today. The toolchain is
 already a pinned `Nix`_ devShell, so two hosts building from one ``flake.lock``
 get a byte-identical toolchain closure, and publishing the outputs to that same
-store and moving them with ``nix copy`` reuses the Nix machinery rather than
-reinventing a transport.
+store and moving them with ``nix copy`` needs no transport of its own.
 
 Build identity
 ==============
@@ -70,8 +69,8 @@ consumer fetches only what it needs.
      - the clangd and rust-analyzer indexes on a developer worktree, and
        out-of-tree module builds against the kernel it describes
 
-Keeping the layers apart means a boot fetch stays lean and never drags the much
-larger devel layer (186 MiB for a ``CONFIG_RUST=y`` kernel, 24 MiB for QEMU),
+Keeping the layers apart means a boot fetch never pulls the larger devel
+layer (186 MiB for a ``CONFIG_RUST=y`` kernel, 24 MiB for QEMU),
 while a developer fetching an index never pulls boot images. Each devel layer's
 composition, and the allowlist that builds it, live in
 :src:`f/kernel/publish_devel.py` and :src:`f/qemu/publish_devel.py`.
@@ -120,7 +119,7 @@ Each symlink is also a Nix GC root, created with ``nix build --out-link``, so
 the store path survives ``nix store gc`` until the entry is removed. The catalog
 is the authoritative, host-local list of available identities. Store-path names
 alone are too noisy to trust, since nixpkgs ships its own ``-kernel-*`` paths. A
-peer's catalog is simply the same directory read over SSH.
+peer's catalog is the same directory read over SSH.
 
 How the build flows use it
 ==========================
@@ -153,7 +152,7 @@ layers therefore land before ``reuse_check`` probes them. Without this, a peer's
 run layer would arrive on its own, ``devel_present`` would be false, and the
 rule below would rebuild the whole thing locally to regenerate a layer the peer
 had already published. It stays off by default so a boot-oriented build never
-drags the much larger devel layer across the wire.
+pulls the larger devel layer across the wire.
 
 publish and publish_devel
 -------------------------
@@ -170,7 +169,7 @@ For the same reason ``reuse_check`` reports ``devel_present`` alongside
 ``present``, and a run with a developer worktree requested does not accept a
 run-layer hit when the devel layer is missing: it rebuilds, publishes the devel
 layer, and indexes the worktree. Install and publish stay skipped in that case,
-since the run layer really is present. Once the devel layer exists, the fast
+since the run layer is present. Once the devel layer exists, the fast
 reuse path returns.
 
 fetch_devel
@@ -197,9 +196,9 @@ source with the build's command database and produce an index that looks
 complete and is not. The skip is decided before the layer is resolved, so it
 cannot turn into a failure through the step's ``required`` input.
 
-It runs standalone, and it also runs as
-the tail of either build flow when **Deploy Developer Worktree** is on, after
-:src:`f/workbench/worktree/init` has laid the group worktree at the built ref.
+It runs standalone, and it also runs as the tail of either build flow when
+**Deploy Developer Worktree** is on, after :src:`f/workbench/worktree/init` has
+laid the group worktree at the built ref.
 Pointing both build flows at one worktree-group is how that group comes to hold
 both projects, ``linux`` and ``qemu``, each indexed against the build that
 produced it.
@@ -282,7 +281,7 @@ from the list above):
    $ nix store verify --recursive "$sp"
 
 A published run layer is added with ``nix store add-path``, which records no
-references, so an entry's closure is just itself: ``--recursive`` and ``nix
+references, so an entry's closure is the entry alone: ``--recursive`` and ``nix
 why-depends`` have nothing to walk here. To compare two builds, ``nix store
 diff-closures`` still reports their release names and the size delta, a quick
 "are these different, and by how much":

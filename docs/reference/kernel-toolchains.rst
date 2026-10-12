@@ -10,10 +10,10 @@ Building the kernel needs a toolchain that satisfies the kernel's own
 requirements, and on Nix that takes more care than passing a single flag. Two
 toolchains have non-obvious wiring: `Clang/LLVM`_, where the nixpkgs cc-wrapper
 fights the kernel's include handling, and `Rust`_, where the supported version
-window moves with the kernel version. This page records the durable recipe for
-each. The Clang/LLVM recipe is implemented in the ``build-kernel`` devShell of
-``vendor/nixos-flake`` and consumed by :src:`f/kernel/build_flags.py`; the Rust
-requirements drive both that devShell and any per-kernel toolchain selection.
+window moves with the kernel version. The Clang/LLVM recipe is implemented in
+the ``build-kernel`` devShell of ``vendor/nixos-flake`` and consumed by
+:src:`f/kernel/build_flags.py`; the Rust requirements drive both that devShell
+and any per-kernel toolchain selection.
 
 Clang and LLVM
 ==============
@@ -33,7 +33,7 @@ The nixpkgs cc-wrapper exists so that a bare ``clang`` redirects to Nix's own
 libc headers. It does this by adding ``-nostdlibinc`` to every invocation. The
 kernel, however, compiles with ``-nostdinc`` and
 ``-Werror=unused-command-line-argument``, so the wrapper's ``-nostdlibinc`` is
-flagged as unused and becomes a hard error on the very first object
+flagged as unused and becomes a hard error on the first object
 (``scripts/mod/empty.o``). This hits both the target compiler (``CC``) and the
 host compiler (``HOSTCC``)::
 
@@ -62,7 +62,7 @@ The proven recipe
 -----------------
 
 This mirrors what the nixpkgs kernel build itself does in
-``pkgs/os-specific/linux/kernel/common-flags.nix``, which notably does not use
+``pkgs/os-specific/linux/kernel/common-flags.nix``, which does not use
 ``LLVM=1`` and instead sets each tool by hand:
 
 - ``CC`` is the unwrapped ``clang``. Dropping the wrapper drops the
@@ -116,8 +116,8 @@ into the single make-flags string that every make step (configure, compile,
 devtools, install) consumes. The kernel requires the same ``LLVM=`` value on
 each make invocation when configuring and building through separate commands
 (``Documentation/kbuild/llvm.rst``), so producing the flags once keeps the
-toolchain consistent across steps. ccache composes naturally:
-``CC="ccache <unwrapped-clang>"`` for the target, leaving ``HOSTCC`` wrapped.
+toolchain consistent across steps. For ccache, set
+``CC="ccache <unwrapped-clang>"`` for the target and leave ``HOSTCC`` wrapped.
 
 QEMU under Clang
 ----------------
@@ -134,10 +134,7 @@ Rust
 
 Building a kernel with ``CONFIG_RUST=y`` needs a Rust toolchain inside the
 kernel's supported version window, and that window moves with the kernel
-version. This chapter records where the requirements are stated, how to
-cross-match a kernel to a toolchain, what the ``build-kernel`` devShell
-provides, and how to pin an older toolchain, so that a "bump the kernel" or
-"bump the toolchain" task does not have to re-derive any of it.
+version.
 
 Where the requirements are stated
 ---------------------------------
@@ -149,7 +146,7 @@ order:
 ``scripts/min-tool-version.sh``
    The canonical, machine-readable source. It echoes the enforced minimum
    ``rustc``, ``bindgen``, ``llvm`` (and GCC) versions per tool, and is what the
-   build actually checks.
+   build checks.
 
 ``scripts/rust_is_available.sh``
    The gate behind ``make rustavailable``. It reads ``min-tool-version.sh``,
@@ -165,7 +162,7 @@ order:
    The setup guide: install instructions plus the recommended toolchain and the
    ``RUST_LIB_SRC`` wiring.
 
-The Rust for Linux `rust-version-policy`_ is the why behind the moving window:
+The Rust for Linux `rust-version-policy`_ explains the moving window:
 the minimum tracks Debian Stable's ``rustc`` and advances roughly per Debian
 release, while there is no hard maximum, since new releases are CI-tested and
 have worked with every version since the minimum. bindgen is CI-tested with no
@@ -199,13 +196,13 @@ v6.11 - v6.18 1.78.0    0.65.1      no          no
 v7.1+         1.85.0    0.71.1      yes         yes
 ============= ========= =========== =========== ================
 
-The consequences are that no single ``rustc`` serves both ends: v6.18 needs
-``rustc`` in roughly the [1.78, 1.84] range, before ``rustc`` tightened
-custom-target loading, while v7.1 and newer need 1.85 or later and tolerate
-1.95. A toolchain good for one silently fails the other. The minimum bump is the
-trigger: ``rustc`` minimum went 1.78 to 1.85 at v7.1 (the Debian Stable cadence)
-and bindgen minimum went 0.65.1 to 0.71.1, so always re-read
-``min-tool-version.sh`` at the new ref before bumping the kernel.
+No single ``rustc`` serves both ends: v6.18 needs ``rustc`` in roughly the
+[1.78, 1.84] range, before ``rustc`` tightened custom-target loading, while v7.1
+and newer need 1.85 or later and tolerate 1.95. A toolchain good for one
+silently fails the other. The minimum bump is the trigger: ``rustc`` minimum
+went 1.78 to 1.85 at v7.1 (the Debian Stable cadence) and bindgen minimum went
+0.65.1 to 0.71.1, so always re-read ``min-tool-version.sh`` at the new ref
+before bumping the kernel.
 
 To extend the table for a new ref, read its ``min-tool-version.sh`` (``rustc``
 plus ``bindgen``) and check ``rust/Makefile`` and ``scripts/Makefile.build``
@@ -217,8 +214,8 @@ A too-old toolchain builds without Rust, silently
 If ``rustc`` is below the kernel's minimum, ``rust_is_available.sh`` fails,
 Kconfig sets ``RUST_IS_AVAILABLE=n``, and any preset with ``CONFIG_RUST=y`` is
 silently downgraded: ``alldefconfig`` and ``olddefconfig`` drop it and the build
-succeeds without Rust. Confirm that Rust actually built by checking that the
-resulting config still carries ``CONFIG_RUST=y``::
+succeeds without Rust. Confirm that Rust built by checking that the resulting
+config still carries ``CONFIG_RUST=y``::
 
    grep --extended-regexp '^CONFIG_RUST(_IS_AVAILABLE)?=' <build_dir>/.config
 
@@ -229,8 +226,7 @@ The ``build-kernel`` devShell in ``vendor/nixos-flake`` (its ``matrixExtras``)
 ships nixpkgs' own ``rustc``, ``rust-bindgen``, and ``rustfmt``, plus
 ``rustPlatform.rustLibSrc`` exported as ``RUST_LIB_SRC`` so the kernel builds
 ``core`` and ``alloc`` from source. On nixos-26.05 that is ``rustc`` 1.95.0 with
-bindgen 0.72.1, which is inside the v7.1 and newer window, so it suits modern
-kernels (v7.1 and later).
+bindgen 0.72.1, which is inside the window of v7.1 and newer kernels.
 
 Pinning an older toolchain
 --------------------------

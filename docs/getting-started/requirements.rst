@@ -6,7 +6,7 @@ Requirements
 
 kdevops-ng targets a Linux distribution with two things installed: `systemd`_
 and `Nix`_ (the package manager). The host's systemd runs the `Windmill`_ stack
-and  the guest VMs as ``systemd --user`` services, and Nix builds and runs
+and the guest VMs as ``systemd --user`` services, and Nix builds and runs
 everything else: the Windmill server, the kernels and QEMU under test, and the
 developer tooling. So the host stays minimal: it needs no distro QEMU or build
 packages, only Nix and a little kernel-level access for the guests.

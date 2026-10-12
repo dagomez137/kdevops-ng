@@ -7,10 +7,10 @@ Workspace YAML format
 The workspace content under ``f/`` is stored as YAML. ``wmill`` emits a
 canonical form when it serializes the instance, and this project keeps the
 files in exactly that form, so ``wmill sync push`` and ``wmill sync pull``
-round-trip with no diff (see the `wmill sync`_ reference). That is what lets a
-contributor edit in the Windmill UI or through the CLI interchangeably. Treat
-the YAML as a wire format: do not hand-tune its layout, because the next sync
-would rewrite it.
+round-trip with no diff (see the `wmill sync`_ reference), and a contributor can
+edit in the Windmill UI or through the CLI interchangeably. Treat the YAML as a
+wire format: do not hand-tune its layout, because the next sync would rewrite
+it.
 
 .. _wmill sync: https://www.windmill.dev/docs/advanced/cli/sync
 
@@ -56,9 +56,9 @@ Descriptions
 ``wmill`` keeps a ``description`` as a readable literal ``|-`` block only when
 every rendered line fits in 80 columns. A single longer line flips the whole
 description to a folded ``>`` block, which double-spaces the prose and strands
-orphan words. So descriptions are wrapped so that no line passes 80 columns. A
-line is its indentation plus its content, so a deeper-nested description wraps
-narrower.
+orphan words. Descriptions are therefore wrapped to keep every line within 80
+columns. A line is its indentation plus its content, so a deeper-nested
+description wraps narrower.
 
 ``nix run .#reflow`` rewraps every description in place. ``nix flake check``,
 through ``scripts/reflow-descriptions.py --check``, fails if a committed

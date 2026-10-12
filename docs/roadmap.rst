@@ -4,11 +4,10 @@
 Roadmap
 =======
 
-This page records the direction for kdevops-ng. It is a living list of intended
-work grouped by theme, not a set of dated commitments; see
+This is the intended work for kdevops-ng, grouped by theme and undated; see
 :doc:`getting-started/overview` for the current project status. Each card
-carries a status, :bdg-primary:`planned`, :bdg-warning:`research`, or
-:bdg-info:`staging`, and an entry that extends an existing foundation names it.
+carries a status (:bdg-primary:`planned`, :bdg-warning:`research` or
+:bdg-info:`staging`), and an entry that extends an existing foundation names it.
 
 Documentation and presentation
 ==============================
@@ -20,8 +19,8 @@ Documentation and presentation
 
       :bdg-primary:`planned`
 
-      Add "built with" badges for the three core components, `Nix`_,
-      `systemd`_, and `Windmill`_, to the landing page or footer.
+      Add "built with" badges for the three core components (`Nix`_,
+      `systemd`_ and `Windmill`_) to the landing page or footer.
       `Built With Nix`_ supplies the Nix badge; the others need making.
 
    .. grid-item-card:: Tagged documentation
@@ -128,10 +127,10 @@ Build identity and artifact storage
 
       Because each result is stored and addressed independently, a baseline
       and a development run need not happen together or in parallel. A vanilla
-      baseline tested once is reused months later against a freshly archived
-      result, so a baseline that already exists for the profile a user needs
-      is never re-run. Git distributes the result store; Windmill steps consume
-      it through Nix to assemble the report.
+      baseline tested once under a profile is reused months later against a
+      freshly archived result instead of being re-run. Git distributes the
+      result store; Windmill steps consume it through Nix to assemble the
+      report.
 
 Test coverage
 =============

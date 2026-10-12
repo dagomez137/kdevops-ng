@@ -49,7 +49,7 @@ fetches new refs and tags on already-present bares.
 ssh-config; off skips it and an existing key is left alone.
 **Regenerate SSH Key** forces a fresh keypair even when one exists,
 which invalidates the authorized key already baked into every deployed
-guest, so only use it when rotating deliberately. **Setup Mirrors**
+guest, so use it only to rotate the key. **Setup Mirrors**
 installs and enables the ``git-mirror@<repo>`` refresh timers.
 
 Verifying the result

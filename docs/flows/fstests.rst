@@ -48,7 +48,7 @@ A plain XFS section uses the first two disks (any extras become a
 ``SCRATCH_DEV_POOL``). An **external-device** section, an XFS realtime or
 external-log profile such as ``xfs_realtime_rtx2_bs4k_ss4k``, gives *both*
 filesystems a dedicated realtime or log volume: the test filesystem at
-``/media/test`` is then itself realtime, not just the scratch one. Such a
+``/media/test`` is then realtime as well as the scratch one. Such a
 section needs four disks, or five with the log-writes device, which is why
 :src:`f/qsu/bringup` attaches five by default. A guest with too few is short a
 role, so ``render_config`` skips that section rather than run it wrong.
@@ -62,7 +62,7 @@ itself, attaches each realtime or log volume through its own ``mkfs`` and
 ``-o rtdev=`` mount, and remakes ``TEST_DEV`` once per section when the
 **Recreate TEST_DEV** form knob is on (the default; off reuses the existing test
 filesystem, which ``./check`` then only mounts).
-:src:`prepare <f/fstests/prepare>` just creates the mount points and loads the
+:src:`prepare <f/fstests/prepare>` creates the mount points and loads the
 filesystem driver; each unit reads its section's own config through its env
 file, so nothing needs activating.
 
@@ -86,8 +86,8 @@ test inside its own transient scope, ``fs<test>.scope`` (for example
 ``fsgeneric-310.scope``), created with :cmd:`systemd-run` in ``--scope`` mode
 when the guest has systemd; the xfstests overlay
 (:src:`vendor/nixos-flake/overlays/xfstests.nix`) adds the per-test watchdog
-on top. The scope is what makes a single test independently observable and
-killable from outside the run.
+on top. The scope makes a single test observable and killable from outside
+the run.
 
 Service units to query
 ======================
@@ -165,9 +165,9 @@ Running a section by hand
 ``render_config`` arms every geometry-valid section by default, so the guest is
 a complete bench: each section already carries its own ``<section>.config`` and
 ``<section>.env`` on the share, which the systemd unit reads via ``%i``. Any
-section is therefore a one-command run with its own devices and flags, no
-shared active-config to swap and no re-render. List the armed sections and
-start one, following its journal:
+section is therefore a one-command run with its own devices and flags: there
+is no shared active config to swap and nothing to re-render. List the armed
+sections and start one, following its journal:
 
 .. code-block:: console
    :caption: guest
@@ -206,9 +206,9 @@ points at the section's own device-bound config). systemd re-reads the
 
 The mount points and the filesystem driver come from ``prepare``, a flow step,
 so a section run purely by hand after a fresh boot wants those in place first;
-re-running the flow is the simplest way to (re)create them. The flow is the
-canonical path anyway: it regenerates every section's config and env from the
-form, so by-hand edits are a scratch pad, overwritten on the next run.
+re-running the flow is the simplest way to (re)create them. The flow stays
+the canonical path: it regenerates every section's config and env from the
+form, so the next run overwrites by-hand edits.
 
 Restarting a hung test
 ======================
