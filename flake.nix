@@ -28,7 +28,7 @@
       inherit (nixpkgs) lib;
       systems = [ "x86_64-linux" ];
       forAllSystems = lib.genAttrs systems;
-      pkgsFor = system: nixpkgs.legacyPackages.${system};
+      pkgsFor = system: nixpkgs.legacyPackages.${system}.extend (import ./nix/overlays);
       treefmtFor = system: treefmt-nix.lib.evalModule (pkgsFor system) ./nix/treefmt.nix;
       lintSrc = lib.fileset.toSource {
         root = ./.;
@@ -90,7 +90,9 @@
       devShells = lib.mapAttrs (_: v: v.devShells) perSystem;
       apps = lib.mapAttrs (_: v: v.apps) perSystem;
       checks = lib.mapAttrs (_: v: v.checks) perSystem;
-      packages = forAllSystems (system: windmill-deploy.packages.${system});
+      packages = forAllSystems (
+        system: windmill-deploy.packages.${system} // { inherit (pkgsFor system) b4; }
+      );
       formatter = forAllSystems (system: (treefmtFor system).config.build.wrapper);
     };
 }

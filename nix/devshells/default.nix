@@ -11,6 +11,7 @@ let
     inputsFrom = [ checks ];
     packages = [
       wmill
+      pkgs.b4
       pkgs.git-subrepo
       pkgs.minijinja
     ];
