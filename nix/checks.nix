@@ -4,10 +4,13 @@
   lintSrc,
   generatedSrc,
   testsSrc,
+  nixSrc,
+  shellSrc,
+  apps,
   toolsets,
 }:
 let
-  inherit (pkgs) runCommandLocal;
+  inherit (pkgs) lib runCommandLocal;
 in
 {
   lint = runCommandLocal "kdevops-ng-check-lint" { nativeBuildInputs = [ pkgs.ruff ]; } ''
@@ -46,4 +49,40 @@ in
         bash scripts/check-generated.sh
         touch $out
       '';
+
+  # statix and deadnix over the root and deploy Nix; the deploy backend owns
+  # its formatting (treefmt skips it), so nixfmt checks it here. vendor/ is
+  # each project's own (scripts/check-vendor.sh).
+  nix-lint =
+    runCommandLocal "kdevops-ng-check-nix-lint"
+      {
+        nativeBuildInputs = [
+          pkgs.statix
+          pkgs.deadnix
+          pkgs.nixfmt
+        ];
+      }
+      ''
+        cd ${nixSrc}
+        statix check .
+        deadnix --fail .
+        nixfmt --check $(find deploy -name '*.nix')
+        touch $out
+      '';
+
+  shellcheck =
+    runCommandLocal "kdevops-ng-check-shellcheck" { nativeBuildInputs = [ pkgs.shellcheck ]; }
+      ''
+        cd ${shellSrc}
+        shellcheck --external-sources $(find . -type f)
+        touch $out
+      '';
+
+  # Building every app runs writeShellApplication's own shellcheck on it.
+  apps = pkgs.linkFarm "kdevops-ng-check-apps" (
+    lib.mapAttrsToList (name: app: {
+      inherit name;
+      path = app.program;
+    }) apps
+  );
 }

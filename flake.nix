@@ -48,6 +48,23 @@
           ./vendor/nixos-flake/templates
         ];
       };
+      nixSrc = lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./flake.nix
+          ./nix
+          (lib.fileset.fileFilter (file: file.hasExt "nix") ./deploy)
+        ];
+      };
+      shellSrc = lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./scripts/check-generated.sh
+          ./scripts/check-style.sh
+          ./scripts/commit-msg
+          ./deploy/nix/bin
+        ];
+      };
       generatedSrc = lib.fileset.toSource {
         root = ./.;
         fileset = lib.fileset.unions [
@@ -60,16 +77,17 @@
         let
           pkgs = pkgsFor system;
           toolsets = import ./nix/toolsets.nix { inherit pkgs; };
+          apps = import ./nix/apps {
+            inherit pkgs toolsets;
+            inherit (windmill-deploy.packages.${system}) wmill;
+          };
         in
         {
           devShells = import ./nix/devshells {
             inherit pkgs toolsets;
             inherit (windmill-deploy.packages.${system}) wmill;
           };
-          apps = import ./nix/apps {
-            inherit pkgs toolsets;
-            inherit (windmill-deploy.packages.${system}) wmill;
-          };
+          inherit apps;
           checks =
             import ./nix/checks.nix {
               inherit
@@ -77,6 +95,9 @@
                 lintSrc
                 generatedSrc
                 testsSrc
+                nixSrc
+                shellSrc
+                apps
                 toolsets
                 ;
             }
