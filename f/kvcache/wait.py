@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 
 from f.common.devshell import Systemd
-from f.kvcache.common import RemoteSystemd, _safe_preset
+from f.kvcache.common import _safe_preset, manager
 from f.kvcache.common import list_vms as _list_vms
 
 _DONE = ("inactive", "failed")
@@ -49,9 +49,10 @@ def main(
     timeout: int = 86400,
     poll_interval: int = 15,
     stream_logs: bool = True,
+    target: str = "vm",
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
-    remote = RemoteSystemd(workers, vm_name)
+    remote = manager(workers, vm_name, target)
     host = Systemd(workers)
     preset = _safe_preset(preset)
     unit = f"kvcache-bench@{preset}.service"
@@ -76,13 +77,19 @@ def main(
             print(body, flush=True)
 
     while True:
-        host_state = (
-            host.systemctl("is-active", qemu_unit, capture=True, check=False) or ""
-        ).strip()
-        if host_state not in ("active", "activating"):
-            crashed = True
-            print(f"{vm_name}: {qemu_unit} is {host_state!r}; guest gone", flush=True)
-            break
+        # A local target has no qemu-system@ unit: the workload host is the
+        # worker host itself, so there is no separate liveness to watch.
+        if target != "local":
+            host_state = (
+                host.systemctl("is-active", qemu_unit, capture=True, check=False) or ""
+            ).strip()
+            if host_state not in ("active", "activating"):
+                crashed = True
+                print(
+                    f"{vm_name}: {qemu_unit} is {host_state!r}; guest gone",
+                    flush=True,
+                )
+                break
         try:
             state = remote.show(unit, "Result", "ExecMainStatus", "ActiveState")
         except Exception as exc:  # noqa: BLE001 - transient vsock hiccup

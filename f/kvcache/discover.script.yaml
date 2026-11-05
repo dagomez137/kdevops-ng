@@ -1,19 +1,25 @@
 summary: Discover a guest's kvcache readiness
 description: |-
-  Discover a booted guest's kvcache readiness over vsock-SSH (read-
-  only).
+  Discover a target's kvcache readiness (read-only).
 
-  Checks the guest is up and kvcache-ready: the `kvcache-bench@.service`
-  template and `vllm-serve.service` are present (the closure carried the
-  kvcache suite), the packaged replayer is executable at the path the
-  unit's own `ExecStart` names, the `/var/lib/kvcache` share is mounted
-  and writable (the units' EnvironmentFile contract), and a GPU node is
-  visible when the `gpu` profile is expected to have loaded a driver.
-  Enumerates the running kernel release and the replayer's presets, and
-  writes the presets to the per-VM picker cache on the share -- the
-  source the run form's dropdown reads. Mutates nothing on the guest.
+  Checks the target is up and kvcache-ready: the `kvcache-
+  bench@.service` template and `vllm-serve.service` are present, the
+  replayer is executable at the path the unit's own `ExecStart` names,
+  the state directory the units' EnvironmentFile lines point at exists
+  and is writable, and a GPU node is visible. Enumerates the running
+  kernel release and the replayer's presets, and writes the presets to
+  the per-target picker cache the run form's dropdown reads. Mutates
+  nothing on the target.
 
-  Equivalent commands, against the guest over vsock-SSH:
+  `target` selects what is probed: `vm` (the default) drives a booted
+  guest carrying the kvcache test suite over vsock-SSH, with the state
+  directory `/var/lib/kvcache` reached host-side through the `kvcache`
+  share; `local` drives the worker host's own `systemd --user` manager
+  (a bare-metal GPU box attached as a tagged worker, units installed per
+  deploy/spark), with the state directory `$XDG_STATE_HOME/kvcache`
+  probed directly.
+
+  Equivalent commands, for the vm target over vsock-SSH:
 
       systemctl --host <vm> is-system-running
       systemctl --host <vm> list-unit-files \
@@ -32,6 +38,7 @@ schema:
   type: object
   order:
   - vm_name
+  - target
   properties:
     vm_name:
       type: object
@@ -39,6 +46,19 @@ schema:
         Booted VM (from f/qsu/bringup) to operate on, over vsock-SSH.
       format: dynselect-list_vms
       title: VM Name
+    target:
+      type: string
+      description: |-
+        What the step drives: `vm` (the default) reaches a booted guest over
+        vsock-SSH with state on the `kvcache` share; `local` drives the worker
+        host's own `systemd --user` manager with state under
+        `$XDG_STATE_HOME/kvcache` (a bare-metal GPU worker, units installed
+        per deploy/spark/README.md).
+      default: vm
+      enum:
+      - vm
+      - local
+      title: Target
   required:
   - vm_name
 tag: vm

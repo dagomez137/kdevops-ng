@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.kvcache.common import RemoteSystemd, _safe_preset
+from f.kvcache.common import _safe_preset, manager
 from f.kvcache.common import list_vms as _list_vms
 
 
@@ -26,8 +26,10 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
-def main(vm_name: str, preset: str, stop_engine: bool = False) -> dict:
-    remote = RemoteSystemd(Path(os.environ["WORKERS_DIR"]), vm_name)
+def main(
+    vm_name: str, preset: str, stop_engine: bool = False, target: str = "vm"
+) -> dict:
+    remote = manager(Path(os.environ["WORKERS_DIR"]), vm_name, target)
     preset = _safe_preset(preset)
     stopped = [f"kvcache-bench@{preset}.service"]
     remote.systemctl("stop", stopped[0])

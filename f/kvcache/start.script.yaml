@@ -34,6 +34,7 @@ schema:
   - vm_name
   - preset
   - kernel_version
+  - target
   properties:
     vm_name:
       type: object
@@ -54,6 +55,19 @@ schema:
       description: |-
         The guest's kernel release (`uname -r`, from discover); keys the
         results subtree.
+    target:
+      type: string
+      description: |-
+        What the step drives: `vm` (the default) reaches a booted guest over
+        vsock-SSH with state on the `kvcache` share; `local` drives the worker
+        host's own `systemd --user` manager with state under
+        `$XDG_STATE_HOME/kvcache` (a bare-metal GPU worker, units installed
+        per deploy/spark/README.md).
+      default: vm
+      enum:
+      - vm
+      - local
+      title: Target
   required:
   - vm_name
   - preset

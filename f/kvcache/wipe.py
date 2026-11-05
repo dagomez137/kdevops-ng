@@ -24,8 +24,8 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
-def main(vm_name: str, preset: str, kernel_version: str) -> dict:
-    out = results_dir(vm_name, kernel_version, preset)
+def main(vm_name: str, preset: str, kernel_version: str, target: str = "vm") -> dict:
+    out = results_dir(vm_name, kernel_version, preset, target=target)
     existed = out.is_dir()
     if existed:
         shutil.rmtree(out)

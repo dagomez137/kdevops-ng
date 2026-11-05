@@ -29,7 +29,7 @@ from f.kvcache.common import (
     _atomic_write,
     _safe_preset,
     env_file,
-    share_dir,
+    workload_dir,
 )
 from f.kvcache.common import list_vms as _list_vms
 
@@ -56,9 +56,10 @@ def main(
     max_sessions: int = 0,
     workers: int = 4,
     max_tokens: int = 256,
+    target: str = "vm",
 ) -> dict:
     preset = _safe_preset(preset)
-    share = share_dir(vm_name)
+    share = workload_dir(vm_name, target)
 
     serve_args = [
         f"--max-model-len {int(max_model_len)}",

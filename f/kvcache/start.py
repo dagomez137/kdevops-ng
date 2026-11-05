@@ -31,7 +31,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from f.kvcache.common import RemoteSystemd, _safe_preset, results_dir
+from f.kvcache.common import _safe_preset, manager, results_dir
 from f.kvcache.common import list_vms as _list_vms
 
 
@@ -40,14 +40,18 @@ def list_vms(filterText: str = "", **_: object) -> list[dict]:
     return _list_vms(filterText)
 
 
-def main(vm_name: str, preset: str, kernel_version: str = "") -> dict:
+def main(
+    vm_name: str, preset: str, kernel_version: str = "", target: str = "vm"
+) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
-    remote = RemoteSystemd(workers, vm_name)
+    remote = manager(workers, vm_name, target)
     preset = _safe_preset(preset)
     unit = f"kvcache-bench@{preset}.service"
 
     if kernel_version:
-        stale = results_dir(vm_name, kernel_version, preset) / "summary.json"
+        stale = (
+            results_dir(vm_name, kernel_version, preset, target=target) / "summary.json"
+        )
         if stale.is_file():
             stale.unlink()
             print(f"+ removed stale {stale}", flush=True)
