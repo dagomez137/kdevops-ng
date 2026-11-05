@@ -26,7 +26,10 @@
     }:
     let
       inherit (nixpkgs) lib;
-      systems = [ "x86_64-linux" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
       forAllSystems = lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
       treefmtFor = system: treefmt-nix.lib.evalModule (pkgsFor system) ./nix/treefmt.nix;
