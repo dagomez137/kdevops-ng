@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+#
+# Readiness as a unit rather than a poll loop in a driver script: gate on an
+# actual /health response. RemainAfterExit so later bench instances see it
+# active without re-probing an already-warm engine.
+[Unit]
+Description=Wait for the vLLM engine to accept requests
+Requires=vllm-serve.service
+After=vllm-serve.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StateDirectory=kvcache
+ExecStart=%S/kvcache/pkgs/curl/bin/curl --retry 360 --retry-delay 5 \
+    --retry-all-errors --fail --silent --show-error \
+    http://127.0.0.1:8000/health
+TimeoutStartSec=infinity
+SyslogIdentifier=vllm-ready

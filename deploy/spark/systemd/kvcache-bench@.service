@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+#
+# The replay as a first-class systemd unit; %i is a preset name. Requires=
+# pulls the engine and its readiness gate up, so a driver issues exactly one
+# start. Type=oneshot lands a real Result/ExecMainStatus (the replayer's exit
+# code, failed-session gate included). Results keyed by the running kernel
+# release (%v), matching the guest unit, so runs under different kernels
+# never overwrite each other.
+[Unit]
+Description=KV cache trace replay (preset %i)
+Requires=vllm-ready.service
+After=vllm-ready.service
+
+[Service]
+Type=oneshot
+StateDirectory=kvcache
+EnvironmentFile=-%S/kvcache/%i.env
+WorkingDirectory=%S/kvcache
+ExecStart=%S/kvcache/pkgs/kvcache-bench/bin/kvcache-bench --preset %i \
+    --output %S/kvcache/%v/results/%i
+TimeoutStartSec=infinity
+SyslogIdentifier=kvcache-bench

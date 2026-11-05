@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+#
+# Carry the central instance's loopback-only PostgreSQL and server ports to
+# this worker host over SSH, supervised. Both ends stay bound to loopback by
+# design; adjust the host alias and the database port to match the central
+# deploy's env/database.env before enabling.
+[Unit]
+Description=Tunnel to the central Windmill database and server
+
+[Service]
+ExecStart=ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+    -L 5432:127.0.0.1:5432 -L 8002:127.0.0.1:8002 windmill-central
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: copyleft-next-0.3.1
+#
+# vLLM serving engine on a bare-metal worker host (local target).
+# Mirrors vendor/nixos-flake/modules/testSuites/kvcache.nix: same env-file
+# contract, state under %S/kvcache ($XDG_STATE_HOME/kvcache). ExecStart
+# resolves through the vllm-env out-link (see ../README.md); vLLM does not
+# sd_notify, so vllm-ready.service is the readiness gate, and Restart=no so
+# a crashed engine surfaces as a failed dependency of the bench run instead
+# of silently respawning mid-measurement.
+[Unit]
+Description=vLLM serving engine (LMCache KV offload)
+Documentation=https://docs.vllm.ai
+
+[Service]
+Type=exec
+StateDirectory=kvcache
+EnvironmentFile=%S/kvcache/vllm-serve.env
+WorkingDirectory=%S/kvcache
+ExecStart=%S/kvcache/pkgs/vllm-env/bin/vllm serve $VLLM_MODEL $VLLM_SERVE_ARGS
+Restart=no
+TimeoutStartSec=infinity
+SyslogIdentifier=vllm-serve
