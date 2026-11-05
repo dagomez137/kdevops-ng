@@ -25,7 +25,9 @@ let
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
     outputHash = "sha256-+V1CkHP+2R7cgjn7z4nKMI9GbDsomzStmIMwNFQfFgY=";
-  };
+    aarch64-linux = "sha256-dJ6ITfVTTkrbBfOe6koHHv6bqjRJ0VcuKAlEWSA9Cc8=";
+  }
+.${stdenvNoCC.hostPlatform.system};
 in
 runCommand "windmill-cli-${version}"
   {
