@@ -1,0 +1,384 @@
+summary: Run the KV cache workload on the worker's own host
+description: |-
+  Drive one KV cache replay preset on a bare-metal GPU worker host
+  (a unified-memory machine such as a DGX Spark, which offers no PCI
+  function to pass to a guest). The host attaches as a remote
+  Windmill worker serving the `spark` and `spark-run` tags, with the
+  vllm-serve, vllm-ready and kvcache-bench@ units installed under
+  its own `systemd --user` manager per deploy/spark/README.md; every
+  step runs with `target: local`, so state lives under
+  `$XDG_STATE_HOME/kvcache` on that host and no guest, share or
+  vsock transport is involved. The step sequence, the one-start
+  engine dependency chain and the kernel-keyed results layout are
+  identical to f/kvcache/run.
+value:
+  modules:
+  - id: discover
+    summary: Gate kvcache readiness, read kernel + presets
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        target:
+          type: static
+          value: local
+      path: f/kvcache/discover
+      tag_override: spark
+    timeout:
+      type: static
+      value: 300
+  - id: render_config
+    summary: Write vllm-serve.env + <preset>.env onto the share
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        model:
+          type: javascript
+          expr: flow_input.engine?.model
+        max_model_len:
+          type: javascript
+          expr: flow_input.engine?.max_model_len
+        dtype:
+          type: javascript
+          expr: flow_input.engine?.dtype
+        gpu_memory_utilization:
+          type: javascript
+          expr: flow_input.engine?.gpu_memory_utilization
+        enable_prefix_caching:
+          type: javascript
+          expr: flow_input.engine?.enable_prefix_caching
+        lmcache_enabled:
+          type: javascript
+          expr: flow_input.cache?.lmcache_enabled
+        lmcache_cpu_buffer_gb:
+          type: javascript
+          expr: flow_input.cache?.lmcache_cpu_buffer_gb
+        lmcache_local_disk:
+          type: javascript
+          expr: flow_input.cache?.lmcache_local_disk
+        extra_serve_args:
+          type: javascript
+          expr: flow_input.engine?.extra_serve_args
+        dataset:
+          type: javascript
+          expr: flow_input.replay?.dataset
+        source:
+          type: javascript
+          expr: flow_input.replay?.source
+        max_sessions:
+          type: javascript
+          expr: flow_input.replay?.max_sessions
+        workers:
+          type: javascript
+          expr: flow_input.replay?.workers
+        max_tokens:
+          type: javascript
+          expr: flow_input.replay?.max_tokens
+        target:
+          type: static
+          value: local
+      path: f/kvcache/render_config
+      tag_override: spark
+    timeout:
+      type: static
+      value: 120
+  - id: wipe
+    summary: Clear the preset's prior results for this kernel
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        kernel_version:
+          type: javascript
+          expr: results.discover.kernel_version
+        target:
+          type: static
+          value: local
+      path: f/kvcache/wipe
+      tag_override: spark
+    timeout:
+      type: static
+      value: 120
+  - id: start
+    summary: Start kvcache-bench@<preset> (engine pulled up by Requires=)
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        kernel_version:
+          type: javascript
+          expr: results.discover.kernel_version
+        target:
+          type: static
+          value: local
+      path: f/kvcache/start
+      tag_override: spark
+    timeout:
+      type: static
+      value: 300
+  - id: wait
+    summary: Poll the replay to its terminus (crash-detecting)
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        timeout:
+          type: javascript
+          expr: flow_input.service?.timeout
+        poll_interval:
+          type: javascript
+          expr: flow_input.service?.poll_interval
+        stream_logs:
+          type: javascript
+          expr: flow_input.service?.stream_logs
+        target:
+          type: static
+          value: local
+      path: f/kvcache/wait
+      tag_override: spark-run
+    timeout:
+      type: static
+      value: 90000
+  - id: collect
+    summary: Read summary.json back off the share
+    value:
+      type: script
+      input_transforms:
+        vm_name:
+          type: javascript
+          expr: flow_input.vm_name
+        preset:
+          type: javascript
+          expr: flow_input.preset
+        kernel_version:
+          type: javascript
+          expr: results.discover.kernel_version
+        target:
+          type: static
+          value: local
+      path: f/kvcache/collect
+      tag_override: spark
+    timeout:
+      type: static
+      value: 300
+  - id: report
+    summary: Flatten the headline numbers into the flow result
+    value:
+      type: script
+      input_transforms:
+        collected:
+          type: javascript
+          expr: results.collect
+        wait:
+          type: javascript
+          expr: results.wait
+      path: f/kvcache/report
+      tag_override: spark
+    timeout:
+      type: static
+      value: 120
+  - id: judge
+    summary: Fail the job unless the run passed
+    value:
+      type: script
+      input_transforms:
+        wait:
+          type: javascript
+          expr: results.wait
+        collected:
+          type: javascript
+          expr: results.collect
+      path: f/kvcache/judge
+      tag_override: spark
+    timeout:
+      type: static
+      value: 120
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+  - vm_name
+  - preset
+  - engine
+  - cache
+  - replay
+  - service
+  properties:
+    vm_name:
+      type: string
+      description: |-
+        Label for this host's runs (the picker cache and log prefix); no
+        guest is involved. Default names the worker group.
+      title: Host Label
+      default: spark
+    preset:
+      type: string
+      description: |-
+        Replay preset (`kvcache-bench@<preset>.service` instance):
+        swebench- realistic, swebench-burst, gaia-realistic, gaia-burst,
+        wildclaw-heavy, max-pressure. `f/kvcache/discover` caches the
+        guest's advertised list per VM.
+      default: swebench-realistic
+      title: Preset
+    engine:
+      type: object
+      description: |-
+        vLLM engine knobs (written to vllm-serve.env on the share).
+      default: {}
+      order:
+      - model
+      - max_model_len
+      - dtype
+      - gpu_memory_utilization
+      - enable_prefix_caching
+      - extra_serve_args
+      properties:
+        model:
+          type: string
+          description: |-
+            HF model id the engine serves.
+          default: facebook/opt-125m
+          title: Model
+        max_model_len:
+          type: integer
+          default: 8192
+          title: Max Model Len
+        dtype:
+          type: string
+          default: auto
+          title: Dtype
+        gpu_memory_utilization:
+          type: number
+          default: 0.85
+          title: GPU Memory Utilization
+        enable_prefix_caching:
+          type: boolean
+          default: true
+          title: Enable Prefix Caching
+        extra_serve_args:
+          type: string
+          description: |-
+            Appended verbatim to VLLM_SERVE_ARGS.
+          default: ''
+          title: Extra Serve Args
+      title: Engine
+    cache:
+      type: object
+      description: |-
+        LMCache offload knobs.
+      default: {}
+      order:
+      - lmcache_enabled
+      - lmcache_cpu_buffer_gb
+      - lmcache_local_disk
+      properties:
+        lmcache_enabled:
+          type: boolean
+          default: true
+          title: LMCache Enabled
+        lmcache_cpu_buffer_gb:
+          type: integer
+          description: |-
+            LMCACHE_MAX_LOCAL_CPU_SIZE in GiB.
+          default: 40
+          title: CPU Buffer (GiB)
+        lmcache_local_disk:
+          type: string
+          description: |-
+            Local-disk backend path, e.g.
+            file:///home/<user>/.local/state/kvcache/disk-cache/. On a
+            unified- memory host the CPU buffer shares the GPU's own DRAM, so
+            the NVMe tier is the one under test; empty disables it.
+          default: ''
+          title: Local Disk Backend
+      title: Cache
+    replay:
+      type: object
+      description: |-
+        Trace replay knobs (written to <preset>.env on the share).
+      default: {}
+      order:
+      - dataset
+      - source
+      - max_sessions
+      - workers
+      - max_tokens
+      properties:
+        dataset:
+          type: string
+          default: sammshen/lmcache-agentic-traces
+          title: Dataset
+        source:
+          type: string
+          description: |-
+            Dataset source-column filter; empty = all.
+          default: ''
+          title: Source
+        max_sessions:
+          type: integer
+          description: |-
+            Session cap; 0 replays the whole dataset.
+          default: 8
+          title: Max Sessions
+        workers:
+          type: integer
+          description: |-
+            Concurrent sessions before the preset's multiplier.
+          default: 4
+          title: Workers
+        max_tokens:
+          type: integer
+          default: 256
+          title: Max Tokens / Turn
+      title: Replay
+    service:
+      type: object
+      description: |-
+        Run supervision knobs.
+      default: {}
+      order:
+      - timeout
+      - poll_interval
+      - stream_logs
+      properties:
+        timeout:
+          type: integer
+          description: |-
+            Wall-clock budget in seconds for the replay.
+          default: 86400
+          title: Timeout (s)
+        poll_interval:
+          type: integer
+          default: 15
+          title: Poll Interval (s)
+        stream_logs:
+          type: boolean
+          default: true
+          title: Stream Logs
+      title: Service
+  required:
+  - vm_name
+  - preset
