@@ -30,6 +30,7 @@ let
     aarch64-linux = "sha256-dJ6ITfVTTkrbBfOe6koHHv6bqjRJ0VcuKAlEWSA9Cc8=";
   }
 .${stdenvNoCC.hostPlatform.system};
+};
 in
 runCommand "windmill-cli-${version}"
   {
