@@ -118,7 +118,9 @@
           cpupower
           damo
           ebpf_exporter
+          kvcache-bench
           libbpf-tools
+          lmcache
           nfstest
           pynfs
           xnvme
