@@ -29,6 +29,7 @@ Equivalent commands:
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 
 from f.kvcache.common import _safe_preset, manager, results_dir
@@ -57,11 +58,36 @@ def main(
             print(f"+ removed stale {stale}", flush=True)
 
     remote.systemctl("start", "--no-block", unit)
-    active_state = remote.show(unit, "ActiveState").get("ActiveState", "")
-    if active_state not in ("activating", "active"):
+    # The unit sits behind Requires=vllm-ready -> vllm-serve, so right after a
+    # --no-block start its own ActiveState stays `inactive` while systemd runs
+    # the dependency jobs (the engine takes minutes to load). A queued start
+    # job (the `Job` property) therefore counts as started; only inactive with
+    # NO pending job is a start that never took. Poll briefly: each read is a
+    # full devShell round trip, so a handful of attempts spans the window in
+    # which a genuinely broken unit settles.
+    active_state = ""
+    for _ in range(10):
+        props = remote.show(unit, "ActiveState", "Result", "Job")
+        active_state = props.get("ActiveState", "")
+        if active_state in ("activating", "active"):
+            break
+        if props.get("Job"):
+            active_state = f"{active_state} (start job {props['Job']} queued)"
+            break
+        if active_state == "failed":
+            break
+        time.sleep(2)
+    if active_state.startswith("inactive") and "queued" not in active_state:
         raise RuntimeError(
             f"{vm_name}: {unit} did not start (ActiveState={active_state!r}, "
-            f"expected activating/active)"
+            f"Result={props.get('Result', '')!r}, no pending job); check the "
+            f"engine chain: journalctl --user -u vllm-serve.service"
+        )
+    if active_state == "failed":
+        raise RuntimeError(
+            f"{vm_name}: {unit} failed at start "
+            f"(Result={props.get('Result', '')!r}); a failed dependency "
+            f"(vllm-serve/vllm-ready) cancels the run -- read their journals"
         )
     print(f"{vm_name}: started {unit} (ActiveState={active_state})", flush=True)
     return {"vm": vm_name, "preset": preset, "unit": unit, "active_state": active_state}
