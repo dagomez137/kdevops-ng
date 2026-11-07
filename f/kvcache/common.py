@@ -223,13 +223,21 @@ def _atomic_write(path: Path, data: str, mode: int = 0o644) -> None:
 
 
 def env_file(pairs: dict[str, str]) -> str:
-    """Render a systemd EnvironmentFile body. Values are single-quoted with
-    embedded quotes escaped, so word-splitting happens only where a unit reads
-    an unquoted `$VAR` on purpose (VLLM_SERVE_ARGS)."""
+    """Render a systemd EnvironmentFile body.
+
+    systemd's EnvironmentFile parser is not a shell: it strips unescaped
+    quotes of either kind anywhere in the value, so a single-quoted wrapper
+    does not protect embedded JSON (the engine then receives
+    `{kv_connector:...}` and rejects it). The one form that round-trips is
+    a double-quoted value with backslash-escaped embedded quotes and
+    backslashes, which systemd reduces to the literal text; word-splitting
+    still happens only where a unit reads an unquoted `$VAR` on purpose
+    (VLLM_SERVE_ARGS), and the JSON carries no spaces so it stays one
+    argument."""
     lines = []
     for k, v in pairs.items():
-        vv = str(v).replace("'", "'\\''")
-        lines.append(f"{k}='{vv}'")
+        vv = str(v).replace("\\", "\\\\").replace('"', '\\"')
+        lines.append(f'{k}="{vv}"')
     return "\n".join(lines) + "\n"
 
 
