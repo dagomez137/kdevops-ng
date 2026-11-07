@@ -57,6 +57,12 @@ def main(
             stale.unlink()
             print(f"+ removed stale {stale}", flush=True)
 
+    # The invocation baseline: wait distinguishes "this run finished" from
+    # "this run never started" by the InvocationID changing from this value
+    # (a never-run unit reports systemd's defaults, Result=success and
+    # ExecMainStatus=0, which read exactly like a passed run).
+    invocation_baseline = remote.show(unit, "InvocationID").get("InvocationID", "")
+
     remote.systemctl("start", "--no-block", unit)
     # The unit sits behind Requires=vllm-ready -> vllm-serve, so right after a
     # --no-block start its own ActiveState stays `inactive` while systemd runs
@@ -90,4 +96,10 @@ def main(
             f"(vllm-serve/vllm-ready) cancels the run -- read their journals"
         )
     print(f"{vm_name}: started {unit} (ActiveState={active_state})", flush=True)
-    return {"vm": vm_name, "preset": preset, "unit": unit, "active_state": active_state}
+    return {
+        "vm": vm_name,
+        "preset": preset,
+        "unit": unit,
+        "active_state": active_state,
+        "invocation_baseline": invocation_baseline,
+    }

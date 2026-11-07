@@ -157,6 +157,9 @@ value:
         target:
           type: static
           value: local
+        invocation_baseline:
+          type: javascript
+          expr: results.start.invocation_baseline
       path: f/kvcache/wait
       tag_override: spark-run
     timeout:

@@ -50,6 +50,7 @@ def main(
     poll_interval: int = 15,
     stream_logs: bool = True,
     target: str = "vm",
+    invocation_baseline: str = "",
 ) -> dict:
     workers = Path(os.environ["WORKERS_DIR"])
     remote = manager(workers, vm_name, target)
@@ -62,6 +63,7 @@ def main(
     state: dict[str, str] = {}
     crashed = False
     timed_out = False
+    never_ran = False
     log_cursor: str | None = None
 
     def drain_logs() -> None:
@@ -91,12 +93,32 @@ def main(
                 )
                 break
         try:
-            state = remote.show(unit, "Result", "ExecMainStatus", "ActiveState")
-        except Exception as exc:  # noqa: BLE001 - transient vsock hiccup
+            state = remote.show(
+                unit, "Result", "ExecMainStatus", "ActiveState", "Job", "InvocationID"
+            )
+        except Exception as exc:  # noqa: BLE001 - transient transport hiccup
             print(f"{vm_name}: poll failed ({exc}); retrying", flush=True)
             state = {}
         drain_logs()
-        if state.get("ActiveState") in _DONE:
+        active = state.get("ActiveState", "")
+        if active == "failed":
+            break
+        if active == "inactive" and not state.get("Job"):
+            # inactive with no queued job is terminal only once a NEW
+            # invocation ran: a unit that never started reports systemd's
+            # defaults (Result=success, ExecMainStatus=0), which would
+            # otherwise read as a passed run. No new invocation here means
+            # the start job was cancelled (a collapsed Requires= chain).
+            inv = state.get("InvocationID", "")
+            if inv and inv != invocation_baseline:
+                break
+            never_ran = True
+            print(
+                f"{vm_name}: {unit} never ran (no new invocation; the "
+                f"engine chain failed?) -- journalctl --user "
+                f"-u vllm-serve.service -u vllm-ready.service",
+                flush=True,
+            )
             break
         if time.monotonic() >= deadline:
             timed_out = True
@@ -111,7 +133,11 @@ def main(
     result = state.get("Result", "")
     exec_status = state.get("ExecMainStatus", "")
     success = (
-        not crashed and not timed_out and result == "success" and exec_status == "0"
+        not crashed
+        and not timed_out
+        and not never_ran
+        and result == "success"
+        and exec_status == "0"
     )
     print(
         f"{vm_name}: {unit} done (Result={result!r} ExecMainStatus={exec_status!r} "
@@ -127,4 +153,5 @@ def main(
         "exec_main_status": exec_status,
         "crashed": crashed,
         "timed_out": timed_out,
+        "never_ran": never_ran,
     }

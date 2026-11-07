@@ -1,25 +1,27 @@
 summary: Run the KV cache workload against a booted guest
 description: |-
-  Drive one KV cache replay preset against an already-booted, kvcache-
-  ready guest (produced by `f/qsu/bringup` with the `kvcache` test suite
-  and the `gpu` profile in the closure, and a GPU passed through via the
-  boot flow's passthrough group).
+  Drive one KV cache replay preset against an already-booted,
+  kvcache- ready guest (produced by `f/qsu/bringup` with the
+  `kvcache` test suite and the `gpu` profile in the closure, and a
+  GPU passed through via the boot flow's passthrough group).
 
   Steps: `discover` gates readiness and reads the kernel release;
   `render_config` writes `vllm-serve.env` + `<preset>.env` onto the
-  `kvcache` share (the fstests virtiofs contract -- no closure rebuild
-  to change a model or preset); `wipe` clears the preset's prior results
-  for this kernel; `start` starts `kvcache-bench@<preset>.service` with
-  `--no- block` -- the ONLY start issued: the unit `Requires=vllm-
-  ready.service` which requires `vllm-serve.service`, so systemd brings
-  the engine up and gates on a real /health response itself; `wait`
-  polls the oneshot to its terminus with host-side crash detection;
-  `collect` reads `summary.json` back off the share; `report` flattens
-  the headline numbers (TTFT percentiles, cache counter deltas) into the
-  flow result; `judge` fails the job unless the run passed.
+  `kvcache` share (the fstests virtiofs contract -- no closure
+  rebuild to change a model or preset); `wipe` clears the preset's
+  prior results for this kernel; `start` starts `kvcache-
+  bench@<preset>.service` with `--no- block` -- the ONLY start
+  issued: the unit `Requires=vllm- ready.service` which requires
+  `vllm-serve.service`, so systemd brings the engine up and gates on
+  a real /health response itself; `wait` polls the oneshot to its
+  terminus with host-side crash detection; `collect` reads
+  `summary.json` back off the share; `report` flattens the headline
+  numbers (TTFT percentiles, cache counter deltas) into the flow
+  result; `judge` fails the job unless the run passed.
 
-  Telemetry (Grafana annotations / perfetto capture) is deliberately not
-  wired here yet, pending the host-event-capture design discussion.
+  Telemetry (Grafana annotations / perfetto capture) is deliberately
+  not wired here yet, pending the host-event-capture design
+  discussion.
 value:
   modules:
   - id: discover
@@ -151,6 +153,9 @@ value:
         stream_logs:
           type: javascript
           expr: flow_input.service?.stream_logs
+        invocation_baseline:
+          type: javascript
+          expr: results.start.invocation_baseline
       path: f/kvcache/wait
       tag_override: vm-run
     timeout:
@@ -221,17 +226,17 @@ schema:
     vm_name:
       type: string
       description: |-
-        Resolved VM name from `f/qsu/bringup` (its result's `vm_name`). The
-        guest must carry the `kvcache` suite and (for a real GPU) the `gpu`
-        profile in its closure.
+        Resolved VM name from `f/qsu/bringup` (its result's `vm_name`).
+        The guest must carry the `kvcache` suite and (for a real GPU) the
+        `gpu` profile in its closure.
       title: VM Name
     preset:
       type: string
       description: |-
-        Replay preset (`kvcache-bench@<preset>.service` instance): swebench-
-        realistic, swebench-burst, gaia-realistic, gaia-burst, wildclaw-heavy,
-        max-pressure. `f/kvcache/discover` caches the guest's advertised list
-        per VM.
+        Replay preset (`kvcache-bench@<preset>.service` instance):
+        swebench- realistic, swebench-burst, gaia-realistic, gaia-burst,
+        wildclaw-heavy, max-pressure. `f/kvcache/discover` caches the
+        guest's advertised list per VM.
       default: swebench-realistic
       title: Preset
     engine:
@@ -299,9 +304,9 @@ schema:
         lmcache_local_disk:
           type: string
           description: |-
-            Local-disk backend path (e.g. file:///var/lib/kvcache/disk-cache/);
-            empty = CPU buffer only. Point it at a guest NVMe mount to
-            characterise the offload path.
+            Local-disk backend path (e.g. file:///var/lib/kvcache/disk-
+            cache/); empty = CPU buffer only. Point it at a guest NVMe mount
+            to characterise the offload path.
           default: ''
           title: Local Disk Backend
       title: Cache

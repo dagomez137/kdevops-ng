@@ -38,6 +38,7 @@ schema:
   - poll_interval
   - stream_logs
   - target
+  - invocation_baseline
   properties:
     vm_name:
       type: object
@@ -82,6 +83,16 @@ schema:
       - vm
       - local
       title: Target
+    invocation_baseline:
+      type: string
+      description: |-
+        The unit's InvocationID before this run's start (from the start step's
+        result). A terminus of inactive with no queued job counts as finished
+        only once the InvocationID differs from this; otherwise the run never
+        started (a collapsed engine chain) and the step reports never_ran
+        instead of a false pass.
+      default: ''
+      title: Invocation Baseline
   required:
   - vm_name
   - preset

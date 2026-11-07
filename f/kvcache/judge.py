@@ -17,6 +17,10 @@ def main(wait: dict, collected: dict) -> dict:
         problems.append("guest crashed mid-run (host qemu-system unit not active)")
     if wait.get("timed_out"):
         problems.append("run exceeded the wait timeout")
+    if wait.get("never_ran"):
+        problems.append(
+            "the replay unit never ran (engine chain failed before it started)"
+        )
     if not wait.get("success"):
         problems.append(
             f"unit terminus not success (Result={wait.get('result')!r}, "
