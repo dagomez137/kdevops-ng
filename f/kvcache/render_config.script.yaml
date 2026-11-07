@@ -5,12 +5,12 @@ description: |-
   Writes onto `$WORKERS_DIR/shared/kvcache/<vm>` (the host side of the
   guest's `/var/lib/kvcache` mount) the files the guest's units read:
 
-    - `vllm-serve.env`: `vllm-serve.service`'s EnvironmentFile. VLLM_MODEL,
-      VLLM_SERVE_ARGS (max-model-len, dtype, gpu-memory-utilization, prefix
-      caching, the LMCache KV-connector wiring) and the LMCACHE_* variables
-      selecting the offload backend and buffer size.
-    - `<preset>.env`: `kvcache-bench@<preset>.service`'s EnvironmentFile.
-      Dataset, source filter, session cap, worker count, endpoint.
+  - `vllm-serve.env`: `vllm-serve.service`'s EnvironmentFile.
+  VLLM_MODEL, VLLM_SERVE_ARGS (max-model-len, dtype, gpu-memory-
+  utilization, prefix caching, the LMCache KV-connector wiring) and the
+  LMCACHE_* variables selecting the offload backend and buffer size. -
+  `<preset>.env`: `kvcache-bench@<preset>.service`'s EnvironmentFile.
+  Dataset, source filter, session cap, worker count, endpoint.
 
   Both are written atomically and echoed to the job log. Because config
   arrives over virtiofs rather than in the closure (the fstests
@@ -19,8 +19,8 @@ description: |-
 
   Equivalent commands:
 
-      cat > "$WORKERS_DIR/shared/kvcache/<vm>/vllm-serve.env"
-      cat > "$WORKERS_DIR/shared/kvcache/<vm>/<preset>.env"
+  cat > "$WORKERS_DIR/shared/kvcache/<vm>/vllm-serve.env" cat >
+  "$WORKERS_DIR/shared/kvcache/<vm>/<preset>.env"
 lock: '!inline f/kvcache/render_config.script.lock'
 kind: script
 schema:
@@ -44,6 +44,7 @@ schema:
   - workers
   - max_tokens
   - target
+  - api_port
   properties:
     vm_name:
       type: object
@@ -155,6 +156,14 @@ schema:
       - vm
       - local
       title: Target
+    api_port:
+      type: integer
+      description: |-
+        Port the engine serves on (vllm --port, the ready gate's URL and the
+        replayer's endpoint). On a host that also runs the Windmill stack,
+        8000 belongs to its reverse proxy; the local flow defaults to 8200.
+      default: 8000
+      title: API Port
   required:
   - vm_name
   - preset

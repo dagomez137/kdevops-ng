@@ -12,8 +12,12 @@ After=vllm-serve.service
 Type=oneshot
 RemainAfterExit=yes
 StateDirectory=kvcache
+# API_PORT comes from the same env file the engine reads; on a host that
+# also runs the Windmill stack, 8000 belongs to its reverse proxy, so the
+# engine must sit elsewhere (the flow defaults to 8200 for this reason).
+EnvironmentFile=%S/kvcache/vllm-serve.env
 ExecStart=%S/kvcache/pkgs/curl/bin/curl --retry 360 --retry-delay 5 \
     --retry-all-errors --fail --silent --show-error \
-    http://127.0.0.1:8000/health
+    http://127.0.0.1:${API_PORT}/health
 TimeoutStartSec=infinity
 SyslogIdentifier=vllm-ready

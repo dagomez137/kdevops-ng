@@ -90,6 +90,9 @@ value:
         max_tokens:
           type: javascript
           expr: flow_input.replay?.max_tokens
+        api_port:
+          type: javascript
+          expr: flow_input.engine?.api_port
       path: f/kvcache/render_config
       tag_override: vm
     timeout:
@@ -251,6 +254,7 @@ schema:
       - gpu_memory_utilization
       - enable_prefix_caching
       - extra_serve_args
+      - api_port
       properties:
         model:
           type: string
@@ -280,6 +284,12 @@ schema:
             Appended verbatim to VLLM_SERVE_ARGS.
           default: ''
           title: Extra Serve Args
+        api_port:
+          type: integer
+          description: |-
+            Engine port inside the guest (no proxy there; 8000 is fine).
+          default: 8000
+          title: API Port
       title: Engine
     cache:
       type: object

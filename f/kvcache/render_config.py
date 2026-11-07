@@ -56,12 +56,14 @@ def main(
     max_sessions: int = 0,
     workers: int = 4,
     max_tokens: int = 256,
+    api_port: int = 8000,
     target: str = "vm",
 ) -> dict:
     preset = _safe_preset(preset)
     share = workload_dir(vm_name, target)
 
     serve_args = [
+        f"--port {int(api_port)}",
         f"--max-model-len {int(max_model_len)}",
         f"--dtype {dtype}",
         f"--gpu-memory-utilization {float(gpu_memory_utilization)}",
@@ -79,6 +81,8 @@ def main(
     serve_env: dict[str, str] = {
         "VLLM_MODEL": model,
         "VLLM_SERVE_ARGS": " ".join(serve_args),
+        # vllm-ready's health URL; the units expand ${API_PORT} in ExecStart.
+        "API_PORT": str(int(api_port)),
     }
     if lmcache_enabled:
         serve_env["LMCACHE_MAX_LOCAL_CPU_SIZE"] = str(int(lmcache_cpu_buffer_gb))
@@ -86,6 +90,7 @@ def main(
             serve_env["LMCACHE_LOCAL_DISK"] = lmcache_local_disk.strip()
 
     bench_env = {
+        "KVBENCH_ENDPOINT": f"http://127.0.0.1:{int(api_port)}",
         "KVBENCH_DATASET": dataset,
         "KVBENCH_SOURCE": source,
         "KVBENCH_SESSIONS": str(int(max_sessions)),

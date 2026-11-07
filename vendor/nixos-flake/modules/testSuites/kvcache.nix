@@ -84,7 +84,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "${pkgs.curl}/bin/curl --retry 360 --retry-delay 5 --retry-all-errors --fail --silent --show-error http://127.0.0.1:8000/health";
+      EnvironmentFile = "${stateDir}/vllm-serve.env";
+      ExecStart = "${pkgs.curl}/bin/curl --retry 360 --retry-delay 5 --retry-all-errors --fail --silent --show-error http://127.0.0.1:\${API_PORT}/health";
       TimeoutStartSec = "infinity";
       SyslogIdentifier = "vllm-ready";
     };
