@@ -279,7 +279,10 @@ schema:
           title: Dtype
         gpu_memory_utilization:
           type: number
-          default: 0.85
+          description: |-
+            On a unified-memory host this fraction is carved out of the RAM
+            the OS runs in; render_config clamps it to 0.5.
+          default: 0.3
           title: GPU Memory Utilization
         enable_prefix_caching:
           type: boolean
