@@ -16,6 +16,8 @@ Type=oneshot
 StateDirectory=kvcache
 EnvironmentFile=-%S/kvcache/%i.env
 WorkingDirectory=%S/kvcache
+# The replayer pulls its dataset through the same HF cache the engine uses.
+Environment=HF_HOME=%S/kvcache/hf
 ExecStart=%S/kvcache/pkgs/kvcache-bench/bin/kvcache-bench --preset %i \
     --output %S/kvcache/%v/results/%i
 TimeoutStartSec=infinity
