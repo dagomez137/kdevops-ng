@@ -162,7 +162,9 @@ async def _replay_turn(
     ttft = None
     usage: dict = {}
     async with session.post(f"{endpoint}/v1/chat/completions", json=body) as resp:
-        resp.raise_for_status()
+        if resp.status != 200:
+            detail = " ".join((await resp.text()).split())[:300]
+            raise RuntimeError(f"HTTP {resp.status}: {detail}")
         async for raw in resp.content:
             line = raw.decode("utf-8", "replace").strip()
             if not line.startswith("data:"):
