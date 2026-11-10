@@ -64,10 +64,12 @@ def main(
     crashed = False
     timed_out = False
     never_ran = False
+    saw_running = False
     log_cursor: str | None = None
+    log_primed = False
 
     def drain_logs() -> None:
-        nonlocal log_cursor
+        nonlocal log_cursor, log_primed, saw_running
         if not stream_logs:
             return
         try:
@@ -77,6 +79,11 @@ def main(
             return
         if body.strip():
             print(body, flush=True)
+            # The first drain replays boot history; only lines after it are
+            # evidence this run's unit actually executed.
+            if log_primed:
+                saw_running = True
+        log_primed = True
 
     while True:
         # A local target has no qemu-system@ unit: the workload host is the
@@ -101,16 +108,20 @@ def main(
             state = {}
         drain_logs()
         active = state.get("ActiveState", "")
+        inv = state.get("InvocationID", "")
+        if active in ("activating", "active") or (inv and inv != invocation_baseline):
+            saw_running = True
         if active == "failed":
             break
         if active == "inactive" and not state.get("Job"):
-            # inactive with no queued job is terminal only once a NEW
-            # invocation ran: a unit that never started reports systemd's
-            # defaults (Result=success, ExecMainStatus=0), which would
-            # otherwise read as a passed run. No new invocation here means
-            # the start job was cancelled (a collapsed Requires= chain).
-            inv = state.get("InvocationID", "")
-            if inv and inv != invocation_baseline:
+            # inactive with no queued job is terminal only once the unit is
+            # known to have run: a unit that never started reports systemd's
+            # defaults (Result=success, ExecMainStatus=0), which would read
+            # as a passed run. A finished oneshot is garbage-collected and
+            # its InvocationID reads empty again, so the ID alone cannot
+            # tell success from never-ran; an observed activation or a new
+            # journal line counts as having run.
+            if saw_running:
                 break
             never_ran = True
             print(
