@@ -13,6 +13,8 @@
 # accounting, /metrics scrape).
 {
   lib,
+  stdenvNoCC,
+  makeWrapper,
   python3,
 }:
 let
@@ -24,10 +26,12 @@ let
     ]
   );
 in
-python3.pkgs.buildPythonApplication {
+# Plain mkDerivation: buildPythonApplication's fixup wraps every
+# executable in bin/, the hidden unwrapped script included, and python3
+# then executes a shell wrapper.
+stdenvNoCC.mkDerivation {
   pname = "kvcache-bench";
   version = "0.1.0";
-  format = "other";
 
   src = ./kvcache-bench;
 
@@ -39,7 +43,7 @@ python3.pkgs.buildPythonApplication {
       --add-flags $out/bin/.kvcache-bench-unwrapped
     runHook postInstall
   '';
-  nativeBuildInputs = [ python3.pkgs.wrapPython ];
+  nativeBuildInputs = [ makeWrapper ];
 
   meta = {
     description = "V3 agentic-trace replayer for KV cache characterisation";
