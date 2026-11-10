@@ -99,6 +99,26 @@ async def _first_model(session: aiohttp.ClientSession, endpoint: str) -> str:
     return models[0]
 
 
+_CHAT_ROLES = {"system", "user", "assistant"}
+
+
+def _clean_message(m: dict) -> dict:
+    """Reduce a trace message to the strict chat schema: role and content.
+
+    Arrow stores a message column as the union of every key the dataset
+    ever uses, so each dict arrives padded with None fields the OpenAI
+    schema forbids. A role outside the plain three replays as user text
+    prefixed with the original role: the cache sees tokens, not roles,
+    and the schema demands per-role ids the traces do not carry."""
+    role = str(m.get("role") or "user")
+    content = m.get("content")
+    content = "" if content is None else str(content)
+    if role not in _CHAT_ROLES:
+        content = f"[{role}] {content}"
+        role = "user"
+    return {"role": role, "content": content}
+
+
 def _normalize(row: dict, index: int) -> dict:
     """Map a trace row onto the replayer's turn shape.
 
@@ -117,7 +137,7 @@ def _normalize(row: dict, index: int) -> dict:
         "session_id": sid,
         "source": str(row.get("source", "")) or sid.split("__", 1)[0],
         "turn_index": int(row.get("turn_index", index)),
-        "messages": messages,
+        "messages": [_clean_message(dict(m)) for m in messages],
         "gap_seconds": float(row.get("gap_seconds", row.get("pre_gap", 0)) or 0),
         "output_length": int(row.get("output_length", 0) or 0),
     }
