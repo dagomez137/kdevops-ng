@@ -33,6 +33,10 @@ from f.kvcache.common import (
 )
 from f.kvcache.common import list_vms as _list_vms
 
+# On a unified-memory host the engine's reservation comes out of the RAM the
+# OS itself runs in; past this fraction the host thrashes and drops SSH.
+LOCAL_GPU_MEM_MAX = 0.5
+
 
 def list_vms(filterText: str = "", **_: object) -> list[dict]:
     """`dynselect-list_vms` entrypoint for `vm_name`: see `f.common.remote.list_vms`."""
@@ -62,19 +66,30 @@ def main(
     preset = _safe_preset(preset)
     share = workload_dir(vm_name, target)
 
+    gpu_mem = float(gpu_memory_utilization)
+    if target == "local" and gpu_mem > LOCAL_GPU_MEM_MAX:
+        print(
+            f"gpu_memory_utilization {gpu_mem} exceeds the local target's "
+            f"unified-memory ceiling; clamped to {LOCAL_GPU_MEM_MAX}",
+            flush=True,
+        )
+        gpu_mem = LOCAL_GPU_MEM_MAX
+
     serve_args = [
         f"--port {int(api_port)}",
         f"--max-model-len {int(max_model_len)}",
         f"--dtype {dtype}",
-        f"--gpu-memory-utilization {float(gpu_memory_utilization)}",
+        f"--gpu-memory-utilization {gpu_mem}",
     ]
     if enable_prefix_caching:
         serve_args.append("--enable-prefix-caching")
     if lmcache_enabled:
-        serve_args.append(
-            "--kv-transfer-config "
-            '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}'
-        )
+        serve_args += [
+            "--kv-transfer-config.kv_connector=LMCacheConnectorV1Dynamic",
+            "--kv-transfer-config.kv_role=kv_both",
+            "--kv-transfer-config.kv_connector_module_path="
+            "lmcache.integration.vllm.lmcache_connector_v1",
+        ]
     if extra_serve_args.strip():
         serve_args.append(extra_serve_args.strip())
 
