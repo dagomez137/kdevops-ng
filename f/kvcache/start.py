@@ -4,7 +4,12 @@
 Removes the preset's previous `summary.json` from the host side of the share
 first (the replayer writes it only at run end; a leftover from an earlier run
 of the same preset on the same kernel would otherwise stand in for a run that
-crashed, and read as a false pass). Then starts
+crashed, and read as a false pass). Stops the engine chain and clears failed
+unit state, so this run's units start fresh against the config render just
+wrote: a surviving engine would carry the previous run's settings and a warm
+cache, and a readiness gate still mid-retry from an earlier invocation reads
+a stale env snapshot and can cancel this run's start job when it gives up.
+Then starts
 `kvcache-bench@<preset>.service` with `--no-block`: the unit is
 `Type=oneshot` and a full replay runs for hours, so a blocking start would
 not return. The unit `Requires=vllm-ready.service`, which in turn requires
@@ -20,6 +25,9 @@ Equivalent commands:
     # host side of the share (stale-result removal):
     rm --force .../<vm>/<kver>/results/<preset>/summary.json
     # against the guest over vsock-SSH:
+    systemctl --host <vm> stop kvcache-bench@<preset>.service \\
+        vllm-ready.service vllm-serve.service
+    systemctl --host <vm> reset-failed
     systemctl --host <vm> start --no-block \\
         kvcache-bench@<preset>.service
     systemctl --host <vm> show \\
@@ -56,6 +64,11 @@ def main(
         if stale.is_file():
             stale.unlink()
             print(f"+ removed stale {stale}", flush=True)
+
+    # Reap earlier invocations before reading the baseline, dependents first.
+    for stale_unit in (unit, "vllm-ready.service", "vllm-serve.service"):
+        remote.systemctl("stop", stale_unit, check=False)
+    remote.systemctl("reset-failed", check=False)
 
     # The invocation baseline: wait distinguishes "this run finished" from
     # "this run never started" by the InvocationID changing from this value
