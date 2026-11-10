@@ -164,6 +164,15 @@ def _load_sessions(dataset: str, source: str, cap: int) -> list[list[dict]]:
     return ordered[:cap] if cap else ordered
 
 
+class _WindowCapped(Exception):
+    """A turn's prompt outgrew the serving model's context window.
+
+    An agentic session recorded against a larger-window model ends its
+    replay here by nature, not by fault: the turns up to this point are
+    valid measurement, so the session counts as window-capped rather
+    than failed."""
+
+
 async def _replay_turn(
     session: aiohttp.ClientSession, endpoint: str, model: str, turn: dict
 ) -> dict:
@@ -184,6 +193,8 @@ async def _replay_turn(
     async with session.post(f"{endpoint}/v1/chat/completions", json=body) as resp:
         if resp.status != 200:
             detail = " ".join((await resp.text()).split())[:300]
+            if resp.status == 400 and "maximum context length" in detail:
+                raise _WindowCapped(detail)
             raise RuntimeError(f"HTTP {resp.status}: {detail}")
         async for raw in resp.content:
             line = raw.decode("utf-8", "replace").strip()
@@ -219,6 +230,7 @@ async def _replay_session(
     mode: str,
     results: list[dict],
     failures: list[str],
+    capped: list[str],
 ) -> None:
     sid = str(turns[0]["session_id"]) if turns else "?"
     async with sem:
@@ -227,6 +239,13 @@ async def _replay_session(
                 await asyncio.sleep(float(turn.get("gap_seconds", 0) or 0) * gap_scale)
             try:
                 r = await _replay_turn(session, endpoint, model, turn)
+            except _WindowCapped:
+                capped.append(f"{sid}#{turn.get('turn_index')}")
+                print(
+                    f"session {sid} window-capped at turn {turn.get('turn_index')}",
+                    flush=True,
+                )
+                return
             except Exception as exc:  # noqa: BLE001 - accounted, never silent
                 failures.append(f"{sid}#{turn.get('turn_index')}: {exc}")
                 print(
@@ -263,6 +282,7 @@ async def _run(args: argparse.Namespace) -> int:
     timeout = aiohttp.ClientTimeout(total=None, sock_read=600)
     results: list[dict] = []
     failures: list[str] = []
+    capped: list[str] = []
     async with aiohttp.ClientSession(timeout=timeout) as http:
         model = os.environ.get("KVBENCH_MODEL") or await _first_model(http, endpoint)
         metrics_before = await _scrape_metrics(http, endpoint)
@@ -280,6 +300,7 @@ async def _run(args: argparse.Namespace) -> int:
                     mode,
                     results,
                     failures,
+                    capped,
                 )
                 for turns in sessions
             )
@@ -297,6 +318,7 @@ async def _run(args: argparse.Namespace) -> int:
         "source": source or None,
         "sessions": len(sessions),
         "sessions_failed": len(failures),
+        "sessions_window_capped": len(capped),
         "failure_rate": round(failure_rate, 4),
         "turns_completed": len(results),
         "wall_seconds": round(wall, 3),
