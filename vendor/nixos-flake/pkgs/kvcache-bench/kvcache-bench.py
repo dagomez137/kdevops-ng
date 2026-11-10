@@ -99,34 +99,62 @@ async def _first_model(session: aiohttp.ClientSession, endpoint: str) -> str:
     return models[0]
 
 
+def _normalize(row: dict, index: int) -> dict:
+    """Map a trace row onto the replayer's turn shape.
+
+    The published sammshen/lmcache-agentic-traces rows carry `input` (the
+    turn's full chat message list), `pre_gap` and `output_length`, encode
+    the trace source as the session id's `<source>__` prefix, and order
+    turns by row order; rows already in the replayer's own shape pass
+    through unchanged."""
+    sid = str(row["session_id"])
+    messages = row.get("messages") or row.get("input")
+    if messages is None and "prompt" in row:
+        messages = [{"role": "user", "content": str(row["prompt"])}]
+    if messages is None:
+        raise KeyError(f"session {sid}: row has neither messages/input nor prompt")
+    return {
+        "session_id": sid,
+        "source": str(row.get("source", "")) or sid.split("__", 1)[0],
+        "turn_index": int(row.get("turn_index", index)),
+        "messages": messages,
+        "gap_seconds": float(row.get("gap_seconds", row.get("pre_gap", 0)) or 0),
+        "output_length": int(row.get("output_length", 0) or 0),
+    }
+
+
 def _load_sessions(dataset: str, source: str, cap: int) -> list[list[dict]]:
     """Group the trace dataset into ordered per-session turn lists.
 
-    Filters on the dataset's own source column when a filter is given (never
-    by pattern-matching session ids). Each turn needs `session_id`,
-    `turn_index`, `prompt`, `gap_seconds` (missing gaps read as 0)."""
+    Rows are normalised first (see `_normalize`), then filtered on the
+    turn's source and grouped; `turn_index` falls back to row order, so
+    sessions replay in file order when the dataset carries no index."""
     from datasets import load_dataset  # deferred: heavy import
 
     ds = load_dataset(dataset, split="train")
-    rows = (r for r in ds if not source or str(r.get("source", "")) == source)
+    turns = (_normalize(r, i) for i, r in enumerate(ds))
+    rows = (t for t in turns if not source or t["source"] == source)
     sessions: dict[str, list[dict]] = {}
-    for r in rows:
-        sessions.setdefault(str(r["session_id"]), []).append(r)
+    for t in rows:
+        sessions.setdefault(t["session_id"], []).append(t)
     ordered = [
-        sorted(turns, key=lambda t: int(t.get("turn_index", 0)))
+        sorted(turns, key=lambda t: int(t["turn_index"]))
         for _, turns in sorted(sessions.items())
     ]
     return ordered[:cap] if cap else ordered
 
 
 async def _replay_turn(
-    session: aiohttp.ClientSession, endpoint: str, model: str, prompt: str
+    session: aiohttp.ClientSession, endpoint: str, model: str, turn: dict
 ) -> dict:
     """One streamed chat completion; returns ttft/latency/token counts."""
+    cap = int(os.environ.get("KVBENCH_MAX_TOKENS", "256"))
+    out_len = int(turn.get("output_length", 0) or 0)
     body = {
         "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": int(os.environ.get("KVBENCH_MAX_TOKENS", "256")),
+        "messages": turn["messages"],
+        # The trace's own completion length, bounded by the configured cap.
+        "max_tokens": min(out_len, cap) if out_len else cap,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
@@ -176,7 +204,7 @@ async def _replay_session(
             if mode == "paced" and gap_scale > 0:
                 await asyncio.sleep(float(turn.get("gap_seconds", 0) or 0) * gap_scale)
             try:
-                r = await _replay_turn(session, endpoint, model, str(turn["prompt"]))
+                r = await _replay_turn(session, endpoint, model, turn)
             except Exception as exc:  # noqa: BLE001 - accounted, never silent
                 failures.append(f"{sid}#{turn.get('turn_index')}: {exc}")
                 print(
