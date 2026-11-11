@@ -1,0 +1,30 @@
+{
+  "vm_name": "spark",
+  "preset": "swebench-realistic",
+  "engine": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "max_model_len": 32768,
+    "dtype": "auto",
+    "gpu_memory_utilization": 0.3,
+    "enable_prefix_caching": true,
+    "extra_serve_args": "",
+    "api_port": 8200
+  },
+  "cache": {
+    "lmcache_enabled": true,
+    "lmcache_cpu_buffer_gb": 4,
+    "lmcache_local_disk": ""
+  },
+  "replay": {
+    "dataset": "sammshen/lmcache-agentic-traces",
+    "source": "swebench",
+    "max_sessions": 8,
+    "workers": 2,
+    "max_tokens": 256
+  },
+  "service": {
+    "timeout": 3600,
+    "poll_interval": 10,
+    "stream_logs": true
+  }
+}
